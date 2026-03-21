@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VenueDesk — Customer Onboarding</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Variables ─────────────────────────────────────── */
+:root {
+  --bg-dark:    #06101f;
+  --bg-card:    rgba(13,21,46,0.82);
+  --bg-card2:   rgba(8,14,35,0.90);
+  --border:     rgba(99,120,186,0.14);
+  --border-hi:  rgba(99,120,186,0.32);
+  --primary:    #6366f1;
+  --primary-hi: #818cf8;
+  --danger:     #f87171;
+  --success:    #10b981;
+  --warning:    #f59e0b;
+  --text:       #eef2ff;
+  --text-muted: #8b9cc8;
+  --radius:     16px;
+  --radius-sm:  10px;
+}
+
+/* ── Reset & base ───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg-dark);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 15% -5%, rgba(99,102,241,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 110%, rgba(6,182,212,0.12) 0%, transparent 52%),
+    radial-gradient(ellipse 60% 80% at 50% 50%, rgba(8,14,32,0.60) 0%, transparent 100%);
+  min-height: 100vh;
+}
+
+/* ── Login overlay ──────────────────────────────────── */
+#loginOverlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-dark);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 15% -5%, rgba(99,102,241,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 110%, rgba(6,182,212,0.12) 0%, transparent 52%);
+}
+.ob-login-card {
+  background: rgba(10,17,38,0.88);
+  border: 1px solid var(--border-hi);
+  border-radius: 24px;
+  padding: 2.5rem 2.25rem 2rem;
+  width: 100%;
+  max-width: 400px;
+  backdrop-filter: blur(28px);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,120,186,0.10);
+}
+.ob-login-brand {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #eef2ff 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.25rem;
+}
+.ob-login-brand i { -webkit-text-fill-color: #6366f1; }
+.ob-login-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.ob-login-card .input-group {
+  margin-bottom: 1.1rem;
+}
+.ob-login-card label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ob-login-card input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: rgba(0,0,0,0.38);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ob-login-card input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+}
+.ob-login-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  margin-top: 0.5rem;
+}
+.ob-login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(99,102,241,0.4);
+}
+.ob-login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+#loginError {
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--danger);
+  display: none;
+}
+
+/* ── App shell ─────────────────────────────────────── */
+#mainApp { display: none; min-height: 100vh; }
+
+/* ── Topbar ─────────────────────────────────────────── */
+.ob-topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0 2rem;
+  height: 62px;
+  background: rgba(4,9,22,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.ob-brand {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #eef2ff 0%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.ob-brand i { -webkit-text-fill-color: #6366f1; font-size: 1rem; }
+.ob-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  background: rgba(99,102,241,0.18);
+  border: 1px solid rgba(99,102,241,0.35);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  -webkit-text-fill-color: #a5b4fc;
+  color: #a5b4fc;
+}
+.ob-topbar-spacer { flex: 1; }
+.ob-topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+.ob-admin-badge {
+  padding: 4px 14px;
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.28);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #34d399;
+  letter-spacing: 0.04em;
+}
+.ob-icon-btn {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.ob-icon-btn:hover { background: rgba(99,102,241,0.15); color: var(--primary-hi); border-color: var(--border-hi); }
+
+/* ── Main content ───────────────────────────────────── */
+.ob-main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ── Stats row ──────────────────────────────────────── */
+.ob-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.ob-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.ob-stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+.ob-stat-val {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #eef2ff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ob-stat-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Grid layout ────────────────────────────────────── */
+.ob-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .ob-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Cards ──────────────────────────────────────────── */
+.ob-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  backdrop-filter: blur(12px);
+}
+.ob-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+.ob-card-title i { color: var(--primary-hi); }
+.ob-card-title .title-actions { margin-left: auto; }
+
+/* ── Form ───────────────────────────────────────────── */
+.input-group { margin-bottom: 1rem; }
+.input-group label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.input-group input, .input-group select {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-group input:focus, .input-group select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.input-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hi);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn:hover { background: rgba(255,255,255,0.10); border-color: var(--border-hi); }
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: transparent;
+  color: #fff;
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(99,102,241,0.35); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+.btn-danger { background: rgba(239,68,68,0.12); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.22); }
+.btn-success { background: rgba(16,185,129,0.12); color: #10b981; border-color: rgba(16,185,129,0.28); }
+.btn-success:hover { background: rgba(16,185,129,0.22); }
+.btn-info { background: rgba(99,102,241,0.12); color: var(--primary-hi); border-color: rgba(99,102,241,0.3); }
+.btn-info:hover { background: rgba(99,102,241,0.22); }
+
+/* ── Table ──────────────────────────────────────────── */
+.ob-table-wrap { overflow-x: auto; margin: -0.25rem; padding: 0.25rem; }
+table { width: 100%; border-collapse: collapse; min-width: 580px; }
+thead th {
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(13,21,46,0.70);
+  border-bottom: 1px solid var(--border);
+}
+thead th:first-child { border-radius: 8px 0 0 0; }
+thead th:last-child  { border-radius: 0 8px 0 0; }
+tbody tr { transition: background 0.15s; }
+tbody tr:hover { background: rgba(99,120,186,0.07); }
+tbody td {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+.td-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.badge-id {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(99,102,241,0.16);
+  color: #a5b4fc;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.badge-active   { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); padding: 3px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; }
+.badge-inactive { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.25); padding: 3px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; }
+.text-muted { color: var(--text-muted); }
+
+/* ── Modal ──────────────────────────────────────────── */
+.ob-modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(2,5,18,0.75);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.ob-modal-overlay.open { display: flex; }
+.ob-modal {
+  background: rgba(10,17,40,0.96);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.5);
+}
+.ob-modal h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+.ob-modal .modal-sub {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+.ob-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.ob-modal-actions .btn { flex: 1; justify-content: center; }
+
+/* ── Venue Detail Modal ─────────────────────────────── */
+.ob-venue-detail {
+  background: rgba(10,17,40,0.97);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  width: min(96vw, 920px);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.65);
+}
+.ob-vd-header {
+  padding: 1.4rem 2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.ob-vd-header-icon { font-size: 2rem; flex-shrink: 0; }
+.ob-vd-header-title { flex: 1; min-width: 0; }
+.ob-vd-name { font-size: 1.2rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ob-vd-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem; }
+.ob-vd-close {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; padding: 6px 9px; border-radius: 8px; flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.ob-vd-close:hover { color: var(--danger); background: rgba(248,113,113,0.12); }
+.ob-vd-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 660px) { .ob-vd-body { grid-template-columns: 1fr; } }
+.ob-vd-left {
+  padding: 1.75rem 2rem;
+  border-right: 1px solid var(--border);
+}
+.ob-vd-right { padding: 1.75rem 2rem; }
+.ob-vd-section-title {
+  font-size: 0.69rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.ob-vd-field { margin-bottom: 1.1rem; }
+.ob-vd-label {
+  font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted); font-weight: 600; margin-bottom: 0.28rem;
+}
+.ob-vd-value { font-size: 0.94rem; font-weight: 500; color: var(--text); }
+.ob-vd-divider { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
+.ob-vd-quick-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ob-launch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+.ob-launch-btn {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+  text-align: left; color: var(--text); font-family: inherit; text-decoration: none;
+}
+.ob-launch-btn:hover { background: rgba(99,102,241,0.11); border-color: rgba(99,102,241,0.38); }
+.ob-launch-btn .lb-icon { font-size: 1.25rem; margin-bottom: 0.15rem; }
+.ob-launch-btn .lb-title { font-size: 0.82rem; font-weight: 700; }
+.ob-launch-btn .lb-desc { font-size: 0.71rem; color: var(--text-muted); line-height: 1.3; }
+.ob-launch-full {
+  width: 100%; padding: 0.85rem;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: none; border-radius: 10px; color: #fff;
+  font-family: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  transition: opacity 0.18s, transform 0.15s;
+}
+.ob-launch-full:hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* ── Toast ──────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 1.5rem; right: 1.5rem;
+  background: rgba(10,17,40,0.95);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  transform: translateY(120%);
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+  z-index: 9999;
+  max-width: 360px;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { border-color: rgba(16,185,129,0.5); color: #34d399; }
+#toast.error   { border-color: rgba(239,68,68,0.5); color: var(--danger); }
+
+/* ── Sidebar ────────────────────────────────────────── */
+:root { --sidebar-width: 260px; }
+aside {
+    width: var(--sidebar-width);
+    background: rgba(4, 9, 22, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 100;
+    overflow: hidden;
+    transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease;
+}
+.brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    font-size: 1.22rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+}
+.brand i { color: #6366f1; margin-right: 0.5rem; }
+.brand-text { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+.close-sidebar {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    min-height: unset;
+}
+.close-sidebar:hover { color: var(--text-main); }
+.sidebar-collapse-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px 7px;
+    border-radius: 6px;
+    line-height: 1;
+    min-height: unset;
+    flex-shrink: 0;
+}
+.sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+.sidebar-collapse-btn:hover { color: var(--primary); }
+aside nav { display: flex; flex-direction: column; flex: 1; overflow-y: auto; overflow-x: hidden; }
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 10px;
+    margin-bottom: 2px;
+    transition: all 0.2s;
+    font-weight: 500;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    min-height: unset;
+}
+.nav-link:not(.active):hover { color: #c7d2fe; background: rgba(99,102,241,0.09); }
+.nav-link.active {
+    background: linear-gradient(135deg, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.09) 100%);
+    color: #a5b4fc;
+    border-left: 3px solid var(--primary);
+    padding-left: 11px;
+}
+.nav-label { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 201;
+    background: rgba(15,23,42,0.9);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    min-height: unset;
+}
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+}
+.sidebar-overlay.active { display: block; }
+/* Offset topbar + main for sidebar */
+.ob-topbar { margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; }
+.ob-main   { margin-left: var(--sidebar-width); margin-right: 0; max-width: none; transition: margin-left 0.3s ease; }
+/* Collapsed states */
+body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+body.sidebar-collapsed .ob-topbar { margin-left: 68px; }
+body.sidebar-collapsed .ob-main   { margin-left: 68px; }
+body.sidebar-collapsed .brand-text { opacity: 0; width: 0; display: inline-block; }
+body.sidebar-collapsed .nav-label  { opacity: 0; width: 0; display: inline-block; }
+body.sidebar-collapsed .nav-link   { justify-content: center; gap: 0; padding: 12px 8px; font-size: 1.05rem; }
+body.sidebar-collapsed .close-sidebar { display: none !important; }
+body.sidebar-collapsed .nav-link { position: relative; }
+body.sidebar-collapsed .nav-link:hover::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(15,23,42,0.97);
+    color: var(--text-main);
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    pointer-events: none;
+    border: 1px solid var(--border);
+    z-index: 300;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+/* Mobile */
+@media (max-width: 768px) {
+    .menu-toggle { display: flex !important; }
+    .close-sidebar { display: block !important; }
+    aside { transform: translateX(-100%); z-index: 200; }
+    aside.active { transform: translateX(0); }
+    .ob-topbar { margin-left: 0 !important; padding-left: 3.5rem; }
+    .ob-main   { margin-left: 0 !important; padding: 1rem; }
+    body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; }
+    body.sidebar-collapsed .ob-topbar { margin-left: 0; }
+    body.sidebar-collapsed .ob-main   { margin-left: 0; }
+    body.sidebar-collapsed .brand-text { opacity: 1; width: auto; }
+    body.sidebar-collapsed .nav-label  { opacity: 1; width: auto; }
+    body.sidebar-collapsed .nav-link   { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login Overlay ─────────────────────────────────── -->
+<div id="loginOverlay">
+  <div class="ob-login-card">
+    <div class="ob-login-brand"><i class="fa-solid fa-layer-group"></i> VenueDesk</div>
+    <div class="ob-login-subtitle">Onboarding Administration</div>
+    <div class="input-group">
+      <label>Admin Key</label>
+      <input type="password" id="adminKeyInput" placeholder="Enter admin key" onkeydown="if(event.key==='Enter')adminLogin()">
+    </div>
+    <button class="ob-login-btn" id="loginBtn" onclick="adminLogin()">
+      <i class="fa-solid fa-shield-check"></i> Access Dashboard
+    </button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ── Main App ──────────────────────────────────────── -->
+<div id="mainApp">
+
+  <!-- Mobile menu toggle -->
+  <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="brand">
+      <span><i class="fa-solid fa-layer-group"></i><span class="brand-text">VenueDesk</span></span>
+      <div style="display:flex;align-items:center;gap:2px;">
+        <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <nav>
+      <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+      <a href="leadgen-dashboard.html" class="nav-link" data-label="Lead Gen"><i class="fa-solid fa-bullseye"></i><span class="nav-label"> Lead Gen</span></a>
+      <a href="onboarding.html" class="nav-link active" data-label="Onboarding"><i class="fa-solid fa-rocket"></i><span class="nav-label"> Onboarding</span></a>
+      <a href="#" onclick="adminLogout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+    </nav>
+  </aside>
+
+  <!-- Topbar -->
+  <header class="ob-topbar">
+    <div class="ob-brand">
+      <i class="fa-solid fa-layer-group"></i>
+      VenueDesk <span class="ob-tag">Onboarding</span>
+    </div>
+    <div class="ob-topbar-spacer"></div>
+    <div class="ob-topbar-right">
+      <span class="ob-admin-badge"><i class="fa-solid fa-circle-check"></i> Super Admin</span>
+      <button class="ob-icon-btn" onclick="loadVenues()" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+      <button class="ob-icon-btn" onclick="adminLogout()" title="Log out"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="ob-main">
+
+    <!-- Stats -->
+    <div class="ob-stats">
+      <div class="ob-stat-card">
+        <span class="ob-stat-val" id="statTotal">—</span>
+        <span class="ob-stat-label">Total Venues</span>
+      </div>
+      <div class="ob-stat-card">
+        <span class="ob-stat-val" id="statActive" style="background:linear-gradient(135deg,#34d399,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</span>
+        <span class="ob-stat-label">Active</span>
+      </div>
+      <div class="ob-stat-card">
+        <span class="ob-stat-val" id="statInactive" style="background:linear-gradient(135deg,#9ca3af,#6b7280);-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</span>
+        <span class="ob-stat-label">Inactive</span>
+      </div>
+      <div class="ob-stat-card">
+        <span class="ob-stat-val" id="statUsers" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</span>
+        <span class="ob-stat-label">Assigned Users</span>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="ob-grid">
+
+      <!-- Add Venue Form -->
+      <div class="ob-card">
+        <div class="ob-card-title">
+          <i class="fa-solid fa-building-circle-plus"></i> Onboard New Venue
+        </div>
+        <div class="row2">
+          <div class="input-group">
+            <label>Tenant / Venue ID</label>
+            <input type="number" id="fTenantId" placeholder="e.g. 1004" min="1000">
+            <div class="input-hint">Auto-suggested — can be changed</div>
+          </div>
+          <div class="input-group">
+            <label>Venue Name</label>
+            <input type="text" id="fVenueName" placeholder="e.g. Park Suite" oninput="autoSlug()">
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Slug <span style="color:var(--text-muted);text-transform:none;font-weight:400">(auto-filled)</span></label>
+          <input type="text" id="fSlug" placeholder="e.g. park-suite">
+        </div>
+        <div class="row2">
+          <div class="input-group">
+            <label>Admin Username</label>
+            <input type="text" id="fUsername" placeholder="e.g. parksuite" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <label>Contact Name</label>
+            <input type="text" id="fFullName" placeholder="e.g. Jane Smith">
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="fPassword" placeholder="Min 6 characters" autocomplete="new-password">
+        </div>
+        <button class="btn btn-primary" id="addVenueBtn" onclick="addVenue()">
+          <i class="fa-solid fa-floppy-disk"></i> Create Venue Account
+        </button>
+      </div>
+
+      <!-- Venues Table -->
+      <div class="ob-card">
+        <div class="ob-card-title">
+          <i class="fa-solid fa-buildings"></i> Registered Venues
+          <div class="title-actions">
+            <button class="btn btn-sm" onclick="loadVenues()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+          </div>
+        </div>
+        <div class="ob-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Venue</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="venuesTable">
+              <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /ob-grid -->
+  </main>
+</div>
+
+<!-- ── Edit Venue Modal ─────────────────────────────────── -->
+<div class="ob-modal-overlay" id="editModal">
+  <div class="ob-modal" style="max-width:480px">
+    <h3><i class="fa-solid fa-pen-to-square" style="color:var(--primary-hi)"></i> Edit Venue</h3>
+    <p class="modal-sub" id="editModalLabel">Update venue name and contact details.</p>
+    <input type="hidden" id="editTenantId">
+    <input type="hidden" id="editVenueActive">
+    <div class="row2">
+      <div class="input-group">
+        <label>Venue Name</label>
+        <input type="text" id="editVenueName" placeholder="e.g. Park Suite" oninput="autoEditSlug()">
+      </div>
+      <div class="input-group">
+        <label>Slug</label>
+        <input type="text" id="editSlug" placeholder="e.g. park-suite">
+      </div>
+    </div>
+    <div class="input-group" style="margin-bottom:0">
+      <label>Contact Name</label>
+      <input type="text" id="editFullName" placeholder="e.g. Jane Smith">
+    </div>
+    <div class="ob-modal-actions">
+      <button class="btn" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+      <button class="btn btn-primary" id="editSaveBtn" onclick="confirmEditVenue()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reset Password Modal ───────────────────────────── -->
+<div class="ob-modal-overlay" id="pwModal">
+  <div class="ob-modal">
+    <h3><i class="fa-solid fa-key" style="color:var(--warning)"></i> <span id="pwModalTitle">Reset Password</span></h3>
+    <p class="modal-sub" id="pwModalLabel">Set a new password for this user.</p>
+    <input type="hidden" id="pwModalUsername">
+    <input type="hidden" id="pwModalTenantId">
+    <input type="hidden" id="pwModalVenueName">
+    <div class="input-group" id="pwUsernameRow" style="display:none">
+      <label>Username</label>
+      <input type="text" id="newPwUsernameInput" placeholder="e.g. venue-name" autocomplete="username">
+    </div>
+    <div class="input-group" style="margin-bottom:0">
+      <label>Password</label>
+      <input type="password" id="newPwInput" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')confirmResetPw()">
+    </div>
+    <div class="ob-modal-actions">
+      <button class="btn" onclick="closePwModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+      <button class="btn btn-primary" id="pwModalConfirmBtn" style="background:linear-gradient(135deg,#f59e0b,#d97706)" onclick="confirmResetPw()"><i class="fa-solid fa-key"></i> Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Venue Detail Modal ───────────────────────────── -->
+<div class="ob-modal-overlay" id="venueDetailModal" onclick="if(event.target===this)closeVenueDetail()">
+  <div class="ob-venue-detail">
+    <!-- Header -->
+    <div class="ob-vd-header">
+      <div class="ob-vd-header-icon">🏢</div>
+      <div class="ob-vd-header-title">
+        <div class="ob-vd-name" id="vdName">—</div>
+        <div class="ob-vd-meta" id="vdMeta">—</div>
+      </div>
+      <div id="vdStatusBadge" style="flex-shrink:0"></div>
+      <button class="ob-vd-close" onclick="closeVenueDetail()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <!-- Body: two columns -->
+    <div class="ob-vd-body">
+      <!-- LEFT: details + quick actions -->
+      <div class="ob-vd-left">
+        <div class="ob-vd-section-title"><i class="fa-solid fa-circle-info" style="margin-right:5px;opacity:0.6"></i>Venue Details</div>
+        <div class="ob-vd-field">
+          <div class="ob-vd-label">Venue ID</div>
+          <div class="ob-vd-value"><span id="vdId" style="font-family:monospace;background:rgba(99,102,241,0.12);color:#a5b4fc;padding:2px 9px;border-radius:5px;font-size:0.85rem"></span></div>
+        </div>
+        <div class="ob-vd-field">
+          <div class="ob-vd-label">Slug / URL Key</div>
+          <div class="ob-vd-value" id="vdSlug" style="font-family:monospace;font-size:0.88rem;color:#94a3b8"></div>
+        </div>
+        <div class="ob-vd-field">
+          <div class="ob-vd-label">Login Username</div>
+          <div class="ob-vd-value" id="vdUsername"></div>
+        </div>
+        <div class="ob-vd-field">
+          <div class="ob-vd-label">Contact Name</div>
+          <div class="ob-vd-value" id="vdContact"></div>
+        </div>
+        <div class="ob-vd-field">
+          <div class="ob-vd-label">Created</div>
+          <div class="ob-vd-value" id="vdCreated" style="font-size:0.85rem;color:var(--text-muted)"></div>
+        </div>
+        <hr class="ob-vd-divider">
+        <div class="ob-vd-section-title"><i class="fa-solid fa-bolt" style="margin-right:5px;opacity:0.6"></i>Quick Actions</div>
+        <div class="ob-vd-quick-actions" id="vdQuickActions"></div>
+      </div>
+      <!-- RIGHT: setup & access -->
+      <div class="ob-vd-right">
+        <div class="ob-vd-section-title"><i class="fa-solid fa-screwdriver-wrench" style="margin-right:5px;opacity:0.6"></i>Setup &amp; Manage Venue</div>
+        <div class="ob-launch-grid" id="vdLaunchGrid"></div>
+        <button class="ob-launch-full" id="vdLaunchFull">
+          <i class="fa-solid fa-rocket-launch"></i> Connect to Full VenueDesk Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────
+const N8N  = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+// FIX: Auth token is stored in sessionStorage after admin login — never hardcode tokens
+function getAdminAuth() {
+    return sessionStorage.getItem('vp_onboarding_token') || sessionStorage.getItem('vp_token') || '';
+}
+
+// ─── Sidebar ──────────────────────────────────────────
+function toggleMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active');
+}
+function toggleSidebarCollapse() {
+    const col = document.body.classList.toggle('sidebar-collapsed');
+    sessionStorage.setItem('vp_sidebar_col', col ? '1' : '0');
+}
+(function(){ if (sessionStorage.getItem('vp_sidebar_col') === '1') document.body.classList.add('sidebar-collapsed'); })();
+
+// ─── Auth ─────────────────────────────────────────────
+(function checkAuth() {
+  if (sessionStorage.getItem('vd_admin_auth') === '1') {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    loadVenues();
+  }
+})();
+
+async function adminLogin() {
+  const key = document.getElementById('adminKeyInput').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  if (!key) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying…';
+  err.style.display = 'none';
+  try {
+    const r = await fetch(N8N + '/onboarding/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_key: key })
+    });
+    if (r.ok) {
+      // FIX: Store the admin key in sessionStorage so API calls can use it as bearer token
+      sessionStorage.setItem('vd_admin_auth', '1');
+      sessionStorage.setItem('vp_onboarding_token', key);
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      loadVenues();
+    } else {
+      throw new Error('Invalid admin key');
+    }
+  } catch(e) {
+    err.textContent = 'Invalid admin key. Access denied.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Access Dashboard';
+  }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('vd_admin_auth');
+  location.reload();
+}
+
+// ─── Load venues ──────────────────────────────────────
+let venues = [];
+async function loadVenues() {
+  try {
+    const r = await fetch(N8N + '/onboarding/venues');
+    const d = await r.json();
+    venues = d.data || [];
+    renderVenues();
+    renderStats();
+    suggestNextId();
+  } catch(e) {
+    document.getElementById('venuesTable').innerHTML =
+      '<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:2rem">Failed to load venues</td></tr>';
+  }
+}
+
+function renderStats() {
+  document.getElementById('statTotal').textContent    = venues.length;
+  document.getElementById('statActive').textContent   = venues.filter(v => v.active).length;
+  document.getElementById('statInactive').textContent = venues.filter(v => !v.active).length;
+  document.getElementById('statUsers').textContent    = venues.filter(v => v.username).length;
+}
+
+function renderVenues() {
+  const tb = document.getElementById('venuesTable');
+  if (!venues.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No venues yet. Add your first one →</td></tr>';
+    return;
+  }
+  tb.innerHTML = venues.map(v => `
+    <tr onclick="openVenueDetail(${v.tenant_id})" style="cursor:pointer">
+      <td><span class="badge-id">#${v.tenant_id}</span></td>
+      <td>
+        <strong>${esc(v.venue_name)}</strong>
+        <div style="font-size:0.78rem;color:var(--text-muted)">${esc(v.slug)}</div>
+      </td>
+      <td>
+        ${v.username
+          ? `<code style="font-size:0.82rem;color:#a5b4fc;background:rgba(99,102,241,0.10);padding:2px 8px;border-radius:5px">${esc(v.username)}</code>`
+          : '<span class="text-muted">—</span>'}
+      </td>
+      <td>${v.active
+        ? '<span class="badge-active"><i class="fa-solid fa-circle-check"></i> Active</span>'
+        : '<span class="badge-inactive"><i class="fa-solid fa-circle-xmark"></i> Inactive</span>'}</td>
+      <td>
+        <div class="td-actions">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openEditModal(${v.tenant_id})" title="Edit venue details" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">
+            <i class="fa-solid fa-pen-to-square"></i> Edit
+          </button>
+          <button class="btn btn-sm btn-success" onclick="event.stopPropagation();openVenueDetail(${v.tenant_id})" title="Open venue setup panel">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+          </button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();copyEnquiryLink(${v.tenant_id},'${esc(v.venue_name)}')" title="Copy public enquiry form link" style="background:rgba(16,185,129,0.10);color:#34d399;border-color:rgba(16,185,129,0.28)">
+            <i class="fa-solid fa-link"></i> Enquiry Link
+          </button>
+          <button class="btn btn-sm btn-info" onclick="event.stopPropagation();openPwModal('${esc(v.username||'')}','${esc(v.venue_name)}',${v.tenant_id})" title="${v.username ? 'Reset password' : 'Set login'}">
+            <i class="fa-solid fa-key"></i>${v.username ? '' : '<span style="font-size:0.75rem;margin-left:4px">Set Login</span>'}
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();toggleVenue(${v.tenant_id},'${esc(v.venue_name)}',${v.active})" title="${v.active ? 'Deactivate' : 'Reactivate'}">
+            <i class="fa-solid fa-${v.active ? 'pause' : 'play'}"></i>
+          </button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ─── Add venue ────────────────────────────────────────
+function suggestNextId() {
+  const ids = venues.map(v => v.tenant_id).filter(Boolean);
+  const next = ids.length ? Math.max(...ids) + 1 : 1001;
+  const el = document.getElementById('fTenantId');
+  if (!el.value) el.value = next;
+}
+
+function autoSlug() {
+  const name = document.getElementById('fVenueName').value;
+  document.getElementById('fSlug').value = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+async function addVenue() {
+  const btn = document.getElementById('addVenueBtn');
+  const payload = {
+    tenant_id:  parseInt(document.getElementById('fTenantId').value, 10),
+    venue_name: document.getElementById('fVenueName').value.trim(),
+    slug:       document.getElementById('fSlug').value.trim(),
+    username:   document.getElementById('fUsername').value.trim(),
+    full_name:  document.getElementById('fFullName').value.trim(),
+    password:   document.getElementById('fPassword').value,
+  };
+  if (!payload.tenant_id || payload.tenant_id < 1000) { showToast('Tenant ID must be ≥ 1000', 'error'); return; }
+  if (!payload.venue_name) { showToast('Venue name is required', 'error'); return; }
+  if (!payload.username)   { showToast('Username is required', 'error'); return; }
+  if (!payload.password || payload.password.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating…';
+  try {
+    const r = await fetch(N8N + '/onboarding/create-venue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.message || 'Failed');
+    ['fTenantId','fVenueName','fSlug','fUsername','fFullName','fPassword'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    await loadVenues();
+    showToast(`Venue "${payload.venue_name}" created successfully!`, 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Create Venue Account';
+  }
+}
+
+// ─── Toggle venue ─────────────────────────────────────
+async function toggleVenue(tenantId, name, currentlyActive) {
+  const action = currentlyActive ? 'Deactivate' : 'Reactivate';
+  if (!confirm(`${action} venue "${name}" (#${tenantId})?`)) return;
+  try {
+    const r = await fetch(N8N + '/onboarding/toggle-venue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      body: JSON.stringify({ tenant_id: tenantId })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error('Failed');
+    await loadVenues();
+    showToast(`Venue "${name}" ${currentlyActive ? 'deactivated' : 'reactivated'}.`, currentlyActive ? 'error' : 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ─── Copy enquiry link ─────────────────────────────────
+function copyEnquiryLink(tenantId, venueName) {
+  const base = window.location.href.split('/').slice(0, -1).join('/');
+  const url  = `${base}/enquiry-form.html?t=${tenantId}`;
+  navigator.clipboard.writeText(url)
+    .then(()  => showToast(`Enquiry link for "${venueName}" copied to clipboard!`, 'success'))
+    .catch(()  => {
+      // Fallback for older browsers
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'fixed'; el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      try { document.execCommand('copy'); showToast(`Link copied: ${url}`, 'success'); }
+      catch(e) { showToast('Copy failed. URL: ' + url, 'error'); }
+      document.body.removeChild(el);
+    });
+}
+
+// ─── Venue Detail Modal ───────────────────────────────
+function openVenueDetail(tenantId) {
+  const v = venues.find(x => x.tenant_id === tenantId);
+  if (!v) return;
+
+  document.getElementById('vdName').textContent = v.venue_name || '—';
+  document.getElementById('vdMeta').textContent = `Tenant #${v.tenant_id}  ·  ${v.slug || ''}`;
+  document.getElementById('vdId').textContent   = '#' + v.tenant_id;
+  document.getElementById('vdSlug').textContent  = v.slug || '—';
+  document.getElementById('vdUsername').innerHTML = v.username
+    ? `<code style="font-family:monospace;background:rgba(99,102,241,0.10);color:#a5b4fc;padding:2px 8px;border-radius:5px;font-size:0.85rem">${esc(v.username)}</code>`
+    : '<span style="color:var(--text-muted)">— not set —</span>';
+  document.getElementById('vdContact').textContent  = v.full_name || '—';
+  document.getElementById('vdCreated').textContent  = v.created_date
+    ? new Date(v.created_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  document.getElementById('vdStatusBadge').innerHTML = v.active
+    ? '<span class="badge-active"><i class="fa-solid fa-circle-check"></i> Active</span>'
+    : '<span class="badge-inactive"><i class="fa-solid fa-circle-xmark"></i> Inactive</span>';
+
+  // Quick actions
+  document.getElementById('vdQuickActions').innerHTML = `
+    <button class="btn btn-sm" onclick="closeVenueDetail();openEditModal(${v.tenant_id})" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">
+      <i class="fa-solid fa-pen-to-square"></i> Edit Details
+    </button>
+    <button class="btn btn-sm btn-info" onclick="closeVenueDetail();openPwModal('${esc(v.username||'')}','${esc(v.venue_name)}',${v.tenant_id})">
+      <i class="fa-solid fa-key"></i> ${v.username ? 'Reset Password' : 'Set Login'}
+    </button>
+    <button class="btn btn-sm" onclick="copyEnquiryLink(${v.tenant_id},'${esc(v.venue_name)}')" style="background:rgba(16,185,129,0.10);color:#34d399;border-color:rgba(16,185,129,0.28)">
+      <i class="fa-solid fa-link"></i> Copy Enquiry Link
+    </button>
+    <button class="btn btn-sm btn-danger" onclick="closeVenueDetail();toggleVenue(${v.tenant_id},'${esc(v.venue_name)}',${v.active})">
+      <i class="fa-solid fa-${v.active ? 'pause' : 'play'}"></i> ${v.active ? 'Deactivate' : 'Reactivate'}
+    </button>`;
+
+  // Launch grid
+  const pages = [
+    { icon: '🏨', title: 'Rooms & Pricing',   desc: 'Configure rooms, rates and event type pricing', page: 'admin-config.html' },
+    { icon: '📅', title: 'Calendar',           desc: 'View bookings and manage blocked dates',         page: 'calendar.html'     },
+    { icon: '👥', title: 'Customers',          desc: 'Browse and manage customer records',             page: 'customers.html'    },
+    { icon: '📋', title: 'Bookings',           desc: 'All confirmed bookings and walk-ins',            page: 'bookings.html'     },
+    { icon: '📊', title: 'Accounts',           desc: 'Payments, revenue and outstanding balances',     page: 'accounts.html'     },
+    { icon: '✍️',  title: 'Manual Booking',    desc: 'Create a booking on behalf of this venue',       page: 'manual-booking.html' },
+  ];
+  document.getElementById('vdLaunchGrid').innerHTML = pages.map(p => `
+    <button class="ob-launch-btn" onclick="connectToPage(${v.tenant_id},'${esc(v.venue_name)}','${esc(v.full_name || v.venue_name)}','${p.page}')">
+      <span class="lb-icon">${p.icon}</span>
+      <span class="lb-title">${p.title}</span>
+      <span class="lb-desc">${p.desc}</span>
+    </button>`).join('');
+
+  document.getElementById('vdLaunchFull').onclick = () =>
+    connectToPage(v.tenant_id, v.venue_name, v.full_name || v.venue_name, 'index.html');
+
+  document.getElementById('venueDetailModal').classList.add('open');
+}
+
+function closeVenueDetail() {
+  document.getElementById('venueDetailModal').classList.remove('open');
+}
+
+// Pre-authenticate as this venue and open the target VenueDesk page
+function connectToPage(tenantId, venueName, fullName, page) {
+  sessionStorage.setItem('vp_tenant_id',  tenantId);
+  sessionStorage.setItem('vp_venue_id',   tenantId);
+  sessionStorage.setItem('vp_venue_name', venueName);
+  // NOTE: In Phase 3 this should be a proper JWT for the venue — using admin token as temporary proxy
+  sessionStorage.setItem('vp_token', getAdminAuth());
+  sessionStorage.setItem('vp_user',       JSON.stringify({ name: fullName || venueName, role: 'admin' }));
+  window.open(page, '_blank');
+  showToast(`Connecting to ${page.replace('.html','')} for "${venueName}"…`, 'success');
+}
+
+// ─── Launch as venue (legacy) ─────────────────────────
+function launchVenue(tenantId, venueName) {
+  connectToPage(tenantId, venueName, venueName, 'index.html');
+}
+
+// ─── Edit venue modal ───────────────────────────────────
+function openEditModal(tenantId) {
+  const v = venues.find(x => x.tenant_id === tenantId);
+  if (!v) return;
+  document.getElementById('editTenantId').value  = tenantId;
+  document.getElementById('editVenueActive').value = v.active ? 'true' : 'false';
+  document.getElementById('editVenueName').value  = v.venue_name || '';
+  document.getElementById('editSlug').value       = v.slug || '';
+  document.getElementById('editFullName').value   = v.full_name || '';
+  document.getElementById('editModalLabel').textContent = `Editing: ${v.venue_name} (#${tenantId})`;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(() => document.getElementById('editVenueName').focus(), 100);
+}
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+function autoEditSlug() {
+  const name = document.getElementById('editVenueName').value;
+  document.getElementById('editSlug').value = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+async function confirmEditVenue() {
+  const btn = document.getElementById('editSaveBtn');
+  const tenantId  = parseInt(document.getElementById('editTenantId').value, 10);
+  const venueName = document.getElementById('editVenueName').value.trim();
+  const slug      = document.getElementById('editSlug').value.trim();
+  const fullName  = document.getElementById('editFullName').value.trim();
+  const active    = document.getElementById('editVenueActive').value === 'true';
+  if (!venueName) { showToast('Venue name is required', 'error'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+  try {
+    const r = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/update-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.message || 'Failed');
+    closeEditModal();
+    await loadVenues();
+    showToast(`"${venueName}" updated successfully!`, 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+  }
+}
+
+// ─── Reset / Set-login password modal ───────────────────
+// username = existing username (reset), or '' (new login setup)
+function openPwModal(username, venueName, tenantId) {
+  const isNew = !username;
+  document.getElementById('pwModalUsername').value  = username || '';
+  document.getElementById('pwModalTenantId').value  = tenantId || '';
+  document.getElementById('pwModalVenueName').value = venueName || '';
+  document.getElementById('pwModalTitle').textContent = isNew ? 'Set Login' : 'Reset Password';
+  document.getElementById('pwModalLabel').textContent = isNew
+    ? `Create a username and password for ${venueName}`
+    : `Set a new password for ${venueName} (${username})`;
+  document.getElementById('pwUsernameRow').style.display = isNew ? '' : 'none';
+  document.getElementById('newPwUsernameInput').value = '';
+  document.getElementById('newPwInput').value = '';
+  document.getElementById('pwModalConfirmBtn').innerHTML = isNew
+    ? '<i class="fa-solid fa-user-plus"></i> Set Login'
+    : '<i class="fa-solid fa-key"></i> Reset Password';
+  document.getElementById('pwModal').classList.add('open');
+  setTimeout(() => document.getElementById(isNew ? 'newPwUsernameInput' : 'newPwInput').focus(), 100);
+}
+function closePwModal() {
+  document.getElementById('pwModal').classList.remove('open');
+}
+
+async function confirmResetPw() {
+  const existingUsername = document.getElementById('pwModalUsername').value;
+  const tenantId         = document.getElementById('pwModalTenantId').value;
+  const venueName        = document.getElementById('pwModalVenueName').value;
+  const password         = document.getElementById('newPwInput').value;
+  const isNew            = !existingUsername;
+  const username         = isNew ? document.getElementById('newPwUsernameInput').value.trim().toLowerCase() : existingUsername;
+
+  if (isNew && !username) { showToast('Username is required', 'error'); return; }
+  if (!password || password.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+
+  const btn = document.getElementById('pwModalConfirmBtn');
+  btn.disabled = true;
+  try {
+    let r, d;
+    if (isNew) {
+      // Create staff user for existing tenant
+      r = await fetch(N8N + '/onboarding/create-venue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+        body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') })
+      });
+      const t = await r.text();
+      d = t.trim() ? JSON.parse(t) : {};
+      if (!d.ok) throw new Error(d.message || 'Failed to set login');
+      closePwModal();
+      await loadVenues();
+      showToast(`Login created for ${venueName} (${username}).`, 'success');
+    } else {
+      r = await fetch(N8N + '/onboarding/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+        body: JSON.stringify({ username, password })
+      });
+      const t = await r.text();
+      d = t.trim() ? JSON.parse(t) : {};
+      if (!d.ok) throw new Error('Failed');
+      closePwModal();
+      showToast(`Password reset for ${username}.`, 'success');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── Utilities ────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3500);
+}
+</script>
+
+<!-- FinTech Revamp (consistent with VenueDesk pages) -->
+<style>
+:root { --bg-dark:#06101f; }
+body { background-color:var(--bg-dark) !important; }
+#loginOverlay { background-color:var(--bg-dark) !important; }
+</style>
+</body>
+</html>

@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Customers | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html'; return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                }
+            } catch(e) { /* non-JWT token, skip expiry check */ }
+        })();
+    </script>
+
+    <style>
+        /* REUSED CORE STYLES */
+        :root { --bg-dark: #0f172a; --bg-card: rgba(30, 41, 59, 0.7); --border: rgba(148, 163, 184, 0.1); --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --sidebar-width: 260px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-dark); background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+        
+        aside { width: var(--sidebar-width); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+        .close-sidebar { display: none; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; max-width: 1600px; width: 100%; transition: margin-left 0.3s ease; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .menu-toggle { display: none; background: var(--bg-card); border: 1px solid var(--border); color: white; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; }
+        .header-title h1 { font-size: 1.8rem; font-weight: 700; }
+        
+        .search-bar { background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 10px 16px; border-radius: 12px; color: white; display: flex; align-items: center; gap: 10px; width: 300px; transition: width 0.3s; }
+        .search-bar input { background: transparent; border: none; color: white; outline: none; width: 100%; font-size: 0.9rem; }
+
+        .table-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th { text-align: left; padding: 1.2rem 1.5rem; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); }
+        td { padding: 1.2rem 1.5rem; border-bottom: 1px solid var(--border); color: var(--text-main); font-size: 0.95rem; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        
+        tbody tr { cursor: pointer; transition: background 0.2s; }
+        tbody tr:hover { background: rgba(255,255,255,0.05) !important; }
+
+        /* BADGES */
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; white-space: nowrap; }
+        .status-badge.pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .status-badge.contacted { background: rgba(99, 102, 241, 0.15); color: var(--primary); border: 1px solid rgba(99, 102, 241, 0.3); }
+        .status-badge.deposit_paid { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); } /* Maps to 'paid' visually if needed, using exact DB status here */
+        .status-badge.fully_paid { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-badge.balance { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .status-badge.cancelled { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); text-decoration: line-through; }
+        .status-badge.booked { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay.open { display: flex; opacity: 1; }
+        .modal-card { background: #1e293b; border: 1px solid var(--border); width: 90%; max-width: 600px; border-radius: 20px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s ease; position: relative; }
+        .modal-overlay.open .modal-card { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+        .modal-title { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 10px; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .detail-group label { display: block; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 5px; font-weight: 700; }
+        .detail-value { color: var(--text-main); font-size: 1rem; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        
+        .modal-actions { margin-top: 2rem; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 1rem; }
+        .btn-modal { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s; text-decoration: none; }
+        .btn-close { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-close:hover { color: white; border-color: white; }
+        .btn-book { background: var(--success); color: #0f172a; display: flex; align-items: center; gap: 8px; }
+        .btn-pay { background: var(--warning); color: #0f172a; display: flex; align-items: center; gap: 8px; }
+        .btn-book:hover, .btn-pay:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; backdrop-filter: blur(2px); }
+        .overlay.active { display: block; }
+
+
+        /* BOOKING HISTORY */
+        .bh-section { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+        .bh-title { font-size: 1rem; font-weight: 700; color: white; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+        .bh-stats { display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .bh-stat { flex: 1; min-width: 100px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; }
+        .bh-stat-val { font-size: 1.1rem; font-weight: 700; color: white; }
+        .bh-stat-lbl { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        .bh-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .bh-table th { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; font-weight: 600; }
+        .bh-table td { padding: 8px 8px; border-bottom: 1px solid rgba(148,163,184,0.06); color: var(--text-main); vertical-align: middle; }
+        .bh-table tr:last-child td { border-bottom: none; }
+        .bh-table tbody tr { cursor: pointer; transition: background 0.2s; }
+        .bh-table tbody tr:hover { background: rgba(99, 102, 241, 0.1) !important; }
+        .bh-loading { text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.9rem; }
+        .modal-card { max-height: 90vh; overflow-y: auto; }
+        
+        /* INTERACTION MODAL */
+        .interaction-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 3000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        .interaction-modal.open { display: flex; opacity: 1; }
+        .interaction-card { background: #1e293b; border: 1px solid var(--border); width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; border-radius: 20px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: transform 0.3s ease; }
+        .interaction-modal.open .interaction-card { transform: translateY(0); }
+        .interaction-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+        .interaction-title { font-size: 1.3rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 10px; }
+        .interaction-form { display: flex; flex-direction: column; gap: 1.25rem; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; }
+        .form-input, .form-textarea, .form-select { background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: var(--text-main); padding: 10px 12px; border-radius: 8px; font-size: 0.95rem; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .form-input:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-input:disabled { opacity: 0.6; cursor: not-allowed; }
+        .form-textarea { min-height: 120px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .interaction-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .btn-save { background: var(--primary); color: white; padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-save:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-cancel { background: var(--bg-card); color: var(--text-muted); padding: 10px 24px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-cancel:hover { color: white; border-color: white; }
+        .interaction-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; padding: 1rem; background: rgba(0,0,0,0.15); border-radius: 8px; margin-bottom: 1rem; }
+        .interaction-info-item { display: flex; flex-direction: column; gap: 4px; }
+        .interaction-info-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+        .interaction-info-value { font-size: 0.9rem; color: var(--text-main); }
+        
+        /* INTERACTIONS HISTORY */
+        .interactions-section { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+        .interactions-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .interactions-title { font-size: 1rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px; }
+        .btn-export { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+        .btn-export:hover { background: rgba(16, 185, 129, 0.25); }
+        .interaction-item { background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; transition: background 0.2s; }
+        .interaction-item:hover { background: rgba(0,0,0,0.25); }
+        .interaction-item-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; }
+        .interaction-item-subject { font-weight: 700; color: white; font-size: 0.95rem; }
+        .interaction-item-date { font-size: 0.75rem; color: var(--text-muted); }
+        .interaction-item-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .interaction-item-notes { font-size: 0.88rem; color: var(--text-main); line-height: 1.5; white-space: pre-wrap; }
+        .no-interactions { text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; }
+        @media (max-width: 768px) { aside { transform: translateX(-100%); } aside.active { transform: translateX(0); } main { margin-left: 0; padding: 1rem; } .menu-toggle { display: flex; } .close-sidebar { display: block; } header { flex-direction: column; align-items: flex-start; gap: 1rem; } .search-bar { width: 100%; } .modal-grid { grid-template-columns: 1fr; } }
+
+        /* ── LIGHT MODE OVERRIDES ── */
+        body.light-mode { background-color: #eef2f7; background-image: none; color: #0f172a; }
+        body.light-mode aside { background: rgba(255,255,255,0.97); border-right-color: rgba(0,0,0,0.1); }
+        body.light-mode .nav-link { color: #475569; }
+        body.light-mode .nav-link:hover, body.light-mode .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); }
+        body.light-mode .brand { color: #0f172a; }
+        body.light-mode main { background: transparent; }
+        body.light-mode .card,
+        body.light-mode .table-container,
+        body.light-mode .metric-card,
+        body.light-mode .booking-card,
+        body.light-mode .glance-card,
+        body.light-mode .sum-card,
+        body.light-mode .table-wrap,
+        body.light-mode #calendar,
+        body.light-mode .section-container { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.1); color: #0f172a; }
+        body.light-mode th { background: rgba(240,244,248,0.9); color: #475569; border-color: rgba(0,0,0,0.07); }
+        body.light-mode td { color: #0f172a; border-color: rgba(0,0,0,0.06); }
+        body.light-mode .stat-value, body.light-mode .glance-val, body.light-mode .sum-val { color: #0f172a; }
+        body.light-mode .stat-label, body.light-mode .glance-lbl, body.light-mode .sum-lbl,
+        body.light-mode .b-meta, body.light-mode .db-month, body.light-mode .metric-info p { color: #64748b; }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4 { color: #0f172a; }
+        body.light-mode .menu-toggle,
+        body.light-mode .search-bar,
+        body.light-mode .sf-input, body.light-mode .sf-select,
+        body.light-mode .f-input, body.light-mode .f-select,
+        body.light-mode .cal-filter-select { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.15); color: #0f172a; }
+        body.light-mode .search-bar input { color: #0f172a; }
+        body.light-mode .filter-btn { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.12); color: #475569; }
+        body.light-mode .filter-btn:hover, body.light-mode .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        body.light-mode .pay-modal-card, body.light-mode .modal-card,
+        body.light-mode .receipt-card { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #0f172a; }
+        body.light-mode .interaction-card { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #0f172a; }
+        body.light-mode .interaction-title { color: #0f172a; }
+        body.light-mode .form-input, body.light-mode .form-textarea, body.light-mode .form-select { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); color: #0f172a; }
+        body.light-mode .interaction-info-grid { background: rgba(0,0,0,0.04); }
+        body.light-mode .interaction-info-value { color: #0f172a; }
+        body.light-mode .interaction-item { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+        body.light-mode .interaction-item:hover { background: rgba(0,0,0,0.08); }
+        body.light-mode .interaction-item-subject { color: #0f172a; }
+        body.light-mode .interaction-item-notes { color: #0f172a; }
+        body.light-mode .detail-value { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: #0f172a; }
+        body.light-mode .live-clock { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.12); color: #475569; }
+        body.light-mode .pay-amount-input { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); color: #0f172a; }
+        body.light-mode .pay-booking-info { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+        body.light-mode .date-badge { background: rgba(0,0,0,0.05); }
+        body.light-mode .bh-stat { background: rgba(0,0,0,0.04); }
+        body.light-mode .log-tbody tr:hover, body.light-mode tbody tr:hover { background: rgba(0,0,0,0.03) !important; }
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; flex-shrink: 0; }
+        .theme-toggle:hover { color: white; border-color: white; }
+        body.light-mode .theme-toggle { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.15); color: #475569; }
+        body.light-mode .theme-toggle:hover { color: #0f172a; border-color: #94a3b8; }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Full Coverage
+           Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
+        ============================================================ */
+
+        /* Sidebar overlay backdrop (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 199;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Touch-friendly minimum tap targets */
+        button, .btn, a.btn, select, input[type="text"],
+        input[type="email"], input[type="password"], input[type="tel"],
+        input[type="number"], input[type="date"], input[type="time"],
+        textarea { min-height: 44px; }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            border-radius: 12px;
+        }
+        .table-wrap table { min-width: 600px; }
+
+        /* ---- 1200px (large desktop to medium desktop) ---- */
+        @media (max-width: 1200px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ---- 1024px (small laptop / large tablet landscape) ---- */
+        @media (max-width: 1024px) {
+            aside { width: 220px; }
+            main { margin-left: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 900px (tablet landscape) ---- */
+        @media (max-width: 900px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-split, .form-grid-2col { grid-template-columns: 1fr; }
+            .filter-bar, .top-bar, .action-bar {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select { width: 100%; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 768px (tablet portrait / all mobiles) ---- */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0; top: 0;
+                height: 100vh;
+                width: 260px;
+                transform: translateX(-100%);
+                z-index: 200;
+                transition: transform 0.3s ease;
+            }
+            aside.active { transform: translateX(0); }
+            .close-sidebar { display: block !important; }
+            .menu-toggle { display: flex !important; }
+            main { margin-left: 0 !important; padding: 1rem; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header .header-actions { width: 100%; }
+            .page-header .header-actions button,
+            .page-header .header-actions a { width: 100%; justify-content: center; }
+
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .filter-bar, .top-bar, .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select,
+            .action-bar input, .action-bar select { width: 100%; }
+
+            .filter-tabs { flex-wrap: wrap; gap: 0.4rem; }
+            .filter-tabs button { flex: 1 1 auto; min-width: 80px; font-size: 0.8rem; }
+
+            .modal-content, .modal-box, .modal > div:first-child {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                max-height: 88vh !important;
+                overflow-y: auto;
+                border-radius: 12px !important;
+                margin: 1rem auto;
+            }
+            .modal-grid, .form-row, .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            table td, table th { font-size: 0.8rem; padding: 0.5rem 0.6rem; }
+            .card { padding: 1rem; }
+            .btn-group { flex-wrap: wrap; gap: 0.4rem; }
+            .btn-group button, .btn-group a { flex: 1 1 auto; }
+
+            .calendar-grid { gap: 0.25rem; }
+        }
+
+        /* ---- 480px (mobile portrait) ---- */
+        @media (max-width: 480px) {
+            main { padding: 0.75rem; }
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+            .page-header h1 { font-size: 1.2rem; }
+            .card { padding: 0.85rem; border-radius: 12px; }
+            .stat-card h2, .kpi-card h2, .stat-value { font-size: 1.6rem; }
+            button, .btn { font-size: 0.85rem; padding: 10px 14px; }
+            .filter-tabs button { font-size: 0.75rem; padding: 6px 10px; }
+            .table-wrap table { min-width: 480px; }
+            table td, table th { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .badge, .status-badge { font-size: 0.7rem; padding: 2px 7px; }
+            aside { width: 240px; }
+        }
+
+        /* ---- 360px (very small phones) ---- */
+        @media (max-width: 360px) {
+            main { padding: 0.5rem; }
+            .page-header h1 { font-size: 1.1rem; }
+            aside { width: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        
+        /* ── SIDEBAR COLLAPSE (desktop/tablet) ── */
+        aside { transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease !important; overflow: hidden; }
+        main  { transition: margin-left 0.3s ease !important; }
+        .brand-text { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .nav-label  { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; line-height: 1; min-height: unset; flex-shrink: 0; }
+        .sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+        .sidebar-collapse-btn:hover { color: var(--primary); }
+        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main  { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-label  { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link   { justify-content: center; gap: 0; padding: 12px 8px; font-size: 1.05rem; }
+        body.sidebar-collapsed .close-sidebar { display: none !important; }
+        body.sidebar-collapsed .nav-link { position: relative; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
+        @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
+        </style>
+</head>
+<body>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+    <aside id="sidebar">
+        <div class="brand"><span><i class="fa-solid fa-layer-group"></i><span class="brand-text">VenueDesk</span></span><div style="display:flex;align-items:center;gap:2px;"><button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div></div>
+        <nav>
+            <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+            <a href="bookings.html" class="nav-link" data-label="Bookings"><i class="fa-solid fa-calendar-days"></i><span class="nav-label"> Bookings</span></a>
+            <a href="customers.html" class="nav-link active" data-label="Customers"><i class="fa-solid fa-users"></i><span class="nav-label"> Customers</span></a>
+            <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+            <a href="enquiry-form.html" class="nav-link" target="_blank" data-label="New Booking"><i class="fa-solid fa-file-pen"></i><span class="nav-label"> New Booking</span></a>
+            <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
+            <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+            <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+            <a href="users.html" class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+            <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+        </nav>
+    </aside>
+
+    <main>
+        <header>
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+                <div class="header-title"><h1>Client Database</h1><p style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">Manage your leads</p></div>
+            </div>
+            <div class="search-bar">
+                <i class="fa-solid fa-search" style="color:var(--text-muted)"></i>
+                <input type="text" id="searchInput" placeholder="Search name or email..." onkeyup="filterTable()">
+            </div>
+        </header>
+
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table id="customerTable">
+                    <thead><tr><th>Name</th><th>Contact Info</th><th>Event Details</th><th>Date</th><th>Status</th></tr></thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL -->
+    <div id="custModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-id-card" style="color:var(--primary)"></i> Customer Details</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-grid">
+                <div class="detail-group" style="grid-column: span 2;"><label>Customer ID</label><div class="detail-value" id="m-id" style="font-family: monospace; color: var(--warning);">--</div></div>
+                <div class="detail-group"><label>Full Name</label><div class="detail-value" id="m-name">--</div></div>
+                <div class="detail-group"><label>Status</label><div class="detail-value" id="m-status" style="text-transform: uppercase;">--</div></div>
+                <div class="detail-group"><label>Email</label><div class="detail-value" id="m-email">--</div></div>
+                <div class="detail-group"><label>Phone</label><div class="detail-value" id="m-phone">--</div></div>
+                <div class="detail-group"><label>Event Type</label><div class="detail-value" id="m-event">--</div></div>
+                <div class="detail-group"><label>Date</label><div class="detail-value" id="m-date">--</div></div>
+                <!-- GUEST COUNT INCLUDED -->
+                <div class="detail-group"><label>Guests</label><div class="detail-value" id="m-guests">--</div></div>
+            </div>
+            <div class="bh-section" id="bh-section">
+                <div class="bh-title"><i class="fa-solid fa-history" style="color:var(--primary)"></i> Booking History</div>
+                <div id="bh-loading" class="bh-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                <div id="bh-stats" class="bh-stats" style="display:none">
+                    <div class="bh-stat"><div class="bh-stat-val" id="bh-count">0</div><div class="bh-stat-lbl">Total Bookings</div></div>
+                    <div class="bh-stat"><div class="bh-stat-val" id="bh-spend">£0</div><div class="bh-stat-lbl">Total Spend</div></div>
+                    <div class="bh-stat"><div class="bh-stat-val" id="bh-outstanding">£0</div><div class="bh-stat-lbl">Outstanding</div></div>
+                </div>
+                <div id="bh-table-wrap" style="display:none; overflow-x:auto;">
+                    <table class="bh-table">
+                        <thead><tr><th>Date</th><th>Room</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+                        <tbody id="bh-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="bh-empty" style="display:none; text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">No bookings found</div>
+            </div>
+            <div class="modal-actions" id="modal-buttons">
+                <button class="btn-modal btn-close" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERACTION LOGGING MODAL -->
+    <div id="interactionModal" class="interaction-modal" onclick="closeInteractionModal(event)">
+        <div class="interaction-card" onclick="event.stopPropagation()">
+            <div class="interaction-header">
+                <div class="interaction-title"><i class="fa-solid fa-message" style="color:var(--primary)"></i> Log Customer Interaction</div>
+                <button class="modal-close" onclick="closeInteractionModal()">&times;</button>
+            </div>
+            <div class="interaction-info-grid" id="interaction-info">
+                <!-- Auto-populated info will go here -->
+            </div>
+            <form class="interaction-form" id="interactionForm" onsubmit="saveInteraction(event)">
+                <div class="form-group">
+                    <label>Subject *</label>
+                    <input type="text" class="form-input" id="interaction-subject" placeholder="e.g., Payment follow-up, Menu selection, Schedule change" required>
+                </div>
+                <div class="form-group">
+                    <label>Interaction Type *</label>
+                    <select class="form-select" id="interaction-type" required>
+                        <option value="">Select type...</option>
+                        <option value="Phone Call">Phone Call</option>
+                        <option value="Email">Email</option>
+                        <option value="In Person">In Person</option>
+                        <option value="SMS">SMS</option>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes *</label>
+                    <textarea class="form-textarea" id="interaction-notes" placeholder="Enter detailed notes about this interaction..." required></textarea>
+                </div>
+                <div class="interaction-actions">
+                    <button type="button" class="btn-cancel" onclick="closeInteractionModal()">Cancel</button>
+                    <button type="submit" class="btn-save"><i class="fa-solid fa-save"></i> Save Interaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-customers';
+
+        function getAuthHeaders() {
+            return { 'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || '') };
+        }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+        function logout() { if(confirm("Log out?")) { sessionStorage.removeItem('vp_token'); window.location.href='login.html'; } }
+
+        const BOOKINGS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
+        const fmtCur = n => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
+
+        async function loadBookingHistory(email) {
+            const loading = document.getElementById('bh-loading');
+            const stats   = document.getElementById('bh-stats');
+            const tableW  = document.getElementById('bh-table-wrap');
+            const empty   = document.getElementById('bh-empty');
+            const tbody   = document.getElementById('bh-tbody');
+            loading.style.display = 'block'; stats.style.display = 'none'; tableW.style.display = 'none'; empty.style.display = 'none';
+            try {
+                const res  = await fetch(BOOKINGS_API, { headers: getAuthHeaders() });
+                const json = await res.json();
+                const all  = json.data || (Array.isArray(json) ? json : []);
+                const mine = all.filter(b => (b.customer_email || b.email || '').toLowerCase() === (email || '').toLowerCase());
+                loading.style.display = 'none';
+                if (mine.length === 0) { empty.style.display = 'block'; return; }
+                const totalSpend = mine.reduce((s,b) => s + parseFloat(b.total_amount||0), 0);
+                const outstanding = mine.reduce((s,b) => s + parseFloat(b.balance_due||0), 0);
+                document.getElementById('bh-count').innerText = mine.length;
+                document.getElementById('bh-spend').innerText = fmtCur(totalSpend);
+                document.getElementById('bh-outstanding').innerText = fmtCur(outstanding);
+                document.getElementById('bh-outstanding').style.color = outstanding > 0 ? 'var(--warning)' : 'var(--success)';
+                stats.style.display = 'flex';
+                mine.sort((a,b) => new Date(b.booking_date) - new Date(a.booking_date));
+                tbody.innerHTML = mine.map(b => {
+                    const bal = parseFloat(b.balance_due||0);
+                    const st  = b.status || 'unknown';
+                    let pill = `<span style="padding:3px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;text-transform:uppercase;`;
+                    if(st === 'cancelled') pill += `background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);">${st}</span>`;
+                    else if(bal <= 0) pill += `background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);">Paid</span>`;
+                    else pill += `background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">Balance Due</span>`;
+                    const fmtD = d => { try { return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}); } catch(e){return d;} };
+                    const dateStr = (b.date_from && b.date_to && b.date_to.slice(0,10) !== b.date_from.slice(0,10))
+                        ? `${fmtD(b.date_from)} – ${fmtD(b.date_to)}`
+                        : b.date_from ? fmtD(b.date_from)
+                        : b.booking_date ? fmtD(b.booking_date) : '—';
+                    const bookingData = encodeURIComponent(JSON.stringify(b));
+                    return `<tr onclick="openInteractionModal('${bookingData}')"><td>${dateStr}</td><td>${b.room_name||'—'}</td><td>${fmtCur(b.total_amount)}</td><td style="color:${bal>0?'#f59e0b':'#10b981'}">${fmtCur(bal)}</td><td>${pill}</td></tr>`;
+                }).join('');
+                tableW.style.display = 'block';
+            } catch(err) {
+                loading.style.display = 'none';
+                empty.innerText = 'Failed to load history';
+                empty.style.display = 'block';
+            }
+        }
+
+        function openModal(dataString) {
+            const data = JSON.parse(decodeURIComponent(dataString));
+            document.getElementById('m-id').innerText = data.id || 'N/A';
+            document.getElementById('m-name').innerText = data.full_name || 'N/A';
+            document.getElementById('m-email').innerText = data.email || 'N/A';
+            document.getElementById('m-phone').innerText = data.phone || 'N/A';
+            document.getElementById('m-event').innerText = data.event_type || 'N/A';
+            const fmtMD = d => { try { return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){return d;} };
+            document.getElementById('m-date').innerText =
+                (data.date_from && data.date_to && data.date_to.slice(0,10) !== data.date_from.slice(0,10))
+                    ? `${fmtMD(data.date_from)} – ${fmtMD(data.date_to)}`
+                    : data.date_from ? fmtMD(data.date_from)
+                    : data.event_date ? fmtMD(data.event_date) : 'N/A';
+            document.getElementById('m-status').innerText = data.status || 'N/A';
+            document.getElementById('m-guests').innerText = data.guest_count || data.guests_count || data.num_people || data.numPeople || '0';
+
+            const btnContainer = document.getElementById('modal-buttons');
+            let actionBtn = '';
+            if (data.status === 'deposit_paid') {
+                 actionBtn = `<a href="final-payment.html" class="btn-modal btn-pay"><i class="fa-solid fa-credit-card"></i> Pay Balance</a>`;
+            }
+            btnContainer.innerHTML = actionBtn + `<button class="btn-modal btn-close" onclick="closeModal()">Close</button>`;
+            document.getElementById('custModal').classList.add('open');
+            loadBookingHistory(data.email);
+            loadInteractions(data.email);
+        }
+        function closeModal(e) { if(!e || e.target.id === 'custModal' || e.target.classList.contains('modal-close') || e.target.innerText === 'Close') document.getElementById('custModal').classList.remove('open'); }
+
+        async function loadData() {
+            try {
+                const response = await fetch(API_URL, { headers: getAuthHeaders() });
+                if (!response.ok) throw new Error("API Error");
+                const json = await response.json();
+                const customers = json.data || (Array.isArray(json) ? json : []); 
+                const tbody = document.getElementById('table-body');
+                
+                if (customers.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--text-muted)">No customers found</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = customers.map(c => {
+                    const dataStr = encodeURIComponent(JSON.stringify(c));
+                    // Status Badge Logic
+                    let badgeClass = c.status;
+                    const isBooked = ['booked', 'fully_paid', 'deposit_paid'].includes(c.status);
+                    if (isBooked) badgeClass = 'booked';
+                    const statusLabel = isBooked ? 'Booked' : c.status;
+                    
+                    return `
+                    <tr onclick="openModal('${dataStr}')">
+                        <td><div style="font-weight:600; color:white;">${c.full_name}</div></td>
+                        <td><div>${c.email}</div><div style="font-size:0.8rem; color:var(--text-muted)">${c.phone || ''}</div></td>
+                        <td>${c.event_type || 'General'}</td>
+                        <td>${(c.date_from && c.date_to && c.date_to.slice(0,10) !== c.date_from.slice(0,10)) ? `${new Date(c.date_from).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})} – ${new Date(c.date_to).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}` : c.date_from ? new Date(c.date_from).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : c.event_date ? new Date(c.event_date).toLocaleDateString() : 'N/A'}</td>
+                        <td><span class="status-badge ${badgeClass}">${statusLabel}</span></td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+                document.getElementById('table-body').innerHTML = `<tr><td colspan="5" style="text-align:center; padding:3rem; color:#ef4444">Connection Error</td></tr>`;
+            }
+        }
+
+        function filterTable() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("customerTable");
+            const tr = table.getElementsByTagName("tr");
+            for (let i = 0; i < tr.length; i++) {
+                let tdName = tr[i].getElementsByTagName("td")[0];
+                let tdEmail = tr[i].getElementsByTagName("td")[1];
+                if (tdName || tdEmail) {
+                    const txtName = tdName.textContent || tdName.innerText;
+                    const txtEmail = tdEmail.textContent || tdEmail.innerText;
+                    tr[i].style.display = (txtName.toUpperCase().indexOf(filter) > -1 || txtEmail.toUpperCase().indexOf(filter) > -1) ? "" : "none";
+                }
+            }
+        }
+
+        // ── INTERACTION LOGGING FUNCTIONS ──
+        const INTERACTIONS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
+        let currentCustomerData = null;
+
+        function openInteractionModal(bookingDataString) {
+            event.stopPropagation();
+            const booking = JSON.parse(decodeURIComponent(bookingDataString));
+            const customer = {
+                name: document.getElementById('m-name').innerText,
+                email: document.getElementById('m-email').innerText,
+                phone: document.getElementById('m-phone').innerText,
+                id: document.getElementById('m-id').innerText
+            };
+            currentCustomerData = { customer, booking };
+            
+            const infoGrid = document.getElementById('interaction-info');
+            const fmtID = d => { try { return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); } catch(e){return d;} };
+            const dateStr = (booking.date_from && booking.date_to && booking.date_to.slice(0,10) !== booking.date_from.slice(0,10))
+                ? `${fmtID(booking.date_from)} – ${fmtID(booking.date_to)}`
+                : booking.date_from ? fmtID(booking.date_from)
+                : booking.booking_date ? fmtID(booking.booking_date) : 'N/A';
+            const dateLabelStr = (booking.date_from && booking.date_to && booking.date_to.slice(0,10) !== booking.date_from.slice(0,10)) ? 'Booking Dates' : 'Booking Date';
+            infoGrid.innerHTML = `
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">Customer</div>
+                    <div class="interaction-info-value">${customer.name}</div>
+                </div>
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">Email</div>
+                    <div class="interaction-info-value">${customer.email}</div>
+                </div>
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">${dateLabelStr}</div>
+                    <div class="interaction-info-value">${dateStr}</div>
+                </div>
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">Room/Venue</div>
+                    <div class="interaction-info-value">${booking.room_name || 'N/A'}</div>
+                </div>
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">Booking ID</div>
+                    <div class="interaction-info-value" style="font-family: monospace;">${booking.id || 'N/A'}</div>
+                </div>
+                <div class="interaction-info-item">
+                    <div class="interaction-info-label">Status</div>
+                    <div class="interaction-info-value" style="text-transform: capitalize;">${booking.status || 'N/A'}</div>
+                </div>
+            `;
+            
+            document.getElementById('interactionForm').reset();
+            document.getElementById('interactionModal').classList.add('open');
+        }
+
+        function closeInteractionModal(e) {
+            if(!e || e.target.id === 'interactionModal' || e.target.classList.contains('modal-close')) {
+                document.getElementById('interactionModal').classList.remove('open');
+                currentCustomerData = null;
+            }
+        }
+
+        async function saveInteraction(event) {
+            event.preventDefault();
+            if (!currentCustomerData) return;
+            
+            const subject = document.getElementById('interaction-subject').value;
+            const type = document.getElementById('interaction-type').value;
+            const notes = document.getElementById('interaction-notes').value;
+            const timestamp = new Date().toISOString();
+            const staffMember = sessionStorage.getItem('vp_user_name') || 'Staff Member';
+            
+            const interactionData = {
+                customer_id: currentCustomerData.customer.id,
+                customer_name: currentCustomerData.customer.name,
+                customer_email: currentCustomerData.customer.email,
+                customer_phone: currentCustomerData.customer.phone,
+                booking_id: currentCustomerData.booking.id,
+                booking_date: currentCustomerData.booking.booking_date,
+                room_name: currentCustomerData.booking.room_name,
+                subject: subject,
+                interaction_type: type,
+                notes: notes,
+                timestamp: timestamp,
+                staff_member: staffMember
+            };
+            
+            try {
+                const submitBtn = event.target.querySelector('button[type="submit"]');
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+                
+                const response = await fetch(INTERACTIONS_API, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeaders()
+                    },
+                    body: JSON.stringify(interactionData)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save interaction');
+                
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+                setTimeout(() => {
+                    closeInteractionModal();
+                    loadInteractions(currentCustomerData.customer.email);
+                }, 800);
+                
+            } catch (error) {
+                console.error('Error saving interaction:', error);
+                alert('Failed to save interaction. Please try again.');
+                event.target.querySelector('button[type="submit"]').innerHTML = '<i class="fa-solid fa-save"></i> Save Interaction';
+                event.target.querySelector('button[type="submit"]').disabled = false;
+            }
+        }
+
+        async function loadInteractions(email) {
+            const loadingEl = document.getElementById('interactions-loading');
+            const listEl = document.getElementById('interactions-list');
+            const noInteractionsEl = document.getElementById('no-interactions');
+            
+            loadingEl.style.display = 'block';
+            listEl.innerHTML = '';
+            noInteractionsEl.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) throw new Error('Failed to load interactions');
+                
+                const json = await response.json();
+                const interactions = json.data || (Array.isArray(json) ? json : []);
+                
+                loadingEl.style.display = 'none';
+                
+                if (interactions.length === 0) {
+                    noInteractionsEl.style.display = 'block';
+                    return;
+                }
+                
+                interactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                listEl.innerHTML = interactions.map(interaction => {
+                    const date = new Date(interaction.timestamp);
+                    const dateStr = date.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+                    const timeStr = date.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+                    
+                    return `
+                        <div class="interaction-item">
+                            <div class="interaction-item-header">
+                                <div class="interaction-item-subject">${esc(interaction.subject)}</div>
+                                <div class="interaction-item-date">${dateStr} ${timeStr}</div>
+                            </div>
+                            <div class="interaction-item-meta">
+                                <span><i class="fa-solid fa-tag"></i> ${esc(interaction.interaction_type)}</span>
+                                <span><i class="fa-solid fa-user"></i> ${esc(interaction.staff_member)}</span>
+                                <span><i class="fa-solid fa-calendar"></i> Booking: ${new Date(interaction.booking_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span>
+                            </div>
+                            <div class="interaction-item-notes">${esc(interaction.notes)}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading interactions:', error);
+                loadingEl.style.display = 'none';
+                listEl.innerHTML = '<div class="no-interactions" style="display:block; color:#ef4444;">Failed to load interactions</div>';
+            }
+        }
+
+        function exportInteractions() {
+            const email = document.getElementById('m-email').innerText;
+            const customerName = document.getElementById('m-name').innerText;
+            
+            fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}`, {
+                headers: getAuthHeaders()
+            })
+            .then(res => res.json())
+            .then(json => {
+                const interactions = json.data || (Array.isArray(json) ? json : []);
+                if (interactions.length === 0) {
+                    alert('No interactions to export');
+                    return;
+                }
+                
+                const headers = ['Timestamp', 'Customer Name', 'Customer Email', 'Booking Date', 'Room/Venue', 'Subject', 'Type', 'Notes', 'Staff Member'];
+                const rows = interactions.map(i => [
+                    new Date(i.timestamp).toLocaleString('en-GB'),
+                    i.customer_name,
+                    i.customer_email,
+                    new Date(i.booking_date).toLocaleDateString('en-GB'),
+                    i.room_name || '',
+                    i.subject,
+                    i.interaction_type,
+                    i.notes.replace(/"/g, '""'),
+                    i.staff_member
+                ]);
+                
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `customer_interactions_${customerName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            })
+            .catch(err => {
+                console.error('Export error:', err);
+                alert('Failed to export interactions');
+            });
+        }
+
+        loadData();
+    
+
+        function toggleSidebarCollapse(){
+            const col=document.body.classList.toggle('sidebar-collapsed');
+            sessionStorage.setItem('vp_sidebar_col',col?'1':'0');
+        }
+        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        // ── THEME PERSISTENCE ──
+        (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
+        function toggleTheme(){
+            var isLight = document.body.classList.toggle('light-mode');
+            sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+            var btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        }
+        // Set correct icon on load
+        document.addEventListener('DOMContentLoaded', function(){
+            var btn = document.getElementById('theme-btn');
+            if(btn) {
+                var isLight = document.body.classList.contains('light-mode');
+                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        });
+</script>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>User Management | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 1. SECURITY GATEKEEPER -->
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html'; return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                }
+            } catch(e) { /* non-JWT token, skip expiry check */ }
+        })();
+    </script>
+
+    <style>
+        /* CORE STYLES */
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.9);
+            --border: rgba(148, 163, 184, 0.1);
+            --primary: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --sidebar-width: 260px;
+            --bg-gradient-1: hsla(253,16%,7%,1);
+            --bg-gradient-2: hsla(225,39%,30%,1);
+        }
+        
+        /* LIGHT THEME */
+        :root.light-theme {
+            --bg-dark: #f1f5f9;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --border: rgba(148, 163, 184, 0.2);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --bg-gradient-1: hsla(210, 40%, 96%, 1);
+            --bg-gradient-2: hsla(220, 60%, 90%, 1);
+        }
+        :root.light-theme input,
+        :root.light-theme select {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-dark); background-image: radial-gradient(at 0% 0%, var(--bg-gradient-1) 0, transparent 50%), radial-gradient(at 50% 0%, var(--bg-gradient-2) 0, transparent 50%); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+
+        /* SIDEBAR */
+        aside { width: var(--sidebar-width); background: rgba(15, 23, 42, 0.95); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+        .close-sidebar { display: none; background: none; border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; }
+
+        /* MAIN */
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; width: 100%; transition: margin-left 0.3s ease; }
+        header { display: flex; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        .menu-toggle { display: none; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* GRID */
+        .grid-split { display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; }
+
+        /* CARD */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .card-title { font-size: 1.2rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        
+        /* FORM INPUTS */
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem; }
+        input, select { width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); outline: none; font-size: 1rem; transition: border 0.3s; }
+        input:focus, select:focus { border-color: var(--primary); }
+        select { cursor: pointer; }
+
+        .btn-create { width: 100%; padding: 14px; background: var(--primary); border: none; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; margin-top: 1rem; transition: 0.2s; }
+        .btn-create:hover { background: #4f46e5; }
+        .btn-create:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* TABLE */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        th { text-align: left; padding: 1rem; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        .role-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+        .role-admin { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        
+        .btn-delete { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: 0.2s; }
+        .btn-delete:hover { background: var(--danger); color: white; }
+
+        /* THEME TOGGLE */
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: auto; transition: 0.3s; }
+        .theme-toggle:hover { background: var(--primary); color: white; }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; backdrop-filter: blur(2px); }
+        .overlay.active { display: block; }
+        @media (max-width: 900px) { .grid-split { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { aside { transform: translateX(-100%); } aside.active { transform: translateX(0); } main { margin-left: 0; padding: 1rem; } .menu-toggle { display: flex; } .close-sidebar { display: block; } }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Full Coverage
+           Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
+        ============================================================ */
+
+        /* Sidebar overlay backdrop (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 199;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Touch-friendly minimum tap targets */
+        button, .btn, a.btn, select, input[type="text"],
+        input[type="email"], input[type="password"], input[type="tel"],
+        input[type="number"], input[type="date"], input[type="time"],
+        textarea { min-height: 44px; }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            border-radius: 12px;
+        }
+        .table-wrap table { min-width: 600px; }
+
+        /* ---- 1200px (large desktop to medium desktop) ---- */
+        @media (max-width: 1200px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ---- 1024px (small laptop / large tablet landscape) ---- */
+        @media (max-width: 1024px) {
+            aside { width: 220px; }
+            main { margin-left: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 900px (tablet landscape) ---- */
+        @media (max-width: 900px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-split, .form-grid-2col { grid-template-columns: 1fr; }
+            .filter-bar, .top-bar, .action-bar {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select { width: 100%; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 768px (tablet portrait / all mobiles) ---- */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0; top: 0;
+                height: 100vh;
+                width: 260px;
+                transform: translateX(-100%);
+                z-index: 200;
+                transition: transform 0.3s ease;
+            }
+            aside.active { transform: translateX(0); }
+            .close-sidebar { display: block !important; }
+            .menu-toggle { display: flex !important; }
+            main { margin-left: 0 !important; padding: 1rem; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header .header-actions { width: 100%; }
+            .page-header .header-actions button,
+            .page-header .header-actions a { width: 100%; justify-content: center; }
+
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .filter-bar, .top-bar, .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select,
+            .action-bar input, .action-bar select { width: 100%; }
+
+            .filter-tabs { flex-wrap: wrap; gap: 0.4rem; }
+            .filter-tabs button { flex: 1 1 auto; min-width: 80px; font-size: 0.8rem; }
+
+            .modal-content, .modal-box, .modal > div:first-child {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                max-height: 88vh !important;
+                overflow-y: auto;
+                border-radius: 12px !important;
+                margin: 1rem auto;
+            }
+            .modal-grid, .form-row, .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            table td, table th { font-size: 0.8rem; padding: 0.5rem 0.6rem; }
+            .card { padding: 1rem; }
+            .btn-group { flex-wrap: wrap; gap: 0.4rem; }
+            .btn-group button, .btn-group a { flex: 1 1 auto; }
+
+            .calendar-grid { gap: 0.25rem; }
+        }
+
+        /* ---- 480px (mobile portrait) ---- */
+        @media (max-width: 480px) {
+            main { padding: 0.75rem; }
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+            .page-header h1 { font-size: 1.2rem; }
+            .card { padding: 0.85rem; border-radius: 12px; }
+            .stat-card h2, .kpi-card h2, .stat-value { font-size: 1.6rem; }
+            button, .btn { font-size: 0.85rem; padding: 10px 14px; }
+            .filter-tabs button { font-size: 0.75rem; padding: 6px 10px; }
+            .table-wrap table { min-width: 480px; }
+            table td, table th { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .badge, .status-badge { font-size: 0.7rem; padding: 2px 7px; }
+            aside { width: 240px; }
+        }
+
+        /* ---- 360px (very small phones) ---- */
+        @media (max-width: 360px) {
+            main { padding: 0.5rem; }
+            .page-header h1 { font-size: 1.1rem; }
+            aside { width: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        
+        /* ── SIDEBAR COLLAPSE (desktop/tablet) ── */
+        aside { transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease !important; overflow: hidden; }
+        main  { transition: margin-left 0.3s ease !important; }
+        .brand-text { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .nav-label  { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; line-height: 1; min-height: unset; flex-shrink: 0; }
+        .sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+        .sidebar-collapse-btn:hover { color: var(--primary); }
+        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main  { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-label  { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link   { justify-content: center; gap: 0; padding: 12px 8px; font-size: 1.05rem; }
+        body.sidebar-collapsed .close-sidebar { display: none !important; }
+        body.sidebar-collapsed .nav-link { position: relative; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
+        @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
+        </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+        <div class="brand"><span><i class="fa-solid fa-layer-group"></i><span class="brand-text">VenueDesk</span></span><div style="display:flex;align-items:center;gap:2px;"><button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div></div>
+        <nav>
+            <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+            <a href="users.html" class="nav-link active" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+            <a href="admin-config.html"    class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+            <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+        </nav>
+    </aside>
+
+    <main>
+        <header>
+            <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+            <h1 style="font-size: 1.8rem; font-weight: 700;">User Management</h1>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <i class="fa-solid fa-sun" id="themeIcon"></i>
+            </button>
+        </header>
+
+        <div class="grid-split">
+            <!-- CREATE USER FORM -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-user-plus"></i> Add New User</div>
+                <form id="createUserForm" onsubmit="return false;">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="newName" placeholder="e.g. Sarah Connor" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Username</label>
+                        <input type="text" id="newUsername" placeholder="e.g. sarahc" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="newPassword" placeholder="Minimum 6 characters" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Role</label>
+                        <select id="newRole">
+                            <option value="staff">Staff</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button class="btn-create" onclick="createUser()">Create User</button>
+                </form>
+            </div>
+
+            <!-- USER LIST -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-users-gear"></i> Existing Users</div>
+                <div class="table-container">
+                    <div class="table-wrap">
+<table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-muted)">Loading...</td></tr>
+                        </tbody>
+                    </table>
+</div>
+                </div>
+            </div>
+        </div>
+    </main>
+<script>
+        // CONFIG
+        const GET_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-users';
+        const CREATE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/create-user';
+        const DELETE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/delete-user';
+
+        function getAuthHeaders() {
+            const tid = sessionStorage.getItem('vp_tenant_id') || '';
+            return {
+                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
+                'X-Tenant-ID': tid,
+                'X-Venue-ID':  tid
+            };
+        }
+
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+        function logout() { if(confirm("Log out?")) { sessionStorage.removeItem('vp_token'); window.location.href='login.html'; } }
+        
+        // Theme Toggle
+
+        function toggleSidebarCollapse(){
+            const col=document.body.classList.toggle('sidebar-collapsed');
+            sessionStorage.setItem('vp_sidebar_col',col?'1':'0');
+        }
+        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        function toggleTheme() {
+            const root = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            const isLight = root.classList.toggle('light-theme');
+            icon.className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+        }
+        
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = sessionStorage.getItem('vp_theme');
+            const icon = document.getElementById('themeIcon');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.add('light-theme');
+                if (icon) icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        // 1. Load Users
+        async function loadUsers() {
+            try {
+                const res = await fetch(GET_URL, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error("Connection Error");
+                
+                const json = await res.json();
+                
+                // ROBUST FIX: Handle both Array and Object formats
+                let users = [];
+                if (Array.isArray(json)) {
+                    users = json;
+                } else if (json.data && Array.isArray(json.data)) {
+                    users = json.data;
+                } else if (json.users && Array.isArray(json.users)) {
+                    users = json.users;
+                }
+                
+                const tbody = document.getElementById('usersTable');
+                
+                if(users.length === 0) { 
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No users found.</td></tr>'; 
+                    return; 
+                }
+
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td><div style="font-weight:600; color:var(--text-main);">${u.full_name || '---'}</div></td>
+                        <td style="font-family:monospace; color:var(--primary);">${u.username}</td>
+                        <td><span class="role-badge ${u.role === 'admin' ? 'role-admin' : ''}">${u.role}</span></td>
+                        <td style="text-align: right;">
+                            <!-- Only show delete for non-admin users -->
+                            ${u.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUser('${u.id}', '${u.username}')"><i class="fa-solid fa-trash"></i></button>` : '<span style="opacity:0.3">-</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { 
+                console.error(e); 
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="4" style="text-align:center; color:#ef4444;">Connection Failed</td></tr>';
+            }
+        }
+
+        // 2. Create User
+        async function createUser() {
+            const btn = document.querySelector('.btn-create');
+            const name = document.getElementById('newName').value;
+            const user = document.getElementById('newUsername').value;
+            const pass = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+
+            if(!name || !user || !pass) { alert("Please fill all fields"); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+
+            try {
+                const res = await fetch(CREATE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ full_name: name, username: user, password: pass, role: role })
+                });
+
+                if(res.ok) {
+                    alert("User created successfully!");
+                    document.getElementById('createUserForm').reset();
+                    loadUsers(); // Reload list
+                } else { throw new Error("Failed"); }
+            } catch(e) { alert("Error creating user."); }
+            finally { btn.disabled = false; btn.innerHTML = "Create User"; }
+        }
+
+        // 3. Delete User
+        async function deleteUser(id, username) {
+            if(!confirm(`Are you sure you want to delete user: ${username}?`)) return;
+
+            try {
+                const res = await fetch(DELETE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ user_id: id })
+                });
+                if(res.ok) { loadUsers(); } else { alert("Failed to delete."); }
+            } catch(e) { alert("Connection Error"); }
+        }
+
+        // Initialize on page load
+        loadTheme();
+        loadUsers();
+</script>
+    <!-- FinTech Revamp -->
+    <style>
+    :root { --bg-dark:#06101f; --bg-card:rgba(13,21,46,0.80); --border:rgba(99,120,186,0.14); --border-accent:rgba(99,120,186,0.34); --text-main:#eef2ff; --text-muted:#8b9cc8; }
+    body { background-color:var(--bg-dark) !important; background-image:radial-gradient(ellipse 90% 55% at 18% -10%,rgba(99,102,241,0.17) 0%,transparent 54%),radial-gradient(ellipse 70% 50% at 83% 110%,rgba(6,182,212,0.10) 0%,transparent 52%),radial-gradient(ellipse 60% 70% at 50% 50%,rgba(10,16,40,0.65) 0%,transparent 100%) !important; }
+    aside { background:rgba(4,9,22,0.98) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; border-right:1px solid var(--border) !important; }
+    .brand { font-size:1.22rem !important; font-weight:800 !important; margin-bottom:2rem !important; letter-spacing:-0.01em; }
+    .nav-link { border-radius:10px !important; padding:10px 14px !important; font-size:0.88rem !important; margin-bottom:2px !important; }
+    .nav-link:not(.active):hover { color:#c7d2fe !important; background:rgba(99,102,241,0.09) !important; }
+    .nav-link.active { background:linear-gradient(135deg,rgba(99,102,241,0.22) 0%,rgba(99,102,241,0.09) 100%) !important; color:#a5b4fc !important; border-left:3px solid var(--primary) !important; padding-left:11px !important; }
+    header { padding-bottom:1.5rem !important; border-bottom:1px solid var(--border) !important; margin-bottom:1.75rem !important; justify-content:space-between !important; }
+    header h1 { font-size:1.75rem !important; font-weight:800 !important; letter-spacing:-0.03em !important; background:linear-gradient(135deg,#eef2ff 0%,#a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .card { border-radius:18px !important; backdrop-filter:blur(16px) !important; background:var(--bg-card) !important; border:1px solid var(--border) !important; transition:transform 0.22s ease,border-color 0.22s ease,box-shadow 0.22s ease !important; }
+    .card:hover { transform:translateY(-3px) !important; border-color:var(--border-accent) !important; box-shadow:0 16px 44px rgba(0,0,0,0.5) !important; }
+    .filter-btn { border-radius:50px !important; padding:8px 18px !important; font-size:0.82rem !important; backdrop-filter:blur(8px) !important; transition:all 0.2s ease !important; }
+    .filter-btn:not(.active):hover { transform:translateY(-1px) !important; background:rgba(255,255,255,0.08) !important; color:white !important; border-color:rgba(99,120,186,0.34) !important; }
+    .table-container { border-radius:18px !important; backdrop-filter:blur(14px) !important; border:1px solid var(--border) !important; }
+    .table-header { background:rgba(13,21,46,0.55) !important; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    main > * { animation:fadeUp 0.38s ease both; }
+    @media (max-width:768px) { main { padding:1rem !important; } header { flex-direction:column !important; align-items:flex-start !important; } header h1 { font-size:1.4rem !important; } }
+    @media (max-width:480px) { main { padding:0.75rem !important; } }
+    body.light-mode { background-color:#f0f4fb !important; background-image:none !important; }
+    body.light-mode .card { background:rgba(255,255,255,0.96) !important; border-color:rgba(0,0,0,0.07) !important; }
+    body.light-mode header { border-bottom-color:rgba(0,0,0,0.08) !important; }
+    body.light-mode header h1 { background:linear-gradient(135deg,#0f172a 0%,#4338ca 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    body.light-mode .table-container { background:rgba(255,255,255,0.96) !important; border-color:rgba(0,0,0,0.08) !important; }
+    body.light-mode aside { background:rgba(255,255,255,1) !important; border-right-color:rgba(0,0,0,0.09) !important; }
+    </style>
+</body>
+</html>

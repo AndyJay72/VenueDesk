@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Process Payment | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html'; return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                }
+            } catch(e) { /* non-JWT token, skip expiry check */ }
+        })();
+    </script>
+    <style>
+        :root { --bg-dark: #0f172a; --bg-card: rgba(30, 41, 59, 0.9); --border: rgba(148, 163, 184, 0.1); --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --sidebar-width: 260px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+        aside { width: var(--sidebar-width); background: rgba(15, 23, 42, 0.95); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+        .close-sidebar { display: none; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; width: 100%; transition: margin-left 0.3s ease; }
+        header { display: flex; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        .menu-toggle { display: none; background: var(--bg-card); border: 1px solid var(--border); color: white; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; }
+        .form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 860px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .form-section-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0 0 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 10px; }
+        .form-section-title i { color: var(--primary); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+        .full-width { grid-column: span 2; }
+        .input-group label { display: block; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+        .input-wrapper { position: relative; width: 100%; }
+        .input-wrapper i.icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--primary); pointer-events: none; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px 12px 12px 42px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; color: white; outline: none; font-size: 0.95rem; appearance: none; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); }
+        select { cursor: pointer; }
+        input[readonly] { opacity: 0.65; cursor: default; }
+        .summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .summary-item { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; }
+        .summary-item .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .summary-item .value { font-size: 1.3rem; font-weight: 700; }
+        .payment-box { background: rgba(0,0,0,0.2); padding: 1.75rem; border-radius: 12px; border: 1px solid var(--border); }
+        .amount-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; margin-bottom: 1.25rem; }
+        .range-wrap input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 3px; background: var(--border); padding: 0; border: none; cursor: pointer; margin-top: 8px; }
+        .range-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+        .range-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+        .amount-input-num { font-size: 1.5rem !important; font-weight: 700; padding: 14px 14px 14px 48px !important; }
+        .pay-type-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; margin-top: 8px; }
+        .pay-type-badge.partial { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .pay-type-badge.full { background: rgba(16,185,129,0.15); color: var(--success); }
+        .btn-pay { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; background: var(--success); color: #0f172a; margin-top: 1.25rem; transition: transform 0.2s, opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-pay:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn-pay:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-pay.partial-mode { background: var(--warning); }
+        .receipt-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .receipt-overlay.active { display: flex; }
+        .receipt-card { background: #1e293b; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 480px; width: 90%; text-align: center; }
+        .receipt-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(16,185,129,0.15); border: 2px solid var(--success); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--success); margin: 0 auto 1rem; }
+        .receipt-ref { font-family: monospace; font-size: 1.1rem; color: var(--primary); background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 8px; padding: 8px 16px; display: inline-block; margin: 8px 0; }
+        .receipt-detail { font-size: 0.9rem; color: var(--text-muted); margin: 5px 0; }
+        .receipt-detail span { color: var(--text-main); font-weight: 600; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; backdrop-filter: blur(2px); }
+        .overlay.active { display: block; }
+        @media (max-width: 768px) {
+            aside { transform: translateX(-100%); } aside.active { transform: translateX(0); }
+            main { margin-left: 0; padding: 1rem; } .menu-toggle { display: flex; }
+            .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; }
+            .summary-bar { grid-template-columns: 1fr; } .amount-row { grid-template-columns: 1fr; }
+        }
+        .pay-method-row { display: flex; align-items: center; gap: 10px; }
+        .pay-method-label { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+        .pay-method-select { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; color: white; padding: 7px 12px; font-size: 0.88rem; outline: none; cursor: pointer; flex: 1; }
+        .pay-method-select option { background: #1e293b; }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Full Coverage
+           Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
+        ============================================================ */
+
+        /* Sidebar overlay backdrop (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 199;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Touch-friendly minimum tap targets */
+        button, .btn, a.btn, select, input[type="text"],
+        input[type="email"], input[type="password"], input[type="tel"],
+        input[type="number"], input[type="date"], input[type="time"],
+        textarea { min-height: 44px; }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            border-radius: 12px;
+        }
+        .table-wrap table { min-width: 600px; }
+
+        /* ---- 1200px (large desktop to medium desktop) ---- */
+        @media (max-width: 1200px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ---- 1024px (small laptop / large tablet landscape) ---- */
+        @media (max-width: 1024px) {
+            aside { width: 220px; }
+            main { margin-left: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 900px (tablet landscape) ---- */
+        @media (max-width: 900px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-split, .form-grid-2col { grid-template-columns: 1fr; }
+            .filter-bar, .top-bar, .action-bar {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select { width: 100%; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 768px (tablet portrait / all mobiles) ---- */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0; top: 0;
+                height: 100vh;
+                width: 260px;
+                transform: translateX(-100%);
+                z-index: 200;
+                transition: transform 0.3s ease;
+            }
+            aside.active { transform: translateX(0); }
+            .close-sidebar { display: block !important; }
+            .menu-toggle { display: flex !important; }
+            main { margin-left: 0 !important; padding: 1rem; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header .header-actions { width: 100%; }
+            .page-header .header-actions button,
+            .page-header .header-actions a { width: 100%; justify-content: center; }
+
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .filter-bar, .top-bar, .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select,
+            .action-bar input, .action-bar select { width: 100%; }
+
+            .filter-tabs { flex-wrap: wrap; gap: 0.4rem; }
+            .filter-tabs button { flex: 1 1 auto; min-width: 80px; font-size: 0.8rem; }
+
+            .modal-content, .modal-box, .modal > div:first-child {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                max-height: 88vh !important;
+                overflow-y: auto;
+                border-radius: 12px !important;
+                margin: 1rem auto;
+            }
+            .modal-grid, .form-row, .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            table td, table th { font-size: 0.8rem; padding: 0.5rem 0.6rem; }
+            .card { padding: 1rem; }
+            .btn-group { flex-wrap: wrap; gap: 0.4rem; }
+            .btn-group button, .btn-group a { flex: 1 1 auto; }
+
+            .calendar-grid { gap: 0.25rem; }
+        }
+
+        /* ---- 480px (mobile portrait) ---- */
+        @media (max-width: 480px) {
+            main { padding: 0.75rem; }
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+            .page-header h1 { font-size: 1.2rem; }
+            .card { padding: 0.85rem; border-radius: 12px; }
+            .stat-card h2, .kpi-card h2, .stat-value { font-size: 1.6rem; }
+            button, .btn { font-size: 0.85rem; padding: 10px 14px; }
+            .filter-tabs button { font-size: 0.75rem; padding: 6px 10px; }
+            .table-wrap table { min-width: 480px; }
+            table td, table th { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .badge, .status-badge { font-size: 0.7rem; padding: 2px 7px; }
+            aside { width: 240px; }
+        }
+
+        /* ---- 360px (very small phones) ---- */
+        @media (max-width: 360px) {
+            main { padding: 0.5rem; }
+            .page-header h1 { font-size: 1.1rem; }
+            aside { width: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        </style>
+</head>
+<body>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <!-- SUCCESS RECEIPT MODAL -->
+    <div class="receipt-overlay" id="receiptOverlay">
+        <div class="receipt-card">
+            <div class="receipt-icon"><i class="fa-solid fa-check"></i></div>
+            <h2 style="font-size:1.3rem; margin-bottom:4px;" id="receiptTitle">Payment Confirmed</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;" id="receiptSubtitle"></p>
+            <div class="receipt-ref" id="receiptRef">—</div>
+            <div style="margin-top:1rem; padding:1rem; background:rgba(0,0,0,0.2); border-radius:8px; text-align:left;">
+                <div class="receipt-detail">Customer: <span id="rCustomer">—</span></div>
+                <div class="receipt-detail">Room: <span id="rRoom">—</span></div>
+                <div class="receipt-detail">Event Date: <span id="rDate">—</span></div>
+                <div class="receipt-detail">Amount Paid: <span id="rAmount" style="color:var(--success);">—</span></div>
+                <div class="receipt-detail">Remaining Balance: <span id="rBalance">—</span></div>
+                <div class="receipt-detail" style="margin-top:6px; padding-top:6px; border-top:1px solid var(--border);">Original Deposit Ref: <span id="rOrigRef" style="font-family:monospace; font-size:0.85rem; color:var(--primary);">—</span></div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1.25rem;">
+                <button onclick="window.location.href='accounts.html'" style="flex:1; padding:10px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); color:var(--primary); border-radius:8px; cursor:pointer; font-weight:600; font-family:inherit;">
+                    <i class="fa-solid fa-list"></i> View Transactions
+                </button>
+                <button onclick="window.location.reload()" style="flex:1; padding:10px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:var(--success); border-radius:8px; cursor:pointer; font-weight:600; font-family:inherit;">
+                    <i class="fa-solid fa-plus"></i> New Payment
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar">
+        <div class="brand"><span><i class="fa-solid fa-layer-group"></i> VenueDesk</span><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div>
+        <nav>
+            <a href="index.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+            <a href="bookings.html" class="nav-link"><i class="fa-solid fa-calendar-days"></i> Bookings</a>
+            <a href="customers.html" class="nav-link"><i class="fa-solid fa-users"></i> Customers</a>
+            <a href="accounts.html" class="nav-link"><i class="fa-solid fa-file-invoice-dollar"></i> Accounts</a>
+            <a href="venuepro_booking.html" class="nav-link"><i class="fa-solid fa-building"></i> Event Booking</a>
+            <a href="enquiry-form.html" class="nav-link" target="_blank"><i class="fa-solid fa-file-pen"></i> New Booking</a>
+            <a href="manual-booking.html" class="nav-link"><i class="fa-solid fa-person-walking-arrow-right"></i> Walk-In Booking</a>
+            <a href="final-payment.html" class="nav-link active"><i class="fa-solid fa-check-double"></i> Final Payment</a>
+            <a href="calendar.html" class="nav-link"><i class="fa-solid fa-calendar-alt"></i> Calendar</a>
+            <a href="users.html" class="nav-link"><i class="fa-solid fa-user-shield"></i> Users</a>
+            <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </nav>
+    </aside>
+
+    <main>
+        <header>
+            <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+            <h1 style="font-size: 1.5rem; font-weight: 700;"><i class="fa-solid fa-credit-card" style="color:var(--primary); margin-right:8px;"></i>Process Payment</h1>
+        </header>
+
+        <form id="paymentForm" class="form-card" onsubmit="return false;">
+
+            <div class="form-section-title"><i class="fa-solid fa-file-invoice"></i> Select Invoice</div>
+            <div class="form-grid">
+                <div class="input-group full-width">
+                    <label>Outstanding Bookings</label>
+                    <div class="input-wrapper">
+                        <i class="icon fa-solid fa-list-ul"></i>
+                        <select id="bookingSelect" onchange="fillDetails()" required>
+                            <option value="">Loading outstanding balances...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fa-solid fa-circle-info"></i> Booking Details</div>
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>Customer</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-user"></i><input type="text" id="customerName" readonly></div>
+                </div>
+                <div class="input-group">
+                    <label>Phone</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-phone"></i><input type="text" id="customerPhone" readonly></div>
+                </div>
+                <div class="input-group">
+                    <label>Room</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-door-open"></i><input type="text" id="roomName" readonly></div>
+                </div>
+                <div class="input-group">
+                    <label>Event Date</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-calendar"></i><input type="text" id="eventDate" readonly></div>
+                </div>
+                <div class="input-group">
+                    <label>Time Slot</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-clock"></i><input type="text" id="eventTime" readonly></div>
+                </div>
+                <div class="input-group">
+                    <label>Customer Email</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-envelope"></i><input type="text" id="customerEmail" readonly></div>
+                </div>
+                <div class="input-group full-width">
+                    <label>Original Deposit Reference</label>
+                    <div class="input-wrapper"><i class="icon fa-solid fa-tag"></i><input type="text" id="depositRef" readonly placeholder="—"></div>
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fa-solid fa-chart-pie"></i> Account Summary</div>
+            <div class="summary-bar">
+                <div class="summary-item">
+                    <div class="label">Total Booking Value</div>
+                    <div class="value" id="totalDisplay" style="color:var(--text-main);">£—</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Deposit Paid</div>
+                    <div class="value" id="depositDisplay" style="color:var(--primary);">£—</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Outstanding Balance</div>
+                    <div class="value" id="balanceDisplay" style="color:var(--warning);">£—</div>
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fa-solid fa-credit-card"></i> Payment Amount</div>
+            <div class="payment-box">
+                <div class="pay-method-row" style="margin-bottom:1.2rem;">
+                    <span class="pay-method-label">Payment Method:</span>
+                    <select id="payMethodSelect" class="pay-method-select">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="amount-row">
+                    <div>
+                        <label style="display:block; color:var(--text-muted); font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Amount to Pay (£)</label>
+                        <div class="input-wrapper">
+                            <i class="icon fa-solid fa-sterling-sign"></i>
+                            <input type="number" id="payAmount" class="amount-input-num" min="1" step="0.01" placeholder="0.00"
+                                   oninput="onAmountChange()" required>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                            <span id="payTypeBadge" class="pay-type-badge partial" style="display:none;"></span>
+                            <button type="button" onclick="setFullAmount()" style="font-size:0.78rem; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:var(--success); border-radius:6px; padding:3px 10px; cursor:pointer; font-family:inherit;">
+                                Pay full balance
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:block; color:var(--text-muted); font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem;">Slide to adjust</label>
+                        <div class="range-wrap">
+                            <input type="range" id="paySlider" min="100" step="100" value="0" oninput="onSliderChange()">
+                        </div>
+                        <div class="range-hint" id="sliderHint">Drag to set partial amount</div>
+                    </div>
+                </div>
+
+                <button class="btn-pay" id="btnPay" onclick="submitPayment()" disabled>
+                    <i class="fa-solid fa-lock"></i> <span id="btnLabel">Select a booking first</span>
+                </button>
+            </div>
+
+            <input type="hidden" id="bookingId">
+            <input type="hidden" id="customerId">
+            <input type="hidden" id="maxBalance">
+            <input type="hidden" id="hdDepositRef">
+        </form>
+    </main>
+
+    <script>
+        function logout() {
+            if(confirm("Are you sure you want to log out?")) {
+                sessionStorage.removeItem('vp_token');
+                sessionStorage.removeItem('vp_user');
+                window.location.href = 'login.html';
+            }
+        }
+
+        const LIST_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
+        const PAY_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
+        const fmt = n => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+
+        let bookingsData = [];
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        async function loadOutstanding() {
+            try {
+                const res = await fetch(LIST_API);
+                const json = await res.json();
+                bookingsData = json.data || (Array.isArray(json) ? json : []);
+
+                const sel = document.getElementById('bookingSelect');
+                sel.innerHTML = '<option value="">-- Select Outstanding Invoice --</option>';
+
+                if (bookingsData.length === 0) {
+                    sel.innerHTML = '<option value="">No outstanding balances found</option>';
+                    return;
+                }
+
+                bookingsData.forEach((b, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    const d = new Date(b.booking_date).toLocaleDateString('en-GB');
+                    opt.text = b.full_name + ' \u2014 ' + b.room_name + ' (' + d + ') \u2014 ' + fmt(b.balance_due) + ' outstanding';
+                    sel.add(opt);
+                });
+            } catch(e) { console.error('loadOutstanding:', e); }
+        }
+
+        function fillDetails() {
+            const idx = document.getElementById('bookingSelect').value;
+            if (idx === '') { clearForm(); return; }
+            const b = bookingsData[idx];
+
+            document.getElementById('customerName').value  = b.full_name  || '';
+            document.getElementById('customerPhone').value = b.phone      || '';
+            document.getElementById('roomName').value      = b.room_name  || '';
+            document.getElementById('eventDate').value     = new Date(b.booking_date).toLocaleDateString('en-GB');
+            document.getElementById('eventTime').value     = (b.start_time || '?') + ' \u2013 ' + (b.end_time || '?');
+            document.getElementById('customerEmail').value = b.email      || '';
+            document.getElementById('depositRef').value    = b.deposit_reference || '\u2014';
+
+            document.getElementById('totalDisplay').innerText   = b.total_amount != null ? fmt(b.total_amount)  : '\u00a3\u2014';
+            document.getElementById('depositDisplay').innerText = b.deposit_paid  != null ? fmt(b.deposit_paid)  : '\u00a3\u2014';
+            document.getElementById('balanceDisplay').innerText = fmt(b.balance_due);
+
+            document.getElementById('bookingId').value   = b.booking_id;
+            document.getElementById('customerId').value  = b.customer_id;
+            document.getElementById('maxBalance').value  = b.balance_due;
+            document.getElementById('hdDepositRef').value = b.deposit_reference || '';
+
+            const max = parseFloat(b.balance_due);
+            const slider = document.getElementById('paySlider');
+            slider.max   = Math.round(max * 100);
+            slider.min   = 100;
+            slider.value = Math.round(max * 100);
+
+            const amtInput = document.getElementById('payAmount');
+            amtInput.max   = max;
+            amtInput.min   = 0.01;
+            amtInput.value = max.toFixed(2);
+
+            updatePayType(max);
+            document.getElementById('btnPay').disabled = false;
+        }
+
+        function clearForm() {
+            ['customerName','customerPhone','roomName','eventDate','eventTime','customerEmail','depositRef'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            ['totalDisplay','depositDisplay','balanceDisplay'].forEach(id => {
+                document.getElementById(id).innerText = '\u00a3\u2014';
+            });
+            document.getElementById('payAmount').value = '';
+            document.getElementById('btnPay').disabled = true;
+            document.getElementById('payTypeBadge').style.display = 'none';
+            document.getElementById('btnLabel').innerText = 'Select a booking first';
+        }
+
+        function onAmountChange() {
+            const amt = parseFloat(document.getElementById('payAmount').value) || 0;
+            const max = parseFloat(document.getElementById('maxBalance').value) || 0;
+            document.getElementById('paySlider').value = Math.round(Math.min(amt, max) * 100);
+            updatePayType(amt);
+        }
+
+        function onSliderChange() {
+            const raw = parseInt(document.getElementById('paySlider').value) / 100;
+            document.getElementById('payAmount').value = raw.toFixed(2);
+            updatePayType(raw);
+        }
+
+        function setFullAmount() {
+            const max = parseFloat(document.getElementById('maxBalance').value) || 0;
+            if (!max) return;
+            document.getElementById('payAmount').value = max.toFixed(2);
+            document.getElementById('paySlider').value = Math.round(max * 100);
+            updatePayType(max);
+        }
+
+        function updatePayType(amt) {
+            const max   = parseFloat(document.getElementById('maxBalance').value) || 0;
+            const badge = document.getElementById('payTypeBadge');
+            const btn   = document.getElementById('btnPay');
+            const lbl   = document.getElementById('btnLabel');
+            if (!max || !amt || amt <= 0) { badge.style.display = 'none'; return; }
+
+            const isFull = parseFloat(amt) >= max - 0.005;
+            badge.style.display = 'inline-flex';
+            if (isFull) {
+                badge.className = 'pay-type-badge full';
+                badge.innerHTML = '<i class="fa-solid fa-check-circle"></i> Full Payment';
+                btn.className = 'btn-pay';
+                lbl.innerText = 'Process Final Payment \u2014 ' + fmt(amt);
+            } else {
+                badge.className = 'pay-type-badge partial';
+                badge.innerHTML = '<i class="fa-solid fa-circle-half-stroke"></i> Part Payment';
+                btn.className = 'btn-pay partial-mode';
+                lbl.innerText = 'Process Part Payment \u2014 ' + fmt(amt);
+            }
+        }
+
+        async function submitPayment() {
+            const bookingId        = document.getElementById('bookingId').value;
+            const customerId       = document.getElementById('customerId').value;
+            const amount           = parseFloat(document.getElementById('payAmount').value);
+            const maxBal           = parseFloat(document.getElementById('maxBalance').value);
+            const depositReference = document.getElementById('hdDepositRef').value;
+
+            if (!bookingId)           { alert('Please select a booking first.'); return; }
+            if (!amount || amount < 0.01) { alert('Please enter a valid payment amount.'); return; }
+            if (amount > maxBal + 0.01)   { alert('Amount cannot exceed the outstanding balance of ' + fmt(maxBal) + '.'); return; }
+
+            const isPartial = amount < maxBal - 0.005;
+            const msg = isPartial
+                ? 'Confirm PART PAYMENT of ' + fmt(amount) + '?\n\nRemaining balance will be ' + fmt(maxBal - amount) + '.'
+                : 'Confirm FULL PAYMENT of ' + fmt(amount) + '?\n\nThis will fully settle the account.';
+            if (!confirm(msg)) return;
+
+            const btn = document.getElementById('btnPay');
+            btn.disabled = true;
+            document.getElementById('btnLabel').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                const res = await fetch(PAY_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        booking_id:        bookingId,
+                        customer_id:       customerId,
+                        amount:            amount,
+                        balance_due:       maxBal,
+                        deposit_reference: depositReference,
+                        payment_method:    document.getElementById('payMethodSelect').value
+                    })
+                });
+                const result = await res.json();
+
+                if (result.status === 'success') {
+                    const remaining = Math.max(0, maxBal - amount);
+                    document.getElementById('receiptTitle').innerText   = isPartial ? 'Part Payment Confirmed' : 'Final Payment Confirmed';
+                    document.getElementById('receiptSubtitle').innerText = isPartial
+                        ? 'Partial payment recorded. ' + fmt(remaining) + ' still outstanding.'
+                        : 'Account fully settled \u2014 no further balance due.';
+                    document.getElementById('receiptRef').innerText     = result.reference_number || 'Payment recorded';
+                    document.getElementById('rCustomer').innerText      = document.getElementById('customerName').value;
+                    document.getElementById('rRoom').innerText          = document.getElementById('roomName').value;
+                    document.getElementById('rDate').innerText          = document.getElementById('eventDate').value;
+                    document.getElementById('rAmount').innerText        = fmt(amount);
+                    document.getElementById('rBalance').innerText       = remaining > 0 ? fmt(remaining) : 'Fully Settled \u2713';
+                    document.getElementById('rOrigRef').innerText       = depositReference || '\u2014';
+                    document.getElementById('receiptOverlay').classList.add('active');
+                } else {
+                    throw new Error(result.message || 'Payment failed');
+                }
+            } catch(e) {
+                console.error(e);
+                alert('Payment failed: ' + e.message);
+                btn.disabled = false;
+                updatePayType(amount);
+            }
+        }
+
+        loadOutstanding();
+    </script>
+</body>
+</html>

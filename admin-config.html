@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Config Manager | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- SECURITY GATEKEEPER -->
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html'; return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                }
+            } catch(e) { /* non-JWT token, skip expiry check */ }
+        })();
+
+        function toggleSidebarCollapse(){
+            const col=document.body.classList.toggle('sidebar-collapsed');
+            sessionStorage.setItem('vp_sidebar_col',col?'1':'0');
+        }
+        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        </script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.9);
+            --border: rgba(148, 163, 184, 0.1);
+            --primary: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%);
+            color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden;
+        }
+
+        /* SIDEBAR */
+        aside { width: var(--sidebar-width); background: rgba(15,23,42,0.95); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); }
+        .close-sidebar { display: none; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+        /* MAIN */
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; width: 100%; transition: margin-left 0.3s ease; }
+        header { display: flex; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        .menu-toggle { display: none; background: var(--bg-card); border: 1px solid var(--border); color: white; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* TABS */
+        .tab-bar { display: flex; gap: 8px; margin-bottom: 2rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 6px; width: fit-content; }
+        .tab-btn { padding: 10px 24px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; white-space: nowrap; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* CARD */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .card-title { font-size: 1.1rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .grid-split { display: grid; grid-template-columns: 1fr 1.6fr; gap: 2rem; }
+
+        /* FORM */
+        .input-group { margin-bottom: 1rem; }
+        .input-group label { display: block; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem; }
+        input[type=text], input[type=number], input[type=password], textarea, select {
+            width: 100%; padding: 11px 14px; background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+            border-radius: 10px; color: white; outline: none; font-size: 0.95rem; transition: border 0.3s; font-family: inherit;
+        }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); }
+        textarea { resize: vertical; min-height: 70px; }
+        select option { background: #1e293b; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.95rem; margin-top: 0.5rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-warning { background: rgba(245,158,11,0.2); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+        .btn-warning:hover { background: var(--warning); color: #0f172a; }
+
+        /* TABLE */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 420px; }
+        th { text-align: left; padding: 0.85rem 1rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .inactive-row { opacity: 0.45; }
+        .status-badge { padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+        .status-active   { background: rgba(16,185,129,0.15); color: var(--success); }
+        .status-inactive { background: rgba(239,68,68,0.15);  color: var(--danger); }
+        .action-btns { display: flex; gap: 6px; justify-content: flex-end; }
+        .btn-sm { padding: 5px 11px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 700; transition: 0.2s; }
+        .btn-edit   { background: rgba(99,102,241,0.2); color: var(--primary); }
+        .btn-edit:hover   { background: var(--primary); color: white; }
+        .btn-delete { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .btn-delete:hover { background: var(--danger); color: white; }
+        .btn-restore { background: rgba(16,185,129,0.2); color: var(--success); }
+        .btn-restore:hover { background: var(--success); color: white; }
+        .btn-page { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; }
+        .btn-page:hover:not(:disabled) { color: white; border-color: white; }
+        .btn-page:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* PRICING GRID */
+        .pricing-table-wrap { overflow-x: auto; }
+        .pricing-grid { border-collapse: collapse; min-width: 600px; }
+        .pricing-grid th, .pricing-grid td { padding: 10px 14px; border: 1px solid var(--border); text-align: center; }
+        .pricing-grid th:first-child { text-align: left; min-width: 140px; }
+        .pricing-grid thead th { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; background: rgba(0,0,0,0.2); }
+        .pricing-cell { position: relative; }
+        .price-input {
+            width: 90px; padding: 5px 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            border-radius: 6px; color: white; font-size: 0.85rem; text-align: center; outline: none;
+        }
+        .price-input:focus { border-color: var(--primary); }
+        .price-input.unsaved { border-color: var(--warning); }
+        .save-cell-btn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); background: var(--success); color: white; border: none; border-radius: 4px; padding: 3px 7px; font-size: 0.7rem; cursor: pointer; display: none; }
+        .pricing-cell:hover .save-cell-btn { display: block; }
+        .del-price-btn { position: absolute; top: 3px; right: 3px; background: rgba(239,68,68,0.15); color: var(--danger); border: none; border-radius: 4px; width: 18px; height: 18px; font-size: 0.65rem; cursor: pointer; display: none; align-items: center; justify-content: center; line-height: 1; transition: background 0.15s; padding: 0; }
+        .del-price-btn:hover { background: var(--danger); color: white; }
+        .pricing-cell:hover .del-price-btn { display: flex; }
+        .room-label { font-weight: 600; text-align: left !important; color: var(--text-main); }
+        .rate-default { font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 2px; }
+
+        /* MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 200; backdrop-filter: blur(3px); align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #1e293b; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+        .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
+        .modal-close:hover { color: white; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+        .toggle-label { font-size: 0.9rem; color: var(--text-muted); }
+        .toggle { width: 44px; height: 24px; background: rgba(148,163,184,0.2); border-radius: 12px; border: none; cursor: pointer; position: relative; transition: 0.3s; }
+        .toggle::after { content:''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: 0.3s; }
+        .toggle.on { background: var(--success); }
+        .toggle.on::after { left: 23px; }
+
+        /* TOAST */
+        #toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem; border-radius: 10px; font-weight: 600; z-index: 999; transform: translateY(100px); opacity: 0; transition: all 0.3s; pointer-events: none; }
+        #toast.show { transform: translateY(0); opacity: 1; }
+        #toast.success { background: var(--success); color: white; }
+        #toast.error   { background: var(--danger);  color: white; }
+
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 90; backdrop-filter: blur(2px); }
+        .overlay.active { display: block; }
+
+        @media (max-width: 900px) { .grid-split { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { aside { transform: translateX(-100%); } aside.active { transform: translateX(0); } main { margin-left: 0; padding: 1rem; } .menu-toggle { display: flex; } .close-sidebar { display: block; } }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Full Coverage
+           Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
+        ============================================================ */
+
+        /* Sidebar overlay backdrop (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 199;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Touch-friendly minimum tap targets */
+        button, .btn, a.btn, select, input[type="text"],
+        input[type="email"], input[type="password"], input[type="tel"],
+        input[type="number"], input[type="date"], input[type="time"],
+        textarea { min-height: 44px; }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            border-radius: 12px;
+        }
+        .table-wrap table { min-width: 600px; }
+
+        /* ---- 1200px (large desktop to medium desktop) ---- */
+        @media (max-width: 1200px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ---- 1024px (small laptop / large tablet landscape) ---- */
+        @media (max-width: 1024px) {
+            aside { width: 220px; }
+            main { margin-left: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 900px (tablet landscape) ---- */
+        @media (max-width: 900px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-split, .form-grid-2col { grid-template-columns: 1fr; }
+            .filter-bar, .top-bar, .action-bar {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select { width: 100%; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 768px (tablet portrait / all mobiles) ---- */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0; top: 0;
+                height: 100vh;
+                width: 260px;
+                transform: translateX(-100%);
+                z-index: 200;
+                transition: transform 0.3s ease;
+            }
+            aside.active { transform: translateX(0); }
+            .close-sidebar { display: block !important; }
+            .menu-toggle { display: flex !important; }
+            main { margin-left: 0 !important; padding: 1rem; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header .header-actions { width: 100%; }
+            .page-header .header-actions button,
+            .page-header .header-actions a { width: 100%; justify-content: center; }
+
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .filter-bar, .top-bar, .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select,
+            .action-bar input, .action-bar select { width: 100%; }
+
+            .filter-tabs { flex-wrap: wrap; gap: 0.4rem; }
+            .filter-tabs button { flex: 1 1 auto; min-width: 80px; font-size: 0.8rem; }
+
+            .modal-content, .modal-box, .modal > div:first-child {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                max-height: 88vh !important;
+                overflow-y: auto;
+                border-radius: 12px !important;
+                margin: 1rem auto;
+            }
+            .modal-grid, .form-row, .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            table td, table th { font-size: 0.8rem; padding: 0.5rem 0.6rem; }
+            .card { padding: 1rem; }
+            .btn-group { flex-wrap: wrap; gap: 0.4rem; }
+            .btn-group button, .btn-group a { flex: 1 1 auto; }
+
+            .calendar-grid { gap: 0.25rem; }
+        }
+
+        /* ---- 480px (mobile portrait) ---- */
+        @media (max-width: 480px) {
+            main { padding: 0.75rem; }
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+            .page-header h1 { font-size: 1.2rem; }
+            .card { padding: 0.85rem; border-radius: 12px; }
+            .stat-card h2, .kpi-card h2, .stat-value { font-size: 1.6rem; }
+            button, .btn { font-size: 0.85rem; padding: 10px 14px; }
+            .filter-tabs button { font-size: 0.75rem; padding: 6px 10px; }
+            .table-wrap table { min-width: 480px; }
+            table td, table th { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .badge, .status-badge { font-size: 0.7rem; padding: 2px 7px; }
+            aside { width: 240px; }
+        }
+
+        /* ---- 360px (very small phones) ---- */
+        @media (max-width: 360px) {
+            main { padding: 0.5rem; }
+            .page-header h1 { font-size: 1.1rem; }
+            aside { width: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        
+        /* ── SIDEBAR COLLAPSE (desktop/tablet) ── */
+        aside { transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease !important; overflow: hidden; }
+        main  { transition: margin-left 0.3s ease !important; }
+        .brand-text { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .nav-label  { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; line-height: 1; min-height: unset; flex-shrink: 0; }
+        .sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+        .sidebar-collapse-btn:hover { color: var(--primary); }
+        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main  { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-label  { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link   { justify-content: center; gap: 0; padding: 12px 8px; font-size: 1.05rem; }
+        body.sidebar-collapsed .close-sidebar { display: none !important; }
+        body.sidebar-collapsed .nav-link { position: relative; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
+        @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
+        </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+    <div class="brand">
+        <span><i class="fa-solid fa-layer-group"></i><span class="brand-text"> VenueDesk</span></span>
+        <div style="display:flex;align-items:center;gap:2px;"><button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div>
+    </div>
+    <nav>
+        <a href="index.html"           class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+        <a href="admin-config.html"    class="nav-link active" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+        <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
+        <a href="calendar.html"        class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+        <a href="users.html"           class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+        <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+    </nav>
+</aside>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-title">
+            <span id="modalTitle">Edit</span>
+            <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="modalBody"></div>
+        <button class="btn btn-primary" id="modalSaveBtn" onclick="saveModal()" style="margin-top:1.5rem;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<main>
+    <header>
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+            <h1 style="font-size:1.8rem;font-weight:700;"><i class="fa-solid fa-sliders" style="color:var(--primary);margin-right:10px;"></i>Config Manager</h1>
+        </div>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+    </header>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('rooms')"><i class="fa-solid fa-door-open"></i> Rooms</button>
+        <button class="tab-btn"        onclick="switchTab('events')"><i class="fa-solid fa-calendar-star"></i> Event Types</button>
+        <button class="tab-btn"        onclick="switchTab('pricing')"><i class="fa-solid fa-sterling-sign"></i> Pricing Grid</button>
+        <button class="tab-btn"        onclick="switchTab('services')"><i class="fa-solid fa-concierge-bell"></i> Services</button>
+        <button class="tab-btn"        onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> Settings</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TAB: ROOMS                              -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="tab-panel active" id="tab-rooms">
+        <div class="grid-split">
+            <!-- ADD ROOM -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-plus"></i> Add Room</div>
+                <form onsubmit="return false;">
+                    <div class="input-group">
+                        <label>Room Name</label>
+                        <input type="text" id="rName" placeholder="e.g. Garden Suite">
+                    </div>
+                    <div class="row2">
+                        <div class="input-group">
+                            <label>Capacity</label>
+                            <input type="number" id="rCapacity" placeholder="e.g. 80" min="1">
+                        </div>
+                        <div class="input-group">
+                            <label>Hourly Rate (£)</label>
+                            <input type="number" id="rDayRate" placeholder="e.g. 45" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="input-group">
+                            <label>Open Time <span style="font-size:0.75rem;opacity:0.6">optional</span></label>
+                            <select id="rOpenTime"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Close Time <span style="font-size:0.75rem;opacity:0.6">optional</span></label>
+                            <select id="rCloseTime"></select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Description</label>
+                        <textarea id="rDesc" placeholder="Short description of facilities..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="addRoomBtn" onclick="addRoom()">
+                        <i class="fa-solid fa-plus"></i> Add Room
+                    </button>
+                </form>
+            </div>
+
+            <!-- ROOM LIST -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-door-open"></i> Rooms</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Cap.</th>
+                                <th>Hourly Rate</th>
+                                <th>Hours</th>
+                                <th>Status</th>
+                                <th style="text-align:right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roomsTable">
+                            <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TAB: EVENT TYPES                        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-events">
+        <div class="grid-split">
+            <!-- ADD EVENT TYPE -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-plus"></i> Add Event Type</div>
+                <form onsubmit="return false;">
+                    <div class="input-group">
+                        <label>Event Type Name</label>
+                        <input type="text" id="etName" placeholder="e.g. Corporate">
+                    </div>
+                    <div class="input-group">
+                        <label>Description <span style="font-size:0.75rem;opacity:0.6">optional</span></label>
+                        <textarea id="etDesc" placeholder="e.g. Business meetings and conferences"></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="addEventTypeBtn" onclick="addEventType()">
+                        <i class="fa-solid fa-plus"></i> Add Event Type
+                    </button>
+                </form>
+            </div>
+
+            <!-- EVENT TYPE LIST -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-calendar-star"></i> Event Types</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th style="text-align:right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventTypesTable">
+                            <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="et-pagination" style="display:none;align-items:center;justify-content:space-between;padding:10px 4px 0">
+                    <button class="btn-page" id="et-prev" onclick="etChangePage(-1)">&#8249; Prev</button>
+                    <span id="et-page-info" style="font-size:0.85rem;color:var(--text-muted)"></span>
+                    <button class="btn-page" id="et-next" onclick="etChangePage(1)">Next &#8250;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TAB: PRICING GRID                       -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-pricing">
+        <div class="card">
+            <div class="card-title">
+                <i class="fa-solid fa-sterling-sign"></i> Price Override Grid
+                <span style="font-size:0.78rem;font-weight:400;color:var(--text-muted);margin-left:auto">
+                    Set custom hourly rates per room + event type. Blank = uses room default hourly rate.
+                </span>
+            </div>
+            <div class="pricing-table-wrap" id="pricingGridWrap">
+                <p style="color:var(--text-muted);text-align:center;padding:2rem">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- TAB: SERVICES                               -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-services">
+        <div class="grid-split">
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-plus"></i> Add Service</div>
+                <form onsubmit="return false;">
+                    <div class="input-group">
+                        <label>Service Name</label>
+                        <input type="text" id="svcName" placeholder="e.g. OHP / Projector, DJ, Catering">
+                    </div>
+                    <div class="row2">
+                        <div class="input-group">
+                            <label>Pricing Type</label>
+                            <select id="svcType">
+                                <option value="flat">Flat Rate</option>
+                                <option value="hourly">Per Hour</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Price (£)</label>
+                            <input type="number" id="svcPrice" placeholder="e.g. 50" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="addSvcBtn" onclick="addService()">
+                        <i class="fa-solid fa-plus"></i> Add Service
+                    </button>
+                </form>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-concierge-bell"></i> Services</div>
+                <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6">Services appear as optional add-ons when confirming bookings in the Calendar and Dashboard.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Type</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th style="text-align:right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servicesTable">
+                            <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No services defined yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- TAB: SETTINGS                           -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-settings">
+        <div class="card" style="max-width:580px">
+            <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Booking Turnaround Buffer</div>
+            <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.5rem;line-height:1.6">
+                The minimum gap required between back-to-back bookings in the same room.
+                A new booking cannot start within this buffer period after an existing booking ends,
+                and cannot end within this buffer period before an existing booking starts.
+            </p>
+            <div class="input-group">
+                <label>Buffer Time</label>
+                <select id="bufferSelect" onchange="handleBufferSelectChange()">
+                    <option value="0">No buffer (bookings can be back-to-back)</option>
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60">60 minutes (recommended)</option>
+                    <option value="90">90 minutes</option>
+                    <option value="120">2 hours</option>
+                    <option value="custom">Custom...</option>
+                </select>
+            </div>
+            <div class="input-group" id="customBufferGroup" style="display:none">
+                <label>Custom Buffer (minutes)</label>
+                <input type="number" id="customBufferInput" min="0" max="480" step="5" placeholder="e.g. 75">
+            </div>
+            <div id="bufferCurrentInfo" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                <i class="fa-solid fa-circle-info"></i> <span id="bufferCurrentText">Loading current setting...</span>
+            </div>
+            <button class="btn btn-primary" id="saveBufferBtn" onclick="saveBufferSetting()">
+                <i class="fa-solid fa-floppy-disk"></i> Save Buffer Setting
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const BASE = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+const _TID = () => sessionStorage.getItem('vp_tenant_id') || '';
+const API = {
+    getRooms:       () => BASE + '/get-rooms',
+    createRoom:     BASE + '/create-room',
+    updateRoom:     BASE + '/update-room',
+    deleteRoom:     BASE + '/delete-room',
+    getEventTypes:  () => BASE + '/get-event-types',
+    createEventType:BASE + '/create-event-type',
+    updateEventType:BASE + '/update-event-type',
+    deleteEventType:BASE + '/delete-event-type',
+    getPricing:     BASE + '/get-pricing',
+    setPricing:     BASE + '/set-pricing',
+    deletePricing:  BASE + '/delete-pricing',
+    getSettings:    BASE + '/get-settings',
+    updateSetting:  BASE + '/update-setting',
+};
+
+function getAuthHeaders() {
+    const tid = sessionStorage.getItem('vp_tenant_id') || '';
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
+        'X-Tenant-ID': tid,
+        'X-Venue-ID':  tid
+    };
+}
+function withRole(obj) {
+    const u = JSON.parse(sessionStorage.getItem('vp_user') || '{}');
+    const tenantId = parseInt(sessionStorage.getItem('vp_tenant_id') || '0', 10) || undefined;
+    return { ...obj, userRole: u.role || 'admin', tenant_id: tenantId, venue_id: tenantId };
+}
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let rooms = [], eventTypes = [], pricing = [], settings = [];
+let etPage = 1;
+const ET_PAGE_SIZE = 7;
+
+function etChangePage(dir) {
+    const totalPages = Math.ceil(eventTypes.length / ET_PAGE_SIZE);
+    etPage = Math.max(1, Math.min(etPage + dir, totalPages));
+    renderEventTypesTable();
+}
+let modalMode = null; // { type: 'room'|'event', id, data }
+
+// ─────────────────────────────────────────────
+// UTILITY
+// ─────────────────────────────────────────────
+function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+function logout() {
+    if (confirm('Log out?')) { sessionStorage.removeItem('vp_token'); window.location.href = 'login.html'; }
+}
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + type;
+    setTimeout(() => { t.className = ''; }, 3200);
+}
+function fmt(n) { return n != null ? '£' + parseFloat(n).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'; }
+
+function switchTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.closest('.tab-btn').classList.add('active');
+    if (name === 'pricing')  renderPricingGrid();
+    if (name === 'services') renderServicesTable();
+    if (name === 'settings') loadSettings();
+}
+
+// ─────────────────────────────────────────────
+// ROOMS
+// ─────────────────────────────────────────────
+async function loadRooms() {
+    try {
+        const res = await fetch(API.getRooms(), { headers: getAuthHeaders() });
+        const text = await res.text();
+        const json = text.trim() ? JSON.parse(text) : {};
+        rooms = json.data || (Array.isArray(json) ? json : []);
+        renderRoomsTable();
+    } catch(e) {
+        document.getElementById('roomsTable').innerHTML =
+            '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Failed to load rooms</td></tr>';
+    }
+}
+
+function renderRoomsTable() {
+    const tbody = document.getElementById('roomsTable');
+    if (!rooms.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No rooms found.</td></tr>'; return; }
+    const rHours = loadRoomHours();
+    tbody.innerHTML = rooms.map(r => {
+        const rh = rHours[r.id] || {};
+        const hoursStr = (rh.open && rh.close) ? `${rh.open}–${rh.close}` : '—';
+        return `
+        <tr class="${!r.is_active ? 'inactive-row' : ''}">
+            <td style="font-weight:600;color:white">${esc(r.name)}</td>
+            <td style="color:var(--text-muted)">${r.capacity || '—'}</td>
+            <td>${fmt(r.day_rate)}<span style="font-size:0.72rem;color:var(--text-muted)">/hr</span></td>
+            <td style="color:var(--text-muted);font-size:0.85rem">${hoursStr}</td>
+            <td><span class="status-badge ${r.is_active ? 'status-active' : 'status-inactive'}">${r.is_active ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-sm btn-edit" onclick="editRoom('${r.id}')"><i class="fa-solid fa-pen"></i></button>
+                    ${r.is_active
+                        ? `<button class="btn-sm btn-delete" onclick="softDeleteRoom('${r.id}', '${esc(r.name)}')"><i class="fa-solid fa-eye-slash"></i></button>`
+                        : `<button class="btn-sm btn-restore" onclick="restoreRoom('${r.id}', '${esc(r.name)}')"><i class="fa-solid fa-eye"></i></button>`
+                    }
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function addRoom() {
+    const btn      = document.getElementById('addRoomBtn');
+    const name     = document.getElementById('rName').value.trim();
+    const cap      = document.getElementById('rCapacity').value;
+    const dr       = document.getElementById('rDayRate').value;
+    const desc     = document.getElementById('rDesc').value.trim();
+    const openTime  = document.getElementById('rOpenTime').value;
+    const closeTime = document.getElementById('rCloseTime').value;
+
+    if (!name) { showToast('Room name is required', 'error'); return; }
+    if (!dr || isNaN(parseFloat(dr))) { showToast('Hourly rate is required', 'error'); return; }
+
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding...';
+    try {
+        const res = await fetch(API.createRoom, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ name, capacity: cap || null, day_rate: dr, description: desc || null }))
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
+        showToast('Room added!');
+        ['rName','rCapacity','rDayRate','rDesc'].forEach(id => document.getElementById(id).value = '');
+        await loadRooms();
+        if (openTime || closeTime) {
+            const newRoom = rooms.find(r => r.name === name);
+            if (newRoom) {
+                const rh = loadRoomHours();
+                rh[newRoom.id] = { open: openTime, close: closeTime };
+                saveRoomHours(rh);
+                renderRoomsTable();
+            }
+        }
+    } catch(e) { showToast(e.message || 'Error adding room', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Room'; }
+}
+
+function editRoom(id) {
+    const r = rooms.find(x => x.id == id);
+    if (!r) return;
+    modalMode = { type: 'room', id, data: r };
+    document.getElementById('modalTitle').textContent = 'Edit Room — ' + r.name;
+    const rh2 = loadRoomHours()[r.id] || {};
+    const timeOpts = generateTimeOptions();
+    document.getElementById('modalBody').innerHTML = `
+        <div class="input-group"><label>Room Name</label><input type="text" id="me_name" value="${esc(r.name)}"></div>
+        <div class="row2">
+            <div class="input-group"><label>Capacity</label><input type="number" id="me_cap" value="${r.capacity || ''}" min="1"></div>
+            <div class="input-group"><label>Hourly Rate (£)</label><input type="number" id="me_dr" value="${r.day_rate}" min="0" step="0.01"></div>
+        </div>
+        <div class="row2">
+            <div class="input-group"><label>Open Time</label><select id="me_open">${timeOpts}</select></div>
+            <div class="input-group"><label>Close Time</label><select id="me_close">${timeOpts}</select></div>
+        </div>
+        <div class="input-group"><label>Description</label><textarea id="me_desc">${esc(r.description || '')}</textarea></div>
+        <div class="toggle-row">
+            <span class="toggle-label">Room Active</span>
+            <button class="toggle ${r.is_active ? 'on' : ''}" id="me_active" onclick="this.classList.toggle('on')"></button>
+        </div>`;
+    if (rh2.open)  document.getElementById('me_open').value  = rh2.open;
+    if (rh2.close) document.getElementById('me_close').value = rh2.close;
+    document.getElementById('editModal').classList.add('open');
+}
+
+async function saveModal() {
+    if (!modalMode) return;
+    const btn = document.getElementById('modalSaveBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        if (modalMode.type === 'room') {
+            const payload = {
+                id:          modalMode.id,
+                name:        document.getElementById('me_name').value.trim(),
+                capacity:    document.getElementById('me_cap').value || null,
+                day_rate:    document.getElementById('me_dr').value,
+                description: document.getElementById('me_desc').value.trim() || null,
+                is_active:   document.getElementById('me_active').classList.contains('on')
+            };
+            if (!payload.name) throw new Error('Room name is required');
+            const res = await fetch(API.updateRoom, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole(payload)) });
+            if (!res.ok) throw new Error('Update failed');
+            const openTime  = (document.getElementById('me_open')  || {}).value || '';
+            const closeTime = (document.getElementById('me_close') || {}).value || '';
+            const rh = loadRoomHours();
+            rh[modalMode.id] = { open: openTime, close: closeTime };
+            saveRoomHours(rh);
+            showToast('Room updated!');
+            await loadRooms();
+        } else if (modalMode.type === 'event') {
+            const payload = {
+                id:          modalMode.id,
+                name:        document.getElementById('me_name').value.trim(),
+                description: document.getElementById('me_desc').value.trim() || null,
+                is_active:   document.getElementById('me_active').classList.contains('on')
+            };
+            if (!payload.name) throw new Error('Name is required');
+            const res = await fetch(API.updateEventType, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole(payload)) });
+            if (!res.ok) throw new Error('Update failed');
+            showToast('Event type updated!');
+            await loadEventTypes();
+        } else if (modalMode.type === 'service') {
+            const svcs = loadServicesData();
+            const s = svcs.find(x => x.id === modalMode.id);
+            if (!s) throw new Error('Service not found');
+            s.name   = document.getElementById('me_svc_name').value.trim();
+            s.type   = document.getElementById('me_svc_type').value;
+            s.price  = parseFloat(document.getElementById('me_svc_price').value) || 0;
+            s.active = document.getElementById('me_svc_active').classList.contains('on');
+            if (!s.name) throw new Error('Service name is required');
+            saveServicesData(svcs);
+            showToast('Service updated!');
+            renderServicesTable();
+        }
+        closeModal();
+    } catch(e) { showToast(e.message || 'Error saving', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
+}
+
+async function softDeleteRoom(id, name) {
+    if (!confirm(`Deactivate "${name}"? It won't appear in booking forms but historical data is kept.`)) return;
+    try {
+        await fetch(API.deleteRoom, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole({ room_id: id })) });
+        showToast('Room deactivated');
+        await loadRooms();
+    } catch(e) { showToast('Error', 'error'); }
+}
+
+async function restoreRoom(id, name) {
+    if (!confirm(`Re-activate "${name}"?`)) return;
+    const r = rooms.find(x => x.id == id);
+    if (!r) return;
+    try {
+        await fetch(API.updateRoom, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ ...r, id, is_active: true }))
+        });
+        showToast('Room re-activated');
+        await loadRooms();
+    } catch(e) { showToast('Error', 'error'); }
+}
+
+// ─────────────────────────────────────────────
+// EVENT TYPES
+// ─────────────────────────────────────────────
+async function loadEventTypes() {
+    try {
+        const res = await fetch(API.getEventTypes(), { headers: getAuthHeaders() });
+        const text = await res.text();
+        const json = text.trim() ? JSON.parse(text) : {};
+        eventTypes = json.data || (Array.isArray(json) ? json : []);
+        renderEventTypesTable();
+    } catch(e) {
+        document.getElementById('eventTypesTable').innerHTML =
+            '<tr><td colspan="4" style="text-align:center;color:var(--danger)">Failed to load event types</td></tr>';
+    }
+}
+
+function renderEventTypesTable() {
+    const tbody = document.getElementById('eventTypesTable');
+    if (!eventTypes.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">No event types found.</td></tr>'; document.getElementById('et-pagination').style.display='none'; return; }
+    const totalPages = Math.ceil(eventTypes.length / ET_PAGE_SIZE);
+    etPage = Math.max(1, Math.min(etPage, totalPages));
+    const slice = eventTypes.slice((etPage - 1) * ET_PAGE_SIZE, etPage * ET_PAGE_SIZE);
+    tbody.innerHTML = slice.map(et => `
+        <tr class="${!et.is_active ? 'inactive-row' : ''}">
+            <td style="font-weight:600;color:white">${esc(et.name)}</td>
+            <td style="color:var(--text-muted);font-size:0.85rem">${esc(et.description || '—')}</td>
+            <td><span class="status-badge ${et.is_active ? 'status-active' : 'status-inactive'}">${et.is_active ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-sm btn-edit" onclick="editEventType('${et.id}')"><i class="fa-solid fa-pen"></i></button>
+                    ${et.is_active
+                        ? `<button class="btn-sm btn-delete" onclick="softDeleteEventType('${et.id}','${esc(et.name)}')"><i class="fa-solid fa-eye-slash"></i></button>`
+                        : `<button class="btn-sm btn-restore" onclick="restoreEventType('${et.id}','${esc(et.name)}')"><i class="fa-solid fa-eye"></i></button>`
+                    }
+                </div>
+            </td>
+        </tr>`).join('');
+    const pgEl = document.getElementById('et-pagination');
+    if (eventTypes.length > ET_PAGE_SIZE) {
+        pgEl.style.display = 'flex';
+        document.getElementById('et-page-info').textContent = `Page ${etPage} of ${totalPages} (${eventTypes.length} types)`;
+        document.getElementById('et-prev').disabled = etPage === 1;
+        document.getElementById('et-next').disabled = etPage === totalPages;
+    } else {
+        pgEl.style.display = 'none';
+    }
+}
+
+async function addEventType() {
+    const btn = document.getElementById('addEventTypeBtn');
+    const name = document.getElementById('etName').value.trim();
+    const desc = document.getElementById('etDesc').value.trim();
+    if (!name) { showToast('Name is required', 'error'); return; }
+
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding...';
+    try {
+        const res = await fetch(API.createEventType, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ name, description: desc || null }))
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
+        showToast('Event type added!');
+        document.getElementById('etName').value = '';
+        document.getElementById('etDesc').value = '';
+        await loadEventTypes();
+    } catch(e) { showToast(e.message || 'Error adding event type', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Event Type'; }
+}
+
+function editEventType(id) {
+    const et = eventTypes.find(x => x.id == id);
+    if (!et) return;
+    modalMode = { type: 'event', id, data: et };
+    document.getElementById('modalTitle').textContent = 'Edit Event Type — ' + et.name;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="input-group"><label>Name</label><input type="text" id="me_name" value="${esc(et.name)}"></div>
+        <div class="input-group"><label>Description</label><textarea id="me_desc">${esc(et.description || '')}</textarea></div>
+        <div class="toggle-row">
+            <span class="toggle-label">Active</span>
+            <button class="toggle ${et.is_active ? 'on' : ''}" id="me_active" onclick="this.classList.toggle('on')"></button>
+        </div>`;
+    document.getElementById('editModal').classList.add('open');
+}
+
+async function softDeleteEventType(id, name) {
+    if (!confirm(`Deactivate "${name}"?`)) return;
+    try {
+        await fetch(API.deleteEventType, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole({ event_type_id: id })) });
+        showToast('Event type deactivated');
+        await loadEventTypes();
+    } catch(e) { showToast('Error', 'error'); }
+}
+
+async function restoreEventType(id, name) {
+    if (!confirm(`Re-activate "${name}"?`)) return;
+    const et = eventTypes.find(x => x.id == id);
+    if (!et) return;
+    try {
+        await fetch(API.updateEventType, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ ...et, id, is_active: true }))
+        });
+        showToast('Event type re-activated');
+        await loadEventTypes();
+    } catch(e) { showToast('Error', 'error'); }
+}
+
+function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+    modalMode = null;
+}
+
+// ─────────────────────────────────────────────
+// PRICING GRID
+// ─────────────────────────────────────────────
+async function loadPricing() {
+    try {
+        const res = await fetch(API.getPricing, { headers: getAuthHeaders() });
+        const json = await res.json();
+        pricing = json.data || (Array.isArray(json) ? json : []);
+    } catch(e) { pricing = []; }
+}
+
+function renderPricingGrid() {
+    const wrap = document.getElementById('pricingGridWrap');
+    const activeRooms = rooms.filter(r => r.is_active);
+    const activeTypes = eventTypes.filter(et => et.is_active);
+
+    if (!activeRooms.length || !activeTypes.length) {
+        wrap.innerHTML = '<p style="color:var(--text-muted);padding:2rem;text-align:center">Add rooms and event types first to configure pricing.</p>';
+        return;
+    }
+
+    // Build lookup map: "room_id-event_type_id" → day_rate
+    const priceMap = {};
+    pricing.forEach(p => { priceMap[`${p.room_id}-${p.event_type_id}`] = p.day_rate; });
+
+    let html = `<div class="table-wrap">
+<table class="pricing-grid">
+        <thead><tr>
+            <th>Room</th>
+            ${activeTypes.map(et => `<th>${esc(et.name)}</th>`).join('')}
+        </tr></thead>
+        <tbody>`;
+
+    activeRooms.forEach(r => {
+        html += `<tr><td class="room-label">${esc(r.name)}<span class="rate-default">Default: ${fmt(r.day_rate)}</span></td>`;
+        activeTypes.forEach(et => {
+            const key = `${r.id}-${et.id}`;
+            const val = priceMap[key] != null ? parseFloat(priceMap[key]) : '';
+            const hasOverride = val !== '';
+            html += `<td class="pricing-cell">
+                <input class="price-input" type="number" min="0" step="0.01"
+                    placeholder="${parseFloat(r.day_rate).toFixed(0)}"
+                    value="${val}"
+                    data-room="${r.id}" data-type="${et.id}"
+                    oninput="this.classList.add('unsaved')"
+                    onblur="savePricingCell(this)">
+                ${hasOverride ? `<button class="del-price-btn" title="Remove rate override" onclick="deletePricingCell('${r.id}','${et.id}',this)"><i class="fa-solid fa-xmark"></i></button>` : ''}
+            </td>`;
+        });
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table>
+</div>
+    <p style="margin-top:1rem;font-size:0.8rem;color:var(--text-muted)">
+        <i class="fa-solid fa-circle-info"></i> Changes save automatically when you leave a cell. Blank = use room default rate.
+    </p>`;
+    wrap.innerHTML = html;
+}
+
+async function savePricingCell(input) {
+    if (!input.classList.contains('unsaved')) return;
+    const room_id = input.dataset.room;
+    const event_type_id = input.dataset.type;
+    const val = input.value.trim();
+
+    // Blank = remove override — call delete endpoint
+    if (val === '') {
+        input.classList.remove('unsaved');
+        await deletePricingCell(room_id, event_type_id, null, input);
+        return;
+    }
+
+    const day_rate = parseFloat(val);
+    if (isNaN(day_rate) || day_rate < 0) { showToast('Invalid price', 'error'); return; }
+
+    try {
+        const res = await fetch(API.setPricing, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ room_id, event_type_id, day_rate }))
+        });
+        if (!res.ok) throw new Error('Failed');
+        input.classList.remove('unsaved');
+        // Refresh local pricing cache silently
+        await loadPricing();
+    } catch(e) { showToast('Failed to save price', 'error'); }
+}
+
+async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
+    // btn = the × button element (may be null if called from blank-save)
+    // inputEl = the price input (may be null if called from × button click)
+    const cell = btn ? btn.closest('td') : (inputEl ? inputEl.closest('td') : null);
+    try {
+        const res = await fetch(API.deletePricing, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify(withRole({ room_id, event_type_id }))
+        });
+        if (!res.ok) throw new Error('Failed');
+        // Clear input value and remove the × button
+        if (cell) {
+            const inp = cell.querySelector('.price-input');
+            if (inp) { inp.value = ''; inp.classList.remove('unsaved'); }
+            const delBtn = cell.querySelector('.del-price-btn');
+            if (delBtn) delBtn.remove();
+        }
+        await loadPricing();
+        showToast('Rate override removed', 'success');
+    } catch(e) { showToast('Failed to remove rate', 'error'); }
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────
+async function loadSettings() {
+    document.getElementById('bufferCurrentText').textContent = 'Loading...';
+    try {
+        const res = await fetch(API.getSettings, { headers: getAuthHeaders() });
+        const json = await res.json();
+        settings = json.data || (Array.isArray(json) ? json : []);
+        const bufferSetting = settings.find(s => s.key === 'booking_buffer_minutes');
+        const currentVal = bufferSetting ? parseInt(bufferSetting.value) : 60;
+        // Update info text
+        document.getElementById('bufferCurrentText').textContent =
+            `Current: ${currentVal === 0 ? 'No buffer' : currentVal + ' minutes'} — last updated ${bufferSetting ? new Date(bufferSetting.updated_at).toLocaleString('en-GB') : 'never'}`;
+        // Set select to matching value
+        const sel = document.getElementById('bufferSelect');
+        const knownValues = ['0','30','45','60','90','120'];
+        if (knownValues.includes(String(currentVal))) {
+            sel.value = String(currentVal);
+            document.getElementById('customBufferGroup').style.display = 'none';
+        } else {
+            sel.value = 'custom';
+            document.getElementById('customBufferInput').value = currentVal;
+            document.getElementById('customBufferGroup').style.display = 'block';
+        }
+    } catch(e) {
+        document.getElementById('bufferCurrentText').textContent = 'Failed to load settings.';
+    }
+}
+
+function handleBufferSelectChange() {
+    const sel = document.getElementById('bufferSelect');
+    document.getElementById('customBufferGroup').style.display =
+        sel.value === 'custom' ? 'block' : 'none';
+}
+
+async function saveBufferSetting() {
+    const sel = document.getElementById('bufferSelect');
+    let minutes;
+    if (sel.value === 'custom') {
+        minutes = parseInt(document.getElementById('customBufferInput').value);
+        if (isNaN(minutes) || minutes < 0) { showToast('Invalid minutes value', 'error'); return; }
+    } else {
+        minutes = parseInt(sel.value);
+    }
+    const btn = document.getElementById('saveBufferBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    try {
+        const res = await fetch(API.updateSetting, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({ key: 'booking_buffer_minutes', value: minutes })
+        });
+        if (!res.ok) throw new Error('Save failed');
+        showToast(`Buffer set to ${minutes === 0 ? 'no buffer' : minutes + ' minutes'}`);
+        await loadSettings();
+    } catch(e) { showToast('Failed to save setting', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Buffer Setting'; }
+}
+
+// ─────────────────────────────────────────────
+// ROOM HOURS (localStorage per tenant)
+// ─────────────────────────────────────────────
+function roomHoursKey()   { return 'vp_room_hours_' + (_TID() || '0'); }
+function loadRoomHours()  { try { return JSON.parse(sessionStorage.getItem(roomHoursKey()) || '{}'); } catch(e) { return {}; } }
+function saveRoomHours(d) { sessionStorage.setItem(roomHoursKey(), JSON.stringify(d)); }
+
+// ─────────────────────────────────────────────
+// SERVICES (localStorage per tenant)
+// ─────────────────────────────────────────────
+function servicesKey()         { return 'vp_services_' + (_TID() || '0'); }
+function loadServicesData()    { try { return JSON.parse(sessionStorage.getItem(servicesKey()) || '[]'); } catch(e) { return []; } }
+function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stringify(d)); }
+
+function generateTimeOptions() {
+    const opts = ['<option value="">— Not set —</option>'];
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const t = `${String(h).padStart(2,'0')}:${m === 0 ? '00' : '30'}`;
+            opts.push(`<option value="${t}">${t}</option>`);
+        }
+    }
+    return opts.join('');
+}
+
+function renderServicesTable() {
+    const svcs  = loadServicesData();
+    const tbody = document.getElementById('servicesTable');
+    if (!tbody) return;
+    if (!svcs.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No services defined yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = svcs.map(s => `
+        <tr class="${s.active === false ? 'inactive-row' : ''}">
+            <td style="font-weight:600;color:white">${esc(s.name)}</td>
+            <td style="color:var(--text-muted)">${s.type === 'hourly' ? 'Per Hour' : 'Flat Rate'}</td>
+            <td>${fmt(s.price)}${s.type === 'hourly' ? '<span style="font-size:0.72rem;color:var(--text-muted)">/hr</span>' : ''}</td>
+            <td><span class="status-badge ${s.active !== false ? 'status-active' : 'status-inactive'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-sm btn-edit"    onclick="editServiceItem('${s.id}')"><i class="fa-solid fa-pen"></i></button>
+                    ${s.active !== false
+                        ? `<button class="btn-sm btn-delete"  onclick="toggleService('${s.id}',false)"><i class="fa-solid fa-eye-slash"></i></button>`
+                        : `<button class="btn-sm btn-restore" onclick="toggleService('${s.id}',true)"><i class="fa-solid fa-eye"></i></button>`
+                    }
+                    <button class="btn-sm btn-delete" onclick="deleteSvc('${s.id}')" title="Delete permanently"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>`).join('');
+}
+
+function addService() {
+    const name  = document.getElementById('svcName').value.trim();
+    const type  = document.getElementById('svcType').value;
+    const price = parseFloat(document.getElementById('svcPrice').value);
+    if (!name)                    { showToast('Service name is required', 'error'); return; }
+    if (isNaN(price) || price < 0){ showToast('Valid price is required', 'error'); return; }
+    const svcs = loadServicesData();
+    svcs.push({ id: 'svc_' + Date.now(), name, type, price, active: true });
+    saveServicesData(svcs);
+    showToast('Service added!');
+    document.getElementById('svcName').value  = '';
+    document.getElementById('svcPrice').value = '';
+    renderServicesTable();
+}
+
+function editServiceItem(id) {
+    const svcs = loadServicesData();
+    const s = svcs.find(x => x.id === id);
+    if (!s) return;
+    modalMode = { type: 'service', id };
+    document.getElementById('modalTitle').textContent = 'Edit Service — ' + s.name;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="input-group"><label>Service Name</label><input type="text" id="me_svc_name" value="${esc(s.name)}"></div>
+        <div class="row2">
+            <div class="input-group">
+                <label>Pricing Type</label>
+                <select id="me_svc_type">
+                    <option value="flat"   ${s.type === 'flat'   ? 'selected' : ''}>Flat Rate</option>
+                    <option value="hourly" ${s.type === 'hourly' ? 'selected' : ''}>Per Hour</option>
+                </select>
+            </div>
+            <div class="input-group"><label>Price (£)</label><input type="number" id="me_svc_price" value="${s.price}" min="0" step="0.01"></div>
+        </div>
+        <div class="toggle-row">
+            <span class="toggle-label">Active</span>
+            <button class="toggle ${s.active !== false ? 'on' : ''}" id="me_svc_active" onclick="this.classList.toggle('on')"></button>
+        </div>`;
+    document.getElementById('editModal').classList.add('open');
+}
+
+function toggleService(id, active) {
+    const svcs = loadServicesData();
+    const s = svcs.find(x => x.id === id);
+    if (s) s.active = active;
+    saveServicesData(svcs);
+    showToast(active ? 'Service activated' : 'Service deactivated');
+    renderServicesTable();
+}
+
+function deleteSvc(id) {
+    if (!confirm('Permanently delete this service?')) return;
+    saveServicesData(loadServicesData().filter(x => x.id !== id));
+    showToast('Service deleted');
+    renderServicesTable();
+}
+
+// ─────────────────────────────────────────────
+// ROOM HOURS (localStorage per tenant)
+// ─────────────────────────────────────────────
+function roomHoursKey()   { return 'vp_room_hours_' + (_TID() || '0'); }
+function loadRoomHours()  { try { return JSON.parse(sessionStorage.getItem(roomHoursKey()) || '{}'); } catch(e) { return {}; } }
+function saveRoomHours(d) { sessionStorage.setItem(roomHoursKey(), JSON.stringify(d)); }
+
+// ─────────────────────────────────────────────
+// SERVICES (localStorage per tenant)
+// ─────────────────────────────────────────────
+function servicesKey()       { return 'vp_services_' + (_TID() || '0'); }
+function loadServicesData()  { try { return JSON.parse(sessionStorage.getItem(servicesKey()) || '[]'); } catch(e) { return []; } }
+function saveServicesData(d) { sessionStorage.setItem(servicesKey(), JSON.stringify(d)); }
+
+function generateTimeOptions() {
+    const opts = ['<option value="">— Not set —</option>'];
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const t = `${String(h).padStart(2,'0')}:${m === 0 ? '00' : '30'}`;
+            opts.push(`<option value="${t}">${t}</option>`);
+        }
+    }
+    return opts.join('');
+}
+
+function renderServicesTable() {
+    const svcs  = loadServicesData();
+    const tbody = document.getElementById('servicesTable');
+    if (!tbody) return;
+    if (!svcs.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No services defined yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = svcs.map(s => `
+        <tr class="${s.active === false ? 'inactive-row' : ''}">
+            <td style="font-weight:600;color:white">${esc(s.name)}</td>
+            <td style="color:var(--text-muted)">${s.type === 'hourly' ? 'Per Hour' : 'Flat Rate'}</td>
+            <td>${fmt(s.price)}${s.type === 'hourly' ? '<span style="font-size:0.72rem;color:var(--text-muted)">/hr</span>' : ''}</td>
+            <td><span class="status-badge ${s.active !== false ? 'status-active' : 'status-inactive'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-sm btn-edit"    onclick="editServiceItem('${s.id}')"><i class="fa-solid fa-pen"></i></button>
+                    ${s.active !== false
+                        ? `<button class="btn-sm btn-delete"  onclick="toggleService('${s.id}',false)"><i class="fa-solid fa-eye-slash"></i></button>`
+                        : `<button class="btn-sm btn-restore" onclick="toggleService('${s.id}',true)"><i class="fa-solid fa-eye"></i></button>`
+                    }
+                    <button class="btn-sm btn-delete" onclick="deleteSvc('${s.id}')" title="Delete permanently"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>`).join('');
+}
+
+function addService() {
+    const name  = document.getElementById('svcName').value.trim();
+    const type  = document.getElementById('svcType').value;
+    const price = parseFloat(document.getElementById('svcPrice').value);
+    if (!name)                     { showToast('Service name is required', 'error'); return; }
+    if (isNaN(price) || price < 0) { showToast('Valid price is required', 'error'); return; }
+    const svcs = loadServicesData();
+    svcs.push({ id: 'svc_' + Date.now(), name, type, price, active: true });
+    saveServicesData(svcs);
+    showToast('Service added!');
+    document.getElementById('svcName').value  = '';
+    document.getElementById('svcPrice').value = '';
+    renderServicesTable();
+}
+
+function editServiceItem(id) {
+    const svcs = loadServicesData();
+    const s = svcs.find(x => x.id === id);
+    if (!s) return;
+    modalMode = { type: 'service', id };
+    document.getElementById('modalTitle').textContent = 'Edit Service — ' + s.name;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="input-group"><label>Service Name</label><input type="text" id="me_svc_name" value="${esc(s.name)}"></div>
+        <div class="row2">
+            <div class="input-group">
+                <label>Pricing Type</label>
+                <select id="me_svc_type">
+                    <option value="flat"   ${s.type === 'flat'   ? 'selected' : ''}>Flat Rate</option>
+                    <option value="hourly" ${s.type === 'hourly' ? 'selected' : ''}>Per Hour</option>
+                </select>
+            </div>
+            <div class="input-group"><label>Price (£)</label><input type="number" id="me_svc_price" value="${s.price}" min="0" step="0.01"></div>
+        </div>
+        <div class="toggle-row">
+            <span class="toggle-label">Active</span>
+            <button class="toggle ${s.active !== false ? 'on' : ''}" id="me_svc_active" onclick="this.classList.toggle('on')"></button>
+        </div>`;
+    document.getElementById('editModal').classList.add('open');
+}
+
+function toggleService(id, active) {
+    const svcs = loadServicesData();
+    const s = svcs.find(x => x.id === id);
+    if (s) s.active = active;
+    saveServicesData(svcs);
+    showToast(active ? 'Service activated' : 'Service deactivated');
+    renderServicesTable();
+}
+
+function deleteSvc(id) {
+    if (!confirm('Permanently delete this service?')) return;
+    saveServicesData(loadServicesData().filter(x => x.id !== id));
+    showToast('Service deleted');
+    renderServicesTable();
+}
+
+// ─────────────────────────────────────────────
+// ESCAPE HELPER
+// ─────────────────────────────────────────────
+function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+async function init() {
+    const timeOpts = generateTimeOptions();
+    document.getElementById('rOpenTime').innerHTML = timeOpts;
+    document.getElementById('rCloseTime').innerHTML = timeOpts;
+    await Promise.all([loadRooms(), loadEventTypes(), loadPricing(), loadSettings()]);
+}
+
+init();
+    (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
+    function toggleTheme(){
+        var isLight = document.body.classList.toggle('light-mode');
+        sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+        var btn = document.getElementById('theme-btn');
+        if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        var btn = document.getElementById('theme-btn');
+        if(btn) { var isLight = document.body.classList.contains('light-mode'); btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>'; }
+    });
+</script>
+    <!-- FinTech Revamp -->
+    <style>
+    :root { --bg-dark:#06101f; --bg-card:rgba(13,21,46,0.80); --border:rgba(99,120,186,0.14); --border-accent:rgba(99,120,186,0.34); --text-main:#eef2ff; --text-muted:#8b9cc8; }
+    body { background-color:var(--bg-dark) !important; background-image:radial-gradient(ellipse 90% 55% at 18% -10%,rgba(99,102,241,0.17) 0%,transparent 54%),radial-gradient(ellipse 70% 50% at 83% 110%,rgba(6,182,212,0.10) 0%,transparent 52%),radial-gradient(ellipse 60% 70% at 50% 50%,rgba(10,16,40,0.65) 0%,transparent 100%) !important; }
+    aside { background:rgba(4,9,22,0.98) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; border-right:1px solid var(--border) !important; }
+    .brand { font-size:1.22rem !important; font-weight:800 !important; margin-bottom:2rem !important; letter-spacing:-0.01em; }
+    .nav-link { border-radius:10px !important; padding:10px 14px !important; font-size:0.88rem !important; margin-bottom:2px !important; }
+    .nav-link:not(.active):hover { color:#c7d2fe !important; background:rgba(99,102,241,0.09) !important; }
+    .nav-link.active { background:linear-gradient(135deg,rgba(99,102,241,0.22) 0%,rgba(99,102,241,0.09) 100%) !important; color:#a5b4fc !important; border-left:3px solid var(--primary) !important; padding-left:11px !important; }
+    header { padding-bottom:1.5rem !important; border-bottom:1px solid var(--border) !important; margin-bottom:1.75rem !important; justify-content:space-between !important; }
+    header h1 { font-size:1.75rem !important; font-weight:800 !important; letter-spacing:-0.03em !important; background:linear-gradient(135deg,#eef2ff 0%,#a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .card { border-radius:18px !important; backdrop-filter:blur(16px) !important; background:var(--bg-card) !important; border:1px solid var(--border) !important; transition:transform 0.22s ease,border-color 0.22s ease,box-shadow 0.22s ease !important; }
+    .card:hover { transform:translateY(-3px) !important; border-color:var(--border-accent) !important; box-shadow:0 16px 44px rgba(0,0,0,0.5) !important; }
+    .table-container { border-radius:18px !important; backdrop-filter:blur(14px) !important; border:1px solid var(--border) !important; }
+    .table-header { background:rgba(13,21,46,0.55) !important; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    main > * { animation:fadeUp 0.38s ease both; }
+    @media (max-width:768px) { main { padding:1rem !important; } header { flex-direction:column !important; align-items:flex-start !important; } header h1 { font-size:1.4rem !important; } }
+    @media (max-width:480px) { main { padding:0.75rem !important; } }
+    body.light-mode { background-color:#f0f4fb !important; background-image:none !important; }
+    body.light-mode header { border-bottom-color:rgba(0,0,0,0.08) !important; }
+    body.light-mode header h1 { background:linear-gradient(135deg,#0f172a 0%,#4338ca 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    body.light-mode aside { background:rgba(255,255,255,1) !important; border-right-color:rgba(0,0,0,0.09) !important; }
+    </style>
+</body>
+</html>

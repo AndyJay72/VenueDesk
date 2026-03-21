@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Staff Login | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --primary: #6366f1;
+            --border: rgba(148, 163, 184, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 50% 50%, #1e1b4b 0, #0f172a 50%, #020617 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand i { color: var(--primary); }
+
+        .input-group { margin-bottom: 1.5rem; text-align: left; }
+        .input-group label { display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; }
+        
+        input {
+            width: 100%; padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white; outline: none; font-size: 1rem;
+            transition: all 0.3s;
+        }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
+
+        button {
+            width: 100%; padding: 16px; margin-top: 1rem;
+            background: var(--primary);
+            border: none; border-radius: 12px;
+            color: white; font-size: 1rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+        }
+        button:hover { background: #4f46e5; transform: translateY(-2px); }
+        button:disabled { opacity: 0.7; cursor: wait; }
+
+        .error-msg {
+            color: #ef4444; font-size: 0.9rem; margin-top: 1rem; display: none;
+            background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px;
+        }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Standalone Page
+           Breakpoints: 768 / 480 / 360
+        ============================================================ */
+
+        /* Touch-friendly minimum tap targets */
+        button, input, select, textarea { min-height: 44px; }
+
+        @media (max-width: 768px) {
+            body { align-items: flex-start; padding: 1rem; }
+            .login-card, .form-container {
+                padding: 2rem 1.5rem;
+                border-radius: 16px;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 0.5rem; }
+            .login-card, .form-container {
+                padding: 1.5rem 1rem;
+                border-radius: 12px;
+            }
+            .brand { font-size: 1.4rem; }
+            .form-row, .form-grid { grid-template-columns: 1fr !important; }
+            header h1 { font-size: 1.6rem; }
+            header p { font-size: 0.9rem; }
+        }
+
+        @media (max-width: 360px) {
+            .login-card, .form-container {
+                padding: 1rem 0.75rem;
+                border-radius: 10px;
+            }
+        }
+
+        </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="brand"><i class="fa-solid fa-layer-group"></i> VenueDesk</div>
+        
+        <form id="loginForm" onsubmit="return false;">
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="username" placeholder="admin" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" onclick="login()">Sign In</button>
+            <div id="errorBox" class="error-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        // CONFIG: Add your n8n Login Webhook URL here (No Port if using Proxy)
+        const LOGIN_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/login';
+
+        async function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const btn  = document.querySelector('button');
+            const err  = document.getElementById('errorBox');
+
+            if (!user || !pass) {
+                err.innerText = 'Please enter your username and password.';
+                err.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Verifying...";
+            err.style.display = 'none';
+
+            try {
+                const res = await fetch(LOGIN_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                const data = await res.json();
+
+                if (data.token) {
+                    // SUCCESS: read tenant context from server response
+                    const tenantId  = data.user?.tenant_id || '';
+                    const venueName = data.user?.venue_name || data.user?.name || '';
+                    sessionStorage.setItem('vp_token',      data.token);
+                    sessionStorage.setItem('vp_user',       JSON.stringify(data.user));
+                    sessionStorage.setItem('vp_tenant_id',  tenantId);
+                    sessionStorage.setItem('vp_venue_id',   tenantId);   // tenant_id === venue_id
+                    sessionStorage.setItem('vp_venue_name', venueName);
+                    window.location.href = 'index.html';
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (e) {
+                console.error(e);
+                err.innerText = "Invalid Username or Password";
+                err.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = "Sign In";
+            }
+        }
+    </script>
+    <!-- FinTech Revamp -->
+    <style>
+    :root { --bg-dark:#06101f; }
+    body { background-color:var(--bg-dark) !important; background-image:radial-gradient(ellipse 80% 60% at 25% -5%,rgba(99,102,241,0.22) 0%,transparent 55%),radial-gradient(ellipse 60% 55% at 75% 105%,rgba(6,182,212,0.13) 0%,transparent 55%),radial-gradient(ellipse 70% 80% at 50% 50%,rgba(8,14,32,0.7) 0%,transparent 100%) !important; }
+    .login-card { border-radius:24px !important; backdrop-filter:blur(28px) !important; -webkit-backdrop-filter:blur(28px) !important; background:rgba(10,17,38,0.82) !important; border:1px solid rgba(99,120,186,0.22) !important; box-shadow:0 32px 64px rgba(0,0,0,0.6),0 0 0 1px rgba(99,120,186,0.12) !important; }
+    .brand { background:linear-gradient(135deg,#eef2ff 0%,#a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size:2rem !important; font-weight:800 !important; letter-spacing:-0.02em !important; }
+    .brand i { -webkit-text-fill-color:#6366f1; }
+    input { background:rgba(0,0,0,0.38) !important; border:1px solid rgba(99,120,186,0.22) !important; border-radius:12px !important; transition:all 0.2s !important; color: #e2e8f0 !important; }
+    input:focus { border-color:#6366f1 !important; box-shadow:0 0 0 3px rgba(99,102,241,0.18) !important; }
+    button { background:linear-gradient(135deg,#6366f1,#4f46e5) !important; border-radius:12px !important; font-weight:700 !important; letter-spacing:-0.01em !important; transition:all 0.22s !important; }
+    button:hover:not(:disabled) { transform:translateY(-2px) !important; box-shadow:0 10px 28px rgba(99,102,241,0.4) !important; }
+    </style>
+</body>
+</html>

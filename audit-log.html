@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Audit Log | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>(function() {
+        const _t = sessionStorage.getItem('vp_token');
+        if (!_t) { window.location.href = 'login.html'; return; }
+        try {
+            const _p = JSON.parse(atob(_t.split('.')[1]));
+            if (_p.exp && _p.exp * 1000 < Date.now()) {
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            }
+        } catch(e) { /* non-JWT token, skip expiry check */ }
+    })();</script>
+    <style>
+        :root{--bg-dark:#0f172a;--bg-card:rgba(30,41,59,0.7);--border:rgba(148,163,184,0.1);--primary:#6366f1;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--text-main:#f8fafc;--text-muted:#94a3b8;--sidebar-width:260px}
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'Plus Jakarta Sans',sans-serif}
+        ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+        body{background-color:var(--bg-dark);background-image:radial-gradient(at 0% 0%,hsla(253,16%,7%,1) 0,transparent 50%),radial-gradient(at 50% 0%,hsla(225,39%,30%,1) 0,transparent 50%);color:var(--text-main);min-height:100vh;display:flex;overflow-x:hidden}
+        aside{width:var(--sidebar-width);background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);border-right:1px solid var(--border);padding:2rem;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;transition:transform 0.3s ease}
+        .brand{font-size:1.5rem;font-weight:700;color:white;display:flex;align-items:center;justify-content:space-between;margin-bottom:3rem}
+        .nav-link{display:flex;align-items:center;gap:12px;padding:12px 16px;color:var(--text-muted);text-decoration:none;border-radius:8px;margin-bottom:5px;transition:all 0.2s;font-weight:500}
+        .nav-link:hover,.nav-link.active{background:rgba(99,102,241,0.1);color:var(--primary)}
+        .close-sidebar{display:none;background:none;border:none;color:white;font-size:1.2rem;cursor:pointer}
+        main{margin-left:var(--sidebar-width);flex:1;padding:2rem;max-width:1600px;width:100%;transition:margin-left 0.3s ease}
+        .menu-toggle{display:none;background:var(--bg-card);border:1px solid var(--border);color:white;width:40px;height:40px;border-radius:8px;align-items:center;justify-content:center;cursor:pointer;margin-right:15px}
+        .filter-row{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+        .f-input{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;color:white;padding:9px 14px;font-size:0.88rem;outline:none;font-family:inherit}
+        .f-input:focus{border-color:var(--primary)}
+        .f-input::placeholder{color:var(--text-muted)}
+        .f-select{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;color:white;padding:9px 14px;font-size:0.88rem;outline:none;cursor:pointer;font-family:inherit}
+        .f-select option{background:#1e293b}
+        .f-btn{background:var(--primary);border:none;color:white;padding:9px 18px;border-radius:10px;cursor:pointer;font-size:0.88rem;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:6px;transition:0.2s}
+        .f-btn:hover{background:#4f46e5}
+        .f-clear{background:rgba(148,163,184,0.1);border:1px solid var(--border);color:var(--text-muted);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;font-family:inherit;transition:0.2s}
+        .f-clear:hover{color:white;border-color:white}
+        .summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+        .sum-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;text-align:center}
+        .sum-val{font-size:1.4rem;font-weight:700;color:white}
+        .sum-lbl{font-size:0.72rem;color:var(--text-muted);margin-top:3px}
+        .table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+        .table-inner{overflow-x:auto}
+        table{width:100%;border-collapse:collapse;min-width:700px}
+        th{text-align:left;padding:1rem 1.25rem;color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;font-weight:600;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--border);white-space:nowrap}
+        td{padding:1rem 1.25rem;border-bottom:1px solid var(--border);color:var(--text-main);font-size:0.9rem;vertical-align:middle}
+        tr:last-child td{border-bottom:none}
+        tbody tr:hover{background:rgba(255,255,255,0.03)}
+        .type-pill{padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;text-transform:uppercase;white-space:nowrap}
+        .type-payment{background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)}
+        .type-deposit{background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.3)}
+        .type-refund{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+        .type-booking{background:rgba(6,182,212,0.15);color:#06b6d4;border:1px solid rgba(6,182,212,0.3)}
+        .type-enquiry{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+        .type-interaction{background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.3)}
+        .type-email{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
+        .type-other{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)}
+        .method-badge{padding:3px 8px;border-radius:8px;font-size:0.7rem;font-weight:600;background:rgba(0,0,0,0.3);border:1px solid var(--border);text-transform:capitalize}
+        .pagination{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-top:1px solid var(--border)}
+        .pg-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:0.2s;font-family:inherit}
+        .pg-btn:hover:not(:disabled){color:white;border-color:white}
+        .pg-btn:disabled{opacity:0.35;cursor:not-allowed}
+        .pg-info{font-size:0.82rem;color:var(--text-muted)}
+        .overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:90}
+        .overlay.active{display:block}
+        @media(max-width:768px){aside{transform:translateX(-100%)}aside.active{transform:translateX(0)}main{margin-left:0;padding:1rem}.menu-toggle{display:flex}.close-sidebar{display:block}.summary-strip{grid-template-columns:1fr 1fr}}
+
+        /* ── LIGHT MODE OVERRIDES ── */
+        body.light-mode { background-color: #eef2f7; background-image: none; color: #0f172a; }
+        body.light-mode aside { background: rgba(255,255,255,0.97); border-right-color: rgba(0,0,0,0.1); }
+        body.light-mode .nav-link { color: #475569; }
+        body.light-mode .nav-link:hover, body.light-mode .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); }
+        body.light-mode .brand { color: #0f172a; }
+        body.light-mode main { background: transparent; }
+        body.light-mode .card,
+        body.light-mode .table-container,
+        body.light-mode .metric-card,
+        body.light-mode .booking-card,
+        body.light-mode .glance-card,
+        body.light-mode .sum-card,
+        body.light-mode .table-wrap,
+        body.light-mode #calendar,
+        body.light-mode .section-container { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.1); color: #0f172a; }
+        body.light-mode th { background: rgba(240,244,248,0.9); color: #475569; border-color: rgba(0,0,0,0.07); }
+        body.light-mode td { color: #0f172a; border-color: rgba(0,0,0,0.06); }
+        body.light-mode .stat-value, body.light-mode .glance-val, body.light-mode .sum-val { color: #0f172a; }
+        body.light-mode .stat-label, body.light-mode .glance-lbl, body.light-mode .sum-lbl,
+        body.light-mode .b-meta, body.light-mode .db-month, body.light-mode .metric-info p { color: #64748b; }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4 { color: #0f172a; }
+        body.light-mode .menu-toggle,
+        body.light-mode .search-bar,
+        body.light-mode .sf-input, body.light-mode .sf-select,
+        body.light-mode .f-input, body.light-mode .f-select,
+        body.light-mode .cal-filter-select { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.15); color: #0f172a; }
+        body.light-mode .search-bar input { color: #0f172a; }
+        body.light-mode .filter-btn { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.12); color: #475569; }
+        body.light-mode .filter-btn:hover, body.light-mode .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        body.light-mode .pay-modal-card, body.light-mode .modal-card,
+        body.light-mode .receipt-card { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #0f172a; }
+        body.light-mode .detail-value { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: #0f172a; }
+        body.light-mode .live-clock { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.12); color: #475569; }
+        body.light-mode .pay-amount-input { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); color: #0f172a; }
+        body.light-mode .pay-booking-info { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+        body.light-mode .date-badge { background: rgba(0,0,0,0.05); }
+        body.light-mode .bh-stat { background: rgba(0,0,0,0.04); }
+        body.light-mode .log-tbody tr:hover, body.light-mode tbody tr:hover { background: rgba(0,0,0,0.03) !important; }
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; flex-shrink: 0; }
+        .theme-toggle:hover { color: white; border-color: white; }
+        body.light-mode .theme-toggle { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.15); color: #475569; }
+        body.light-mode .theme-toggle:hover { color: #0f172a; border-color: #94a3b8; }
+    
+        /* ============================================================
+           RESPONSIVE DESIGN — VenuePro Full Coverage
+           Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
+        ============================================================ */
+
+        /* Sidebar overlay backdrop (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 199;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Touch-friendly minimum tap targets */
+        button, .btn, a.btn, select, input[type="text"],
+        input[type="email"], input[type="password"], input[type="tel"],
+        input[type="number"], input[type="date"], input[type="time"],
+        textarea { min-height: 44px; }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            border-radius: 12px;
+        }
+        .table-wrap table { min-width: 600px; }
+
+        /* ---- 1200px (large desktop to medium desktop) ---- */
+        @media (max-width: 1200px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ---- 1024px (small laptop / large tablet landscape) ---- */
+        @media (max-width: 1024px) {
+            aside { width: 220px; }
+            main { margin-left: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 900px (tablet landscape) ---- */
+        @media (max-width: 900px) {
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-split, .form-grid-2col { grid-template-columns: 1fr; }
+            .filter-bar, .top-bar, .action-bar {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select { width: 100%; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- 768px (tablet portrait / all mobiles) ---- */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0; top: 0;
+                height: 100vh;
+                width: 260px;
+                transform: translateX(-100%);
+                z-index: 200;
+                transition: transform 0.3s ease;
+            }
+            aside.active { transform: translateX(0); }
+            .close-sidebar { display: block !important; }
+            .menu-toggle { display: flex !important; }
+            main { margin-left: 0 !important; padding: 1rem; }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header .header-actions { width: 100%; }
+            .page-header .header-actions button,
+            .page-header .header-actions a { width: 100%; justify-content: center; }
+
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .filter-bar, .top-bar, .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            .filter-bar input, .filter-bar select,
+            .top-bar input, .top-bar select,
+            .action-bar input, .action-bar select { width: 100%; }
+
+            .filter-tabs { flex-wrap: wrap; gap: 0.4rem; }
+            .filter-tabs button { flex: 1 1 auto; min-width: 80px; font-size: 0.8rem; }
+
+            .modal-content, .modal-box, .modal > div:first-child {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                max-height: 88vh !important;
+                overflow-y: auto;
+                border-radius: 12px !important;
+                margin: 1rem auto;
+            }
+            .modal-grid, .form-row, .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            table td, table th { font-size: 0.8rem; padding: 0.5rem 0.6rem; }
+            .card { padding: 1rem; }
+            .btn-group { flex-wrap: wrap; gap: 0.4rem; }
+            .btn-group button, .btn-group a { flex: 1 1 auto; }
+
+            .calendar-grid { gap: 0.25rem; }
+        }
+
+        /* ---- 480px (mobile portrait) ---- */
+        @media (max-width: 480px) {
+            main { padding: 0.75rem; }
+            .stats-grid, .metrics-grid, .kpi-grid, .summary-strip {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+            .page-header h1 { font-size: 1.2rem; }
+            .card { padding: 0.85rem; border-radius: 12px; }
+            .stat-card h2, .kpi-card h2, .stat-value { font-size: 1.6rem; }
+            button, .btn { font-size: 0.85rem; padding: 10px 14px; }
+            .filter-tabs button { font-size: 0.75rem; padding: 6px 10px; }
+            .table-wrap table { min-width: 480px; }
+            table td, table th { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .badge, .status-badge { font-size: 0.7rem; padding: 2px 7px; }
+            aside { width: 240px; }
+        }
+
+        /* ---- 360px (very small phones) ---- */
+        @media (max-width: 360px) {
+            main { padding: 0.5rem; }
+            .page-header h1 { font-size: 1.1rem; }
+            aside { width: 220px; }
+            .stats-grid, .metrics-grid, .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        
+        /* ── SIDEBAR COLLAPSE (desktop/tablet) ── */
+        aside { transition: width 0.3s ease, padding 0.3s ease, transform 0.3s ease !important; overflow: hidden; }
+        main  { transition: margin-left 0.3s ease !important; }
+        .brand-text { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .nav-label  { transition: opacity 0.15s ease; white-space: nowrap; overflow: hidden; display: inline; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; line-height: 1; min-height: unset; flex-shrink: 0; }
+        .sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+        .sidebar-collapse-btn:hover { color: var(--primary); }
+        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main  { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-label  { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link   { justify-content: center; gap: 0; padding: 12px 8px; font-size: 1.05rem; }
+        body.sidebar-collapsed .close-sidebar { display: none !important; }
+        body.sidebar-collapsed .nav-link { position: relative; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
+        @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
+        </style>
+</head>
+<body>
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+    <aside id="sidebar">
+        <div class="brand"><span><i class="fa-solid fa-layer-group"></i><span class="brand-text">VenueDesk</span></span><div style="display:flex;align-items:center;gap:2px;"><button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div></div>
+        <nav>
+            <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+            <a href="audit-log.html" class="nav-link active" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+            <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+            <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
+            <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+        </nav>
+    </aside>
+    <main>
+        <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+            <div style="display:flex;align-items:center">
+                <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+                <div><h1 style="font-size:1.8rem;font-weight:700">Audit Log</h1><p style="color:var(--text-muted);font-size:0.88rem;margin-top:3px">All activity — bookings, payments, interactions &amp; enquiries</p></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button onclick="exportCSV()" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:6px;transition:0.2s" onmouseover="this.style.background='rgba(16,185,129,0.2)'" onmouseout="this.style.background='rgba(16,185,129,0.1)'"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                <button onclick="loadData()" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:var(--primary);padding:9px 16px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:6px;transition:0.2s" onmouseover="this.style.background='rgba(99,102,241,0.2)'" onmouseout="this.style.background='rgba(99,102,241,0.1)'"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+            </div>
+        </header>
+        <div class="filter-row">
+            <input type="text" id="f-search" class="f-input" placeholder="Search customer, room, ref..." oninput="applyFilters()" style="flex:1;min-width:180px">
+            <input type="date" id="f-from" class="f-input" title="From" onchange="applyFilters()">
+            <input type="date" id="f-to" class="f-input" title="To" onchange="applyFilters()">
+            <select id="f-type" class="f-select" onchange="applyFilters()">
+                <option value="">All Types</option>
+                <option value="payment">Payment</option>
+                <option value="deposit">Deposit</option>
+                <option value="refund">Refund</option>
+                <option value="booking">Booking</option>
+                <option value="enquiry">Enquiry</option>
+                <option value="interaction">Interaction</option>
+                <option value="email">Email</option>
+            </select>
+            <select id="f-method" class="f-select" onchange="applyFilters()">
+                <option value="">All Methods</option>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
+            </select>
+            <button class="f-clear" onclick="clearFilters()"><i class="fa-solid fa-xmark"></i> Clear</button>
+        </div>
+        <div class="summary-strip">
+            <div class="sum-card"><div class="sum-val" id="s-count">—</div><div class="sum-lbl">Total Events</div></div>
+            <div class="sum-card"><div class="sum-val" id="s-total">—</div><div class="sum-lbl">Payments Total</div></div>
+            <div class="sum-card"><div class="sum-val" id="s-deps">—</div><div class="sum-lbl">Bookings &amp; Enquiries</div></div>
+            <div class="sum-card"><div class="sum-val" id="s-bals">—</div><div class="sum-lbl">Interactions</div></div>
+        </div>
+        <div class="table-wrap">
+            <div class="table-inner">
+                <table>
+                    <thead><tr><th>Date &amp; Time</th><th>Customer</th><th>Room</th><th>Type</th><th>Details</th><th>Amount</th><th>Ref / Subject</th></tr></thead>
+                    <tbody id="log-tbody"><tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button class="pg-btn" id="pg-prev" onclick="changePage(-1)">&#8249; Prev</button>
+                <span class="pg-info" id="pg-info">—</span>
+                <button class="pg-btn" id="pg-next" onclick="changePage(1)">Next &#8250;</button>
+            </div>
+        </div>
+    </main>
+    <script>
+        const PAYMENTS_API      = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
+        const INTERACTIONS_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
+        const DASHBOARD_API     = 'https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard';
+        const fmt = n => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
+        function getAuthHeaders(){const tid=sessionStorage.getItem('vp_tenant_id')||'';return{'Authorization':'Bearer '+(sessionStorage.getItem('vp_token')||''),'X-Tenant-ID':tid,'X-Venue-ID':tid};}
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+        function logout(){if(confirm("Log out?")){sessionStorage.removeItem('vp_token');window.location.href='login.html';}}
+
+        const TYPE_CONFIG = {
+            payment:     { cls:'type-payment',     label:'Payment',     icon:'fa-credit-card' },
+            deposit:     { cls:'type-deposit',     label:'Deposit',     icon:'fa-coins' },
+            refund:      { cls:'type-refund',      label:'Refund',      icon:'fa-rotate-left' },
+            booking:     { cls:'type-booking',     label:'Booking',     icon:'fa-calendar-check' },
+            enquiry:     { cls:'type-enquiry',     label:'Enquiry',     icon:'fa-inbox' },
+            interaction: { cls:'type-interaction', label:'Interaction', icon:'fa-comments' },
+            email:       { cls:'type-email',       label:'Email',       icon:'fa-envelope' },
+        };
+        function getTypeCfg(t) { return TYPE_CONFIG[t] || {cls:'type-other',label:t||'Other',icon:'fa-circle'}; }
+
+        let allTx=[], filtered=[], page=1;
+        const PAGE_SIZE=25;
+        function clearFilters(){document.getElementById('f-search').value='';document.getElementById('f-from').value='';document.getElementById('f-to').value='';document.getElementById('f-type').value='';document.getElementById('f-method').value='';applyFilters();}
+        function applyFilters(){
+            const q=(document.getElementById('f-search').value||'').toLowerCase();
+            const from=document.getElementById('f-from').value;
+            const to=document.getElementById('f-to').value;
+            const typ=document.getElementById('f-type').value;
+            const meth=document.getElementById('f-method').value;
+            filtered=allTx.filter(t=>{
+                if(q&&![(t.customer_name||''),(t.room_name||''),(t.ref||''),(t.customer_email||''),(t.details||'')].join(' ').toLowerCase().includes(q))return false;
+                const d=(t.ts||'').slice(0,10);
+                if(from&&d<from)return false;
+                if(to&&d>to)return false;
+                if(typ&&t.type!==typ)return false;
+                if(meth&&t.method&&t.method.toLowerCase()!==meth)return false;
+                return true;
+            });
+            page=1;
+            updateSummary();
+            render();
+        }
+        function updateSummary(){
+            const payTotal=filtered.filter(t=>['payment','deposit','refund'].includes(t.type)).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+            const bookEnq=filtered.filter(t=>['booking','enquiry'].includes(t.type)).length;
+            const intCount=filtered.filter(t=>['interaction','email'].includes(t.type)).length;
+            document.getElementById('s-count').innerText=filtered.length;
+            document.getElementById('s-total').innerText=fmt(payTotal);
+            document.getElementById('s-deps').innerText=bookEnq;
+            document.getElementById('s-bals').innerText=intCount;
+        }
+        function render(){
+            const tbody=document.getElementById('log-tbody');
+            const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+            if(page>totalPages)page=totalPages;
+            const start=(page-1)*PAGE_SIZE;
+            const slice=filtered.slice(start,start+PAGE_SIZE);
+            if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)">No activity found</td></tr>';document.getElementById('pg-info').innerText='No results';document.getElementById('pg-prev').disabled=true;document.getElementById('pg-next').disabled=true;return;}
+            tbody.innerHTML=slice.map(t=>{
+                const cfg=getTypeCfg(t.type);
+                const dateStr=t.ts?(()=>{try{return new Date(t.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return t.ts;}})():'—';
+                const amountCell=t.amount?`<span style="font-weight:700;color:var(--success)">${fmt(t.amount)}</span>`:'<span style="color:var(--text-muted)">—</span>';
+                return `<tr>
+                    <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">${dateStr}</td>
+                    <td><div style="font-weight:600">${t.customer_name||'—'}</div><div style="font-size:0.75rem;color:var(--text-muted)">${t.customer_email||''}</div></td>
+                    <td style="font-size:0.85rem">${t.room_name||'—'}</td>
+                    <td><span class="type-pill ${cfg.cls}"><i class="fa-solid ${cfg.icon}" style="margin-right:4px"></i>${cfg.label}</span></td>
+                    <td style="font-size:0.83rem;color:var(--text-muted)">${t.details||'—'}</td>
+                    <td>${amountCell}</td>
+                    <td style="font-family:monospace;font-size:0.78rem;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.ref||''}">${t.ref||'—'}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('pg-info').innerText=`Page ${page} of ${totalPages} (${filtered.length} records)`;
+            document.getElementById('pg-prev').disabled=(page<=1);
+            document.getElementById('pg-next').disabled=(page>=totalPages);
+        }
+        function changePage(dir){page+=dir;render();}
+        function exportCSV(){
+            if(!filtered.length){alert('No data to export.');return;}
+            const cols=['Date & Time','Customer','Email','Room','Type','Details','Amount (GBP)','Ref / Subject'];
+            const esc=v=>{const s=String(v==null?'':v).replace(/"/g,'""');return /[",\n\r]/.test(s)?`"${s}"`:s;};
+            const rows=filtered.map(t=>{
+                const dateStr=t.ts?(()=>{try{return new Date(t.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return t.ts;}})():'';
+                return [dateStr,t.customer_name||'',t.customer_email||'',t.room_name||'',t.type||'',t.details||'',parseFloat(t.amount||0).toFixed(2),t.ref||''].map(esc).join(',');
+            });
+            const csv=[cols.map(esc).join(','),...rows].join('\r\n');
+            const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url;a.download='venuepro-audit-log-'+new Date().toISOString().slice(0,10)+'.csv';
+            document.body.appendChild(a);a.click();
+            setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+        }
+        async function loadData(){
+            document.getElementById('log-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr>';
+            try{
+                const [txR,intR,dashR]=await Promise.allSettled([
+                    fetch(PAYMENTS_API,     {headers:getAuthHeaders()}),
+                    fetch(INTERACTIONS_API, {headers:getAuthHeaders()}),
+                    fetch(DASHBOARD_API,    {headers:getAuthHeaders()}),
+                ]);
+                const events=[];
+                if(txR.status==='fulfilled'&&txR.value.ok){
+                    try{
+                        const tj=await txR.value.json();const td=tj.data||tj;
+                        const txns=Array.isArray(td)?td:(td.transactions||td.payments||[]);
+                        txns.filter(t=>t&&t.amount).forEach(p=>{
+                            const raw=(p.payment_type||p.type||'payment').toLowerCase();
+                            let type='payment';
+                            if(/deposit/.test(raw))type='deposit';
+                            else if(/refund/.test(raw))type='refund';
+                            events.push({type,ts:p.payment_created_at||p.created_at||p.payment_date,customer_name:p.customer_name,customer_email:p.customer_email||p.email,room_name:p.room_name,details:(p.payment_method||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'—',amount:p.amount,method:p.payment_method,ref:p.reference||p.reference_number||p.deposit_reference||''});
+                        });
+                    }catch(e){}
+                }
+                if(intR.status==='fulfilled'&&intR.value.ok){
+                    try{
+                        const ij=await intR.value.json();const ia=ij.data||(Array.isArray(ij)?ij:[]);
+                        ia.forEach(i=>{
+                            const isEmail=/email/i.test(i.interaction_type||'');
+                            events.push({type:isEmail?'email':'interaction',ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:`${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`,amount:null,ref:i.subject||i.notes||''});
+                        });
+                    }catch(e){}
+                }
+                if(dashR.status==='fulfilled'&&dashR.value.ok){
+                    try{
+                        const dj=await dashR.value.json();const dd=dj.data||dj;
+                        (dd.recent_customers||[]).forEach(c=>events.push({type:'enquiry',ts:c.created_at||c.requested_date,customer_name:c.full_name||c.customer_name,customer_email:c.email,room_name:c.room_name,details:`${c.event_type||''} \u00b7 ${c.guests_count||c.guest_count||'?'} guests`.replace(/^\s*\u00b7\s*/,''),amount:null,ref:c.notes||''}));
+                        (dd.upcoming_bookings||[]).forEach(b=>events.push({type:'booking',ts:b.booking_created_at||b.booking_date||b.date_from,customer_name:b.customer_name,customer_email:b.customer_email,room_name:b.room_name,details:`${(b.status||'confirmed').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} \u00b7 ${b.guest_count||'?'} guests`,amount:b.total_amount,ref:b.id||''}));
+                    }catch(e){}
+                }
+                events.sort((a,b)=>new Date(b.ts||0)-new Date(a.ts||0));
+                const _seenAudit=new Set();
+                allTx=events.filter(e=>{const k=`${e.type}|${e.ts}|${e.customer_name}|${e.ref}`;if(_seenAudit.has(k))return false;_seenAudit.add(k);return true;});
+                applyFilters();
+            }catch(e){
+                document.getElementById('log-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:#ef4444"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load data</td></tr>';
+                console.error(e);
+            }
+        }
+        loadData();
+    
+
+        function toggleSidebarCollapse(){
+            const col=document.body.classList.toggle('sidebar-collapsed');
+            sessionStorage.setItem('vp_sidebar_col',col?'1':'0');
+        }
+        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        // ── THEME PERSISTENCE ──
+        (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
+        function toggleTheme(){
+            var isLight = document.body.classList.toggle('light-mode');
+            sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+            var btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        }
+        // Set correct icon on load
+        document.addEventListener('DOMContentLoaded', function(){
+            var btn = document.getElementById('theme-btn');
+            if(btn) {
+                var isLight = document.body.classList.contains('light-mode');
+                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        });
+</script>
+    <!-- FinTech Revamp -->
+    <style>
+    :root { --bg-dark:#06101f; --bg-card:rgba(13,21,46,0.80); --border:rgba(99,120,186,0.14); --border-accent:rgba(99,120,186,0.34); --text-main:#eef2ff; --text-muted:#8b9cc8; }
+    body { background-color:var(--bg-dark) !important; background-image:radial-gradient(ellipse 90% 55% at 18% -10%,rgba(99,102,241,0.17) 0%,transparent 54%),radial-gradient(ellipse 70% 50% at 83% 110%,rgba(6,182,212,0.10) 0%,transparent 52%),radial-gradient(ellipse 60% 70% at 50% 50%,rgba(10,16,40,0.65) 0%,transparent 100%) !important; }
+    aside { background:rgba(4,9,22,0.98) !important; backdrop-filter:blur(20px) !important; -webkit-backdrop-filter:blur(20px) !important; border-right:1px solid var(--border) !important; }
+    .brand { font-size:1.22rem !important; font-weight:800 !important; margin-bottom:2rem !important; letter-spacing:-0.01em; }
+    .nav-link { border-radius:10px !important; padding:10px 14px !important; font-size:0.88rem !important; margin-bottom:2px !important; }
+    .nav-link:not(.active):hover { color:#c7d2fe !important; background:rgba(99,102,241,0.09) !important; }
+    .nav-link.active { background:linear-gradient(135deg,rgba(99,102,241,0.22) 0%,rgba(99,102,241,0.09) 100%) !important; color:#a5b4fc !important; border-left:3px solid var(--primary) !important; padding-left:11px !important; }
+    header { padding-bottom:1.5rem !important; border-bottom:1px solid var(--border) !important; margin-bottom:1.75rem !important; justify-content:space-between !important; }
+    header h1 { font-size:1.75rem !important; font-weight:800 !important; letter-spacing:-0.03em !important; background:linear-gradient(135deg,#eef2ff 0%,#a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .card { border-radius:18px !important; backdrop-filter:blur(16px) !important; background:var(--bg-card) !important; border:1px solid var(--border) !important; transition:transform 0.22s ease,border-color 0.22s ease,box-shadow 0.22s ease !important; }
+    .card:hover { transform:translateY(-3px) !important; border-color:var(--border-accent) !important; box-shadow:0 16px 44px rgba(0,0,0,0.5) !important; }
+    .filter-btn { border-radius:50px !important; padding:8px 18px !important; font-size:0.82rem !important; backdrop-filter:blur(8px) !important; transition:all 0.2s ease !important; }
+    .filter-btn:not(.active):hover { transform:translateY(-1px) !important; background:rgba(255,255,255,0.08) !important; color:white !important; border-color:rgba(99,120,186,0.34) !important; }
+    .table-container { border-radius:18px !important; backdrop-filter:blur(14px) !important; border:1px solid var(--border) !important; }
+    .table-header { background:rgba(13,21,46,0.55) !important; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    main > * { animation:fadeUp 0.38s ease both; }
+    main > *:nth-child(1) { animation-delay:.05s; } main > *:nth-child(2) { animation-delay:.10s; } main > *:nth-child(3) { animation-delay:.15s; } main > *:nth-child(4) { animation-delay:.20s; } main > *:nth-child(5) { animation-delay:.25s; }
+    @media (max-width:768px) { main { padding:1rem !important; } header { flex-direction:column !important; align-items:flex-start !important; } header h1 { font-size:1.4rem !important; } }
+    @media (max-width:480px) { main { padding:0.75rem !important; } }
+    body.light-mode { background-color:#f0f4fb !important; background-image:none !important; }
+    body.light-mode .card { background:rgba(255,255,255,0.96) !important; border-color:rgba(0,0,0,0.07) !important; }
+    body.light-mode header { border-bottom-color:rgba(0,0,0,0.08) !important; }
+    body.light-mode header h1 { background:linear-gradient(135deg,#0f172a 0%,#4338ca 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    body.light-mode .table-container { background:rgba(255,255,255,0.96) !important; border-color:rgba(0,0,0,0.08) !important; }
+    body.light-mode aside { background:rgba(255,255,255,1) !important; border-right-color:rgba(0,0,0,0.09) !important; }
+    </style>
+</body>
+</html>
