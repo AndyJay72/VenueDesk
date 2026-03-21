@@ -731,7 +731,9 @@
         const QBR_DEPOSIT_PCT=30;
         const DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const fmt=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
-        function getAuthHeaders(){const tid=sessionStorage.getItem('vp_tenant_id')||'';return{'Authorization':'Bearer '+(sessionStorage.getItem('vp_token')||''),'X-Tenant-ID':tid,'X-Venue-ID':tid};}
+        function _CAL_TID(){return sessionStorage.getItem('vp_tenant_id')||'';}
+        function getAuthHeaders(){return{'Authorization':'Bearer '+(sessionStorage.getItem('vp_token')||'')};}
+        function tidUrl(base){return base+(base.includes('?')?'&':'?')+'tenant_id='+_CAL_TID();}
 
         function showToast(msg,type){
             const t=document.createElement('div');
@@ -767,7 +769,7 @@
 
         async function loadBlockedDates(){
             try{
-                const res=await fetch(BLOCKED_API,{headers:getAuthHeaders()});
+                const res=await fetch(tidUrl(BLOCKED_API),{headers:getAuthHeaders()});
                 const json=await res.json();
                 allBlockedRules=json.data||[];
                 blockedBgEvents=generateBlockedBgEvents(allBlockedRules);
@@ -801,7 +803,7 @@
             const type=document.getElementById('bd-type').value;
             const label=document.getElementById('bd-label').value.trim();
             const btn=document.getElementById('bd-save-btn');
-            const payload={block_type:type,label:label||'Closed',created_by:'staff'};
+            const payload={block_type:type,label:label||'Closed',created_by:'staff',tenant_id:parseInt(_CAL_TID())||null};
             if(type==='recurring'){payload.day_of_week=parseInt(document.getElementById('bd-dow').value);}
             else if(type==='oneoff'){const d=document.getElementById('bd-date').value;if(!d){alert('Please select a date');return;}payload.block_date=d;}
             else if(type==='range'){const f=document.getElementById('bd-from').value,t=document.getElementById('bd-to').value;if(!f||!t){alert('Please select both dates');return;}if(f>t){alert('From date must be before To date');return;}payload.date_from=f;payload.date_to=t;}
@@ -849,9 +851,9 @@
         let qbRoomsData=[],qbPricingData=[],_qbAvailTimeout=null,qbInitDone=false,qbTotalAmount=0,qbDepositAmount=0;
         async function qbInit(){
             if(qbInitDone)return;qbInitDone=true;
-            try{const r=await fetch(ROOMS_API,{headers:getAuthHeaders()});const rj=await r.json();qbRoomsData=(rj.data||(Array.isArray(rj)?rj:[])).filter(x=>x.is_active||x.is_active===undefined);const s=document.getElementById('qb-roomSelect');s.innerHTML='<option value="">Select room...</option>';qbRoomsData.forEach(r=>{const o=document.createElement('option');o.value=r.name||r.room_name||r.id;o.textContent=r.name||r.room_name||r.id;s.appendChild(o);});renderQbExtraRooms();}catch(e){}
-            try{const p=await fetch(PRICING_API,{headers:getAuthHeaders()});const pj=await p.json();qbPricingData=pj.data||(Array.isArray(pj)?pj:[]);}catch(e){}
-            try{const t=await fetch(TYPES_API,{headers:getAuthHeaders()});const tj=await t.json();const types=tj.data||(Array.isArray(tj)?tj:[]);const es=document.getElementById('qb-eventType');es.innerHTML='<option value="">Select type...</option>';types.forEach(t=>{const o=document.createElement('option');o.value=t.name||t.type_name||t;o.textContent=t.name||t.type_name||t;es.appendChild(o);});}catch(e){}
+            try{const r=await fetch(tidUrl(ROOMS_API),{headers:getAuthHeaders()});const rj=await r.json();qbRoomsData=(rj.data||(Array.isArray(rj)?rj:[])).filter(x=>x.is_active||x.is_active===undefined);const s=document.getElementById('qb-roomSelect');s.innerHTML='<option value="">Select room...</option>';qbRoomsData.forEach(r=>{const o=document.createElement('option');o.value=r.name||r.room_name||r.id;o.textContent=r.name||r.room_name||r.id;s.appendChild(o);});renderQbExtraRooms();}catch(e){}
+            try{const p=await fetch(tidUrl(PRICING_API),{headers:getAuthHeaders()});const pj=await p.json();qbPricingData=pj.data||(Array.isArray(pj)?pj:[]);}catch(e){}
+            try{const t=await fetch(tidUrl(TYPES_API),{headers:getAuthHeaders()});const tj=await t.json();const types=tj.data||(Array.isArray(tj)?tj:[]);const es=document.getElementById('qb-eventType');es.innerHTML='<option value="">Select type...</option>';types.forEach(t=>{const o=document.createElement('option');o.value=t.name||t.type_name||t;o.textContent=t.name||t.type_name||t;es.appendChild(o);});}catch(e){}
             const times=[];for(let h=8;h<24;h++)for(let m=0;m<60;m+=30)times.push(`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`);
             ['qb-startTime','qb-endTime'].forEach(id=>{const s=document.getElementById(id);s.innerHTML='';times.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o);});s.value=id.includes('start')?'09:00':'17:00';});
         }
@@ -1281,7 +1283,7 @@
             const calEl=document.getElementById('calendar');
             try{
                 await loadBlockedDates();
-                const [res,pendRes]=await Promise.all([fetch(API_URL,{headers:getAuthHeaders()}),fetch(CAL_PENDING_URL,{headers:getAuthHeaders()})]);
+                const [res,pendRes]=await Promise.all([fetch(tidUrl(API_URL),{headers:getAuthHeaders()}),fetch(tidUrl(CAL_PENDING_URL),{headers:getAuthHeaders()})]);
                 const json=await res.json();
                 const raw=json.data||(Array.isArray(json)?json:[]);
                 try{const pd=await pendRes.json();const pending=((pd.data||pd)||[]).map(p=>({...p,customer_name:p.full_name||p.customer_name,customer_email:p.email||p.customer_email,customer_phone:p.phone||p.customer_phone,booking_date:p.requested_date,date_from:p.requested_date,date_to:p.requested_date,guest_count:p.guests_count||p.guest_count,status:p.status||'pending'}));raw.push(...pending.filter(p=>p.date_from||p.booking_date));}catch(_){}
