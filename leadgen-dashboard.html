@@ -568,9 +568,7 @@
 <script>
     const BASE_API = 'https://n8n.srv1090894.hstgr.cloud/webhook';
 
-    function getAuthHeaders() {
-        return { 'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || '') };
-    }
+    function getAuthHeaders() { return {}; }
 
     let allLeads = [];
     let leadsPage = 1;
