@@ -1419,15 +1419,12 @@
         const PAY_BALANCE_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
 
         function getAuthHeaders() {
-            const tid = sessionStorage.getItem('vp_tenant_id') || '';
-            return {
-                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-                'X-Tenant-ID': tid,
-                'X-Venue-ID':  tid
-            };
+            // No custom headers — avoid CORS preflight failures.
+            // tenant_id is passed via query param (GET) or request body (POST).
+            return {};
         }
-        // FIX: tenant_id is now passed via X-Tenant-ID header in getAuthHeaders(), not URL params
-        function tidParam(sep='?') { return ''; }
+        function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+        function tidParam(sep='?') { return sep + 'tenant_id=' + _TID(); }
         function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
         const STAFF_NAME = "Manager";
@@ -1835,7 +1832,8 @@
                             days_left:     daysLeft,
                             event_date:    c.event_date,
                             event_type:    c.event_type,
-                            room_name:     c.room_name || ''
+                            room_name:     c.room_name || '',
+                            tenant_id:     parseInt(_TID())
                         })
                     });
                     sessionStorage.setItem(`vp_warn_${c.id}_${today}`, '1');
@@ -1856,7 +1854,7 @@
                 const response = await fetch(UPDATE_STATUS_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ id: id, staff_name: STAFF_NAME })
+                    body: JSON.stringify({ id: id, staff_name: STAFF_NAME, status: 'contacted', tenant_id: parseInt(_TID()) })
                 });
 
                 if (response.ok) {
@@ -1997,7 +1995,7 @@
             const tid = sessionStorage.getItem('vp_tenant_id') || '';
             try {
                 if (!_dashRoomsData.length) {
-                    const r = await fetch(ROOMS_API_BASE, { headers: getAuthHeaders() }); // FIX: tenant_id via X-Tenant-ID header
+                    const r = await fetch(ROOMS_API_BASE + tidParam(), { headers: getAuthHeaders() });
                     const j = await r.json();
                     _dashRoomsData = (j.data || (Array.isArray(j) ? j : [])).filter(x => x.is_active || x.is_active === undefined);
                 }
@@ -2239,7 +2237,8 @@
                         customer_id:       _payBooking.customer_id,
                         amount:            amount,
                         payment_method:    method,
-                        deposit_reference: _payBooking.deposit_reference || null
+                        deposit_reference: _payBooking.deposit_reference || null,
+                        tenant_id:         parseInt(_TID())
                     })
                 });
                 const result = await res.json();
@@ -2669,7 +2668,8 @@
                         interaction_type: document.getElementById('log-type').value,
                         notes:            document.getElementById('log-notes').value,
                         timestamp:        new Date().toISOString(),
-                        staff_member:     sessionStorage.getItem('vp_user_name') || 'Staff Member'
+                        staff_member:     sessionStorage.getItem('vp_user_name') || 'Staff Member',
+                        tenant_id:        parseInt(_TID())
                     })
                 });
                 if (!res.ok) throw new Error('Save failed');
@@ -2878,6 +2878,7 @@
                 phone:       getVal('m-phone'),
                 event_type:  getVal('m-event'),
                 notes:       getVal('m-notes'),
+                tenant_id:   parseInt(_TID()),
             };
             const btnContainer = document.getElementById('modal-buttons');
             btnContainer.innerHTML = '<span style="color:var(--text-muted);font-size:0.9rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Saving...</span>';
