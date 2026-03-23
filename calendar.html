@@ -732,7 +732,7 @@
         const DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const fmt=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
         function _CAL_TID(){return sessionStorage.getItem('vp_tenant_id')||'';}
-        function getAuthHeaders(){return{'Authorization':'Bearer '+(sessionStorage.getItem('vp_token')||'')};}
+        function getAuthHeaders(){return{};}
         function tidUrl(base){return base+(base.includes('?')?'&':'?')+'tenant_id='+_CAL_TID();}
 
         function showToast(msg,type){
@@ -876,7 +876,8 @@
             document.getElementById('qb-guestCapWarning').style.display='none';
             qbSetButtons(false);
             const activeRoom=document.getElementById('roomFilter').value;
-            qbInit().then(()=>{
+            qbInit().then(async()=>{
+                await fetchServicesFromApi();
                 renderQbServices();
                 if(activeRoom){document.getElementById('qb-roomSelect').value=activeRoom;qbOnRoomChange();}
             });
@@ -1037,6 +1038,18 @@
         // ── END MULTI-ROOM HELPERS ──────────────────────────────────────────
         function svcEsc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
         function getServicesForTenant(){const tid=sessionStorage.getItem('vp_tenant_id')||'';try{return JSON.parse(sessionStorage.getItem('vp_services_'+tid)||'[]').filter(s=>s.active!==false);}catch(e){return [];}}
+        // Fetch services from DB API and refresh sessionStorage cache (fixes cross-browser display)
+        async function fetchServicesFromApi(){
+            const tid=sessionStorage.getItem('vp_tenant_id')||'';
+            if(!tid)return;
+            try{
+                const res=await fetch(CAL_SERVICES_URL+'?tenant_id='+tid);
+                if(!res.ok)return;
+                const d=await res.json();
+                const svcs=d.data||[];
+                if(svcs.length){sessionStorage.setItem('vp_services_'+tid,JSON.stringify(svcs));}
+            }catch(e){/* fail silently — sessionStorage fallback still works */}
+        }
         function renderQbServices(){
             const svcs=getServicesForTenant();const c=document.getElementById('qb-services-wrap');
             if(!c)return;
@@ -1075,6 +1088,7 @@
         const CAL_PENDING_URL='https://n8n.srv1090894.hstgr.cloud/webhook/get-pending-requests';
         const CAL_PAY_URL='https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const CAL_CONFIRM_URL='https://n8n.srv1090894.hstgr.cloud/webhook/confirm-booking';
+        const CAL_SERVICES_URL='https://n8n.srv1090894.hstgr.cloud/webhook/get-service-data';
         function openEventModal(ev){
             const p=ev.extendedProps;
             // Normalise isPending — may be missing if event came from dashboard endpoint
