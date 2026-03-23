@@ -1165,9 +1165,12 @@
                 <div class="detail-group"><label>Email</label><div class="detail-value" id="m-email">--</div></div>
                 <div class="detail-group"><label>Phone</label><div class="detail-value" id="m-phone">--</div></div>
                 <div class="detail-group"><label>Event Type</label><div class="detail-value" id="m-event">--</div></div>
-                <div class="detail-group"><label>Room</label><div class="detail-value" id="m-room">--</div></div>
+                <div class="detail-group"><label>Room(s)</label><div class="detail-value" id="m-room">--</div></div>
                 <div class="detail-group"><label>Date</label><div class="detail-value" id="m-date">--</div></div>
+                <div class="detail-group"><label>Time</label><div class="detail-value" id="m-time">--</div></div>
                 <div class="detail-group"><label>Guests</label><div class="detail-value" id="m-guests">--</div></div>
+                <div class="detail-group"><label>Estimated Cost</label><div class="detail-value" id="m-cost">--</div></div>
+                <div class="detail-group" id="m-services-wrap" style="grid-column:span 2;display:none;"><label>Requested Services</label><div class="detail-value" id="m-services">--</div></div>
                 <div class="detail-group" style="grid-column:span 2;"><label>Notes</label><div class="detail-value" id="m-notes" style="white-space:pre-wrap;line-height:1.6;">--</div></div>
             </div>
 
@@ -1692,14 +1695,35 @@
         // END TAB FILTERING & PAGINATION
         // ══════════════════════════════════════════════════════════════════
 
+        // Parse ##ENQUIRY_META## block from customer notes
+        function parseEnquiryMeta(notes) {
+            if (!notes) return null;
+            const idx = notes.indexOf('##ENQUIRY_META##');
+            if (idx === -1) return null;
+            try { return JSON.parse(notes.slice(idx + 16)); } catch(e) { return null; }
+        }
+        function stripEnquiryMeta(notes) {
+            if (!notes) return '—';
+            const idx = notes.indexOf('\n##ENQUIRY_META##');
+            return (idx !== -1 ? notes.slice(0, idx) : notes).trim() || '—';
+        }
+
         function openModal(dataString) {
             const data = JSON.parse(decodeURIComponent(dataString));
+            const meta = parseEnquiryMeta(data.notes);
+
             document.getElementById('m-id').innerText = data.id || 'N/A';
             document.getElementById('m-name').innerText = data.full_name || 'N/A';
             document.getElementById('m-email').innerText = data.email || 'N/A';
             document.getElementById('m-phone').innerText = data.phone || 'N/A';
             document.getElementById('m-event').innerText = data.event_type || 'N/A';
-            document.getElementById('m-room').innerText  = data.room_name || '—';
+
+            // Room(s): use meta rooms array if available, fall back to room_name
+            const metaRooms = meta && meta.rooms && meta.rooms.length ? meta.rooms : null;
+            document.getElementById('m-room').innerText = metaRooms
+                ? metaRooms.map(r => r.room_name).join(', ')
+                : (data.room_name || '—');
+
             (function(){
                 const fmtD = d => { try { return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return d; } };
                 const df = data.date_from ? data.date_from.split('T')[0] : null;
@@ -1713,9 +1737,36 @@
                     : ev ? fmtD(ev)
                     : 'N/A';
             })();
+
+            // Time slot
+            const st = data.start_time || '';
+            const et = data.end_time   || '';
+            document.getElementById('m-time').innerText = (st && et) ? st.slice(0,5) + ' – ' + et.slice(0,5) : '—';
+
             document.getElementById('m-status').innerText = data.status || 'N/A';
-            document.getElementById('m-guests').innerText = data.guest_count || data.guests_count || data.num_people || data.numPeople || '0';
-            document.getElementById('m-notes').innerText  = data.notes || '—';
+            document.getElementById('m-guests').innerText = data.guest_count || data.guests_count || '0';
+
+            // Estimated cost
+            const cost = parseFloat(data.total_amount || data.estimated_cost || 0);
+            document.getElementById('m-cost').innerText = cost > 0 ? '£' + cost.toFixed(2) : '—';
+
+            // Services from meta
+            const svcWrap = document.getElementById('m-services-wrap');
+            const svcEl   = document.getElementById('m-services');
+            const metaSvcs = meta && meta.services && meta.services.length ? meta.services : [];
+            if (metaSvcs.length && svcEl) {
+                svcEl.innerHTML = metaSvcs.map(s =>
+                    `<span style="display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:2px 10px;font-size:0.82rem;margin:2px 4px 2px 0">`
+                    + esc(s.name) + (s.type === 'hourly' ? ' (' + (s.hours||0) + 'h)' : '') + ' — £' + parseFloat(s.subtotal||0).toFixed(2)
+                    + `</span>`
+                ).join('');
+                if (svcWrap) svcWrap.style.display = '';
+            } else {
+                if (svcWrap) svcWrap.style.display = 'none';
+            }
+
+            // Notes — strip the meta block before displaying
+            document.getElementById('m-notes').innerText = stripEnquiryMeta(data.notes);
 
             const btnContainer = document.getElementById('modal-buttons');
             const isPendingOrContacted = data.status === 'pending' || data.status === 'contacted';
@@ -1735,20 +1786,18 @@
             }
 
             if (isPendingOrContacted) {
-                const hasBooking = data.has_booking === true || data.has_booking === 'true';
-                const bookBtn    = `<a href="venuepro_booking.html?cid=${data.id}" class="btn-modal btn-book"><i class="fa-solid fa-calendar-check"></i> Book Now</a>`;
+                // Book Now removed — Confirm Booking inline is the only booking action
                 const cancelBtn  = `<button class="btn-modal btn-cancel" onclick="cancelRequest('${data.id}','${(data.full_name||'').replace(/'/g,"\\'")}')"><i class="fa-solid fa-ban"></i> Cancel</button>`;
-                const confirmBtn = `<button class="btn-modal" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px" onclick="toggleConfirmSection()"><i class="fa-solid fa-calendar-check"></i> Confirm</button>`;
+                const confirmBtn = `<button class="btn-modal" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px" onclick="toggleConfirmSection()"><i class="fa-solid fa-calendar-check"></i> Confirm Booking</button>`;
                 btnContainer.innerHTML = countdownHtml
                     + `<div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:1rem">`
-                    + bookBtn + confirmBtn + cancelBtn
+                    + confirmBtn + cancelBtn
                     + `<button class="btn-modal btn-close" onclick="closeModal()">Close</button></div>`;
             } else if (data.status === 'deposit_paid') {
                 btnContainer.innerHTML = `<a href="final-payment.html" class="btn-modal btn-pay"><i class="fa-solid fa-credit-card"></i> Pay Balance</a><button class="btn-modal btn-close" onclick="closeModal()">Close</button>`;
             } else {
                 btnContainer.innerHTML = `<button class="btn-modal btn-close" onclick="closeModal()">Close</button>`;
             }
-            // Hide history/interactions — not needed for Pending Request view
             // Store pending data for inline confirm panel
             currentPendingData = data;
             const mcs = document.getElementById('m-confirm-section');
@@ -1928,6 +1977,7 @@
             if (!isOpen) { renderDashboardServices(); renderDashboardRooms(); }
         }
 
+        // Render services list — pre-ticks & pre-fills hours from enquiry meta
         function renderDashboardServices() {
             const tid = sessionStorage.getItem('vp_tenant_id') || '';
             let svcs = [];
@@ -1937,18 +1987,31 @@
             if (!c) return;
             if (!svcs.length) { if (wrap) wrap.style.display = 'none'; return; }
             if (wrap) wrap.style.display = 'block';
-            c.innerHTML = svcs.map(s => `
-                <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-                    <input type="checkbox" id="ms-svc-${esc(s.id)}" style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="mUpdateServicesTotal()">
+
+            // Get requested services from enquiry meta
+            const meta = currentPendingData ? parseEnquiryMeta(currentPendingData.notes) : null;
+            const reqSvcs = meta && meta.services ? meta.services : [];
+
+            c.innerHTML = svcs.map(s => {
+                // Find if this service was requested in the enquiry
+                const req = reqSvcs.find(rs => rs.name && rs.name.toLowerCase() === s.name.toLowerCase());
+                const chk = req ? 'checked' : '';
+                const preHrs = req && s.type === 'hourly' ? (req.hours || '') : '';
+                return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+                    <input type="checkbox" id="ms-svc-${esc(s.id)}" ${chk} style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="mRecalcTotal()">
                     <label for="ms-svc-${esc(s.id)}" style="flex:1;cursor:pointer;font-size:0.87rem">${esc(s.name)}<span style="color:var(--text-muted);font-size:0.77rem"> — ${s.type === 'hourly' ? '£' + s.price + '/hr' : '£' + s.price + ' flat'}</span></label>
-                    ${s.type === 'hourly' ? `<input type="number" id="ms-svc-hrs-${esc(s.id)}" style="width:64px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;color:white;font-size:0.82rem;min-height:unset;text-align:center" placeholder="hrs" min="0.5" step="0.5" oninput="mUpdateServicesTotal()">` : ''}
-                </div>`).join('');
+                    ${s.type === 'hourly' ? `<input type="number" id="ms-svc-hrs-${esc(s.id)}" value="${preHrs}" style="width:64px;padding:4px 8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;color:white;font-size:0.82rem;min-height:unset;text-align:center" placeholder="hrs" min="0.5" step="0.5" oninput="mRecalcTotal()">` : ''}
+                </div>`;
+            }).join('');
         }
 
-        function mUpdateServicesTotal() {
+        // Recalculate total = room costs (rate × hours) + selected services
+        function mRecalcTotal() {
             const tid = sessionStorage.getItem('vp_tenant_id') || '';
             let svcs = [];
             try { svcs = JSON.parse(sessionStorage.getItem('vp_services_' + tid) || '[]').filter(s => s.active !== false); } catch(e) {}
+
+            // Services total
             let svcTotal = 0;
             svcs.forEach(s => {
                 const cb = document.getElementById('ms-svc-' + s.id);
@@ -1960,11 +2023,24 @@
                     svcTotal += parseFloat(s.price) || 0;
                 }
             });
-            if (svcTotal > 0) {
-                const tot = document.getElementById('m-confirm-total');
-                if (tot) { tot.value = svcTotal.toFixed(2); mConfirmCalcDeposit(); }
-            }
+
+            // Room costs: rate × booking hours for each checked room
+            const meta = currentPendingData ? parseEnquiryMeta(currentPendingData.notes) : null;
+            const bookingHours = meta && meta.hours ? parseFloat(meta.hours) : 0;
+            let roomTotal = 0;
+            _dashRoomsData.forEach(r => {
+                const cb = document.getElementById('mdr-' + r.id);
+                if (!cb || !cb.checked) return;
+                roomTotal += (parseFloat(r.day_rate || 0)) * bookingHours;
+            });
+
+            const total = Math.round((roomTotal + svcTotal) * 100) / 100;
+            const tot = document.getElementById('m-confirm-total');
+            if (tot) { tot.value = total > 0 ? total.toFixed(2) : ''; mConfirmCalcDeposit(); }
         }
+
+        // Keep old name as alias so any other code calling mUpdateServicesTotal still works
+        function mUpdateServicesTotal() { mRecalcTotal(); }
 
         function mConfirmCalcDeposit() {
             const total = parseFloat(document.getElementById('m-confirm-total').value || 0);
@@ -1992,7 +2068,6 @@
             const wrap = document.getElementById('m-confirm-rooms-wrap');
             const list = document.getElementById('m-confirm-rooms-list');
             if (!list) return;
-            const tid = sessionStorage.getItem('vp_tenant_id') || '';
             try {
                 if (!_dashRoomsData.length) {
                     const r = await fetch(ROOMS_API_BASE + tidParam(), { headers: getAuthHeaders() });
@@ -2000,16 +2075,26 @@
                     _dashRoomsData = (j.data || (Array.isArray(j) ? j : [])).filter(x => x.is_active || x.is_active === undefined);
                 }
                 if (!_dashRoomsData.length) { if (wrap) wrap.style.display = 'none'; return; }
+
+                // Pre-tick rooms from enquiry meta; fall back to room_name match
+                const meta = currentPendingData ? parseEnquiryMeta(currentPendingData.notes) : null;
+                const reqRoomIds = meta && meta.rooms ? meta.rooms.map(r => String(r.room_id)) : [];
                 const primaryRoom = currentPendingData ? (currentPendingData.room_name || '') : '';
+
                 list.innerHTML = _dashRoomsData.map(r => {
                     const rName = r.name || r.room_name || r.id;
                     const rate  = parseFloat(r.day_rate || 0);
-                    const chk   = rName === primaryRoom ? 'checked' : '';
+                    const chk   = reqRoomIds.length
+                        ? (reqRoomIds.includes(String(r.id)) ? 'checked' : '')
+                        : (rName === primaryRoom ? 'checked' : '');
                     return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">`
-                        + `<input type="checkbox" id="mdr-${esc(String(r.id))}" ${chk} style="width:auto;margin:0;min-height:unset;cursor:pointer">`
+                        + `<input type="checkbox" id="mdr-${esc(String(r.id))}" ${chk} style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="mRecalcTotal()">`
                         + `<label for="mdr-${esc(String(r.id))}" style="flex:1;cursor:pointer;font-size:0.87rem">${esc(rName)}`
                         + `<span style="color:var(--text-muted);font-size:0.76rem"> — £${rate.toFixed(2)}/hr</span></label></div>`;
                 }).join('');
+
+                // Trigger total calc once rooms are rendered
+                mRecalcTotal();
             } catch(e) {
                 if (list) list.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem">Could not load rooms</div>';
             }
