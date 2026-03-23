@@ -152,6 +152,8 @@
         .extra-room-item:last-child { border-bottom: none; padding-bottom: 0; }
         .extra-room-item:first-child { padding-top: 0; }
         .extra-room-item input[type="checkbox"] {
+            /* Restore native checkbox rendering — global input rule sets appearance:none which breaks checkboxes */
+            appearance: checkbox; -webkit-appearance: checkbox; -moz-appearance: checkbox;
             width: 18px; height: 18px; min-height: unset;
             accent-color: var(--primary); cursor: pointer;
             flex-shrink: 0; padding: 0; border-radius: 4px;
