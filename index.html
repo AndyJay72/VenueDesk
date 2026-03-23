@@ -2119,7 +2119,7 @@
             try {
                 const p = currentPendingData;
                 const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/confirm-booking', {
-                    method: 'POST', headers: getAuthHeaders(),
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         request_id: p.request_id || p.id,
                         customer_id: p.id,
@@ -2148,7 +2148,7 @@
             try {
                 const p = currentPendingData;
                 const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/confirm-booking', {
-                    method: 'POST', headers: getAuthHeaders(),
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         request_id: p.request_id || p.id,
                         customer_id: p.id,
