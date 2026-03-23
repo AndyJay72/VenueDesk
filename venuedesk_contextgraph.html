@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VenueDesk Process – Interactive Context Graph</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+        #sidebar h2 {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            color: #1e466e;
+            border-bottom: 2px solid #4c9aff;
+            display: inline-block;
+            padding-bottom: 4px;
+        }
+        #sidebar p {
+            margin: 1rem 0;
+            line-height: 1.5;
+            color: #333;
+        }
+        #sidebar .detail-title {
+            font-weight: bold;
+            color: #1e466e;
+            margin-top: 1rem;
+        }
+        #sidebar ul {
+            margin-left: 1.2rem;
+            margin-top: 0.3rem;
+        }
+        #sidebar li {
+            margin: 0.4rem 0;
+        }
+        #graph-container {
+            flex: 1;
+            position: relative;
+            background: #fafbfd;
+        }
+        #network {
+            width: 100%;
+            height: 100%;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            pointer-events: none;
+            z-index: 20;
+        }
+        .legend span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 4px;
+        }
+        .node-click-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+        button {
+            background: #4c9aff;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+        }
+        button:hover {
+            background: #2a7fdc;
+        }
+    </style>
+</head>
+<body>
+<div id="sidebar">
+    <h2>📌 VenueDesk Context Graph</h2>
+    <p>Click any node to see its connections and details.<br>
+        <span style="font-size:0.85rem;">Based on VenueDesk Process PDF – shows frontend pages, auth helpers, tenant handling, webhooks & workflows.</span>
+    </p>
+    <div id="details-panel">
+        <div class="detail-title">✨ Getting started</div>
+        <p>Select a node in the graph to view its role and relationships.</p>
+        <div class="node-click-info">🔍 No node selected yet.</div>
+    </div>
+    <button id="reset-highlight">Reset highlighting</button>
+</div>
+<div id="graph-container">
+    <div id="network"></div>
+    <div class="legend">
+        <span style="background: #FFB347;"></span> Page<br>
+        <span style="background: #5D9BEC;"></span> Function / Helper<br>
+        <span style="background: #5DBB6D;"></span> Concept / Data<br>
+        <span style="background: #E86F6F;"></span> Backend / Workflow<br>
+        <span style="background: #AA6DC9;"></span> Policy / Change<br>
+    </div>
+</div>
+
+<script>
+    // ---------- NODES ----------
+    const nodes = new vis.DataSet([
+        // Pages
+        { id: "index", label: "index.html", type: "page", group: "page", 
+          description: "Main entry page. Uses getAuthHeaders() and tidParam(). Includes tenant_id in API calls.", 
+          connections: ["getAuthHeaders", "tidParam"] },
+        { id: "calendar", label: "calendar.html", type: "page", group: "page",
+          description: "Calendar view. Uses getAuthHeaders() and tidParam() for tenant filtering.", 
+          connections: ["getAuthHeaders", "tidParam"] },
+        { id: "leadgen", label: "leadgen-dashboard.html", type: "page", group: "page",
+          description: "LeadGen dashboard – single‑tenant admin. No auth headers, no tenant filtering.", 
+          connections: ["leadgenAdmin"] },
+        
+        // Functions / Helpers
+        { id: "getAuthHeaders", label: "getAuthHeaders()", type: "function", group: "function",
+          description: "Returns authentication headers. Fixed to return proper headers (was returning {}). Used by pages for API calls.", 
+          connections: ["apiCalls", "authHeaders"] },
+        { id: "tidParam", label: "tidParam()", type: "function", group: "function",
+          description: "Adds tenant_id either as a query parameter or inside POST bodies. Ensures tenant context.", 
+          connections: ["tenant_id", "queryParams", "postBodies"] },
+        
+        // Concepts / Data
+        { id: "tenant_id", label: "tenant_id", type: "concept", group: "concept",
+          description: "Identifier for multi‑tenant filtering. Passed via query param or POST body. All non‑LeadGen API calls include it.", 
+          connections: ["apiCalls"] },
+        { id: "authHeaders", label: "Auth Headers", type: "concept", group: "concept",
+          description: "Authentication tokens/headers returned by getAuthHeaders(). Used in API requests.", 
+          connections: ["apiCalls"] },
+        { id: "queryParams", label: "Query Params", type: "concept", group: "concept",
+          description: "tenant_id can be passed as ?tenant_id=... via tidParam().", 
+          connections: ["apiCalls"] },
+        { id: "postBodies", label: "POST Bodies", type: "concept", group: "concept",
+          description: "tenant_id added to POST request bodies by tidParam().", 
+          connections: ["apiCalls"] },
+        
+        // Backend / Workflow
+        { id: "apiCalls", label: "API Calls", type: "backend", group: "backend",
+          description: "All requests from frontend to backend. Include auth headers and tenant_id (except LeadGen). Target webhook paths.", 
+          connections: ["webhookPaths"] },
+        { id: "webhookPaths", label: "Webhook Paths", type: "backend", group: "backend",
+          description: "Endpoints that receive API calls. Trigger workflows.", 
+          connections: ["workflows"] },
+        { id: "workflows", label: "Workflows", type: "backend", group: "backend",
+          description: "Business processes triggered by webhooks.", 
+          connections: [] },
+        
+        // Special / Changes
+        { id: "leadgenAdmin", label: "LeadGen Admin", type: "special", group: "special",
+          description: "Single‑tenant admin area. No tenant filtering, auth headers removed. Uses leadgen-dashboard.html.", 
+          connections: [] },
+        { id: "csp", label: "CSP Removed", type: "change", group: "change",
+          description: "Content Security Policy removed to allow fonts to load. No direct effect on auth, but part of frontend fixes.", 
+          connections: [] }
+    ]);
+
+    // ---------- EDGES ----------
+    const edges = new vis.DataSet([
+        // Page -> function
+        { from: "index", to: "getAuthHeaders", label: "uses" },
+        { from: "index", to: "tidParam", label: "uses" },
+        { from: "calendar", to: "getAuthHeaders", label: "uses" },
+        { from: "calendar", to: "tidParam", label: "uses" },
+        { from: "leadgen", to: "leadgenAdmin", label: "related to" },
+        
+        // Function -> concept
+        { from: "getAuthHeaders", to: "authHeaders", label: "returns" },
+        { from: "tidParam", to: "tenant_id", label: "manages" },
+        { from: "tidParam", to: "queryParams", label: "adds to" },
+        { from: "tidParam", to: "postBodies", label: "adds to" },
+        
+        // Concept -> API calls
+        { from: "authHeaders", to: "apiCalls", label: "used in" },
+        { from: "tenant_id", to: "apiCalls", label: "included in (except LeadGen)" },
+        { from: "queryParams", to: "apiCalls", label: "optional param" },
+        { from: "postBodies", to: "apiCalls", label: "optional body field" },
+        
+        // Backend chain
+        { from: "apiCalls", to: "webhookPaths", label: "sent to" },
+        { from: "webhookPaths", to: "workflows", label: "trigger" },
+        
+        // Extra: leadgen admin has no tenant filtering
+        { from: "leadgenAdmin", to: "apiCalls", label: "no tenant filtering", dashes: true },
+        
+        // CSP removal as a change (no direct functional link, but shown for completeness)
+        { from: "csp", to: "index", label: "affected", dashes: true },
+        { from: "csp", to: "calendar", label: "affected", dashes: true },
+        { from: "csp", to: "leadgen", label: "affected", dashes: true }
+    ]);
+
+    // ---------- VISUAL STYLING ----------
+    const groups = {
+        page: { color: { background: "#FFB347", border: "#c96f0e" }, shape: "box", font: { color: "#2c3e50" } },
+        function: { color: { background: "#5D9BEC", border: "#2a5f8a" }, shape: "ellipse", font: { color: "#1e2a3a" } },
+        concept: { color: { background: "#5DBB6D", border: "#2a6b3a" }, shape: "diamond", font: { color: "#1e3a2a" } },
+        backend: { color: { background: "#E86F6F", border: "#a13a3a" }, shape: "box", font: { color: "#2c1e1e" } },
+        special: { color: { background: "#AA6DC9", border: "#6a3a8a" }, shape: "star", font: { color: "#2c1e3a" } },
+        change: { color: { background: "#C9C06D", border: "#8a803a" }, shape: "hexagon", font: { color: "#3e3a1e" } }
+    };
+
+    const options = {
+        nodes: {
+            shape: "box",
+            margin: 10,
+            widthConstraint: { minimum: 80, maximum: 150 },
+            heightConstraint: { minimum: 40 },
+            font: { size: 12, face: "Segoe UI" },
+            borderWidth: 1.5,
+            shadow: true
+        },
+        edges: {
+            arrows: { to: { enabled: true, scaleFactor: 0.8 } },
+            smooth: { type: "curvedCW", roundness: 0.2 },
+            font: { size: 10, align: "middle" },
+            color: { color: "#6c7a89", highlight: "#4c9aff" },
+            width: 1.2
+        },
+        physics: {
+            stabilization: { iterations: 200 },
+            barnesHut: { gravitationalConstant: -30000, springConstant: 0.002, springLength: 180 }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            navigationButtons: true,
+            keyboard: true
+        },
+        groups: groups
+    };
+
+    const container = document.getElementById("network");
+    const network = new vis.Network(container, { nodes, edges }, options);
+
+    // Helper: get node details for sidebar
+    function getNodeDetails(nodeId) {
+        const node = nodes.get(nodeId);
+        if (!node) return "<div class='node-click-info'>🔍 No details available.</div>";
+        let html = `<div class="detail-title">📄 ${node.label}</div>`;
+        html += `<p>${node.description || "No description provided."}</p>`;
+        if (node.connections && node.connections.length) {
+            html += `<div class="detail-title">🔗 Direct connections</div><ul>`;
+            node.connections.forEach(conn => {
+                const connNode = nodes.get(conn);
+                if (connNode) {
+                    html += `<li><strong>${connNode.label}</strong> – ${connNode.description || ""}</li>`;
+                } else {
+                    html += `<li>${conn}</li>`;
+                }
+            });
+            html += `</ul>`;
+        } else {
+            html += `<div class="detail-title">🔗 Direct connections</div><p>None listed.</p>`;
+        }
+        // add extra info based on node
+        if (nodeId === "leadgen") {
+            html += `<div class="detail-title">⚙️ Special note</div><p>Auth headers removed, no tenant_id in API calls (single‑tenant admin).</p>`;
+        }
+        if (nodeId === "getAuthHeaders") {
+            html += `<div class="detail-title">⚙️ Change</div><p>Fixed to return proper headers (was returning {} previously).</p>`;
+        }
+        if (nodeId === "tidParam") {
+            html += `<div class="detail-title">⚙️ Change</div><p>Added tenant_id to all POST bodies and via query param.</p>`;
+        }
+        return html;
+    }
+
+    // Highlight clicked node and its connected edges (and their nodes)
+    function highlightNode(nodeId) {
+        // Reset all
+        network.setOptions({ nodes: { color: undefined } }); // reset colors (but we rely on groups)
+        edges.update(edges.get().map(e => ({ ...e, color: { color: "#6c7a89", highlight: "#4c9aff" } })));
+        
+        if (!nodeId) return;
+        
+        // Get all edges from/to this node
+        const connectedEdges = edges.get().filter(e => e.from === nodeId || e.to === nodeId);
+        const connectedNodeIds = new Set();
+        connectedEdges.forEach(e => {
+            connectedNodeIds.add(e.from);
+            connectedNodeIds.add(e.to);
+        });
+        
+        // Update edge colors: highlight connected edges, dim others
+        const newEdges = edges.get().map(e => {
+            if (e.from === nodeId || e.to === nodeId) {
+                return { ...e, color: { color: "#4c9aff", highlight: "#ffaa44" } };
+            } else {
+                return { ...e, color: { color: "#b0bec5", highlight: "#b0bec5" }, opacity: 0.3 };
+            }
+        });
+        edges.update(newEdges);
+        
+        // Dim non-connected nodes by lowering opacity
+        const allNodes = nodes.get();
+        const newNodeData = allNodes.map(n => {
+            if (n.id === nodeId || connectedNodeIds.has(n.id)) {
+                return { ...n, opacity: 1.0, font: { color: "#000000" } };
+            } else {
+                return { ...n, opacity: 0.3, font: { color: "#aaaaaa" } };
+            }
+        });
+        nodes.update(newNodeData);
+        
+        // Update sidebar
+        document.getElementById("details-panel").innerHTML = getNodeDetails(nodeId);
+    }
+    
+    function resetHighlight() {
+        // Reset all edges and nodes
+        const originalEdges = edges.get().map(e => ({ ...e, color: { color: "#6c7a89", highlight: "#4c9aff" }, opacity: 1.0 }));
+        edges.update(originalEdges);
+        const originalNodes = nodes.get().map(n => ({ ...n, opacity: 1.0, font: { color: "#2c3e50" } }));
+        nodes.update(originalNodes);
+        document.getElementById("details-panel").innerHTML = `
+            <div class="detail-title">✨ Getting started</div>
+            <p>Select a node in the graph to view its role and relationships.</p>
+            <div class="node-click-info">🔍 No node selected yet.</div>
+        `;
+    }
+    
+    // Click event
+    network.on("click", function(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            highlightNode(nodeId);
+        } else {
+            resetHighlight();
+        }
+    });
+    
+    // Also allow reset via button
+    document.getElementById("reset-highlight").addEventListener("click", resetHighlight);
+    
+    // Add a little initial layout stabilization feedback
+    network.on("stabilizationIterationsDone", function() {
+        network.fit();
+    });
+    
+    // Small helper to show some edges initially after load
+    setTimeout(() => {
+        network.fit();
+    }, 500);
+</script>
+</body>
+</html>
