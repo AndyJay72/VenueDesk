@@ -171,6 +171,51 @@
         }
         /* ─────────────────────────────────────────────────────────── */
 
+        /* ── Add-on services section ─────────────────────────────── */
+        .services-section {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+        }
+        .services-section .section-label {
+            font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 0.65rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .services-section .section-label i { color: var(--primary); font-size: 0.78rem; }
+        .svc-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 0.55rem 0;
+            border-bottom: 1px solid rgba(148,163,184,0.07);
+        }
+        .svc-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .svc-item:first-child { padding-top: 0; }
+        .svc-item input[type="checkbox"] {
+            appearance: checkbox; -webkit-appearance: checkbox; -moz-appearance: checkbox;
+            width: 18px; height: 18px; min-height: unset;
+            accent-color: var(--primary); cursor: pointer;
+            flex-shrink: 0; padding: 0;
+        }
+        .svc-item label {
+            cursor: pointer; font-size: 0.9rem; font-weight: 500;
+            color: var(--text-main); flex: 1;
+            text-transform: none; letter-spacing: 0; margin-bottom: 0;
+        }
+        .svc-item label .svc-price {
+            font-size: 0.76rem; color: var(--text-muted); font-weight: 400;
+        }
+        .svc-hrs-input {
+            width: 68px; padding: 4px 8px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            border-radius: 6px; color: white; font-size: 0.82rem;
+            min-height: unset !important; height: auto !important;
+            text-align: center; flex-shrink: 0;
+            appearance: auto; -webkit-appearance: auto;
+        }
+        /* ─────────────────────────────────────────────────────────── */
+
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
         .toast {
             background: #1e293b; color: white; padding: 1rem 1.5rem;
@@ -352,6 +397,15 @@
                         <textarea id="notes" placeholder="Any special requirements, accessibility needs or additional information..." rows="3"></textarea>
                     </div>
                 </div>
+
+                <!-- ADD-ON SERVICES — shown when services are available for this venue -->
+                <div id="servicesOuter" class="input-group full-width" style="display:none;">
+                    <label><i class="fa-solid fa-concierge-bell" style="color:var(--primary);margin-right:6px;"></i>Add-on Services <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
+                    <div class="services-section">
+                        <div class="section-label"><i class="fa-solid fa-sparkles"></i> Select any extras you'd like to include</div>
+                        <div id="servicesList"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- AVAILABILITY -->
@@ -369,10 +423,11 @@
     <div id="toast-container"></div>
 
     <script>
-        const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
-        const SUBMIT_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
-        const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-        const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+        const CHECK_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+        const SUBMIT_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
+        const BASE_API     = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+        const BLOCKED_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+        const SERVICES_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-service-data';
 
         // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
         // Customer venues always have tenant_id >= 1000 (tenant_id=1 is system admin)
@@ -405,7 +460,7 @@
             } catch(e) { /* non-critical — form still usable */ }
         })();
 
-        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
+        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [], enquiryServicesData = [];
 
         // ── Safe HTML escaping for dynamic content ───────────────────
         function esc(s) {
@@ -450,6 +505,59 @@
             }
         }
         loadRoomsAndTypes();
+
+        // ── Add-on services (fetched from DB — works across all browsers) ─
+        async function loadServicesForEnquiry() {
+            if (!TENANT_ID) return;
+            try {
+                const res = await fetch(SERVICES_API + '?tenant_id=' + TENANT_ID);
+                if (!res.ok) return;
+                const d = await res.json();
+                enquiryServicesData = (d.data || []).filter(s => s.active !== false);
+                renderEnquiryServices();
+            } catch(e) { /* services are optional — fail silently */ }
+        }
+        loadServicesForEnquiry();
+
+        function renderEnquiryServices() {
+            const outer = document.getElementById('servicesOuter');
+            const list  = document.getElementById('servicesList');
+            if (!enquiryServicesData.length) { outer.style.display = 'none'; return; }
+            outer.style.display = '';
+            list.innerHTML = enquiryServicesData.map(s => {
+                const priceLabel = s.type === 'hourly'
+                    ? `<span class="svc-price"> — £${parseFloat(s.price).toFixed(2)}/hr</span>`
+                    : `<span class="svc-price"> — £${parseFloat(s.price).toFixed(2)} flat</span>`;
+                const hrsInput = s.type === 'hourly'
+                    ? `<input type="number" id="svc-hrs-${esc(s.id)}" class="svc-hrs-input" placeholder="hrs" min="0.5" step="0.5" title="Hours required">`
+                    : '';
+                return `<div class="svc-item">
+                    <input type="checkbox" id="svc-cb-${esc(s.id)}" value="${esc(s.id)}" data-name="${esc(s.name)}" data-type="${esc(s.type)}" data-price="${esc(s.price)}">
+                    <label for="svc-cb-${esc(s.id)}">${esc(s.name)}${priceLabel}</label>
+                    ${hrsInput}
+                </div>`;
+            }).join('');
+        }
+
+        function getServicesPayload() {
+            const selected = [];
+            enquiryServicesData.forEach(s => {
+                const cb = document.getElementById('svc-cb-' + s.id);
+                if (!cb || !cb.checked) return;
+                const hours = s.type === 'hourly'
+                    ? parseFloat((document.getElementById('svc-hrs-' + s.id) || {}).value || 0) || 0
+                    : null;
+                selected.push({
+                    name: s.name,
+                    type: s.type,
+                    price: s.price,
+                    hours: hours,
+                    subtotal: s.type === 'hourly' ? parseFloat(s.price) * hours : parseFloat(s.price)
+                });
+            });
+            return selected;
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('eventDate').min = todayStr;
@@ -572,7 +680,7 @@
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
                         isAvailable = true;
                     } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
-                } catch(e) { setAvailStatus('unavailable','Connection error. Please try again.'); }
+                } catch(e) { setAvailStatus('unavailable','Could not reach the availability service — please check your connection and try again, or contact us directly.'); }
             }, 500);
         }
 
@@ -609,6 +717,7 @@
                 timeFrom:g('timeFrom'), timeTo:g('timeTo'),
                 numPeople:g('numPeople'), guest_count:g('numPeople'), notes:g('notes')||'',
                 rooms: selectedRooms,
+                services: getServicesPayload(),
                 tenant_id: TENANT_ID, venue_id: TENANT_ID
             };
             try {
