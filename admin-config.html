@@ -638,6 +638,7 @@ const API = {
     deletePricing:  BASE + '/delete-pricing',
     getSettings:    BASE + '/get-settings',
     updateSetting:  BASE + '/update-setting',
+    getServices:    BASE + '/get-service-data',
     saveService:    BASE + '/save-service',
     deleteService:  BASE + '/delete-service',
 };
@@ -703,8 +704,27 @@ function switchTab(name) {
     document.getElementById('tab-' + name).classList.add('active');
     event.target.closest('.tab-btn').classList.add('active');
     if (name === 'pricing')  renderPricingGrid();
-    if (name === 'services') renderServicesTable();
+    if (name === 'services') syncServicesFromDb().then(renderServicesTable);
     if (name === 'settings') loadSettings();
+}
+
+// Fetch services from DB API and merge into sessionStorage so DB-added services appear
+async function syncServicesFromDb() {
+    const tid = _TID();
+    if (!tid) return;
+    try {
+        const res = await fetch(API.getServices + '?tenant_id=' + tid, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const d = await res.json();
+        const apiSvcs = d.data || [];
+        if (!apiSvcs.length) return;
+        // Merge: DB rows take precedence, but preserve any local-only entries not yet synced
+        const localSvcs = loadServicesData();
+        const apiIds = new Set(apiSvcs.map(s => String(s.id)));
+        // Keep local entries whose IDs are not yet in the DB (pending sync)
+        const localOnly = localSvcs.filter(s => !apiIds.has(String(s.id)));
+        saveServicesData([...apiSvcs, ...localOnly]);
+    } catch(e) { /* fail silently — UI will show whatever is in sessionStorage */ }
 }
 
 // ─────────────────────────────────────────────
