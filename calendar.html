@@ -1242,14 +1242,14 @@
                 if(p.request_id&&!p.has_booking){
                     // Pending request with no confirmed booking yet — create + confirm in one call
                     // deposit_amount & payment_method are picked up by the workflow to record the deposit row
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total,balance_due:balance,deposit_amount:deposit,payment_method:method,services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total,balance_due:balance,deposit_amount:deposit,payment_method:method,tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('Convert failed: HTTP '+r1.status);
                 }else{
                     // Existing booking — update status + record deposit separately
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total,balance_due:balance,services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total,balance_due:balance,tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('Confirm failed: HTTP '+r1.status);
                     if(deposit>0){
-                        const r2=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:p.customer_id,amount:deposit,payment_method:method,payment_type:deposit>=total?'full':'deposit'})});
+                        const r2=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:p.customer_id,amount:deposit,payment_method:method,payment_type:deposit>=total?'full':'deposit',tenant_id:parseInt(_CAL_TID())})});
                         if(!r2.ok)throw new Error('Payment record failed: HTTP '+r2.status);
                     }
                 }
@@ -1265,10 +1265,10 @@
             const p=currentModalProps;
             try{
                 if(p.request_id&&!p.has_booking){
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total||0,balance_due:total||0,rooms:csGetRoomsPayload()})});
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total||0,balance_due:total||0,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('HTTP '+r1.status);
                 }else{
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total||null,balance_due:total||null,rooms:csGetRoomsPayload()})});
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total||null,balance_due:total||null,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('HTTP '+r1.status);
                 }
                 showToast('Booking confirmed!','success');
