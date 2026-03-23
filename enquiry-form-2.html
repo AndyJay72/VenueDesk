@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Event Enquiry | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border: rgba(148, 163, 184, 0.1);
+            --primary: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 100%, hsla(225,39%,30%,1) 0, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        .page-wrap { width: 100%; max-width: 860px; }
+        .page-header { margin-bottom: 1.75rem; }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .page-header p { color: var(--text-muted); font-size: 0.88rem; }
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .form-section-title {
+            font-size: 1.05rem; font-weight: 700; color: var(--text-main);
+            margin-bottom: 1.5rem; padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .form-section-title i { color: var(--primary); }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+        .full-width { grid-column: span 2; }
+        .input-group label {
+            display: block; color: var(--text-muted); font-size: 0.82rem;
+            margin-bottom: 0.45rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .input-wrapper { position: relative; width: 100%; }
+        .input-wrapper i.icon-left {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); pointer-events: none; z-index: 2;
+        }
+        .input-wrapper i.icon-right {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); pointer-events: none; font-size: 0.8rem; z-index: 2;
+        }
+        .input-wrapper i.icon-left-top {
+            position: absolute; left: 15px; top: 15px;
+            color: var(--primary); pointer-events: none; z-index: 2;
+        }
+        input, select {
+            width: 100%; height: 50px;
+            padding: 0 15px 0 45px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: white; outline: none; font-size: 1rem;
+            transition: all 0.3s;
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+        }
+        select { padding-right: 40px; cursor: pointer; }
+        select option { background: #1e293b; color: white; }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: rgba(0,0,0,0.5); }
+        input::placeholder { color: var(--text-muted); }
+        /* Chrome date picker: restore native appearance so the calendar popup works,
+           force the indicator icon to white via brightness(0)+invert(1),
+           and apply dark colour-scheme so the popup renders in dark mode */
+        input[type="date"] {
+            appearance: auto; -webkit-appearance: auto;
+            color-scheme: dark;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: brightness(0) invert(1);
+            cursor: pointer;
+        }
+        textarea {
+            width: 100%; padding: 13px 15px 13px 45px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            border-radius: 10px; color: white; outline: none; font-size: 1rem;
+            transition: all 0.3s; resize: vertical; font-family: inherit; min-height: 90px;
+        }
+        textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: rgba(0,0,0,0.5); }
+        textarea::placeholder { color: var(--text-muted); }
+        .avail-status {
+            padding: 10px 14px; border-radius: 10px; font-size: 0.88rem;
+            font-weight: 600; display: flex; align-items: center; gap: 10px;
+            border: 1px solid; margin-bottom: 1.5rem;
+        }
+        .avail-status.checking    { background: rgba(99,102,241,0.1);  border-color: rgba(99,102,241,0.3);  color: var(--primary); }
+        .avail-status.available   { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); color: #34d399; }
+        .avail-status.unavailable { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.35);  color: #f87171; }
+        .avail-status.idle        { background: rgba(0,0,0,0.2);       border-color: var(--border);          color: var(--text-muted); }
+        .submit-btn {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #06b6d4);
+            border: none; border-radius: 10px;
+            color: white; font-size: 1rem; font-weight: 700;
+            cursor: pointer; transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 10px 20px -5px rgba(99,102,241,0.4);
+            min-height: 44px;
+        }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(99,102,241,0.5); }
+        .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+        .multi-day-btn {
+            width: 100%; padding: 0.6rem 1rem; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all 0.2s;
+            border: 1.5px solid var(--primary); background: transparent;
+            color: var(--primary); display: flex; align-items: center;
+            justify-content: center; gap: 0.45rem;
+        }
+        .multi-day-btn.active { background: var(--primary); color: #fff; }
+
+        /* ── Extra rooms selection ───────────────────────────────── */
+        .extra-rooms-section {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+        }
+        .extra-rooms-section .section-label {
+            font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 0.65rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .extra-rooms-section .section-label i { color: var(--primary); font-size: 0.78rem; }
+        .extra-room-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(148,163,184,0.07);
+        }
+        .extra-room-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .extra-room-item:first-child { padding-top: 0; }
+        .extra-room-item input[type="checkbox"] {
+            width: 18px; height: 18px; min-height: unset;
+            accent-color: var(--primary); cursor: pointer;
+            flex-shrink: 0; padding: 0; border-radius: 4px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+        }
+        .extra-room-item label {
+            cursor: pointer; font-size: 0.9rem; font-weight: 500;
+            color: var(--text-main);
+            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; gap: 10px;
+            text-transform: none; letter-spacing: 0; margin-bottom: 0;
+        }
+        .extra-room-item label .room-cap {
+            font-size: 0.78rem; color: var(--text-muted); font-weight: 400; white-space: nowrap;
+        }
+        /* ─────────────────────────────────────────────────────────── */
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        .toast {
+            background: #1e293b; color: white; padding: 1rem 1.5rem;
+            border-radius: 8px; margin-top: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            border-left: 4px solid var(--success);
+            display: flex; align-items: center; gap: 12px;
+            animation: slideIn 0.3s ease; min-width: 280px;
+        }
+        .toast.error { border-color: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        button, input, select, textarea { min-height: 44px; }
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .full-width { grid-column: span 1; }
+        }
+        .venue-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 5px 14px;
+            background: rgba(99,102,241,0.13);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 20px;
+            font-size: 0.8rem; font-weight: 700;
+            color: #a5b4fc;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.75rem;
+        }
+        .venue-badge i { font-size: 0.75rem; }
+        .error-banner {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            margin-top: 2rem;
+        }
+        .error-banner i { font-size: 2rem; color: #ef4444; display: block; margin-bottom: 0.75rem; }
+        .error-banner h2 { font-size: 1.2rem; color: #f8fafc; margin-bottom: 0.5rem; }
+        .error-banner p { color: #94a3b8; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="page-header">
+            <div class="venue-badge" id="venueBadge" style="display:none">
+                <i class="fa-solid fa-building"></i>
+                <span id="venueNameDisplay"></span>
+            </div>
+            <h1 id="pageTitle">Event Enquiry</h1>
+            <p>Check availability instantly and secure your date.</p>
+        </div>
+        <div id="errorBanner" style="display:none" class="error-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <h2>Invalid Venue Link</h2>
+            <p>This enquiry form link is missing or contains an invalid venue identifier. Please use the link provided by your venue — it should look like <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:.85em;">enquiry-form.html?t=1001</code>.</p>
+        </div>
+        <form id="enquiryForm" class="form-card" onsubmit="return false;">
+
+            <!-- CONTACT DETAILS -->
+            <div class="form-section-title"><i class="fa-solid fa-user"></i> Contact Details</div>
+            <div class="form-grid">
+                <div class="input-group full-width">
+                    <label>Full Name <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user icon-left"></i>
+                        <input type="text" id="name" placeholder="e.g. Jane Smith" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Email <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope icon-left"></i>
+                        <input type="email" id="email" placeholder="jane@example.com" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Phone <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone icon-left"></i>
+                        <input type="tel" id="phone" placeholder="e.g. 07700 900000" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT DETAILS -->
+            <div class="form-section-title"><i class="fa-solid fa-calendar-check"></i> Event Details</div>
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>Primary Room <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-door-open icon-left"></i>
+                        <select id="roomName" onchange="onRoomChange()" required>
+                            <option value="" disabled selected>Loading rooms...</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Event Type <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-masks-theater icon-left"></i>
+                        <select id="eventType" required>
+                            <option value="" disabled selected>Loading types...</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+
+                <!-- ADDITIONAL ROOMS — shown when 2+ rooms available and primary is selected -->
+                <div id="extraRoomsOuter" class="input-group full-width" style="display:none;">
+                    <label><i class="fa-solid fa-layer-group" style="color:var(--primary);margin-right:6px;"></i>Additional Rooms <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
+                    <div class="extra-rooms-section">
+                        <div class="section-label"><i class="fa-solid fa-circle-plus"></i> Select any additional spaces needed</div>
+                        <div id="extraRoomsList"></div>
+                    </div>
+                </div>
+
+                <div class="input-group" id="singleDateGroup">
+                    <label>Event Date <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-calendar icon-left"></i>
+                        <input type="date" id="eventDate" onchange="checkAvailability()" required>
+                    </div>
+                </div>
+                <div class="input-group" style="align-self:flex-end;">
+                    <button type="button" id="multiDayToggle" onclick="toggleMultiDay()" class="multi-day-btn">
+                        <i class="fa-solid fa-calendar-week"></i> Requires multiple days
+                    </button>
+                </div>
+                <div id="multiDayFields" style="display:none;grid-column:span 2;">
+                    <div class="form-grid" style="margin:0;">
+                        <div class="input-group">
+                            <label>Date From <span style="color:var(--danger)">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-calendar icon-left"></i>
+                                <input type="date" id="dateFrom" onchange="checkAvailability()">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Date To <span style="color:var(--danger)">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-calendar icon-left"></i>
+                                <input type="date" id="dateTo" onchange="checkAvailability()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Start Time <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-clock icon-left"></i>
+                        <select id="timeFrom" onchange="checkAvailability()" required>
+                            <option value="" disabled selected>--:--</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>End Time <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-clock icon-left"></i>
+                        <select id="timeTo" onchange="checkAvailability()" required>
+                            <option value="" disabled selected>--:--</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Number of Guests <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-users icon-left"></i>
+                        <input type="number" id="numPeople" placeholder="e.g. 50" min="1" required>
+                    </div>
+                </div>
+                <div class="input-group full-width">
+                    <label>Notes <span style="color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">(Optional)</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-note-sticky icon-left-top"></i>
+                        <textarea id="notes" placeholder="Any special requirements, accessibility needs or additional information..." rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AVAILABILITY -->
+            <div id="availStatus" class="avail-status idle">
+                <i class="fa-solid fa-circle-info"></i>
+                <span id="availText">Select a room, dates and times to check availability</span>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn" onclick="submitEnquiry()" disabled>
+                <i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>
+            </button>
+        </form>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+        const SUBMIT_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
+        const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+        const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+
+        // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
+        // Customer venues always have tenant_id >= 1000 (tenant_id=1 is system admin)
+        const TENANT_ID = (function() {
+            const p = new URLSearchParams(window.location.search);
+            const id = parseInt(p.get('t') || p.get('tenant') || '0', 10);
+            return (id >= 1000) ? id : null;
+        })();
+
+        // Show error or load venue name
+        (async function initTenant() {
+            if (!TENANT_ID) {
+                document.getElementById('errorBanner').style.display = 'block';
+                document.getElementById('enquiryForm').style.display = 'none';
+                return;
+            }
+            // Try to load venue name for header
+            try {
+                const r = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/get-tenants');
+                const d = await r.json();
+                const venues = d.data || d || [];
+                const venue  = venues.find(v => (v.tenant_id || v.id) === TENANT_ID);
+                if (venue) {
+                    const name = venue.venue_name || venue.name || 'Your Venue';
+                    document.getElementById('venueNameDisplay').textContent = name;
+                    document.getElementById('venueBadge').style.display     = 'inline-flex';
+                    document.getElementById('pageTitle').textContent         = 'Event Enquiry — ' + name;
+                    document.title = 'Event Enquiry | ' + name;
+                }
+            } catch(e) { /* non-critical — form still usable */ }
+        })();
+
+        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
+
+        // ── Safe HTML escaping for dynamic content ───────────────────
+        function esc(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function isDateBlocked(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00'), dow = d.getDay();
+            for (const b of enquiryBlockedRules) {
+                if (b.block_type === 'recurring' && parseInt(b.day_of_week) === dow) return b.label || 'Closed';
+                if (b.block_type === 'oneoff' && b.block_date && b.block_date.split('T')[0] === dateStr) return b.label || 'Closed';
+                if (b.block_type === 'range' && b.date_from && b.date_to)
+                    if (dateStr >= b.date_from.split('T')[0] && dateStr <= b.date_to.split('T')[0]) return b.label || 'Closed';
+            }
+            return null;
+        }
+
+        async function loadRoomsAndTypes() {
+            try {
+                const tenantParam = TENANT_ID ? `?tenant_id=${TENANT_ID}` : '';
+                const [rooms, types, bRes] = await Promise.all([
+                    fetch(BASE_API + '/get-rooms' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
+                    fetch(BASE_API + '/get-event-types' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
+                    fetch(BLOCKED_API + tenantParam).catch(() => null)
+                ]);
+                if (bRes) { try { enquiryBlockedRules = (await bRes.json()).data || []; } catch(e){} }
+                const activeRooms = (rooms || []).filter(r => r.is_active || r.is_active === undefined);
+                enquiryRoomsData = activeRooms;
+                const activeTypes = (types || []).filter(t => t.is_active || t.is_active === undefined);
+                const roomSel = document.getElementById('roomName');
+                roomSel.innerHTML = '<option value="" disabled selected>Select Room</option>';
+                activeRooms.forEach(r => roomSel.add(new Option(r.name + (r.capacity ? ` (Cap: ${r.capacity})` : ''), r.name)));
+                const typeSel = document.getElementById('eventType');
+                typeSel.innerHTML = '<option value="" disabled selected>Select Type</option>';
+                activeTypes.forEach(t => typeSel.add(new Option(t.name, t.name)));
+            } catch(e) {
+                console.warn('Could not load rooms/event types:', e);
+            }
+        }
+        loadRoomsAndTypes();
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('eventDate').min = todayStr;
+        document.getElementById('dateFrom').min   = todayStr;
+        document.getElementById('dateTo').min     = todayStr;
+        ['timeFrom','timeTo'].forEach(id => {
+            const sel = document.getElementById(id);
+            for (let i = 8; i <= 23; i++) {
+                const hh = i.toString().padStart(2,'0');
+                sel.add(new Option(hh+':00', hh+':00'));
+                if (i < 23) sel.add(new Option(hh+':30', hh+':30'));
+            }
+        });
+
+        // ── Multi-room selection ──────────────────────────────────────
+
+        // Called when primary room changes — render extra-room checkboxes then re-check availability
+        function onRoomChange() {
+            renderExtraRooms();
+            checkAvailability();
+        }
+
+        // Render checkboxes for all active rooms that are NOT the selected primary room
+        function renderExtraRooms() {
+            const primaryName = document.getElementById('roomName').value;
+            const outer = document.getElementById('extraRoomsOuter');
+            const list  = document.getElementById('extraRoomsList');
+            const others = enquiryRoomsData.filter(r =>
+                r.name !== primaryName && (r.is_active || r.is_active === undefined)
+            );
+            if (!primaryName || others.length === 0) {
+                outer.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+            outer.style.display = '';
+            list.innerHTML = others.map(r => `
+                <div class="extra-room-item">
+                    <input type="checkbox" id="xr-${esc(r.id)}" value="${esc(r.id)}" data-name="${esc(r.name)}">
+                    <label for="xr-${esc(r.id)}">
+                        <span>${esc(r.name)}</span>
+                        <span class="room-cap">${r.capacity ? 'Cap: ' + r.capacity : ''}</span>
+                    </label>
+                </div>
+            `).join('');
+        }
+
+        // Returns [{room_id, room_name}, ...] for the primary room + any checked extra rooms
+        function getExtraRoomsPayload() {
+            const primaryName = document.getElementById('roomName').value;
+            const primaryRoom = enquiryRoomsData.find(r => r.name === primaryName);
+            const rooms = primaryRoom ? [{ room_id: primaryRoom.id, room_name: primaryRoom.name }] : [];
+            document.querySelectorAll('#extraRoomsList input[type="checkbox"]:checked').forEach(cb => {
+                rooms.push({ room_id: cb.value, room_name: cb.dataset.name });
+            });
+            return rooms;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+
+        function setAvailStatus(type, text) {
+            const el = document.getElementById('availStatus');
+            const icons = { idle:'fa-circle-info', checking:'fa-circle-notch fa-spin', available:'fa-circle-check', unavailable:'fa-circle-xmark' };
+            el.className = 'avail-status ' + type;
+            el.querySelector('i').className = 'fa-solid ' + (icons[type] || 'fa-circle-info');
+            document.getElementById('availText').textContent = text;
+        }
+
+        function toggleMultiDay() {
+            const btn = document.getElementById('multiDayToggle');
+            const isMulti = btn.dataset.active !== 'true';
+            btn.dataset.active = isMulti;
+            btn.classList.toggle('active', isMulti);
+            document.getElementById('singleDateGroup').style.display = isMulti ? 'none' : '';
+            document.getElementById('multiDayFields').style.display  = isMulti ? '' : 'none';
+            const ev = document.getElementById('eventDate');
+            const df = document.getElementById('dateFrom');
+            const dt = document.getElementById('dateTo');
+            ev.required = !isMulti;
+            df.required =  isMulti;
+            dt.required =  isMulti;
+            if (!isMulti) { df.value = ''; dt.value = ''; }
+            checkAvailability();
+        }
+
+        let _availTimeout = null;
+        async function checkAvailability() {
+            if (isSubmitting) return;
+            const room     = document.getElementById('roomName').value;
+            const isMulti  = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const dateFrom = isMulti ? document.getElementById('dateFrom').value : document.getElementById('eventDate').value;
+            const dateTo   = isMulti ? document.getElementById('dateTo').value   : document.getElementById('eventDate').value;
+            const start    = document.getElementById('timeFrom').value;
+            const end      = document.getElementById('timeTo').value;
+            const btn      = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
+            isAvailable = false;
+            if (!room || !dateFrom || !start || !end) { setAvailStatus('idle','Select a room, dates and times to check availability'); return; }
+            if (!dateTo || dateTo < dateFrom) { setAvailStatus('unavailable','Please select a valid end date (on or after start date).'); return; }
+            const msPerDay = 86400000;
+            const numDays  = Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1;
+            for (let i = 0; i < numDays; i++) {
+                const ds = new Date(new Date(dateFrom).getTime() + i*msPerDay).toISOString().split('T')[0];
+                const bl = isDateBlocked(ds);
+                if (bl) { setAvailStatus('unavailable', 'Sorry, the venue is closed on ' + ds + ' (' + bl + ').'); return; }
+            }
+            if (start >= end) { setAvailStatus('unavailable','End time must be after start time.'); return; }
+            clearTimeout(_availTimeout);
+            _availTimeout = setTimeout(async () => {
+                setAvailStatus('checking', 'Checking availability for ' + (numDays > 1 ? numDays+'-day booking' : dateFrom) + '...');
+                try {
+                    const data = await (await fetch(CHECK_API, {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ roomName:room, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
+                    })).json();
+                    if (data.available) {
+                        setAvailStatus('available', numDays > 1 ? 'Available for your ' + numDays + '-day booking! You can submit.' : 'Date is available - you can submit your enquiry.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
+                        isAvailable = true;
+                    } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
+                } catch(e) { setAvailStatus('unavailable','Connection error. Please try again.'); }
+            }, 500);
+        }
+
+        async function submitEnquiry() {
+            if (!isAvailable) return;
+            const form = document.getElementById('enquiryForm');
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            // CAPACITY CHECK — sum capacities of all selected rooms and compare to guest count
+            const selectedRooms = getExtraRoomsPayload();
+            const guestCount = parseInt(document.getElementById('numPeople').value, 10);
+            const totalCapacity = selectedRooms.reduce((sum, sr) => {
+                const room = enquiryRoomsData.find(r => String(r.id) === String(sr.room_id));
+                return sum + (room && room.capacity ? parseInt(room.capacity, 10) : 0);
+            }, 0);
+            if (totalCapacity > 0 && guestCount > totalCapacity) {
+                const roomNames = selectedRooms.map(sr => sr.room_name).join(', ');
+                alert(`The selected room(s) (${roomNames}) have a combined maximum capacity of ${totalCapacity} guests. Please reduce your guest count or add more rooms.`);
+                document.getElementById('numPeople').focus();
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            isSubmitting = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Sending...</span>';
+            btn.disabled = true;
+            const g = id => document.getElementById(id).value;
+            const payload = {
+                name:g('name'), email:g('email'), contact:g('phone'),
+                roomName:g('roomName'), eventType:g('eventType'),
+                dateFrom:document.getElementById('multiDayToggle').dataset.active === 'true' ? g('dateFrom') : g('eventDate'),
+                dateTo:document.getElementById('multiDayToggle').dataset.active === 'true'   ? g('dateTo')   : g('eventDate'),
+                eventDate:document.getElementById('multiDayToggle').dataset.active === 'true' ? g('dateFrom') : g('eventDate'),
+                timeFrom:g('timeFrom'), timeTo:g('timeTo'),
+                numPeople:g('numPeople'), guest_count:g('numPeople'), notes:g('notes')||'',
+                rooms: selectedRooms,
+                tenant_id: TENANT_ID, venue_id: TENANT_ID
+            };
+            try {
+                const res = await fetch(SUBMIT_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+                if (res.ok) {
+                    showToast("Enquiry sent! We'll be in touch shortly.", 'success');
+                    form.reset();
+                    renderExtraRooms(); // clear extra rooms checkboxes after reset
+                    setAvailStatus('idle','Select a room, dates and times to check availability');
+                    isAvailable = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
+                    btn.disabled = true; isSubmitting = false;
+                } else throw new Error('Server error');
+            } catch(e) {
+                isSubmitting = false;
+                setAvailStatus('unavailable','Submission failed. Please check your details and try again.');
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
+                btn.disabled = false;
+            }
+        }
+
+        function showToast(message, type) {
+            type = type || 'success';
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<i class="fa-solid ' + (type==='success' ? 'fa-circle-check' : 'fa-circle-exclamation') + '"></i> ' + message;
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(function(){t.remove();},300); }, 4000);
+        }
+    </script>
+</body>
+</html>
