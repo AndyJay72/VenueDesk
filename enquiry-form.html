@@ -609,9 +609,10 @@
         function getExtraRoomsPayload() {
             const primaryName = document.getElementById('roomName').value;
             const primaryRoom = enquiryRoomsData.find(r => r.name === primaryName);
-            const rooms = primaryRoom ? [{ room_id: primaryRoom.id, room_name: primaryRoom.name }] : [];
+            const rooms = primaryRoom ? [{ room_id: primaryRoom.id, room_name: primaryRoom.name, day_rate: parseFloat(primaryRoom.day_rate || 0) }] : [];
             document.querySelectorAll('#extraRoomsList input[type="checkbox"]:checked').forEach(cb => {
-                rooms.push({ room_id: cb.value, room_name: cb.dataset.name });
+                const extraRoom = enquiryRoomsData.find(r => String(r.id) === String(cb.value));
+                rooms.push({ room_id: cb.value, room_name: cb.dataset.name, day_rate: parseFloat(extraRoom ? extraRoom.day_rate || 0 : 0) });
             });
             return rooms;
         }
@@ -668,18 +669,27 @@
             if (start >= end) { setAvailStatus('unavailable','End time must be after start time.'); return; }
             clearTimeout(_availTimeout);
             _availTimeout = setTimeout(async () => {
+                const allRooms = getExtraRoomsPayload();
+                const roomLabel = allRooms.length > 1 ? allRooms.map(r => r.room_name).join(' & ') : room;
                 setAvailStatus('checking', 'Checking availability for ' + (numDays > 1 ? numDays+'-day booking' : dateFrom) + '...');
                 try {
-                    const data = await (await fetch(CHECK_API, {
-                        method:'POST', headers:{'Content-Type':'application/json'},
-                        body: JSON.stringify({ roomName:room, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
-                    })).json();
-                    if (data.available) {
-                        setAvailStatus('available', numDays > 1 ? 'Available for your ' + numDays + '-day booking! You can submit.' : 'Date is available - you can submit your enquiry.');
+                    // Check all selected rooms in parallel — ALL must be free
+                    const checks = await Promise.all(allRooms.map(r =>
+                        fetch(CHECK_API, {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({ roomName: r.room_name, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
+                        }).then(res => res.json())
+                    ));
+                    const blockedRoom = checks.find((c, i) => !c.available);
+                    const blockedIdx  = checks.findIndex(c => !c.available);
+                    if (!blockedRoom) {
+                        setAvailStatus('available', (allRooms.length > 1 ? roomLabel + ' are' : 'Date is') + (numDays > 1 ? ' available for your ' + numDays + '-day booking!' : ' available — you can submit your enquiry.'));
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
                         isAvailable = true;
-                    } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
+                    } else {
+                        setAvailStatus('unavailable', 'Sorry, ' + (allRooms[blockedIdx]?.room_name || 'a room') + ' is already booked for this time slot.');
+                    }
                 } catch(e) { setAvailStatus('unavailable','Could not reach the availability service — please check your connection and try again, or contact us directly.'); }
             }, 500);
         }
