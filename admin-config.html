@@ -638,6 +638,8 @@ const API = {
     deletePricing:  BASE + '/delete-pricing',
     getSettings:    BASE + '/get-settings',
     updateSetting:  BASE + '/update-setting',
+    saveService:    BASE + '/save-service',
+    deleteService:  BASE + '/delete-service',
 };
 
 function getAuthHeaders() {
@@ -857,6 +859,7 @@ async function saveModal() {
             s.active = document.getElementById('me_svc_active').classList.contains('on');
             if (!s.name) throw new Error('Service name is required');
             saveServicesData(svcs);
+            _persistSvcToDb(s);
             showToast('Service updated!');
             renderServicesTable();
         }
@@ -1182,6 +1185,17 @@ function saveRoomHours(d) { sessionStorage.setItem(roomHoursKey(), JSON.stringif
 function servicesKey()         { return 'vp_services_' + (_TID() || '0'); }
 function loadServicesData()    { try { return JSON.parse(sessionStorage.getItem(servicesKey()) || '[]'); } catch(e) { return []; } }
 function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stringify(d)); }
+// Persist a single service to DB (fire-and-forget; sessionStorage already updated)
+function _persistSvcToDb(svc) {
+    const tid = parseInt(_TID() || '0');
+    if (!tid) return;
+    fetch(API.saveService, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...svc, tenant_id: tid }) }).catch(() => {});
+}
+function _deleteSvcFromDb(id) {
+    const tid = parseInt(_TID() || '0');
+    if (!tid) return;
+    fetch(API.deleteService, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ id, tenant_id: tid }) }).catch(() => {});
+}
 
 function generateTimeOptions() {
     const opts = ['<option value="">— Not set —</option>'];
@@ -1228,8 +1242,10 @@ function addService() {
     if (!name)                    { showToast('Service name is required', 'error'); return; }
     if (isNaN(price) || price < 0){ showToast('Valid price is required', 'error'); return; }
     const svcs = loadServicesData();
-    svcs.push({ id: 'svc_' + Date.now(), name, type, price, active: true });
+    const newSvc = { id: 'svc_' + Date.now(), name, type, price, active: true };
+    svcs.push(newSvc);
     saveServicesData(svcs);
+    _persistSvcToDb(newSvc);
     showToast('Service added!');
     document.getElementById('svcName').value  = '';
     document.getElementById('svcPrice').value = '';
@@ -1264,7 +1280,7 @@ function editServiceItem(id) {
 function toggleService(id, active) {
     const svcs = loadServicesData();
     const s = svcs.find(x => x.id === id);
-    if (s) s.active = active;
+    if (s) { s.active = active; _persistSvcToDb(s); }
     saveServicesData(svcs);
     showToast(active ? 'Service activated' : 'Service deactivated');
     renderServicesTable();
@@ -1273,6 +1289,7 @@ function toggleService(id, active) {
 function deleteSvc(id) {
     if (!confirm('Permanently delete this service?')) return;
     saveServicesData(loadServicesData().filter(x => x.id !== id));
+    _deleteSvcFromDb(id);
     showToast('Service deleted');
     renderServicesTable();
 }
@@ -1335,9 +1352,11 @@ function addService() {
     const price = parseFloat(document.getElementById('svcPrice').value);
     if (!name)                     { showToast('Service name is required', 'error'); return; }
     if (isNaN(price) || price < 0) { showToast('Valid price is required', 'error'); return; }
+    const newSvc2 = { id: 'svc_' + Date.now(), name, type, price, active: true };
     const svcs = loadServicesData();
-    svcs.push({ id: 'svc_' + Date.now(), name, type, price, active: true });
+    svcs.push(newSvc2);
     saveServicesData(svcs);
+    _persistSvcToDb(newSvc2);
     showToast('Service added!');
     document.getElementById('svcName').value  = '';
     document.getElementById('svcPrice').value = '';
@@ -1372,7 +1391,7 @@ function editServiceItem(id) {
 function toggleService(id, active) {
     const svcs = loadServicesData();
     const s = svcs.find(x => x.id === id);
-    if (s) s.active = active;
+    if (s) { s.active = active; _persistSvcToDb(s); }
     saveServicesData(svcs);
     showToast(active ? 'Service activated' : 'Service deactivated');
     renderServicesTable();
@@ -1381,6 +1400,7 @@ function toggleService(id, active) {
 function deleteSvc(id) {
     if (!confirm('Permanently delete this service?')) return;
     saveServicesData(loadServicesData().filter(x => x.id !== id));
+    _deleteSvcFromDb(id);
     showToast('Service deleted');
     renderServicesTable();
 }
