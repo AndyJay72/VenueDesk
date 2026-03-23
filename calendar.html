@@ -1241,7 +1241,8 @@
                 const p=currentModalProps;
                 if(p.request_id&&!p.has_booking){
                     // Pending request with no confirmed booking yet — create + confirm in one call
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total,balance_due:balance,services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
+                    // deposit_amount & payment_method are picked up by the workflow to record the deposit row
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total,balance_due:balance,deposit_amount:deposit,payment_method:method,services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('Convert failed: HTTP '+r1.status);
                 }else{
                     // Existing booking — update status + record deposit separately
