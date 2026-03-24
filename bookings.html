@@ -793,14 +793,9 @@
         const PAY_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const CANCEL_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
 
-        function getAuthHeaders() {
-            const tid = sessionStorage.getItem('vp_tenant_id') || '';
-            return {
-                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-                'X-Tenant-ID': tid,
-                'X-Venue-ID':  tid
-            };
-        }
+        function getAuthHeaders() { return {}; }
+        function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+        function tidParam(sep='?') { return sep + 'tenant_id=' + _TID(); }
         function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
         
@@ -904,7 +899,7 @@
                     await fetch(CANCEL_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                        body: JSON.stringify({ booking_id: bid })
+                        body: JSON.stringify({ booking_id: bid, tenant_id: parseInt(_TID()) })
                     });
                 }
                 alert("Booking Cancelled");
