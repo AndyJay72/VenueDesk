@@ -1639,7 +1639,7 @@
             const btn=document.querySelector('.e-pay-submit');
             btn.disabled=true;
             try{
-                const res=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:currentModalProps.customer_id,amount,payment_method:method,payment_type:'balance',tenant_id:parseInt(_CAL_TID())})});
+                const res=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:currentModalProps.customer_id,amount,payment_method:method,payment_type:'balance',balance_due:balance,tenant_id:parseInt(_CAL_TID())})});
                 if(res.ok){showToast('Payment recorded!','success');closeModal();setTimeout(()=>location.reload(),1500);}
                 else showToast('Error recording payment — try the Bookings page','error');
             }catch(e){showToast('Error: '+e.message,'error');}
