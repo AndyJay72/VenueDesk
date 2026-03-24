@@ -11,7 +11,7 @@
         // SECURITY CHECK
         (function() {
             const _t = sessionStorage.getItem('vp_token');
-            if (!_t) { window.location.href = 'login.html'; return; }
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
             try {
                 const _p = JSON.parse(atob(_t.split('.')[1]));
                 if (_p.exp && _p.exp * 1000 < Date.now()) {
