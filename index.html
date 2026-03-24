@@ -3163,3 +3163,25 @@
                 actEvents=evts.filter(e=>{const k=`${e.type}|${e.ts}|${e.name}`;if(_seenAct.has(k))return false;_seenAct.add(k);return true;});
                 actPage = 1;
                 renderActivityFeed();
+            } catch(e) { if(list)list.innerHTML='<div style="padding:2rem;text-align:center;color:#ef4444">Failed to load activity</div>'; }
+        }
+        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        // ── THEME PERSISTENCE ──
+        (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
+        function toggleTheme(){
+            var isLight = document.body.classList.toggle('light-mode');
+            sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+            var btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        }
+        // Set correct icon on load
+        document.addEventListener('DOMContentLoaded', function(){
+            var btn = document.getElementById('theme-btn');
+            if(btn) {
+                var isLight = document.body.classList.contains('light-mode');
+                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        });
+</script>
+</body>
+</html>
