@@ -360,10 +360,14 @@
                 </div>
                 <div class="invoice-section">
                     <div class="invoice-section-title">Booking Details</div>
-                    <div class="invoice-row"><span class="ilabel">Room</span><span class="ivalue" id="invRoom">—</span></div>
+                    <div class="invoice-row"><span class="ilabel">Room(s)</span><span class="ivalue" id="invRoom">—</span></div>
                     <div class="invoice-row"><span class="ilabel">Event Date(s)</span><span class="ivalue" id="invBookingDate">—</span></div>
                     <div class="invoice-row"><span class="ilabel">Time</span><span class="ivalue" id="invTime">—</span></div>
                     <div class="invoice-row"><span class="ilabel">Total Booking Value</span><span class="ivalue" id="invTotal">—</span></div>
+                </div>
+                <div class="invoice-section" id="invServicesSection" style="display:none;">
+                    <div class="invoice-section-title">Services &amp; Charges</div>
+                    <div id="invServicesList" style="font-size:0.88rem;"></div>
                 </div>
                 <div class="invoice-section">
                     <div class="invoice-section-title">This Transaction</div>
@@ -711,6 +715,27 @@
                 origRefRow.style.display = 'flex';
             } else {
                 origRefRow.style.display = 'none';
+            }
+
+            // Parse ##ENQUIRY_META## from notes for services/charges
+            const svcSection = document.getElementById('invServicesSection');
+            const svcList    = document.getElementById('invServicesList');
+            let meta = null;
+            if (t.notes) {
+                const idx = t.notes.indexOf('##ENQUIRY_META##');
+                if (idx !== -1) { try { meta = JSON.parse(t.notes.slice(idx + 16)); } catch(e) {} }
+            }
+            if (meta && meta.services && meta.services.length > 0) {
+                svcList.innerHTML = meta.services.map(s => {
+                    const label = s.type === 'hourly'
+                        ? `${s.name} <span style="color:var(--text-muted);font-size:0.82em;">(${s.hours || 0} hrs × ${fmt(s.price)}/hr)</span>`
+                        : `${s.name} <span style="color:var(--text-muted);font-size:0.82em;">(fixed)</span>`;
+                    return `<div class="invoice-row"><span class="ilabel">${label}</span><span class="ivalue">${fmt(s.subtotal || s.price || 0)}</span></div>`;
+                }).join('');
+                svcSection.style.display = '';
+            } else {
+                svcSection.style.display = 'none';
+                svcList.innerHTML = '';
             }
 
             document.getElementById('invoiceModal').classList.add('active');
