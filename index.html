@@ -1367,8 +1367,15 @@
             </div>
             <div class="pay-booking-info" id="pm-info">
                 <div class="info-row"><span>Customer:</span><strong id="pm-customer">—</strong></div>
-                <div class="info-row"><span>Room:</span><strong id="pm-room">—</strong></div>
+                <div class="info-row"><span>Room(s):</span><strong id="pm-room">—</strong></div>
                 <div class="info-row"><span>Date:</span><strong id="pm-date">—</strong></div>
+                <div class="info-row" id="pm-services-row" style="display:none;flex-direction:column;align-items:flex-start;gap:6px;">
+                    <span style="color:var(--text-muted);font-size:0.82rem;">Add-on Services:</span>
+                    <div id="pm-services-list" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+                </div>
+                <div class="info-row" style="border-top:1px solid rgba(148,163,184,0.1);padding-top:8px;margin-top:4px;">
+                    <span>Total Value:</span><strong id="pm-total" style="color:var(--text-main);">—</strong>
+                </div>
                 <div class="info-row"><span>Balance Due:</span><strong id="pm-balance" style="color:var(--warning)">—</strong></div>
             </div>
             <div class="pay-amount-section">
@@ -2273,7 +2280,29 @@
             document.getElementById('pm-customer').innerText = b.customer_name || '—';
             document.getElementById('pm-room').innerText     = b.room_name     || '—';
             document.getElementById('pm-date').innerText     = fmtBookingDate(b);
+            // Total booking value
+            const totalEl = document.getElementById('pm-total');
+            if (totalEl) totalEl.innerText = b.total_amount != null ? formatCurrency(parseFloat(b.total_amount)) : '—';
             document.getElementById('pm-balance').innerText  = formatCurrency(balance);
+            // Services from ##ENQUIRY_META## in notes
+            const _pmSvcRow  = document.getElementById('pm-services-row');
+            const _pmSvcList = document.getElementById('pm-services-list');
+            if (_pmSvcRow && _pmSvcList) {
+                let _pmMeta = null;
+                if (b.notes) { const _idx = b.notes.indexOf('##ENQUIRY_META##'); if (_idx !== -1) { try { _pmMeta = JSON.parse(b.notes.slice(_idx + 16)); } catch(e) {} } }
+                const _pmSvcs = _pmMeta && _pmMeta.services && _pmMeta.services.length ? _pmMeta.services : [];
+                if (_pmSvcs.length) {
+                    _pmSvcList.innerHTML = _pmSvcs.map(s =>
+                        `<span style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:5px;padding:2px 9px;font-size:0.8rem;">`
+                        + (s.name || '') + (s.type === 'hourly' ? ` (${s.hours||0}h) — £${parseFloat(s.subtotal||0).toFixed(2)}` : ` — £${parseFloat(s.subtotal||s.price||0).toFixed(2)}`)
+                        + `</span>`
+                    ).join('');
+                    _pmSvcRow.style.display = 'flex';
+                } else {
+                    _pmSvcRow.style.display = 'none';
+                    _pmSvcList.innerHTML = '';
+                }
+            }
             // slider
             const slider = document.getElementById('pm-slider');
             const amtIn  = document.getElementById('pm-amount');
