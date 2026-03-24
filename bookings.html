@@ -821,7 +821,7 @@
 
         async function fetchBookings() {
             try {
-                const res = await fetch(API_URL, { headers: getAuthHeaders() });
+                const res = await fetch(API_URL + tidParam(), { headers: getAuthHeaders() });
                 const json = await res.json();
                 const rawData = json.data || (Array.isArray(json) ? json : []);
                 const now = new Date(); now.setHours(0,0,0,0); 
@@ -859,7 +859,19 @@
                         grouped[key].balanceNum   = parseFloat(grouped[key].balance_due);
                     }
                 });
-                allBookings = Object.values(grouped).map(b => ({ ...b, room_name: b._roomNames.join(', ') }));
+                allBookings = Object.values(grouped).map(b => {
+                    // Re-evaluate category based on final GROUPED balance (fixes multi-room edge case
+                    // where first DB row's category might not match the summed total)
+                    const totalBal = parseFloat(b.balance_due || 0);
+                    const endDate  = new Date((b.date_to || b.date_from || b.booking_date).split('T')[0]+'T00:00:00');
+                    let category = b.category; // preserve 'cancelled' from original
+                    if (b.status !== 'cancelled') {
+                        if (endDate < now)      category = 'post';
+                        else if (totalBal <= 0) category = 'booked';
+                        else                    category = 'pre';
+                    }
+                    return { ...b, room_name: b._roomNames.join(', '), category, balanceNum: totalBal };
+                });
                 updateMetrics();
                 // Populate room filter
                 const rooms = [...new Set(allBookings.map(b => b.room_name).filter(Boolean))].sort();
@@ -994,7 +1006,9 @@
                         booking_id:     _payBooking.booking_id || _payBooking.id,
                         customer_id:    _payBooking.customer_id,
                         amount:         amount,
-                        payment_method: method
+                        payment_method: method,
+                        payment_type:   'balance',
+                        tenant_id:      parseInt(_TID())
                     })
                 });
                 const result = await res.json();
