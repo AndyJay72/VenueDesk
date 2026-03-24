@@ -11,7 +11,7 @@
     // SECURITY CHECK: If no token, redirect to login immediately
     (function() {
         const _t = sessionStorage.getItem('vp_token');
-        if (!_t) { window.location.href = 'login.html'; return; }
+        if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
         try {
             const _p = JSON.parse(atob(_t.split('.')[1]));
             if (_p.exp && _p.exp * 1000 < Date.now()) {
@@ -535,12 +535,12 @@
                 const rawData = json.data || (Array.isArray(json) ? json : []);
                 const now = new Date(); now.setHours(0,0,0,0); 
 
-                allBookings = rawData.map(b => {
+                const mapped = rawData.map(b => {
                     const bDate = new Date((b.date_from || b.booking_date).split('T')[0]+'T00:00:00'); // start date for badge/sorting
                     const bDateEnd = new Date((b.date_to || b.date_from || b.booking_date).split('T')[0]+'T00:00:00'); // end date: multi-day bookings stay active until last day
                     const balance = parseFloat(b.balance_due || 0);
                     let category = 'pre';
-                    
+
                     // LOGIC UPDATED: Check status FIRST
                     if (b.status === 'cancelled') {
                         category = 'cancelled';
@@ -554,6 +554,21 @@
 
                     return { ...b, category, dateObj: bDate, balanceNum: balance };
                 });
+                // Group multi-room bookings (same customer + date + time) into one card
+                const grouped = {};
+                mapped.forEach(b => {
+                    const key = `${b.customer_id}|${(b.date_from||b.booking_date||'').slice(0,10)}|${b.start_time||''}|${b.end_time||''}`;
+                    if (!grouped[key]) {
+                        grouped[key] = { ...b, _allIds: [b.id], _roomNames: [b.room_name] };
+                    } else {
+                        grouped[key]._allIds.push(b.id);
+                        if (b.room_name && !grouped[key]._roomNames.includes(b.room_name)) grouped[key]._roomNames.push(b.room_name);
+                        grouped[key].total_amount = (parseFloat(grouped[key].total_amount||0) + parseFloat(b.total_amount||0)).toFixed(2);
+                        grouped[key].balance_due  = (parseFloat(grouped[key].balance_due||0)  + parseFloat(b.balance_due||0)).toFixed(2);
+                        grouped[key].balanceNum   = parseFloat(grouped[key].balance_due);
+                    }
+                });
+                allBookings = Object.values(grouped).map(b => ({ ...b, room_name: b._roomNames.join(', ') }));
                 updateMetrics();
                 // Populate room filter
                 const rooms = [...new Set(allBookings.map(b => b.room_name).filter(Boolean))].sort();
@@ -579,16 +594,18 @@
 
         async function cancelBooking(id, name) {
             if(!confirm(`Are you sure you want to CANCEL the booking for ${name}? This will refund payments and remove it from the calendar.`)) return;
-            
+            // id may be a comma-separated list for multi-room bookings
+            const ids = String(id).split(',').map(s => s.trim()).filter(Boolean);
             try {
-                const res = await fetch(CANCEL_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ booking_id: id })
-                });
-                const result = await res.json();
-                if(result.status === 'success') { alert("Booking Cancelled"); fetchBookings(); } 
-                else { alert("Error cancelling"); }
+                for (const bid of ids) {
+                    await fetch(CANCEL_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                        body: JSON.stringify({ booking_id: bid })
+                    });
+                }
+                alert("Booking Cancelled");
+                fetchBookings();
             } catch(e) { alert("Connection Error"); }
         }
 
@@ -761,7 +778,7 @@
                 
                 // Add Cancel button if Pre or Booked (Active events)
                 if(b.category === 'pre' || b.category === 'booked') {
-                    actions += `<button class="cancel-btn" onclick="event.stopPropagation();cancelBooking('${b.id}', decodeURIComponent('${encodeURIComponent(b.customer_name || '')}'  ))"><i class="fa-solid fa-trash"></i> Cancel</button>`;
+                    actions += `<button class="cancel-btn" onclick="event.stopPropagation();cancelBooking('${(b._allIds||[b.id]).join(',')}', decodeURIComponent('${encodeURIComponent(b.customer_name || '')}'  ))"><i class="fa-solid fa-trash"></i> Cancel</button>`;
                 }
 
                 return `<div class="booking-card" ${cardClick} style="border-left: 4px solid ${statusInfo.color}; cursor:${b.category === 'pre' ? 'pointer' : 'default'};">
