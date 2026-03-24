@@ -1043,7 +1043,7 @@
         const QBR_DEPOSIT_PCT=30;
         const DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const fmt=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
-        function _CAL_TID(){return sessionStorage.getItem('vp_tenant_id')||'';}
+        function _CAL_TID(){return sessionStorage.getItem('vp_tenant_id')||'0';}
         function getAuthHeaders(){return{};}
         function tidUrl(base){return base+(base.includes('?')?'&':'?')+'tenant_id='+_CAL_TID();}
 
