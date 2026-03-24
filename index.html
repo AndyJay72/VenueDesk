@@ -2919,7 +2919,33 @@
                     : (ev ? fmtD(ev) : '—');
             })();
             document.getElementById('m-guests').innerText = c.guest_count || c.guests_count || c.num_people || c.numPeople || '—';
-            document.getElementById('m-notes').innerText = c.notes || '—';
+
+            // Parse ##ENQUIRY_META## from notes
+            const _meta = parseEnquiryMeta(c.notes);
+
+            // Room(s): use meta rooms array if available, fall back to room_name field
+            const _metaRooms = _meta && _meta.rooms && _meta.rooms.length ? _meta.rooms : null;
+            const _roomEl = document.getElementById('m-room');
+            if (_roomEl) _roomEl.innerText = _metaRooms ? _metaRooms.map(r => r.room_name).join(', ') : (c.room_name || '—');
+
+            // Services from meta — render as badges
+            const _svcWrap = document.getElementById('m-services-wrap');
+            const _svcEl   = document.getElementById('m-services');
+            const _metaSvcs = _meta && _meta.services && _meta.services.length ? _meta.services : [];
+            if (_metaSvcs.length && _svcEl) {
+                _svcEl.innerHTML = _metaSvcs.map(s =>
+                    `<span style="display:inline-block;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:2px 10px;font-size:0.82rem;margin:2px 4px 2px 0">`
+                    + esc(s.name) + (s.type === 'hourly' ? ' (' + (s.hours||0) + 'h) — £' + parseFloat(s.subtotal||0).toFixed(2) : ' — £' + parseFloat(s.subtotal||s.price||0).toFixed(2))
+                    + `</span>`
+                ).join('');
+                if (_svcWrap) _svcWrap.style.display = '';
+            } else {
+                if (_svcWrap) _svcWrap.style.display = 'none';
+            }
+
+            // Notes — strip ##ENQUIRY_META## block before displaying
+            document.getElementById('m-notes').innerText = stripEnquiryMeta(c.notes);
+
             const isBooked = ['booked','fully_paid','deposit_paid'].includes(c.status);
             document.getElementById('m-status').innerText = isBooked ? 'Booked' : (c.status || '—');
             const btnContainer = document.getElementById('modal-buttons');
