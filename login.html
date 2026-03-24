@@ -176,7 +176,8 @@
                     sessionStorage.setItem('vp_tenant_id',  tenantId);
                     sessionStorage.setItem('vp_venue_id',   tenantId);   // tenant_id === venue_id
                     sessionStorage.setItem('vp_venue_name', venueName);
-                    window.location.href = 'index.html';
+                    const _ret = new URLSearchParams(window.location.search).get('return');
+                    window.location.href = (_ret && /^[a-zA-Z0-9_-]+\.html$/.test(_ret)) ? _ret : 'index.html';
                 } else {
                     throw new Error(data.message || 'Login failed');
                 }
