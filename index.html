@@ -2183,16 +2183,47 @@
         }
 
         // Single fetch for both Upcoming Events and Outstanding Payments
+        // Group multi-room bookings so each event appears once with aggregated rooms/amounts
+        function groupBookings(rows) {
+            if (!rows || !rows.length) return rows;
+            const grouped = {};
+            rows.forEach(b => {
+                const dateKey = (b.date_from || b.booking_date || '').toString().slice(0, 10);
+                const key = `${b.customer_id}|${dateKey}|${b.start_time || ''}|${b.end_time || ''}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        ...b,
+                        _roomNames: [b.room_name].filter(Boolean),
+                        total_amount: parseFloat(b.total_amount || 0),
+                        balance_due: parseFloat(b.balance_due || 0)
+                    };
+                } else {
+                    if (b.room_name && !grouped[key]._roomNames.includes(b.room_name)) {
+                        grouped[key]._roomNames.push(b.room_name);
+                    }
+                    grouped[key].total_amount += parseFloat(b.total_amount || 0);
+                    grouped[key].balance_due  += parseFloat(b.balance_due || 0);
+                }
+            });
+            return Object.values(grouped).map(b => ({
+                ...b,
+                room_name: b._roomNames.join(', ') || b.room_name || '—',
+                total_amount: b.total_amount.toFixed(2),
+                balance_due: b.balance_due.toFixed(2)
+            }));
+        }
+
         async function loadAllBookings() {
             try {
                 const res  = await fetch(ALL_BOOKINGS_URL + tidParam(), { headers: getAuthHeaders() });
                 const json = await res.json();
-                const raw  = json.data || (Array.isArray(json) ? json : []);
+                const rawData = json.data || (Array.isArray(json) ? json : []);
+                const raw = groupBookings(rawData);
                 updateGlanceStats(raw);
-                
+
                 // Calculate monthly bookings
                 calculateMonthlyBookings(raw, bookingsMonth, bookingsYear);
-                
+
                 const now  = new Date(); now.setHours(0,0,0,0);
 
                 // --- OUTSTANDING PAYMENTS: future + balance outstanding ---
@@ -2204,21 +2235,11 @@
                 }).sort((a, b) => new Date(a.date_from || a.booking_date) - new Date(b.date_from || b.booking_date));
 
                 // --- UPCOMING EVENTS: all future confirmed bookings (any payment status) ---
-                const seenKeys = new Set();
-                const upcoming = raw.filter(b => {
+                allUpcomingEvents = raw.filter(b => {
                     if (b.status === 'cancelled') return false;
                     const bDate = new Date((b.date_to || b.booking_date).split('T')[0]+'T00:00:00'); // use date_to so multi-day events stay visible until last day
                     return bDate >= now;
                 }).sort((a, b) => new Date(a.date_from || a.booking_date) - new Date(b.date_from || b.booking_date));
-
-                allUpcomingEvents = [];
-                upcoming.forEach(b => {
-                    const key = b.id || (b.customer_name + b.booking_date + b.room_name);
-                    if (!seenKeys.has(key)) {
-                        seenKeys.add(key);
-                        allUpcomingEvents.push(b);
-                    }
-                });
 
                 // Render the unified view
                 renderCurrentView();
@@ -2610,10 +2631,11 @@
                 const json = await res.json();
                 const all  = json.data || (Array.isArray(json) ? json : []);
                 // Filter by customer_id (precise) with email as fallback for older data
-                const mine = all.filter(b => customerId
+                const mineRaw = all.filter(b => customerId
                     ? (b.customer_id === customerId)
                     : (b.customer_email || b.email || '').toLowerCase() === (email || '').toLowerCase()
                 );
+                const mine = groupBookings(mineRaw);
                 loading.style.display = 'none';
                 if (mine.length === 0) { empty.style.display = 'block'; return; }
                 const totalSpend  = mine.reduce((s,b) => s + parseFloat(b.total_amount||0), 0);
@@ -3141,25 +3163,3 @@
                 actEvents=evts.filter(e=>{const k=`${e.type}|${e.ts}|${e.name}`;if(_seenAct.has(k))return false;_seenAct.add(k);return true;});
                 actPage = 1;
                 renderActivityFeed();
-            } catch(e) { if(list)list.innerHTML='<div style="padding:2rem;text-align:center;color:#ef4444">Failed to load activity</div>'; }
-        }
-        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
-        // ── THEME PERSISTENCE ──
-        (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
-        function toggleTheme(){
-            var isLight = document.body.classList.toggle('light-mode');
-            sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
-            var btn = document.getElementById('theme-btn');
-            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
-        }
-        // Set correct icon on load
-        document.addEventListener('DOMContentLoaded', function(){
-            var btn = document.getElementById('theme-btn');
-            if(btn) {
-                var isLight = document.body.classList.contains('light-mode');
-                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
-            }
-        });
-</script>
-</body>
-</html>
