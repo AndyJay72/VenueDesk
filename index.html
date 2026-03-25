@@ -1097,7 +1097,7 @@
     }
     body.light-mode .search-bar input { color: #1e293b !important; }
     body.light-mode .search-bar input::placeholder,
-    body.light-mode .sf-input::placeholder { color: #ffffff !important; }
+    body.light-mode .sf-input::placeholder { color: #94a3b8 !important; }
 
     body.light-mode .filter-btn {
       background: #ffffff !important;
@@ -1274,7 +1274,7 @@
       border-color: #e2e8f0 !important;
       color: #64748b !important;
     }
-    body.light-mode .date-badge { background: ##acc0a0 !important; color:#ffffff !important; }
+    body.light-mode .date-badge { background: #f1f5f9 !important; color: #64748b !important; }
     body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
     body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
     /* END VENUEDESK BRAND LIGHT THEME */
@@ -2965,7 +2965,33 @@
                 document.getElementById('modal-bh-outstanding').innerText = fmtCur(outstanding);
                 document.getElementById('modal-bh-outstanding').style.color = outstanding > 0 ? 'var(--warning)' : 'var(--success)';
                 stats.style.display = 'flex';
-                mine.sort((a,b) => new Date(b.booking_date) - new Date(a.booking_date));
+                mine.sort((a,b) => new Date(b.booking_date||b.date_from) - new Date(a.booking_date||a.date_from));
+
+                // Back-fill top modal fields from most recent booking when customer record lacks them
+                (function() {
+                    const latest = mine[0];
+                    if (!latest) return;
+                    const _fmtD = d => { try { return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return d||'—'; } };
+                    const _set = (id, val) => { const el = document.getElementById(id); if (el && (el.innerText === '—' || el.innerText === '--' || !el.innerText.trim())) el.innerText = val; };
+                    // Date
+                    const _df = (latest.date_from||latest.booking_date||'').split('T')[0];
+                    const _dt = (latest.date_to||'').split('T')[0];
+                    _set('m-date', (_df && _dt && _df !== _dt) ? _fmtD(_df)+' – '+_fmtD(_dt) : _df ? _fmtD(_df) : '—');
+                    // Time
+                    const _st = (latest.start_time||'').slice(0,5);
+                    const _et = (latest.end_time||'').slice(0,5);
+                    _set('m-time', (_st && _et) ? _st+' – '+_et : _st||'—');
+                    // Room
+                    _set('m-room', latest.room_name||'—');
+                    // Estimated cost
+                    const _cost = parseFloat(latest.total_amount||0);
+                    _set('m-cost', _cost > 0 ? '£'+_cost.toFixed(2) : '—');
+                    // Event type (fallback if customer record had none)
+                    if (latest.event_type) _set('m-event', latest.event_type);
+                    // Guest count fallback
+                    if (latest.guest_count) _set('m-guests', String(latest.guest_count));
+                })();
+
                 tbody.innerHTML = mine.map(b => {
                     const bal = parseFloat(b.balance_due||0);
                     const st  = b.status || 'unknown';
@@ -3239,6 +3265,8 @@
                     : (ev ? fmtD(ev) : '—');
             })();
             document.getElementById('m-guests').innerText = c.guest_count || c.guests_count || c.num_people || c.numPeople || '—';
+            document.getElementById('m-time').innerText  = '—';
+            document.getElementById('m-cost').innerText  = '—';
 
             // Parse ##ENQUIRY_META## from notes
             const _meta = parseEnquiryMeta(c.notes);
