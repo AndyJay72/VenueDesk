@@ -337,6 +337,297 @@
         body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
         @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
         </style>
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       VENUEDESK BRAND LIGHT THEME  — palette from venuedesk.html
+       Colours: --bg #f8fafc  --white #fff  --text #1e293b
+                --dark #0f172a  --muted #64748b  --border #e2e8f0
+                --indigo #6366f1  --indigo-d #4f46e5  --indigo-l #eef2ff
+                --green #10b981  --amber #f59e0b
+       ═══════════════════════════════════════════════════════════ */
+
+    /* ── Body ── */
+    body.light-mode {
+      background: linear-gradient(135deg, #f0f4ff 0%, #fafbff 60%, #eff6ff 100%) !important;
+      background-attachment: fixed !important;
+      color: #1e293b !important;
+    }
+
+    /* ── Sidebar ── */
+    body.light-mode aside {
+      background: #ffffff !important;
+      border-right: 1px solid #e2e8f0 !important;
+      box-shadow: 2px 0 16px rgba(99,102,241,.07) !important;
+    }
+    body.light-mode .brand { color: #0f172a !important; }
+    body.light-mode .nav-link { color: #64748b !important; font-weight: 500 !important; }
+    body.light-mode .nav-link:hover {
+      background: #eef2ff !important;
+      color: #6366f1 !important;
+    }
+    body.light-mode .nav-link.active {
+      background: #eef2ff !important;
+      color: #6366f1 !important;
+      border-left: 3px solid #6366f1 !important;
+      font-weight: 700 !important;
+    }
+    body.light-mode.sidebar-collapsed .nav-link:hover::after {
+      background: #ffffff !important;
+      color: #1e293b !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    /* ── Top bar / header ── */
+    body.light-mode header,
+    body.light-mode .top-bar {
+      background: rgba(255,255,255,0.92) !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+      backdrop-filter: blur(16px) !important;
+    }
+    body.light-mode .header-title h1,
+    body.light-mode header h1,
+    body.light-mode h1, body.light-mode h2,
+    body.light-mode h3, body.light-mode h4 { color: #0f172a !important; }
+
+    /* ── Cards & containers ── */
+    body.light-mode .card,
+    body.light-mode .table-container,
+    body.light-mode .metric-card,
+    body.light-mode .booking-card,
+    body.light-mode .glance-card,
+    body.light-mode .sum-card,
+    body.light-mode .table-wrap,
+    body.light-mode .section-container,
+    body.light-mode .outstanding-panel,
+    body.light-mode .act-feed,
+    body.light-mode .transaction-container,
+    body.light-mode .chart-card {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 2px 12px rgba(99,102,241,.08) !important;
+      color: #1e293b !important;
+    }
+    body.light-mode .card:hover {
+      box-shadow: 0 6px 28px rgba(99,102,241,.14) !important;
+      border-color: rgba(99,102,241,.22) !important;
+    }
+    body.light-mode .card::after { background: none !important; }
+
+    /* ── Stats ── */
+    body.light-mode .stat-value, body.light-mode .glance-val,
+    body.light-mode .sum-val, body.light-mode .metric-value { color: #0f172a !important; }
+    body.light-mode .stat-label, body.light-mode .glance-lbl,
+    body.light-mode .sum-lbl, body.light-mode .b-meta,
+    body.light-mode .db-month, body.light-mode .metric-info p,
+    body.light-mode .metric-label, body.light-mode .table-header-sub { color: #64748b !important; }
+
+    /* ── Tables ── */
+    body.light-mode .table-header,
+    body.light-mode thead tr,
+    body.light-mode th {
+      background: #f1f5f9 !important;
+      color: #64748b !important;
+      border-color: #e2e8f0 !important;
+      font-weight: 600 !important;
+    }
+    body.light-mode td { color: #1e293b !important; border-color: #f1f5f9 !important; }
+    body.light-mode tbody tr:hover,
+    body.light-mode .log-tbody tr:hover { background: #f8fafc !important; }
+    body.light-mode .clickable:hover { background: #eef2ff !important; }
+
+    /* ── Inputs & filters ── */
+    body.light-mode .search-bar,
+    body.light-mode .sf-input, body.light-mode .sf-select,
+    body.light-mode .f-input, body.light-mode .f-select,
+    body.light-mode .menu-toggle {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+    body.light-mode .search-bar input { color: #1e293b !important; }
+    body.light-mode .search-bar input::placeholder,
+    body.light-mode .sf-input::placeholder { color: #94a3b8 !important; }
+
+    body.light-mode .filter-btn {
+      background: #ffffff !important;
+      border: 1px solid #e2e8f0 !important;
+      color: #64748b !important;
+    }
+    body.light-mode .filter-btn:not(.active):hover {
+      background: #eef2ff !important;
+      border-color: rgba(99,102,241,.3) !important;
+      color: #6366f1 !important;
+    }
+    body.light-mode .filter-btn.active { border-color: transparent !important; }
+    body.light-mode .filter-requests.active,
+    body.light-mode .filter-outstanding.active { background: #f59e0b !important; color: #fff !important; box-shadow: 0 4px 14px rgba(245,158,11,.35) !important; }
+    body.light-mode .filter-upcoming.active { background: #10b981 !important; color: #fff !important; box-shadow: 0 4px 14px rgba(16,185,129,.35) !important; }
+    body.light-mode .filter-interactions.active,
+    body.light-mode .filter-customers.active { background: #6366f1 !important; color: #fff !important; box-shadow: 0 4px 14px rgba(99,102,241,.35) !important; }
+
+    /* ── Modals ── */
+    body.light-mode .pay-modal-card,
+    body.light-mode .modal-card,
+    body.light-mode .bd-modal-card,
+    body.light-mode .invoice-modal,
+    body.light-mode .receipt-card,
+    body.light-mode .log-int-card,
+    body.light-mode .qb-card {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 16px 48px rgba(99,102,241,.15) !important;
+      color: #1e293b !important;
+    }
+    body.light-mode .invoice-section-title { color: #0f172a !important; }
+    body.light-mode .invoice-header { border-color: #e2e8f0 !important; }
+    body.light-mode .invoice-body { background: transparent !important; }
+    body.light-mode .invoice-row .ilabel { color: #64748b !important; }
+    body.light-mode .invoice-row .ivalue { color: #1e293b !important; }
+    body.light-mode .invoice-total-row { background: #f1f5f9 !important; border-color: #e2e8f0 !important; }
+    body.light-mode .invoice-footer { border-color: #e2e8f0 !important; }
+
+    /* ── Customer / booking detail modal ── */
+    body.light-mode .detail-value {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+    body.light-mode .modal-edit-input {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+    body.light-mode .modal-edit-input:focus {
+      background: #ffffff !important;
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12) !important;
+    }
+    body.light-mode .bh-title,
+    body.light-mode .modal-int-title { color: #0f172a !important; }
+    body.light-mode .bh-stat {
+      background: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .bh-table td { color: #1e293b !important; }
+    body.light-mode .interaction-item {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .interaction-item-subject,
+    body.light-mode .interaction-item-notes { color: #1e293b !important; }
+
+    /* ── Log interaction form ── */
+    body.light-mode .log-form-input,
+    body.light-mode .log-form-select,
+    body.light-mode .log-form-textarea,
+    body.light-mode .log-int-info-value { 
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+    body.light-mode .log-int-title { color: #0f172a !important; }
+
+    /* ── Pay modal internals ── */
+    body.light-mode .pay-booking-info {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .pay-amount-input {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+    body.light-mode .info-row span { color: #64748b !important; }
+    body.light-mode .info-row strong { color: #0f172a !important; }
+
+    /* ── Booking cards ── */
+    body.light-mode .b-name,
+    body.light-mode .b-room { color: #0f172a !important; }
+    body.light-mode .b-meta { color: #64748b !important; }
+
+    /* ── Activity feed ── */
+    body.light-mode .act-name { color: #0f172a !important; }
+    body.light-mode .act-detail { color: #64748b !important; }
+    body.light-mode .act-time { color: #94a3b8 !important; }
+
+    /* ── Outstanding panel ── */
+    body.light-mode .outstanding-panel-header {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .outstanding-panel-title { color: #0f172a !important; }
+
+    /* ── Calendar overrides ── */
+    body.light-mode #cal-container {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .fc-col-header-cell {
+      background: #f1f5f9 !important;
+      color: #64748b !important;
+    }
+    body.light-mode .fc-list-day-cushion { background: #f1f5f9 !important; }
+    body.light-mode .fc-theme-standard td,
+    body.light-mode .fc-theme-standard th { border-color: #e2e8f0 !important; }
+    body.light-mode .fc-list-table td { color: #1e293b !important; border-color: #f1f5f9 !important; }
+    body.light-mode .fc-list-event-title a { color: #1e293b !important; }
+    body.light-mode .fc-toolbar-title { color: #0f172a !important; }
+    body.light-mode .fc-daygrid-day-number { color: #1e293b !important; }
+    body.light-mode .fc-daygrid-day.fc-day-today { background: #eef2ff !important; }
+    body.light-mode .fc-button-primary {
+      background: #6366f1 !important;
+      border-color: #6366f1 !important;
+    }
+    body.light-mode .fc-button-primary:hover { background: #4f46e5 !important; border-color: #4f46e5 !important; }
+    body.light-mode .fc-button-primary:not(.fc-button-active):not(:disabled) {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #64748b !important;
+    }
+    body.light-mode .modal-row { border-color: #f1f5f9 !important; }
+    body.light-mode .modal-label { color: #64748b !important; }
+    body.light-mode .modal-val { color: #0f172a !important; }
+    body.light-mode .e-pay-section,
+    body.light-mode .e-confirm-section {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .qb-input, body.light-mode .qb-select {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+
+    /* ── Accounts page ── */
+    body.light-mode .acc-metric-card {
+      background: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 2px 12px rgba(99,102,241,.08) !important;
+    }
+    body.light-mode .ref-mono { color: #6366f1 !important; }
+    body.light-mode .linked-ref { color: #6366f1 !important; }
+
+    /* ── Misc UI ── */
+    body.light-mode .theme-toggle {
+      background: #eef2ff !important;
+      border-color: rgba(99,102,241,.25) !important;
+      color: #6366f1 !important;
+    }
+    body.light-mode .theme-toggle:hover {
+      background: #e0e7ff !important;
+      border-color: #6366f1 !important;
+      color: #4f46e5 !important;
+    }
+    body.light-mode .live-clock {
+      background: rgba(255,255,255,.85) !important;
+      border-color: #e2e8f0 !important;
+      color: #64748b !important;
+    }
+    body.light-mode .date-badge { background: #f1f5f9 !important; color: #64748b !important; }
+    body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
+    body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+    /* END VENUEDESK BRAND LIGHT THEME */
+  </style>
 </head>
 <body>
 
@@ -391,6 +682,7 @@
         <button class="tab-btn"        onclick="switchTab('pricing')"><i class="fa-solid fa-sterling-sign"></i> Pricing Grid</button>
         <button class="tab-btn"        onclick="switchTab('services')"><i class="fa-solid fa-concierge-bell"></i> Services</button>
         <button class="tab-btn"        onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> Settings</button>
+        <button class="tab-btn"        onclick="switchTab('cancellation')"><i class="fa-solid fa-ban"></i> Cancellation Policy</button>
     </div>
 
     <!-- ═══════════════════════════════════════ -->
@@ -616,6 +908,109 @@
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════════ -->
+    <!-- CANCELLATION POLICY TAB                   -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-cancellation">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:960px;">
+
+            <!-- LEFT: Controls -->
+            <div>
+                <!-- Tier 1: Full Refund -->
+                <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--success);">
+                    <div class="card-title" style="color:var(--success);">
+                        <i class="fa-solid fa-circle-check"></i> Tier 1 — Full Refund
+                    </div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.25rem;line-height:1.6;">
+                        Customer receives a <strong style="color:var(--text-main)">100% refund</strong> when they cancel this many days or more before the booking date.
+                    </p>
+                    <div class="input-group">
+                        <label>Minimum days before booking</label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <input type="range" id="cancelFullDaysSlider" min="1" max="90" value="14"
+                                oninput="document.getElementById('cancelFullDaysVal').textContent=this.value;updateCancelPreview()"
+                                style="flex:1;accent-color:var(--success);">
+                            <span id="cancelFullDaysVal" style="min-width:36px;text-align:center;font-weight:700;font-size:1.1rem;color:var(--success);">14</span>
+                            <span style="color:var(--text-muted);font-size:0.85rem;">days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 2: Partial Refund -->
+                <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--warning);">
+                    <div class="card-title" style="color:var(--warning);">
+                        <i class="fa-solid fa-circle-half-stroke"></i> Tier 2 — Partial Refund
+                    </div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.25rem;line-height:1.6;">
+                        Customer receives a partial refund when they cancel between <span id="pv-tier2-range" style="color:var(--text-main);font-weight:600;">7–13 days</span> before the booking.
+                    </p>
+                    <div class="input-group">
+                        <label>Minimum days before booking</label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <input type="range" id="cancelPartialDaysSlider" min="1" max="60" value="7"
+                                oninput="document.getElementById('cancelPartialDaysVal').textContent=this.value;updateCancelPreview()"
+                                style="flex:1;accent-color:var(--warning);">
+                            <span id="cancelPartialDaysVal" style="min-width:36px;text-align:center;font-weight:700;font-size:1.1rem;color:var(--warning);">7</span>
+                            <span style="color:var(--text-muted);font-size:0.85rem;">days</span>
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top:1rem;">
+                        <label>Refund percentage — <span id="cancelPctLabel" style="color:var(--warning);">50%</span></label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <input type="range" id="cancelPctSlider" min="5" max="95" step="5" value="50"
+                                oninput="document.getElementById('cancelPctLabel').textContent=this.value+'%';document.getElementById('cancelPctVal').textContent=this.value;updateCancelPreview()"
+                                style="flex:1;accent-color:var(--warning);">
+                            <span id="cancelPctVal" style="min-width:36px;text-align:center;font-weight:700;font-size:1.1rem;color:var(--warning);">50</span>
+                            <span style="color:var(--text-muted);font-size:0.85rem;">%</span>
+                        </div>
+                        <!-- Pct track fill visual -->
+                        <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;" id="cancelPctBlocks"></div>
+                    </div>
+                </div>
+
+                <!-- Tier 3: No Refund -->
+                <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--danger);">
+                    <div class="card-title" style="color:var(--danger);">
+                        <i class="fa-solid fa-circle-xmark"></i> Tier 3 — No Refund
+                    </div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">
+                        Automatically applied when the customer cancels <strong id="pv-tier3-days" style="color:var(--danger);">within 7 days</strong> of the booking date. No manual setting required — this threshold is determined by Tier 2.
+                    </p>
+                </div>
+
+                <button class="btn btn-primary" id="saveCancelPolicyBtn" onclick="saveCancellationPolicy()" style="width:100%;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Cancellation Policy
+                </button>
+                <div id="cancelPolicyStatus" style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-muted);text-align:center;min-height:1.2em;"></div>
+            </div>
+
+            <!-- RIGHT: Live Preview -->
+            <div>
+                <div class="card" style="position:sticky;top:2rem;">
+                    <div class="card-title"><i class="fa-solid fa-eye"></i> Live Policy Preview</div>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.5rem;">This is how the policy will appear to your team when processing a cancellation.</p>
+
+                    <div id="cancelPreviewTiers" style="display:flex;flex-direction:column;gap:12px;">
+                        <!-- Rendered by updateCancelPreview() -->
+                    </div>
+
+                    <div style="margin-top:1.5rem;padding:1rem;background:rgba(0,0,0,0.2);border-radius:10px;border:1px solid var(--border);">
+                        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;margin-bottom:0.75rem;">Example: £500 booking</div>
+                        <div id="cancelExampleRows" style="display:flex;flex-direction:column;gap:6px;font-size:0.88rem;">
+                            <!-- Rendered by updateCancelPreview() -->
+                        </div>
+                    </div>
+
+                    <div style="margin-top:1.25rem;padding:10px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;font-size:0.8rem;color:var(--text-muted);line-height:1.5;">
+                        <i class="fa-solid fa-circle-info" style="color:var(--primary);margin-right:6px;"></i>
+                        Refund amounts are calculated at the time of cancellation. All cancellations are recorded with a unique <strong style="color:var(--text-main);">CANC-XXXXXX</strong> reference and appear on the Accounts page.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </main>
 
 <script>
@@ -638,6 +1033,7 @@ const API = {
     deletePricing:  BASE + '/delete-pricing',
     getSettings:    BASE + '/get-settings',
     updateSetting:  BASE + '/update-setting',
+    cancelBooking:  BASE + '/cancel-booking',
     getServices:    BASE + '/get-service-data',
     saveService:    BASE + '/save-service',
     deleteService:  BASE + '/delete-service',
@@ -706,6 +1102,7 @@ function switchTab(name) {
     if (name === 'pricing')  renderPricingGrid();
     if (name === 'services') syncServicesFromDb().then(renderServicesTable);
     if (name === 'settings') loadSettings();
+    if (name === 'cancellation') { loadSettings().then(loadCancellationPolicy); }
 }
 
 // Fetch services from DB API and merge into sessionStorage so DB-added services appear
@@ -1193,6 +1590,119 @@ async function saveBufferSetting() {
 }
 
 // ─────────────────────────────────────────────
+// CANCELLATION POLICY
+// ─────────────────────────────────────────────
+function updateCancelPreview() {
+    const fullDays = parseInt(document.getElementById('cancelFullDaysSlider').value) || 14;
+    const partDays = parseInt(document.getElementById('cancelPartialDaysSlider').value) || 7;
+    const pct      = parseInt(document.getElementById('cancelPctSlider').value) || 50;
+    const safePart = Math.min(partDays, fullDays - 1);
+
+    const rangeEl = document.getElementById('pv-tier2-range');
+    if (rangeEl) rangeEl.textContent = `${safePart}–${fullDays - 1} days`;
+    const tier3El = document.getElementById('pv-tier3-days');
+    if (tier3El) tier3El.textContent = `within ${safePart} day${safePart !== 1 ? 's' : ''}`;
+
+    const blocksEl = document.getElementById('cancelPctBlocks');
+    if (blocksEl) {
+        const filled = Math.round(pct / 5);
+        blocksEl.innerHTML = Array.from({length:20}, (_,i) =>
+            `<div style="width:22px;height:8px;border-radius:3px;background:${i < filled ? 'var(--warning)' : 'rgba(255,255,255,0.08)'};transition:background 0.2s;"></div>`
+        ).join('');
+    }
+
+    const tiersEl = document.getElementById('cancelPreviewTiers');
+    if (tiersEl) {
+        tiersEl.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i></div>
+                <div><div style="font-weight:700;color:var(--success);font-size:0.9rem;">${fullDays}+ days before</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Full refund — 100% returned</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-circle-half-stroke" style="color:var(--warning);"></i></div>
+                <div><div style="font-weight:700;color:var(--warning);font-size:0.9rem;">${safePart}–${fullDays - 1} days before</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Partial refund — ${pct}% returned</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i></div>
+                <div><div style="font-weight:700;color:var(--danger);font-size:0.9rem;">Within ${safePart} day${safePart !== 1 ? 's' : ''}</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">No refund — 0% returned</div></div>
+            </div>`;
+    }
+
+    const exEl = document.getElementById('cancelExampleRows');
+    if (exEl) {
+        const ex = 500;
+        exEl.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Cancel ${fullDays}+ days before</span>
+                <strong style="color:var(--success);">£${ex.toFixed(2)} refund</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Cancel ${safePart}–${fullDays - 1} days before</span>
+                <strong style="color:var(--warning);">£${(ex * pct / 100).toFixed(2)} refund</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+                <span style="color:var(--text-muted);">Cancel within ${safePart} day${safePart !== 1 ? 's' : ''}</span>
+                <strong style="color:var(--danger);">£0.00 refund</strong>
+            </div>`;
+    }
+}
+
+function _getSetting(key, fallback) {
+    const s = settings.find(x => x.key === key);
+    return s ? (parseFloat(s.value) || fallback) : fallback;
+}
+
+function loadCancellationPolicy() {
+    const fullDays = _getSetting('cancel_full_refund_days', 14);
+    const partDays = _getSetting('cancel_partial_refund_days', 7);
+    const pct      = _getSetting('cancel_partial_refund_pct', 50);
+
+    document.getElementById('cancelFullDaysSlider').value    = fullDays;
+    document.getElementById('cancelFullDaysVal').textContent = fullDays;
+    document.getElementById('cancelPartialDaysSlider').value = partDays;
+    document.getElementById('cancelPartialDaysVal').textContent = partDays;
+    document.getElementById('cancelPctSlider').value         = pct;
+    document.getElementById('cancelPctLabel').textContent    = pct + '%';
+    document.getElementById('cancelPctVal').textContent      = pct;
+    updateCancelPreview();
+}
+
+async function saveCancellationPolicy() {
+    const fullDays = parseInt(document.getElementById('cancelFullDaysSlider').value);
+    const partDays = parseInt(document.getElementById('cancelPartialDaysSlider').value);
+    const pct      = parseInt(document.getElementById('cancelPctSlider').value);
+
+    if (partDays >= fullDays) {
+        showToast('Partial refund threshold must be fewer days than full refund threshold', 'error');
+        return;
+    }
+    const btn = document.getElementById('saveCancelPolicyBtn');
+    const statusEl = document.getElementById('cancelPolicyStatus');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    statusEl.textContent = '';
+    try {
+        const save = async (key, value) => {
+            const r = await fetch(API.updateSetting, { method:'POST', headers:getAuthHeaders(), body:JSON.stringify({key, value}) });
+            if (!r.ok) throw new Error('Save failed: ' + key);
+        };
+        await save('cancel_full_refund_days',    fullDays);
+        await save('cancel_partial_refund_days', partDays);
+        await save('cancel_partial_refund_pct',  pct);
+        showToast('Cancellation policy saved');
+        statusEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Policy saved and active';
+        await loadSettings();
+        loadCancellationPolicy();
+    } catch(e) {
+        showToast('Failed to save policy', 'error');
+        statusEl.textContent = 'Save failed — please try again';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Cancellation Policy';
+    }
+}
+
+// ─────────────────────────────────────────────
 // ROOM HOURS (localStorage per tenant)
 // ─────────────────────────────────────────────
 function roomHoursKey()   { return 'vp_room_hours_' + (_TID() || '0'); }
@@ -1441,6 +1951,8 @@ async function init() {
     document.getElementById('rOpenTime').innerHTML = timeOpts;
     document.getElementById('rCloseTime').innerHTML = timeOpts;
     await Promise.all([loadRooms(), loadEventTypes(), loadPricing(), loadSettings()]);
+    loadCancellationPolicy();
+    updateCancelPreview();
 }
 
 init();
