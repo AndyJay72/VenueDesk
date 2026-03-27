@@ -1592,7 +1592,7 @@
             if(!currentModalBookingId){showToast('Booking ID not found — cancel from the Bookings page','error');return;}
             if(!confirm('Cancel this booking? This cannot be undone.'))return;
             try{
-                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId})});
+                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,tenant_id:parseInt(_CAL_TID())})});
                 if(res.ok){showToast('Booking cancelled','success');closeModal();setTimeout(()=>location.reload(),1500);}
                 else showToast('Error cancelling — try the Bookings page','error');
             }catch(e){showToast('Error: '+e.message,'error');}
