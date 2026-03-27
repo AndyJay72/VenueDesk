@@ -79,9 +79,12 @@
         td { padding: 13px 14px; border-bottom: 1px solid var(--border); color: var(--text-main); font-size: 0.9rem; vertical-align: middle; }
         tr.clickable:hover td { background: rgba(99,102,241,0.06); cursor: pointer; }
         .type-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
-        .type-deposit  { background: rgba(99,102,241,0.15); color: var(--primary); }
-        .type-full     { background: rgba(16,185,129,0.15); color: var(--success); }
-        .type-partial  { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .type-deposit      { background: rgba(99,102,241,0.15); color: var(--primary); }
+        .type-full         { background: rgba(16,185,129,0.15); color: var(--success); }
+        .type-partial      { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .type-cancellation { background: rgba(239,68,68,0.15);  color: var(--danger);  }
+        tr.is-cancellation td { color: rgba(239,68,68,0.85) !important; }
+        tr.is-cancellation { background: rgba(239,68,68,0.04) !important; }
         .type-balance  { background: rgba(16,185,129,0.15); color: var(--success); }
         .ref-mono { font-family: monospace; font-size: 0.82rem; color: var(--primary); }
         .linked-ref { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); }
@@ -845,9 +848,10 @@
         function typeClass(t, bDue) {
             if (!t) return '';
             t = t.toLowerCase();
-            if (t === 'deposit')  return 'type-deposit';
-            if (t === 'full')     return 'type-full';
-            if (t === 'partial')  return 'type-partial';
+            if (t === 'deposit')      return 'type-deposit';
+            if (t === 'full')         return 'type-full';
+            if (t === 'partial')      return 'type-partial';
+            if (t === 'cancellation') return 'type-cancellation';
             if (t === 'balance') {
                 return (parseFloat(bDue) > 0.005) ? 'type-partial' : 'type-full';
             }
@@ -857,9 +861,10 @@
         function typeLabel(t, bDue) {
             if (!t) return '—';
             t = t.toLowerCase();
-            if (t === 'deposit')  return 'Deposit';
-            if (t === 'full')     return 'Final Payment';
-            if (t === 'partial')  return 'Part Payment';
+            if (t === 'deposit')      return 'Deposit';
+            if (t === 'full')         return 'Final Payment';
+            if (t === 'partial')      return 'Part Payment';
+            if (t === 'cancellation') return 'Cancellation';
             if (t === 'balance') {
                 return (parseFloat(bDue) > 0.005) ? 'Part Payment' : 'Final Payment';
             }
@@ -917,17 +922,27 @@
                 return;
             }
             tbody.innerHTML = transactions.map((t, i) => {
-                const amt    = parseFloat(t.amount);
-                const color  = amt < 0 ? 'var(--danger)' : 'var(--success)';
-                const pDate  = t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
-                const bDate  = fmtTxDate(t);
-                const time   = (t.start_time && t.end_time) ? t.start_time + ' \u2013 ' + t.end_time : '';
-                const isLink = t.payment_type && t.payment_type.toLowerCase() !== 'deposit' && t.deposit_reference;
-                return '<tr class="clickable" onclick="showInvoice(' + i + ')">' +
+                const amt       = parseFloat(t.amount);
+                const isCancelled = (t.payment_type || '').toLowerCase() === 'cancellation';
+                const color     = (amt < 0 || isCancelled) ? 'var(--danger)' : 'var(--success)';
+                const pDate     = t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
+                const bDate     = fmtTxDate(t);
+                const time      = (t.start_time && t.end_time) ? t.start_time + ' \u2013 ' + t.end_time : '';
+                const isLink    = t.payment_type && t.payment_type.toLowerCase() !== 'deposit' && t.deposit_reference;
+                const rowClass  = 'clickable' + (isCancelled ? ' is-cancellation' : '');
+                // Reference: show CANC ref for cancellations, else normal ref
+                const refHtml   = isCancelled
+                    ? '<span class="ref-mono" style="color:var(--danger);">' + (t.reference_number || '—') + '</span>'
+                    : '<span class="ref-mono">' + (t.reference_number || '—') + '</span>';
+                // Linked To: show original booking ref or deposit ref
+                const linkedHtml = isCancelled && t.cancellation_booking_ref
+                    ? '<span class="linked-ref" title="Original booking">' + t.cancellation_booking_ref + '</span>'
+                    : (isLink ? '<span class="linked-ref">' + t.deposit_reference + '</span>' : '<span style="color:var(--text-muted); font-size:0.8rem;">—</span>');
+                return '<tr class="' + rowClass + '" onclick="showInvoice(' + i + ')">' +
                     '<td>' + pDate + '</td>' +
-                    '<td><span class="ref-mono">' + (t.reference_number || '—') + '</span></td>' +
-                    '<td>' + (isLink ? '<span class="linked-ref">' + t.deposit_reference + '</span>' : '<span style="color:var(--text-muted); font-size:0.8rem;">—</span>') + '</td>' +
-                    '<td>' + (t.customer_name || '—') + '</td>' +
+                    '<td>' + refHtml + '</td>' +
+                    '<td>' + linkedHtml + '</td>' +
+                    '<td>' + (t.customer_name || '—') + (isCancelled ? ' <span style="font-size:0.72rem;color:var(--danger);font-weight:700;">CANCELLED</span>' : '') + '</td>' +
                     '<td>' + (t.room_name     || '—') + '</td>' +
                     '<td>' + bDate + (time ? '<br><span style="font-size:0.78rem; color:var(--text-muted);">' + time + '</span>' : '') + '</td>' +
                     '<td><span class="type-badge ' + typeClass(t.payment_type, t.booking_balance_due) + '">' + typeLabel(t.payment_type, t.booking_balance_due) + '</span></td>' +
@@ -1006,6 +1021,31 @@
                 origRefRow.style.display = 'flex';
             } else {
                 origRefRow.style.display = 'none';
+            }
+
+            // Cancellation notice block
+            const isCancelled = (t.payment_type || '').toLowerCase() === 'cancellation';
+            let cancBanner = document.getElementById('invCancBanner');
+            if (!cancBanner) {
+                cancBanner = document.createElement('div');
+                cancBanner.id = 'invCancBanner';
+                cancBanner.style.cssText = 'margin-bottom:1rem;padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;display:flex;align-items:flex-start;gap:10px;';
+                const subtitleEl = document.getElementById('invSubtitle');
+                if (subtitleEl && subtitleEl.parentNode) subtitleEl.parentNode.insertBefore(cancBanner, subtitleEl.nextSibling);
+            }
+            if (isCancelled) {
+                const refundType = t.refund_type || (amt < 0 ? (Math.abs(amt) > 0 ? 'partial' : 'none') : 'none');
+                cancBanner.style.display = 'flex';
+                cancBanner.innerHTML = `<i class="fa-solid fa-ban" style="color:var(--danger);margin-top:2px;flex-shrink:0;"></i><div>
+                    <div style="font-weight:700;color:var(--danger);font-size:0.9rem;">Booking Cancelled</div>
+                    <div style="font-size:0.82rem;color:var(--text-muted);margin-top:3px;">
+                        ${t.cancellation_reason ? 'Reason: ' + t.cancellation_reason + '<br>' : ''}
+                        Cancellation ref: <strong style="color:var(--text-main);">${t.reference_number || '—'}</strong>
+                        ${t.cancellation_booking_ref ? ' · Original booking: <strong style="color:var(--text-main);">' + t.cancellation_booking_ref + '</strong>' : ''}
+                    </div>
+                </div>`;
+            } else {
+                cancBanner.style.display = 'none';
             }
 
             // Parse ##ENQUIRY_META## from notes for services/charges
