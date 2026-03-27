@@ -814,14 +814,8 @@
         let roomsChartInst  = null;
         let allTransactions = [];
 
-        function getAuthHeaders() {
-            const tid = sessionStorage.getItem('vp_tenant_id') || '';
-            return {
-                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-                'X-Tenant-ID': tid,
-                'X-Venue-ID':  tid
-            };
-        }
+        function getAuthHeaders() { return {}; }
+        function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
 
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
@@ -873,7 +867,7 @@
 
         async function loadAccounts() {
             try {
-                const response = await fetch(API_URL, { headers: getAuthHeaders() });
+                const response = await fetch(API_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
                 const json = await response.json();
                 const rootData     = json.data || json;
                 const metrics      = rootData.metrics      || {};
