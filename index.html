@@ -2184,37 +2184,31 @@
                 const mText = document.getElementById('m-membership-text');
                 const mPlan = document.getElementById('m-membership-plan');
                 if (!mWrap) return;
-                // Reset badge state for each customer open
-                mWrap.style.display = 'none';
-                document.getElementById('m-membership-badge').style.display = '';
+                // Always set customer context so Add Rule button works regardless of webhook state
+                window._rmCustomerId   = data.id;
+                window._rmCustomerName = data.full_name;
+                // Reset badge state for each customer open — show section, hide badge until confirmed member
+                mWrap.style.display = '';
+                document.getElementById('m-membership-badge').style.display = 'none';
+                mText.textContent = '';
+                mPlan.textContent = '';
                 try {
                     const tid = sessionStorage.getItem('vp_tenant_id') || '0';
                     const res = await fetch(
-                        'https://n8n.srv1090894.hstgr.cloud/webhook/get-memberships?tenant_id=' + tid + '&customer_id=' + (data.id || ''),
-                        { headers: getAuthHeaders() }
+                        'https://n8n.srv1090894.hstgr.cloud/webhook/get-memberships?tenant_id=' + tid + '&customer_id=' + (data.id || '')
                     );
-                    if (!res.ok) return;
+                    if (!res.ok) return; // section already visible with Add Rule; badge stays hidden
                     const members = await res.json();
                     const rows    = members.data || (Array.isArray(members) ? members : []);
                     const active  = rows.length > 0 ? rows[0] : null;
                     if (active) {
-                        mWrap.style.display = '';
+                        document.getElementById('m-membership-badge').style.display = 'inline-flex';
                         mText.textContent = 'Active Member';
                         mPlan.textContent = active.plan_name || '';
-                        // store customer_id and membership for recurring modal
-                        window._rmCustomerId      = data.id;
-                        window._rmCustomerName    = data.full_name;
-                        window._rmMembershipId    = active.membership_id;
-                    } else {
-                        // No active membership — show wrap with just the Add Rule button
-                        mWrap.style.display = '';
-                        mText.textContent = '';
-                        mPlan.textContent = '';
-                        document.getElementById('m-membership-badge').style.display = 'none';
-                        window._rmCustomerId   = data.id;
-                        window._rmCustomerName = data.full_name;
+                        window._rmMembershipId = active.membership_id;
                     }
-                } catch(e) { /* webhook not yet created — silent */ }
+                    // No active membership — section already showing with Add Rule, badge stays hidden
+                } catch(e) { /* webhook not yet active — section visible, badge hidden */ }
             })();
             document.getElementById('m-guests').innerText = data.guest_count || data.guests_count || '0';
 
