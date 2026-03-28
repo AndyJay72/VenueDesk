@@ -71,38 +71,45 @@
         /* ── Quick Booking Modal ── */
         .qb-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:4000;display:none;justify-content:center;align-items:flex-start;padding-top:2.5rem;overflow-y:auto}
         .qb-overlay.open{display:flex}
-        .qb-card{background:#1e293b;border:1px solid var(--border);width:96%;max-width:900px;border-radius:20px;padding:2rem;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;margin-bottom:2rem}
-        .qb-title{font-size:1.1rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
-        .qb-section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin:1rem 0 0.5rem;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.06)}
+        .qb-card{background:#1e293b;border:1px solid var(--border);width:96%;max-width:1100px;border-radius:20px;padding:0;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;margin-bottom:2rem;overflow:hidden}
+        .qb-header{padding:1.25rem 2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:1.1rem;font-weight:700}
+        .qb-container{display:flex;flex-wrap:wrap}
+        .qb-form-section{flex:1.6;padding:2rem;min-width:340px;max-height:82vh;overflow-y:auto}
+        .qb-summary-section{flex:1;padding:2rem;background:rgba(0,0,0,0.2);border-left:1px solid var(--border);display:flex;flex-direction:column;gap:1.25rem;min-width:260px}
+        .qb-summary-card{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:1.25rem}
+        .qb-total-big{font-size:1.75rem;font-weight:800;color:#34d399}
+        .qb-btn-stack{display:flex;flex-direction:column;gap:0.6rem;margin-top:auto}
+        .qb-section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin:1rem 0 0.5rem;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.06);display:block}
         .qb-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem}
         .qb-full{grid-column:1/-1}
         .qb-label{font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px}
         .qb-input,.qb-select{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text-main);padding:9px 12px;font-size:0.88rem;font-family:inherit;width:100%;outline:none;min-height:unset}
         .qb-input:focus,.qb-select:focus{border-color:var(--primary)}
         .qb-select option{background:#1e293b}
+        .qb-time-input{padding:7px 8px;min-width:0;flex:1}
         .qb-avail-box{border-radius:8px;padding:9px 13px;font-size:0.83rem;margin-top:0.75rem}
         .qb-avail-idle{background:rgba(255,255,255,0.04);color:var(--text-muted)}
         .qb-avail-checking{background:rgba(99,102,241,0.12);color:#818cf8}
         .qb-avail-available{background:rgba(16,185,129,0.12);color:#34d399}
         .qb-avail-unavailable{background:rgba(239,68,68,0.12);color:#f87171}
         .qb-cap-warning{background:rgba(245,158,11,0.12);color:#fbbf24;border-radius:8px;padding:7px 12px;font-size:0.82rem;margin-top:0.5rem}
-        .qb-payment-box{background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:1rem;margin-top:1rem}
-        .qb-total-display{display:flex;justify-content:space-between;align-items:center;font-size:1rem;margin-bottom:0.25rem}
-        .qb-total-display strong{font-size:1.3rem;color:#34d399}
-        .qb-breakdown{font-size:0.78rem;color:var(--text-muted);min-height:1.1em}
-        .qb-btn-row{display:flex;gap:10px;margin-top:0.75rem;flex-wrap:wrap}
-        .qb-btn-cancel{background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-muted);padding:11px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600}
-        .qb-btn-deposit{flex:1;background:#6366f1;border:none;color:white;padding:11px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.82rem;white-space:nowrap}
+        .qb-breakdown{font-size:0.78rem;color:var(--text-muted);min-height:1.1em;border-top:1px solid var(--border);padding-top:0.75rem;margin-top:0.75rem;line-height:1.6}
+        .qb-room-times{display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 8px 6px 28px;background:rgba(0,0,0,0.15);border-radius:6px}
+        .qb-day-time-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .qb-btn-cancel{background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600;width:100%;text-align:center}
+        .qb-btn-deposit{background:#6366f1;border:none;color:white;padding:11px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.82rem;white-space:nowrap;width:100%}
         .qb-btn-deposit:disabled,.qb-btn-full:disabled{opacity:0.4;cursor:not-allowed}
-        .qb-btn-full{flex:1;background:#10b981;border:none;color:white;padding:11px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.82rem}
-        .qb-btn-pending{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.85rem}
+        .qb-btn-full{background:#10b981;border:none;color:white;padding:11px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.82rem;width:100%}
+        .qb-btn-pending{background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-muted);padding:10px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.85rem;width:100%}
         .qb-btn-pending:hover{border-color:var(--primary);color:var(--primary)}
         body.light-mode .qb-card{background:#fff;border-color:rgba(0,0,0,0.12);color:#0f172a}
+        body.light-mode .qb-summary-section{background:#f8fafc;border-left-color:rgba(0,0,0,0.08)}
+        body.light-mode .qb-summary-card{background:#fff;border-color:rgba(0,0,0,0.1)}
         body.light-mode .qb-input,body.light-mode .qb-select{background:rgba(0,0,0,0.04);border-color:rgba(0,0,0,0.15);color:#0f172a}
         body.light-mode .qb-section-label{color:#64748b;border-bottom-color:rgba(0,0,0,0.08)}
-        body.light-mode .qb-payment-box{background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.08)}
         body.light-mode .qb-avail-idle{background:rgba(0,0,0,0.04);color:#64748b}
-        body.light-mode .qb-total-display strong{color:#059669}
+        body.light-mode .qb-total-big{color:#059669}
+        @media(max-width:760px){.qb-container{flex-direction:column}.qb-summary-section{border-left:none;border-top:1px solid var(--border)}.qb-btn-stack{margin-top:0}.qb-form-section{max-height:none}}
         /* ── Blocked Dates Modal ── */
         .bd-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:3000;display:none;justify-content:center;align-items:flex-start;padding-top:3rem;overflow-y:auto}
         .bd-modal-overlay.open{display:flex}
@@ -124,14 +131,14 @@
         body.light-mode .bd-item-label{color:#0f172a}
         .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:2000;display:none;justify-content:center;align-items:center}
         .modal-overlay.open{display:flex}
-        .modal-card{background:#1e293b;border:1px solid var(--border);width:97%;max-width:1340px;border-radius:20px;padding:2rem;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;max-height:92vh;overflow-y:auto}
-        .modal-body-cols{display:flex;gap:0;align-items:flex-start}
-        .modal-col-info{flex:0 0 auto;width:420px;min-width:0}
-        .modal-col-divider{width:1px;background:var(--border);margin:0 1.5rem;align-self:stretch;flex-shrink:0}
-        .modal-col-action{flex:1;min-width:200px;display:flex;flex-direction:column}
-        .modal-col-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.82rem;gap:10px;padding:2.5rem 1rem;border:1px dashed rgba(148,163,184,0.18);border-radius:12px;text-align:center;min-height:200px}
-        .modal-col-placeholder i{font-size:2rem;opacity:0.3}
-        .modal-col-action-title{font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+        .modal-card{background:#1e293b;border:1px solid var(--border);width:97%;max-width:640px;border-radius:20px;padding:2rem;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;max-height:92vh;overflow-y:auto}
+        .modal-body-cols{display:block}
+        .modal-col-info{width:100%}
+        .modal-col-divider{display:none}
+        .modal-col-action{display:none}
+        .modal-col-placeholder{display:none}
+        .modal-col-placeholder i{display:none}
+        .modal-col-action-title{display:none}
         @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         .modal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:1rem}
         .modal-title{font-size:1.15rem;font-weight:700;line-height:1.3;flex:1;padding-right:1rem}
@@ -182,7 +189,7 @@
         body.light-mode .e-action-confirm{background:rgba(245,158,11,0.1);color:#d97706}
         body.light-mode .e-cs-submit{background:#d97706;color:#fff}
         body.light-mode .e-pay-section{background:rgba(0,0,0,0.04);border-color:rgba(0,0,0,0.1)}
-        @media(max-width:860px){.modal-body-cols{flex-direction:column}.modal-col-info{width:100%}.modal-col-divider{width:100%;height:1px;margin:1rem 0;align-self:auto}}
+        @media(max-width:860px){.modal-col-info{width:100%}}
         .overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:90}
         .overlay.active{display:block}
         @media(max-width:768px){
@@ -813,7 +820,6 @@
                 <button class="modal-close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body-cols">
-                <!-- Left column: Booking Info -->
                 <div class="modal-col-info">
                     <div class="modal-row"><span class="modal-label"><i class="fa-solid fa-user" style="margin-right:6px;opacity:0.6"></i>Customer</span><span class="modal-val" id="e-customer">&#x2014;</span></div>
                     <div class="modal-row"><span class="modal-label"><i class="fa-solid fa-envelope" style="margin-right:6px;opacity:0.6"></i>Email</span><span class="modal-val" id="e-email" style="font-size:0.82rem">&#x2014;</span></div>
@@ -840,16 +846,8 @@
                         <button id="e-cancel-btn" class="e-action-cancel" onclick="cancelBookingFromModal()"><i class="fa-solid fa-ban"></i> Cancel</button>
                     </div>
                     <button class="close-btn" onclick="closeModal()" style="margin-top:10px">Close</button>
-                </div>
-                <!-- Divider -->
-                <div class="modal-col-divider"></div>
-                <!-- Right column: Action Panel -->
-                <div class="modal-col-action">
-                    <div class="modal-col-action-title" id="e-panel-title" style="display:none"></div>
-                    <div class="modal-col-placeholder" id="e-action-placeholder">
-                        <i class="fa-solid fa-hand-pointer"></i>
-                        <span>Select an action<br><span style="font-size:0.72rem;opacity:0.65">Use the buttons on the left<br>to manage this booking</span></span>
-                    </div>
+                    <!-- Action panels (below buttons) -->
+                    <div id="e-panel-title" style="display:none;font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:16px;padding-bottom:8px;border-bottom:1px solid var(--border)"></div>
                     <div id="e-pay-section" class="e-pay-section">
                         <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;"><i class="fa-solid fa-coins" style="margin-right:6px;color:#f59e0b"></i>Record Balance Payment</div>
                         <!-- Booking summary -->
@@ -905,125 +903,161 @@
     <!-- QUICK BOOKING REQUEST MODAL -->
     <div id="qbModal" class="qb-overlay" onclick="if(event.target.id==='qbModal')closeQbModal()">
         <div class="qb-card">
-            <div class="qb-title">
+            <div class="qb-header">
                 <span><i class="fa-solid fa-calendar-plus" style="color:var(--primary);margin-right:8px"></i> New Booking</span>
-                <button onclick="closeQbModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;min-height:unset">&times;</button>
+                <button onclick="closeQbModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:0">&times;</button>
             </div>
-            <div class="qb-section-label">Customer Details</div>
-            <div class="qb-grid">
-                <div class="qb-full">
-                    <label class="qb-label">Customer Name *</label>
-                    <input type="text" id="qb-customerName" class="qb-input" placeholder="Full name">
-                </div>
-                <div>
-                    <label class="qb-label">Phone *</label>
-                    <input type="tel" id="qb-customerPhone" class="qb-input" placeholder="+44...">
-                </div>
-                <div>
-                    <label class="qb-label">Email</label>
-                    <input type="email" id="qb-customerEmail" class="qb-input" placeholder="email@example.com">
-                </div>
-            </div>
-            <div class="qb-section-label">Event Details</div>
-            <div class="qb-grid">
-                <div>
-                    <label class="qb-label">Room *</label>
-                    <select id="qb-roomSelect" class="qb-select" onchange="qbOnRoomChange()">
-                        <option value="">Select room...</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="qb-label">Event Type</label>
-                    <select id="qb-eventType" class="qb-select" onchange="qbCalculateCost()">
-                        <option value="">Select type...</option>
-                    </select>
-                </div>
-                <div class="qb-full" id="qb-extra-rooms-outer" style="display:none">
-                    <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Additional Rooms <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.7">(optional — select any extra rooms for this booking)</span></div>
-                    <div id="qb-extra-rooms-list" style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:6px 10px"></div>
-                </div>
-                <div class="qb-full">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.83rem;color:var(--text-muted);margin-bottom:8px">
-                        <input type="checkbox" id="qb-multiDayToggle" onchange="qbToggleMultiDay()" style="width:auto;margin:0">
-                        Multi-day booking
-                    </label>
-                    <div id="qb-single-date-row">
-                        <label class="qb-label">Date *</label>
-                        <input type="date" id="qb-eventDate" class="qb-input" onchange="qbOnDateChange()">
-                    </div>
-                    <div id="qb-multi-date-row" style="display:none;grid-template-columns:1fr 1fr;gap:0.75rem">
-                        <div>
-                            <label class="qb-label">From *</label>
-                            <input type="date" id="qb-dateFrom" class="qb-input" onchange="qbOnDateChange()">
+            <div class="qb-container">
+                <!-- LEFT: Form -->
+                <div class="qb-form-section">
+                    <span class="qb-section-label">Customer Details</span>
+                    <div class="qb-grid">
+                        <div class="qb-full">
+                            <label class="qb-label">Customer Name *</label>
+                            <input type="text" id="qb-customerName" class="qb-input" placeholder="Full name">
                         </div>
                         <div>
-                            <label class="qb-label">To *</label>
-                            <input type="date" id="qb-dateTo" class="qb-input" onchange="qbOnDateChange()">
+                            <label class="qb-label">Phone *</label>
+                            <input type="tel" id="qb-customerPhone" class="qb-input" placeholder="+44...">
+                        </div>
+                        <div>
+                            <label class="qb-label">Email</label>
+                            <input type="email" id="qb-customerEmail" class="qb-input" placeholder="email@example.com">
                         </div>
                     </div>
-                </div>
-                <div>
-                    <label class="qb-label">Start Time *</label>
-                    <select id="qb-startTime" class="qb-select" onchange="qbOnDateChange()"></select>
-                </div>
-                <div>
-                    <label class="qb-label">End Time *</label>
-                    <select id="qb-endTime" class="qb-select" onchange="qbOnDateChange()"></select>
-                </div>
-                <div>
-                    <label class="qb-label">Guests</label>
-                    <input type="number" id="qb-guestCount" class="qb-input" min="1" placeholder="e.g. 50" oninput="qbOnRoomChange()">
-                </div>
-                <div>
-                    <label class="qb-label">Notes</label>
-                    <input type="text" id="qb-notes" class="qb-input" placeholder="Optional notes or requirements">
-                </div>
-            </div>
-            <div id="qb-availStatus" class="qb-avail-box qb-avail-idle"><span id="qb-availText">Fill in room, date &amp; times to check availability.</span></div>
-            <div id="qb-guestCapWarning" class="qb-cap-warning" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span id="qb-guestCapMsg"></span></div>
-            <div id="qb-services-wrap" style="margin:0.6rem 0"></div>
-            <div class="qb-payment-box">
-                <div class="qb-section-label" style="margin-top:0">Payment</div>
-                <div class="qb-total-display">
-                    <span>Estimated Total</span>
-                    <strong id="qb-totalDisplay">£0.00</strong>
-                </div>
-                <div id="qb-costBreakdown" class="qb-breakdown"></div>
-                <div class="qb-grid" style="margin-top:0.75rem">
-                    <div>
-                        <label class="qb-label">Payment Method</label>
-                        <select id="qb-payMethodSelect" class="qb-select">
-                            <option value="Cash">Cash</option>
-                            <option value="Card">Card</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Other">Other</option>
-                        </select>
+
+                    <span class="qb-section-label">Room &amp; Schedule</span>
+                    <div class="qb-grid">
+                        <div>
+                            <label class="qb-label">Primary Room *</label>
+                            <select id="qb-roomSelect" class="qb-select" onchange="qbOnRoomChange()">
+                                <option value="">Select room...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="qb-label">Event Type</label>
+                            <select id="qb-eventType" class="qb-select" onchange="qbCalculateCost()">
+                                <option value="">Select type...</option>
+                            </select>
+                        </div>
+                        <!-- Additional rooms with per-room time pickers -->
+                        <div class="qb-full" id="qb-extra-rooms-outer" style="display:none">
+                            <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">
+                                Additional Rooms
+                                <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.7"> — each gets its own time slot when checked</span>
+                            </div>
+                            <div id="qb-extra-rooms-list" style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:6px 10px"></div>
+                        </div>
+                        <!-- Date -->
+                        <div class="qb-full">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.83rem;color:var(--text-muted);margin-bottom:8px">
+                                <input type="checkbox" id="qb-multiDayToggle" onchange="qbToggleMultiDay()" style="width:auto;margin:0">
+                                Multi-day booking
+                            </label>
+                            <div id="qb-single-date-row">
+                                <label class="qb-label">Date *</label>
+                                <input type="date" id="qb-eventDate" class="qb-input" onchange="qbOnDateChange()">
+                            </div>
+                            <div id="qb-multi-date-row" style="display:none;grid-template-columns:1fr 1fr;gap:0.75rem">
+                                <div>
+                                    <label class="qb-label">From *</label>
+                                    <input type="date" id="qb-dateFrom" class="qb-input" onchange="qbOnDateChange()">
+                                </div>
+                                <div>
+                                    <label class="qb-label">To *</label>
+                                    <input type="date" id="qb-dateTo" class="qb-input" onchange="qbOnDateChange()">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Global start/end (primary room, or default for all) -->
+                        <div>
+                            <label class="qb-label">Start Time *</label>
+                            <select id="qb-startTime" class="qb-select" onchange="qbOnDateChange()"></select>
+                        </div>
+                        <div>
+                            <label class="qb-label">End Time *</label>
+                            <select id="qb-endTime" class="qb-select" onchange="qbOnDateChange()"></select>
+                        </div>
+                        <!-- Per-day time slots (multi-day) -->
+                        <div class="qb-full" id="qb-day-times-outer" style="display:none">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                                <span style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Daily Time Slots</span>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-muted);cursor:pointer">
+                                    <input type="checkbox" id="qb-sameTimesToggle" checked onchange="qbToggleSameTimes()" style="width:auto;margin:0;min-height:unset">
+                                    Same times every day
+                                </label>
+                            </div>
+                            <div id="qb-day-times-list" style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:8px 10px"></div>
+                        </div>
+                        <div>
+                            <label class="qb-label">Guests</label>
+                            <input type="number" id="qb-guestCount" class="qb-input" min="1" placeholder="e.g. 50" oninput="qbOnRoomChange()">
+                        </div>
+                        <div>
+                            <label class="qb-label">Notes</label>
+                            <input type="text" id="qb-notes" class="qb-input" placeholder="Optional notes">
+                        </div>
                     </div>
+                    <div id="qb-availStatus" class="qb-avail-box qb-avail-idle"><span id="qb-availText">Fill in room, date &amp; times to check availability.</span></div>
+                    <div id="qb-guestCapWarning" class="qb-cap-warning" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span id="qb-guestCapMsg"></span></div>
+                    <div id="qb-services-wrap" style="margin:0.6rem 0"></div>
+                </div>
+
+                <!-- RIGHT: Summary -->
+                <div class="qb-summary-section">
                     <div>
-                        <label class="qb-label">Amount Paid (£)</label>
-                        <input type="number" id="qb-payAmount" class="qb-input" min="0" step="0.01" placeholder="0.00">
+                        <span class="qb-section-label" style="margin-top:0">Payment Summary</span>
+                        <div class="qb-summary-card">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <span style="font-size:0.85rem;color:var(--text-muted);font-weight:500">Estimated Total</span>
+                                <strong class="qb-total-big" id="qb-totalDisplay">£0.00</strong>
+                            </div>
+                            <div id="qb-costBreakdown" class="qb-breakdown">Select a room to see pricing</div>
+                        </div>
+                    </div>
+                    <!-- Override price -->
+                    <div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted)">
+                            <input type="checkbox" id="qb-overrideToggle" onchange="qbTogglePriceOverride()" style="width:auto;margin:0">
+                            Override price manually
+                        </label>
+                        <div id="qb-overrideRow" style="display:none;margin-top:6px">
+                            <label class="qb-label">Override Total (£)</label>
+                            <input type="number" id="qb-overrideAmount" class="qb-input" min="0" step="0.01" placeholder="Custom total..." oninput="qbApplyOverride()">
+                        </div>
+                    </div>
+                    <!-- Payment -->
+                    <div>
+                        <span class="qb-section-label" style="margin-top:0">Payment</span>
+                        <div class="qb-grid" style="margin-top:0.5rem">
+                            <div>
+                                <label class="qb-label">Method</label>
+                                <select id="qb-payMethodSelect" class="qb-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="qb-label">Amount Paid (£)</label>
+                                <input type="number" id="qb-payAmount" class="qb-input" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="qb-btn-stack">
+                        <button class="qb-btn-full" id="qb-btn-full" onclick="qbSubmitBooking('full')" disabled><i class="fa-solid fa-check-circle"></i> Pay Full</button>
+                        <button class="qb-btn-deposit" id="qb-btn-deposit" onclick="qbSubmitBooking('deposit')" disabled><i class="fa-solid fa-circle-half-stroke"></i> Take Deposit (<span id="qb-depositLabel">30%</span>)</button>
+                        <button class="qb-btn-pending" id="qb-btn-pending" onclick="qbSubmitBooking('pending')"><i class="fa-solid fa-paper-plane"></i> Submit as Pending</button>
+                        <button class="qb-btn-cancel" onclick="closeQbModal()">Cancel</button>
                     </div>
                 </div>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted);margin-top:0.6rem">
-                    <input type="checkbox" id="qb-overrideToggle" onchange="qbTogglePriceOverride()" style="width:auto;margin:0">
-                    Override price manually
-                </label>
-                <div id="qb-overrideRow" style="display:none;margin-top:6px">
-                    <label class="qb-label">Override Total (£)</label>
-                    <input type="number" id="qb-overrideAmount" class="qb-input" min="0" step="0.01" placeholder="Enter custom total..." oninput="qbApplyOverride()">
-                </div>
-            </div>
-            <div class="qb-btn-row" style="margin-top:1rem">
-                <button class="qb-btn-cancel" onclick="closeQbModal()">Cancel</button>
-                <button class="qb-btn-deposit" id="qb-btn-deposit" onclick="qbSubmitBooking('deposit')" disabled><i class="fa-solid fa-circle-half-stroke"></i> Deposit (<span id="qb-depositLabel">30%</span>)</button>
-                <button class="qb-btn-full" id="qb-btn-full" onclick="qbSubmitBooking('full')" disabled><i class="fa-solid fa-check-circle"></i> Pay Full</button>
-            </div>
-            <div class="qb-btn-row">
-                <button class="qb-btn-pending" id="qb-btn-pending" onclick="qbSubmitBooking('pending')" style="flex:1"><i class="fa-solid fa-paper-plane"></i> Submit as Pending Request</button>
             </div>
         </div>
     </div>
     <!-- qb Conflict Modal -->
+        <!-- qb Conflict Modal -->
     <div id="qb-conflictModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:5000;justify-content:center;align-items:center">
         <div style="background:#1e293b;border:1px solid #ef4444;border-radius:16px;padding:2rem;max-width:420px;width:92%;text-align:center">
             <div style="font-size:2rem;margin-bottom:0.75rem">⚠️</div>
@@ -1197,8 +1231,8 @@
             if(startStr)setTimeout(qbCheckAvailability,350);
         }
         function closeQbModal(){document.getElementById('qbModal').classList.remove('open');}
-        function qbToggleMultiDay(){const m=document.getElementById('qb-multiDayToggle').checked;document.getElementById('qb-single-date-row').style.display=m?'none':'block';document.getElementById('qb-multi-date-row').style.display=m?'grid':'none';qbOnDateChange();}
-        function qbOnDateChange(){qbCalculateCost();qbCheckAvailability();}
+        function qbToggleMultiDay(){const m=document.getElementById('qb-multiDayToggle').checked;document.getElementById('qb-single-date-row').style.display=m?'none':'block';document.getElementById('qb-multi-date-row').style.display=m?'grid':'none';qbRenderDayTimes();qbOnDateChange();}
+        function qbOnDateChange(){qbCalculateCost();qbCheckAvailability();qbRenderDayTimes();}
         function qbGetDates(){const m=document.getElementById('qb-multiDayToggle').checked;if(m)return{from:document.getElementById('qb-dateFrom').value,to:document.getElementById('qb-dateTo').value};const d=document.getElementById('qb-eventDate').value;return{from:d,to:d};}
         function qbDayCount(from,to){if(!from||!to)return 1;const d=Math.round((new Date(to+'T00:00:00')-new Date(from+'T00:00:00'))/86400000)+1;return d>0?d:1;}
         function qbOnRoomChange(){
@@ -1303,7 +1337,8 @@
             if(type!=='pending'){
                 try{const cr=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT})});const cj=await cr.json();const avail=cj.available===true||cj.available==='true'||cj.status==='available';if(!avail){qbShowConflictModal();return;}}catch(e){}
             }
-            const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload()};
+            const daySchedule=qbGetDayTimesPayload();
+            const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload(),day_schedule:daySchedule};
             ['qb-btn-deposit','qb-btn-full','qb-btn-pending'].forEach(id=>document.getElementById(id).disabled=true);
             try{
                 const res=await fetch(BOOKING_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -1323,20 +1358,117 @@
             const others=qbRoomsData.filter(r=>(r.name||r.room_name||r.id)!==primaryName);
             if(!others.length){outer.style.display='none';return;}
             outer.style.display='block';
-            list.innerHTML=others.map(r=>{const rName=r.name||r.room_name||r.id;const rate=parseFloat(r.day_rate||0);return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><input type="checkbox" id="qb-xr-${r.id}" style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="qbCalculateCost()"><label for="qb-xr-${r.id}" style="flex:1;cursor:pointer;font-size:0.87rem">${svcEsc(rName)}<span style="color:var(--text-muted);font-size:0.76rem"> &mdash; ${fmt(rate)}/hr</span></label></div>`;}).join('');
+            list.innerHTML=others.map(r=>{
+                const rName=r.name||r.room_name||r.id;
+                const rate=parseFloat(r.day_rate||0);
+                const defStart=document.getElementById('qb-startTime').value||'09:00';
+                const defEnd=document.getElementById('qb-endTime').value||'17:00';
+                return `<div style="border-bottom:1px solid rgba(255,255,255,0.04);padding:5px 0">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <input type="checkbox" id="qb-xr-${r.id}" style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="qbOnExtraRoomToggle('${r.id}')">
+                        <label for="qb-xr-${r.id}" style="flex:1;cursor:pointer;font-size:0.87rem">${svcEsc(rName)}<span style="color:var(--text-muted);font-size:0.76rem"> &mdash; ${fmt(rate)}/hr</span></label>
+                    </div>
+                    <div class="qb-room-times" id="qb-xr-times-${r.id}" style="display:none">
+                        <span style="font-size:0.75rem;color:var(--text-muted);min-width:54px">Time slot:</span>
+                        <input type="time" id="qb-xr-start-${r.id}" value="${defStart}" class="qb-input qb-time-input" onchange="qbCalculateCost()">
+                        <span style="color:var(--text-muted);font-size:0.82rem;flex-shrink:0">→</span>
+                        <input type="time" id="qb-xr-end-${r.id}" value="${defEnd}" class="qb-input qb-time-input" onchange="qbCalculateCost()">
+                    </div>
+                </div>`;
+            }).join('');
         }
-        function qbGetExtraRoomsTotal(hrs,days){
+        function qbOnExtraRoomToggle(roomId){
+            const cb=document.getElementById('qb-xr-'+roomId);
+            const times=document.getElementById('qb-xr-times-'+roomId);
+            if(times)times.style.display=(cb&&cb.checked)?'flex':'none';
+            qbCalculateCost();
+        }
+        function qbRenderDayTimes(){
+            const multiDay=document.getElementById('qb-multiDayToggle').checked;
+            const outer=document.getElementById('qb-day-times-outer');
+            const list=document.getElementById('qb-day-times-list');
+            const sameToggle=document.getElementById('qb-sameTimesToggle');
+            if(!outer||!list){return;}
+            if(!multiDay){outer.style.display='none';return;}
+            const{from,to}=qbGetDates();
+            if(!from||!to||from>=to){outer.style.display='none';return;}
+            const same=sameToggle?sameToggle.checked:true;
+            const days=[];
+            let d=new Date(from+'T00:00:00');
+            const endD=new Date(to+'T00:00:00');
+            while(d<=endD&&days.length<=31){days.push(d.toISOString().split('T')[0]);d.setDate(d.getDate()+1);}
+            if(days.length<=1){outer.style.display='none';return;}
+            outer.style.display='block';
+            const defS=document.getElementById('qb-startTime').value||'09:00';
+            const defE=document.getElementById('qb-endTime').value||'17:00';
+            if(same){
+                list.innerHTML=`<div style="font-size:0.8rem;color:var(--text-muted);padding:4px 2px"><i class="fa-solid fa-circle-info" style="margin-right:5px;opacity:0.6"></i>Using the Start/End times above for all ${days.length} days. Uncheck "Same times every day" to set times per day.</div>`;
+            } else {
+                const fmtDay=ds=>{const d=new Date(ds+'T00:00:00');return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});};
+                list.innerHTML=days.map(ds=>`<div class="qb-day-time-row">
+                    <span style="font-size:0.81rem;min-width:92px;color:var(--text-muted)">${fmtDay(ds)}</span>
+                    <input type="time" id="qb-dt-start-${ds}" value="${defS}" class="qb-input qb-time-input" onchange="qbCalculateCost()">
+                    <span style="color:var(--text-muted);font-size:0.82rem;flex-shrink:0">→</span>
+                    <input type="time" id="qb-dt-end-${ds}" value="${defE}" class="qb-input qb-time-input" onchange="qbCalculateCost()">
+                </div>`).join('');
+            }
+        }
+        function qbToggleSameTimes(){qbRenderDayTimes();qbCalculateCost();}
+        function qbGetExtraRoomsTotal(primaryHrs,days){
+            // Uses per-room time inputs when available, else falls back to primary room hours
             let total=0;
-            qbRoomsData.forEach(r=>{const cb=document.getElementById('qb-xr-'+r.id);if(!cb||!cb.checked)return;total+=parseFloat(r.day_rate||0)*hrs*days;});
+            qbRoomsData.forEach(r=>{
+                const cb=document.getElementById('qb-xr-'+r.id);
+                if(!cb||!cb.checked)return;
+                const startEl=document.getElementById('qb-xr-start-'+r.id);
+                const endEl=document.getElementById('qb-xr-end-'+r.id);
+                let hrs=primaryHrs;
+                if(startEl&&endEl&&startEl.value&&endEl.value){
+                    const[sh,sm]=startEl.value.split(':').map(Number);
+                    const[eh,em]=endEl.value.split(':').map(Number);
+                    const h=(eh*60+em-sh*60-sm)/60;
+                    if(h>0)hrs=h;
+                }
+                total+=parseFloat(r.day_rate||0)*hrs*days;
+            });
             return{total};
         }
         function qbGetRoomsPayload(){
             const primaryName=document.getElementById('qb-roomSelect').value;
             const rooms=[];
             const pr=qbRoomsData.find(r=>(r.name||r.room_name||r.id)===primaryName);
-            if(pr)rooms.push({room_id:pr.id,room_name:primaryName});
-            qbRoomsData.forEach(r=>{const cb=document.getElementById('qb-xr-'+r.id);if(!cb||!cb.checked)return;rooms.push({room_id:r.id,room_name:r.name||r.room_name||r.id});});
+            const globalStart=document.getElementById('qb-startTime').value||'09:00';
+            const globalEnd=document.getElementById('qb-endTime').value||'17:00';
+            if(pr)rooms.push({room_id:pr.id,room_name:primaryName,start_time:globalStart,end_time:globalEnd});
+            qbRoomsData.forEach(r=>{
+                const cb=document.getElementById('qb-xr-'+r.id);
+                if(!cb||!cb.checked)return;
+                const startEl=document.getElementById('qb-xr-start-'+r.id);
+                const endEl=document.getElementById('qb-xr-end-'+r.id);
+                const st=(startEl&&startEl.value)?startEl.value:globalStart;
+                const et=(endEl&&endEl.value)?endEl.value:globalEnd;
+                rooms.push({room_id:r.id,room_name:r.name||r.room_name||r.id,start_time:st,end_time:et});
+            });
             return rooms;
+        }
+        function qbGetDayTimesPayload(){
+            const multiDay=document.getElementById('qb-multiDayToggle').checked;
+            if(!multiDay)return null;
+            const{from,to}=qbGetDates();
+            if(!from||!to||from>=to)return null;
+            const sameToggle=document.getElementById('qb-sameTimesToggle');
+            const same=sameToggle?sameToggle.checked:true;
+            const days=[];
+            let d=new Date(from+'T00:00:00');
+            const endD=new Date(to+'T00:00:00');
+            while(d<=endD&&days.length<=31){days.push(d.toISOString().split('T')[0]);d.setDate(d.getDate()+1);}
+            const globalStart=document.getElementById('qb-startTime').value||'09:00';
+            const globalEnd=document.getElementById('qb-endTime').value||'17:00';
+            return days.map(ds=>{
+                const st=same?globalStart:(document.getElementById('qb-dt-start-'+ds)||{value:globalStart}).value||globalStart;
+                const et=same?globalEnd:(document.getElementById('qb-dt-end-'+ds)||{value:globalEnd}).value||globalEnd;
+                return{date:ds,start_time:st,end_time:et};
+            });
         }
         function renderCsRooms(p){
             const list=document.getElementById('cs-rooms-list');
