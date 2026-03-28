@@ -1444,97 +1444,112 @@
 
     <!-- MODAL -->
     <div id="custModal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-card" onclick="event.stopPropagation()" style="max-width:900px;">
-            <div class="modal-header">
+        <div class="modal-card" onclick="event.stopPropagation()" style="max-width:1100px;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+            <!-- Header -->
+            <div class="modal-header" style="padding:1.25rem 2rem;flex-shrink:0">
                 <div class="modal-title"><i class="fa-solid fa-id-card" style="color:var(--primary)"></i> Customer Details</div>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-            <div class="modal-grid">
-                <div class="detail-group" style="grid-column: span 2;"><label>Customer ID</label><div class="detail-value" id="m-id" style="font-family: monospace; color: var(--warning);">--</div></div>
-                <div class="detail-group"><label>Full Name</label><div class="detail-value" id="m-name">--</div></div>
-                <div class="detail-group"><label>Status</label><div class="detail-value" id="m-status" style="text-transform: uppercase;">--</div></div>
-                <div class="detail-group"><label>Email</label><div class="detail-value" id="m-email">--</div></div>
-                <div class="detail-group"><label>Phone</label><div class="detail-value" id="m-phone">--</div></div>
-                <div class="detail-group"><label>Event Type</label><div class="detail-value" id="m-event">--</div></div>
-                <div class="detail-group"><label>Room(s)</label><div class="detail-value" id="m-room">--</div></div>
-                <div class="detail-group"><label>Date</label><div class="detail-value" id="m-date">--</div></div>
-                <div class="detail-group"><label>Time</label><div class="detail-value" id="m-time">--</div></div>
-                <div class="detail-group"><label>Guests</label><div class="detail-value" id="m-guests">--</div></div>
-                <div class="detail-group"><label>Estimated Cost</label><div class="detail-value" id="m-cost">--</div></div>
-                <div class="detail-group" id="m-services-wrap" style="grid-column:span 2;display:none;"><label>Requested Services</label><div class="detail-value" id="m-services">--</div></div>
-                <div class="detail-group" style="grid-column:span 2;"><label>Notes</label><div class="detail-value" id="m-notes" style="white-space:pre-wrap;line-height:1.6;">--</div></div>
-            </div>
-
-            <!-- BOOKING HISTORY -->
-            <div class="bh-section" id="bh-section">
-                <div class="bh-title"><i class="fa-solid fa-history" style="color:var(--primary)"></i> Booking History</div>
-                <div id="modal-bh-loading" class="bh-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
-                <div id="modal-bh-stats" class="bh-stats" style="display:none">
-                    <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-count">0</div><div class="bh-stat-lbl">Total Bookings</div></div>
-                    <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-spend">&pound;0</div><div class="bh-stat-lbl">Total Spend</div></div>
-                    <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-outstanding">&pound;0</div><div class="bh-stat-lbl">Outstanding</div></div>
-                </div>
-                <div id="modal-bh-table-wrap" style="display:none; overflow-x:auto;">
-                    <table class="bh-table">
-                        <thead><tr><th>Date</th><th>Room</th><th>Total</th><th>Balance</th><th>Status</th><th style="width:40px;"></th></tr></thead>
-                        <tbody id="modal-bh-tbody"></tbody>
-                    </table>
-                </div>
-                <div id="modal-bh-empty" style="display:none; text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">No bookings found — click a booking row above to log an interaction</div>
-            </div>
-
-            <!-- CUSTOMER INTERACTIONS -->
-            <div class="modal-int-section" id="modal-int-section">
-                <div class="modal-int-title" style="justify-content:space-between;">
-                    <span><i class="fa-solid fa-comments" style="color:#8b5cf6;"></i> Customer Interactions</span>
-                    <button class="btn-modal" style="font-size:0.78rem;padding:5px 12px;" onclick="exportCustInteractions()"><i class="fa-solid fa-download"></i> Export</button>
-                </div>
-                <div id="modal-int-loading" class="bh-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
-                <div id="modal-int-list"></div>
-                <div id="modal-int-none" class="no-interactions" style="display:none;">No interactions logged yet — click a booking row above to log one</div>
-            </div>
-
-            <!-- INLINE CONFIRM SECTION (shown for pending requests) -->
-            <div id="m-confirm-section" style="display:none;margin-top:1rem;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.28);border-radius:12px;padding:1.25rem">
-                <div style="font-size:0.8rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px"><i class="fa-solid fa-calendar-check" style="margin-right:6px"></i>Confirm Booking &amp; Take Deposit</div>
-                <div id="m-confirm-services-wrap">
-                    <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Add-on Services</div>
-                    <div id="m-confirm-services-list"></div>
-                </div>
-                <div id="m-confirm-rooms-wrap">
-                    <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Rooms <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.7">(select all rooms for this booking)</span></div>
-                    <div id="m-confirm-rooms-list"><span style="color:var(--text-muted);font-size:0.82rem">Loading rooms…</span></div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-                    <div>
-                        <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Total Price (£) *</label>
-                        <input id="m-confirm-total" type="number" min="0" step="0.01" placeholder="e.g. 450.00" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none" oninput="mConfirmCalcDeposit()">
+            <!-- Two-column body -->
+            <div style="display:flex;flex-wrap:wrap;flex:1;min-height:0">
+                <!-- LEFT: Customer info + history + interactions -->
+                <div style="flex:1.6;min-width:320px;padding:1.75rem 2rem;max-height:78vh;overflow-y:auto;border-right:1px solid var(--border)">
+                    <div class="modal-grid">
+                        <div class="detail-group" style="grid-column: span 2;"><label>Customer ID</label><div class="detail-value" id="m-id" style="font-family: monospace; color: var(--warning);">--</div></div>
+                        <div class="detail-group"><label>Full Name</label><div class="detail-value" id="m-name">--</div></div>
+                        <div class="detail-group"><label>Status</label><div class="detail-value" id="m-status" style="text-transform: uppercase;">--</div></div>
+                        <div class="detail-group"><label>Email</label><div class="detail-value" id="m-email">--</div></div>
+                        <div class="detail-group"><label>Phone</label><div class="detail-value" id="m-phone">--</div></div>
+                        <div class="detail-group"><label>Event Type</label><div class="detail-value" id="m-event">--</div></div>
+                        <div class="detail-group"><label>Room(s)</label><div class="detail-value" id="m-room">--</div></div>
+                        <div class="detail-group"><label>Date</label><div class="detail-value" id="m-date">--</div></div>
+                        <div class="detail-group"><label>Time</label><div class="detail-value" id="m-time">--</div></div>
+                        <div class="detail-group"><label>Guests</label><div class="detail-value" id="m-guests">--</div></div>
+                        <div class="detail-group"><label>Estimated Cost</label><div class="detail-value" id="m-cost">--</div></div>
+                        <div class="detail-group" id="m-services-wrap" style="grid-column:span 2;display:none;"><label>Requested Services</label><div class="detail-value" id="m-services">--</div></div>
+                        <div class="detail-group" style="grid-column:span 2;"><label>Notes</label><div class="detail-value" id="m-notes" style="white-space:pre-wrap;line-height:1.6;">--</div></div>
                     </div>
-                    <div>
-                        <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Deposit Taken (£)</label>
-                        <input id="m-confirm-deposit" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none">
+
+                    <!-- BOOKING HISTORY -->
+                    <div class="bh-section" id="bh-section">
+                        <div class="bh-title"><i class="fa-solid fa-history" style="color:var(--primary)"></i> Booking History</div>
+                        <div id="modal-bh-loading" class="bh-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                        <div id="modal-bh-stats" class="bh-stats" style="display:none">
+                            <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-count">0</div><div class="bh-stat-lbl">Total Bookings</div></div>
+                            <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-spend">&pound;0</div><div class="bh-stat-lbl">Total Spend</div></div>
+                            <div class="bh-stat"><div class="bh-stat-val" id="modal-bh-outstanding">&pound;0</div><div class="bh-stat-lbl">Outstanding</div></div>
+                        </div>
+                        <div id="modal-bh-table-wrap" style="display:none; overflow-x:auto;">
+                            <table class="bh-table">
+                                <thead><tr><th>Date</th><th>Room</th><th>Total</th><th>Balance</th><th>Status</th><th style="width:40px;"></th></tr></thead>
+                                <tbody id="modal-bh-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div id="modal-bh-empty" style="display:none; text-align:center; padding:1rem; color:var(--text-muted); font-size:0.85rem;">No bookings found — click a booking row above to log an interaction</div>
                     </div>
-                    <div style="grid-column:1/-1">
-                        <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Payment Method</label>
-                        <select id="m-confirm-method" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none">
-                            <option value="cash">Cash</option>
-                            <option value="card">Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="bacs">BACS</option>
-                        </select>
+
+                    <!-- CUSTOMER INTERACTIONS -->
+                    <div class="modal-int-section" id="modal-int-section">
+                        <div class="modal-int-title" style="justify-content:space-between;">
+                            <span><i class="fa-solid fa-comments" style="color:#8b5cf6;"></i> Customer Interactions</span>
+                            <button class="btn-modal" style="font-size:0.78rem;padding:5px 12px;" onclick="exportCustInteractions()"><i class="fa-solid fa-download"></i> Export</button>
+                        </div>
+                        <div id="modal-int-loading" class="bh-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                        <div id="modal-int-list"></div>
+                        <div id="modal-int-none" class="no-interactions" style="display:none;">No interactions logged yet — click a booking row above to log one</div>
+                    </div>
+                    <div class="modal-actions" id="modal-buttons">
+                        <button class="btn-modal btn-close" onclick="closeModal()">Close</button>
                     </div>
                 </div>
-                <div style="display:flex;gap:10px;margin-top:12px">
-                    <button id="m-confirm-btn" onclick="submitConfirmFromDashboard()" style="flex:1;padding:10px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88rem">
-                        <i class="fa-solid fa-check"></i> Confirm &amp; Record Deposit
-                    </button>
-                    <button onclick="submitConfirmNoDepositDashboard()" style="flex:1;padding:10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.82rem">
-                        Confirm Without Deposit
-                    </button>
+
+                <!-- RIGHT: Confirm booking sidebar -->
+                <div style="flex:1;min-width:280px;padding:1.75rem 1.75rem;background:rgba(0,0,0,0.15);max-height:78vh;overflow-y:auto;display:flex;flex-direction:column;gap:1rem">
+                    <!-- Placeholder shown when no pending action -->
+                    <div id="m-confirm-placeholder" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.82rem;gap:10px;padding:2.5rem 1rem;border:1px dashed rgba(148,163,184,0.18);border-radius:12px;text-align:center">
+                        <i class="fa-solid fa-hand-pointer" style="font-size:2rem;opacity:0.3"></i>
+                        <span>Confirm Booking<br><span style="font-size:0.72rem;opacity:0.65">Opens automatically<br>for pending requests</span></span>
+                    </div>
+                    <!-- CONFIRM SECTION (shown for pending requests) -->
+                    <div id="m-confirm-section" style="display:none">
+                        <div style="font-size:0.8rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px"><i class="fa-solid fa-calendar-check" style="margin-right:6px"></i>Confirm Booking &amp; Take Deposit</div>
+                        <div id="m-confirm-services-wrap">
+                            <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Add-on Services</div>
+                            <div id="m-confirm-services-list"></div>
+                        </div>
+                        <div id="m-confirm-rooms-wrap" style="margin-top:10px">
+                            <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Rooms &amp; Time Slots <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.7">(tick rooms — set time per room)</span></div>
+                            <div id="m-confirm-rooms-list" style="background:rgba(0,0,0,0.15);border:1px solid var(--border);border-radius:8px;padding:6px 10px"><span style="color:var(--text-muted);font-size:0.82rem">Loading rooms…</span></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+                            <div>
+                                <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Total Price (£) *</label>
+                                <input id="m-confirm-total" type="number" min="0" step="0.01" placeholder="e.g. 450.00" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none" oninput="mConfirmCalcDeposit()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Deposit Taken (£)</label>
+                                <input id="m-confirm-deposit" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none">
+                            </div>
+                            <div style="grid-column:1/-1">
+                                <label style="font-size:0.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Payment Method</label>
+                                <select id="m-confirm-method" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.88rem;outline:none">
+                                    <option value="cash">Cash</option>
+                                    <option value="card">Card</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="bacs">BACS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+                            <button id="m-confirm-btn" onclick="submitConfirmFromDashboard()" style="width:100%;padding:10px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88rem">
+                                <i class="fa-solid fa-check"></i> Confirm &amp; Record Deposit
+                            </button>
+                            <button onclick="submitConfirmNoDepositDashboard()" style="width:100%;padding:10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.82rem">
+                                Confirm Without Deposit
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-actions" id="modal-buttons">
-                <button class="btn-modal btn-close" onclick="closeModal()">Close</button>
             </div>
         </div>
     </div>
@@ -2335,6 +2350,11 @@
             const total = Math.round((roomTotal + svcTotal) * 100) / 100;
             const tot = document.getElementById('m-confirm-total');
             if (tot) { tot.value = total > 0 ? total.toFixed(2) : ''; mConfirmCalcDeposit(); }
+            // Show confirm panel, hide placeholder
+            const ph = document.getElementById('m-confirm-placeholder');
+            const cs = document.getElementById('m-confirm-section');
+            if (ph) ph.style.display = 'none';
+            if (cs) cs.style.display = 'block';
         }
 
         // Keep old name as alias so any other code calling mUpdateServicesTotal still works
@@ -2379,16 +2399,30 @@
                 const reqRoomIds = meta && meta.rooms ? meta.rooms.map(r => String(r.room_id)) : [];
                 const primaryRoom = currentPendingData ? (currentPendingData.room_name || '') : '';
 
+                // Get date/time from the request for defaults
+                const reqDate   = currentPendingData ? (currentPendingData.booking_date || currentPendingData.date_from || '') : '';
+                const reqStart  = currentPendingData ? (currentPendingData.start_time || '09:00') : '09:00';
+                const reqEnd    = currentPendingData ? (currentPendingData.end_time   || '17:00') : '17:00';
+
                 list.innerHTML = _dashRoomsData.map(r => {
                     const rName = r.name || r.room_name || r.id;
                     const rate  = parseFloat(r.day_rate || 0);
+                    const rid   = esc(String(r.id));
                     const chk   = reqRoomIds.length
                         ? (reqRoomIds.includes(String(r.id)) ? 'checked' : '')
                         : (rName === primaryRoom ? 'checked' : '');
-                    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)">`
-                        + `<input type="checkbox" id="mdr-${esc(String(r.id))}" ${chk} style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="mRecalcTotal()">`
-                        + `<label for="mdr-${esc(String(r.id))}" style="flex:1;cursor:pointer;font-size:0.87rem">${esc(rName)}`
-                        + `<span style="color:var(--text-muted);font-size:0.76rem"> — £${rate.toFixed(2)}/hr</span></label></div>`;
+                    return `<div style="border-bottom:1px solid rgba(255,255,255,0.05);padding:5px 0">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <input type="checkbox" id="mdr-${rid}" ${chk} style="width:auto;margin:0;min-height:unset;cursor:pointer" onchange="mdrToggleTime('${rid}');mRecalcTotal()">
+                            <label for="mdr-${rid}" style="flex:1;cursor:pointer;font-size:0.87rem">${esc(rName)}<span style="color:var(--text-muted);font-size:0.76rem"> — £${rate.toFixed(2)}/hr</span></label>
+                        </div>
+                        <div id="mdr-times-${rid}" style="display:${chk?'flex':'none'};align-items:center;gap:8px;margin-top:6px;padding:6px 8px 4px 26px;background:rgba(0,0,0,0.15);border-radius:6px">
+                            <span style="font-size:0.75rem;color:var(--text-muted);min-width:54px">Time slot:</span>
+                            <input type="time" id="mdr-start-${rid}" value="${reqStart}" style="flex:1;padding:6px 8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;color:white;font-size:0.82rem;outline:none;min-height:unset" onchange="mRecalcTotal()">
+                            <span style="color:var(--text-muted);font-size:0.82rem;flex-shrink:0">→</span>
+                            <input type="time" id="mdr-end-${rid}" value="${reqEnd}" style="flex:1;padding:6px 8px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;color:white;font-size:0.82rem;outline:none;min-height:unset" onchange="mRecalcTotal()">
+                        </div>
+                    </div>`;
                 }).join('');
 
                 // Trigger total calc once rooms are rendered
@@ -2402,7 +2436,22 @@
             return _dashRoomsData.filter(r => {
                 const cb = document.getElementById('mdr-' + r.id);
                 return cb && cb.checked;
-            }).map(r => ({ room_id: r.id, room_name: r.name || r.room_name || r.id }));
+            }).map(r => {
+                const rid = String(r.id);
+                const startEl = document.getElementById('mdr-start-' + rid);
+                const endEl   = document.getElementById('mdr-end-'   + rid);
+                return {
+                    room_id:    r.id,
+                    room_name:  r.name || r.room_name || r.id,
+                    start_time: startEl ? startEl.value : (currentPendingData && currentPendingData.start_time) || '09:00',
+                    end_time:   endEl   ? endEl.value   : (currentPendingData && currentPendingData.end_time)   || '17:00'
+                };
+            });
+        }
+        function mdrToggleTime(rid) {
+            const cb    = document.getElementById('mdr-' + rid);
+            const times = document.getElementById('mdr-times-' + rid);
+            if (times) times.style.display = (cb && cb.checked) ? 'flex' : 'none';
         }
 
         async function submitConfirmFromDashboard() {
