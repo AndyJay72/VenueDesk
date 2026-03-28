@@ -1468,6 +1468,18 @@
                         <div class="detail-group"><label>Estimated Cost</label><div class="detail-value" id="m-cost">--</div></div>
                         <div class="detail-group" id="m-services-wrap" style="grid-column:span 2;display:none;"><label>Requested Services</label><div class="detail-value" id="m-services">--</div></div>
                         <div class="detail-group" style="grid-column:span 2;"><label>Notes</label><div class="detail-value" id="m-notes" style="white-space:pre-wrap;line-height:1.6;">--</div></div>
+                        <!-- Membership badge -->
+                        <div class="detail-group" id="m-membership-wrap" style="grid-column:span 2;display:none;">
+                            <label>Membership</label>
+                            <div id="m-membership-badge" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;font-size:0.82rem;font-weight:700;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;">
+                                <i class="fa-solid fa-repeat"></i>
+                                <span id="m-membership-text">Active Member</span>
+                                <span id="m-membership-plan" style="font-weight:400;opacity:0.8;"></span>
+                            </div>
+                            <button id="m-create-recurring-btn" onclick="openRecurringModal()" style="margin-left:10px;padding:5px 14px;border:1px solid rgba(99,102,241,0.5);border-radius:8px;background:transparent;color:#a5b4fc;font-size:0.8rem;cursor:pointer;font-weight:600;">
+                                <i class="fa-solid fa-plus"></i> Add Rule
+                            </button>
+                        </div>
                     </div>
 
                     <!-- BOOKING HISTORY -->
@@ -1665,6 +1677,114 @@
     </div>
 
     <!-- PAYMENT MODAL -->
+    <!-- CREATE RECURRING BOOKING MODAL -->
+    <div id="recurringModal" class="modal-overlay" onclick="if(event.target.id==='recurringModal')closeRecurringModal()" style="z-index:10001;">
+        <div style="background:var(--bg-card,#1e293b);border:1px solid var(--border);border-radius:20px;padding:2rem;width:95%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                <div style="font-size:1rem;font-weight:700;color:var(--text-main,#eef2ff);display:flex;align-items:center;gap:10px;">
+                    <i class="fa-solid fa-repeat" style="color:#a5b4fc"></i> Create Recurring Membership Booking
+                </div>
+                <button onclick="closeRecurringModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                <div style="grid-column:span 2;">
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Customer</label>
+                    <div id="rm-customer-name" style="font-weight:600;font-size:0.95rem;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);">—</div>
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Plan Name</label>
+                    <input type="text" id="rm-plan-name" placeholder="e.g. Weekly Hall Hire" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;">
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Policy Template</label>
+                    <select id="rm-policy" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;">
+                        <option value="B">B — Recurring Member</option>
+                        <option value="A">A — Standard One-off</option>
+                        <option value="C">C — Community / Charity</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Room</label>
+                    <select id="rm-room" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;">
+                        <option value="">Loading rooms…</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Day of Week</label>
+                    <select id="rm-dow" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;">
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                        <option value="0">Sunday</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Start Time</label>
+                    <input type="time" id="rm-start-time" value="18:00" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="rmCalcPricing()">
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">End Time</label>
+                    <input type="time" id="rm-end-time" value="20:00" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="rmCalcPricing()">
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Rate per Session (£)</label>
+                    <input type="number" id="rm-rate" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="rmCalcPricing()">
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Membership Start Date</label>
+                    <input type="date" id="rm-start-date" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;">
+                </div>
+
+                <div>
+                    <label style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Notice Period (days)</label>
+                    <input type="number" id="rm-notice" value="30" min="0" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.88rem;outline:none;box-sizing:border-box;">
+                </div>
+            </div>
+
+            <!-- Pricing Comparison -->
+            <div id="rm-pricing-card" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;padding:14px 16px;margin-bottom:1.25rem;display:none;">
+                <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Pricing Comparison</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div style="text-align:center;padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;">
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">One-off Rate</div>
+                        <div id="rm-oneoff-price" style="font-size:1.3rem;font-weight:800;color:var(--text-main);">—</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">per session</div>
+                    </div>
+                    <div style="text-align:center;padding:12px;background:rgba(99,102,241,0.12);border-radius:8px;border:1px solid rgba(99,102,241,0.3);">
+                        <div style="font-size:0.75rem;color:#a5b4fc;margin-bottom:4px;">Membership Rate</div>
+                        <div id="rm-member-price" style="font-size:1.3rem;font-weight:800;color:#a5b4fc;">—</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">per session</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px;font-size:0.82rem;color:var(--text-muted);text-align:center;">
+                    Monthly total: <strong id="rm-monthly-total" style="color:var(--text-main);">—</strong>
+                    &nbsp;·&nbsp; <span id="rm-savings-note" style="color:#4ade80;"></span>
+                </div>
+            </div>
+
+            <div id="rm-status" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;min-height:1.2em;"></div>
+
+            <div style="display:flex;gap:10px;">
+                <button onclick="submitRecurringMembership()" style="flex:1;padding:12px;background:var(--primary,#4f46e5);color:white;border:none;border-radius:10px;font-weight:700;font-size:0.92rem;cursor:pointer;">
+                    <i class="fa-solid fa-repeat"></i> Create Membership &amp; Schedule
+                </button>
+                <button onclick="closeRecurringModal()" style="padding:12px 20px;background:rgba(0,0,0,0.2);color:var(--text-muted);border:1px solid var(--border);border-radius:10px;font-weight:600;cursor:pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="payMod" class="pay-modal-overlay" onclick="if(event.target===this)closePayModal()">
         <div class="pay-modal-card" onclick="event.stopPropagation()">
             <div class="pay-modal-header">
@@ -2057,6 +2177,45 @@
             document.getElementById('m-time').innerText = (st && et) ? st.slice(0,5) + ' – ' + et.slice(0,5) : '—';
 
             document.getElementById('m-status').innerText = data.status || 'N/A';
+
+            // Membership badge — check if customer has an active membership
+            (async function() {
+                const mWrap = document.getElementById('m-membership-wrap');
+                const mText = document.getElementById('m-membership-text');
+                const mPlan = document.getElementById('m-membership-plan');
+                if (!mWrap) return;
+                // Reset badge state for each customer open
+                mWrap.style.display = 'none';
+                document.getElementById('m-membership-badge').style.display = '';
+                try {
+                    const tid = sessionStorage.getItem('vp_tenant_id') || '0';
+                    const res = await fetch(
+                        'https://n8n.srv1090894.hstgr.cloud/webhook/get-memberships?tenant_id=' + tid + '&customer_id=' + (data.id || ''),
+                        { headers: getAuthHeaders() }
+                    );
+                    if (!res.ok) return;
+                    const members = await res.json();
+                    const rows    = members.data || (Array.isArray(members) ? members : []);
+                    const active  = rows.length > 0 ? rows[0] : null;
+                    if (active) {
+                        mWrap.style.display = '';
+                        mText.textContent = 'Active Member';
+                        mPlan.textContent = active.plan_name || '';
+                        // store customer_id and membership for recurring modal
+                        window._rmCustomerId      = data.id;
+                        window._rmCustomerName    = data.full_name;
+                        window._rmMembershipId    = active.membership_id;
+                    } else {
+                        // No active membership — show wrap with just the Add Rule button
+                        mWrap.style.display = '';
+                        mText.textContent = '';
+                        mPlan.textContent = '';
+                        document.getElementById('m-membership-badge').style.display = 'none';
+                        window._rmCustomerId   = data.id;
+                        window._rmCustomerName = data.full_name;
+                    }
+                } catch(e) { /* webhook not yet created — silent */ }
+            })();
             document.getElementById('m-guests').innerText = data.guest_count || data.guests_count || '0';
 
             // Estimated cost
@@ -3605,6 +3764,119 @@
                 btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
             }
         });
+
+// ─────────────────────────────────────────────
+// RECURRING MEMBERSHIP MODAL
+// ─────────────────────────────────────────────
+let _recurringRooms = [];
+
+async function openRecurringModal() {
+    // Set customer name
+    document.getElementById('rm-customer-name').textContent = window._rmCustomerName || '—';
+    // Set today as default start date
+    document.getElementById('rm-start-date').value = new Date().toISOString().split('T')[0];
+    // Always reload rooms fresh (ensures active rooms are current)
+    try {
+        const tid = sessionStorage.getItem('vp_tenant_id') || '0';
+        const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/get-rooms?tenant_id=' + tid);
+        if (res.ok) {
+            const d = await res.json();
+            _recurringRooms = d.data || (Array.isArray(d) ? d : []);
+            _recurringRooms = _recurringRooms.filter(r => r.is_active !== false);
+            const sel = document.getElementById('rm-room');
+            sel.innerHTML = _recurringRooms.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            rmCalcPricing();
+        }
+    } catch(e) { /* silent */ }
+    document.getElementById('rm-status').textContent = '';
+    document.getElementById('recurringModal').classList.add('open');
+}
+
+function closeRecurringModal() {
+    document.getElementById('recurringModal').classList.remove('open');
+}
+
+function rmCalcPricing() {
+    const rate = parseFloat(document.getElementById('rm-rate')?.value || 0);
+    const st   = document.getElementById('rm-start-time')?.value || '00:00';
+    const et   = document.getElementById('rm-end-time')?.value   || '00:00';
+    const card = document.getElementById('rm-pricing-card');
+    if (!card || rate <= 0) { if(card) card.style.display='none'; return; }
+
+    // Hours per session
+    const [sh, sm] = st.split(':').map(Number);
+    const [eh, em] = et.split(':').map(Number);
+    const hrs = Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60);
+
+    // Assume a rough one-off rate ~20% higher than member rate
+    const oneOffRate = parseFloat((rate * 1.2).toFixed(2));
+    // 4.33 avg weeks per month
+    const sessionsPerMonth = 4.33;
+    const monthlyTotal = parseFloat((rate * sessionsPerMonth).toFixed(2));
+    const saving = parseFloat(((oneOffRate - rate) * sessionsPerMonth).toFixed(2));
+
+    document.getElementById('rm-oneoff-price').textContent = '£' + oneOffRate.toFixed(2);
+    document.getElementById('rm-member-price').textContent = '£' + rate.toFixed(2);
+    document.getElementById('rm-monthly-total').textContent = '£' + monthlyTotal.toFixed(2);
+    document.getElementById('rm-savings-note').textContent  = saving > 0 ? 'saves ~£' + saving.toFixed(2) + '/mo vs one-off' : '';
+    card.style.display = '';
+}
+
+async function submitRecurringMembership() {
+    const status  = document.getElementById('rm-status');
+    const customerId = window._rmCustomerId;
+    if (!customerId) { status.textContent = 'Error: no customer selected.'; return; }
+
+    const planName  = document.getElementById('rm-plan-name')?.value.trim();
+    const policy    = document.getElementById('rm-policy')?.value;
+    const roomId    = document.getElementById('rm-room')?.value;
+    const dow       = document.getElementById('rm-dow')?.value;
+    const startTime = document.getElementById('rm-start-time')?.value;
+    const endTime   = document.getElementById('rm-end-time')?.value;
+    const rate      = parseFloat(document.getElementById('rm-rate')?.value || 0);
+    const startDate = document.getElementById('rm-start-date')?.value;
+    const notice    = parseInt(document.getElementById('rm-notice')?.value || 30);
+    const tenantId  = parseInt(sessionStorage.getItem('vp_tenant_id') || '0');
+
+    if (!planName)  { status.textContent = 'Plan name is required.'; return; }
+    if (!roomId)    { status.textContent = 'Please select a room.'; return; }
+    if (!startDate) { status.textContent = 'Start date is required.'; return; }
+    if (!startTime || !endTime) { status.textContent = 'Start and end time are required.'; return; }
+
+    status.textContent = 'Creating membership…';
+    try {
+        const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/create-membership', {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tenant_id: tenantId,
+                customer_id: customerId,
+                plan_name: planName,
+                policy_template: policy,
+                room_id: roomId,
+                day_of_week: parseInt(dow),
+                start_time: startTime,
+                end_time: endTime,
+                rate_per_session: rate || null,
+                start_date: startDate,
+                notice_period_days: notice
+            })
+        });
+        if (res.ok) {
+            status.style.color = '#4ade80';
+            status.textContent = '✓ Membership created! Recurring bookings will be generated on the 1st of next month.';
+            setTimeout(() => closeRecurringModal(), 3000);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            status.style.color = '';
+            status.textContent = '✗ ' + (err.message || 'Failed to create membership.');
+        }
+    } catch(e) {
+        status.style.color = '';
+        status.textContent = '✗ Network error: ' + e.message;
+    }
+}
+
 </script>
 </body>
 </html>
