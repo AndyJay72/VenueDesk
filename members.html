@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Members | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        :root { --bg-dark: #0f172a; --bg-card: rgba(30,41,59,0.7); --border: rgba(148,163,184,0.1); --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #0ea5e9; --text-main: #f8fafc; --text-muted: #94a3b8; --sidebar-width: 260px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: var(--bg-dark); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-dark); background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+        aside { width: var(--sidebar-width); background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); box-shadow: 0 0 15px rgba(99,102,241,0.2); }
+        .close-sidebar { display: none; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; line-height: 1; }
+        .sidebar-collapse-btn i { display: inline-block; transition: transform 0.3s ease; }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text, body.sidebar-collapsed .nav-label { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link { justify-content: center; gap: 0; padding: 12px 8px; }
+        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
+        body.sidebar-collapsed .nav-link { position: relative; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; }
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; max-width: 1600px; width: 100%; transition: margin-left 0.3s ease; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .menu-toggle { display: none; background: none; border: none; color: white; font-size: 1.4rem; cursor: pointer; margin-right: 1rem; }
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+        /* ─── METRICS ─── */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; margin-bottom: 2rem; }
+        .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem 1.6rem; display: flex; align-items: center; gap: 1.2rem; backdrop-filter: blur(10px); }
+        .metric-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+        .metric-icon.purple { background: rgba(99,102,241,0.15); color: var(--primary); }
+        .metric-icon.green  { background: rgba(16,185,129,0.15); color: var(--success); }
+        .metric-icon.amber  { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .metric-icon.red    { background: rgba(239,68,68,0.15);  color: var(--danger); }
+        .metric-val { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+        .metric-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; }
+        /* ─── TOOLBAR ─── */
+        .toolbar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+        .toolbar input, .toolbar select { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 9px 14px; border-radius: 8px; font-size: 0.88rem; font-family: inherit; outline: none; }
+        .toolbar input { flex: 1; min-width: 200px; }
+        .toolbar input:focus, .toolbar select:focus { border-color: var(--primary); }
+        .btn { padding: 9px 18px; border-radius: 8px; border: none; font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #5254d0; }
+        .btn-ghost { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+        /* ─── MEMBER CARDS ─── */
+        .members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.2rem; }
+        .member-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px); position: relative; }
+        .member-card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .member-card.active-card  { border-left: 3px solid var(--success); }
+        .member-card.paused-card  { border-left: 3px solid var(--warning); }
+        .member-card.cancelled-card { border-left: 3px solid var(--danger); }
+        .mc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .mc-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(99,102,241,0.2); border: 2px solid rgba(99,102,241,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; color: var(--primary); flex-shrink: 0; text-transform: uppercase; }
+        .mc-name { font-size: 1rem; font-weight: 700; }
+        .mc-plan { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+        .mc-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .mc-badge.active   { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
+        .mc-badge.paused   { background: rgba(245,158,11,0.15);  color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+        .mc-badge.cancelled{ background: rgba(239,68,68,0.15);   color: var(--danger);  border: 1px solid rgba(239,68,68,0.3); }
+        .mc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+        .mc-details span { display: flex; align-items: center; gap: 6px; }
+        .mc-details span i { width: 14px; text-align: center; opacity: 0.7; }
+        .mc-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+        .mc-balance-due { color: var(--danger); font-weight: 600; }
+        .mc-balance-ok  { color: var(--success); font-weight: 600; }
+        /* ─── EMPTY / LOADING ─── */
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+        .empty-state i { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.3; }
+        .empty-state p { font-size: 1rem; }
+        .loading-spinner { display: flex; justify-content: center; align-items: center; padding: 3rem; }
+        .loading-spinner::after { content: ''; width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* ─── SIDEBAR OVERLAY (mobile) ─── */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+        .sidebar-overlay.active { display: block; }
+        @media (max-width: 768px) {
+            aside { transform: translateX(-100%); }
+            aside.open { transform: translateX(0); }
+            main { margin-left: 0; padding: 1rem; }
+            .menu-toggle { display: flex; }
+            .close-sidebar { display: block; }
+            .members-grid { grid-template-columns: 1fr; }
+            body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; }
+            body.sidebar-collapsed main { margin-left: 0; }
+            body.sidebar-collapsed .brand-text, body.sidebar-collapsed .nav-label { opacity: 1; width: auto; }
+            body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; }
+        }
+        /* ─── MODAL ─── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 2rem 1rem; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #1a2540; border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 680px; position: relative; animation: slideUp 0.25s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { padding: 1.5rem 1.8rem 1.2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 1.15rem; font-weight: 700; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+        .modal-close:hover { color: white; }
+        .modal-body { padding: 1.5rem 1.8rem; }
+        .modal-footer { padding: 1.2rem 1.8rem; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+        /* Form groups */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: span 2; }
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-group input, .form-group select, .form-group textarea {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-main);
+            padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-family: inherit; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+        .form-group textarea { resize: vertical; min-height: 70px; }
+        .form-group select option { background: #1a2540; }
+        /* Member detail modal tabs */
+        .detail-tabs { display: flex; gap: 4px; margin-bottom: 1.2rem; border-bottom: 1px solid var(--border); }
+        .detail-tab { padding: 8px 16px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: 0.2s; font-family: inherit; }
+        .detail-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        /* Rules table */
+        .rules-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .rules-table th { text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        .rules-table td { padding: 10px; border-bottom: 1px solid rgba(148,163,184,0.06); }
+        .rules-table tr:last-child td { border-bottom: none; }
+        .rules-table .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .badge-active   { background: rgba(16,185,129,0.15);  color: var(--success); }
+        .badge-inactive { background: rgba(148,163,184,0.1); color: var(--text-muted); }
+        /* Invoice table */
+        .inv-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .inv-table th { text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        .inv-table td { padding: 10px; border-bottom: 1px solid rgba(148,163,184,0.06); }
+        .inv-table tr:last-child td { border-bottom: none; }
+        .inv-status { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+        .inv-status.paid    { background: rgba(16,185,129,0.15);  color: var(--success); }
+        .inv-status.unpaid  { background: rgba(245,158,11,0.15);  color: var(--warning); }
+        .inv-status.overdue { background: rgba(239,68,68,0.15);   color: var(--danger); }
+        .inv-status.waived  { background: rgba(148,163,184,0.1); color: var(--text-muted); }
+        /* Add rule inline form */
+        .add-rule-form { background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; padding: 1rem; margin-top: 1rem; }
+        .add-rule-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; }
+        .add-rule-grid .form-group { gap: 4px; }
+        .status-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 4px 12px; border-radius: 6px; font-weight: 600; }
+        .status-tag.active   { background: rgba(16,185,129,0.12); color: var(--success); }
+        .status-tag.paused   { background: rgba(245,158,11,0.12);  color: var(--warning); }
+        .status-tag.cancelled{ background: rgba(239,68,68,0.12);   color: var(--danger); }
+        .detail-kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 14px; font-size: 0.88rem; }
+        .detail-kv dt { color: var(--text-muted); }
+        .detail-kv dd { font-weight: 600; }
+        /* Add member customer search */
+        .customer-search-results { background: #1a2540; border: 1px solid var(--border); border-radius: 8px; max-height: 200px; overflow-y: auto; margin-top: 4px; }
+        .csr-item { padding: 10px 14px; cursor: pointer; font-size: 0.88rem; border-bottom: 1px solid rgba(148,163,184,0.06); transition: 0.15s; }
+        .csr-item:hover { background: rgba(99,102,241,0.1); }
+        .csr-item:last-child { border-bottom: none; }
+        .csr-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        /* toast */
+        #toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+        .toast-msg { padding: 12px 20px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; animation: fadeInUp 0.3s ease; }
+        .toast-msg.success { background: rgba(16,185,129,0.9); color: white; }
+        .toast-msg.error   { background: rgba(239,68,68,0.9); color: white; }
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        /* Light mode */
+        body.light-mode { --bg-dark: #f1f5f9; --bg-card: rgba(255,255,255,0.85); --border: rgba(0,0,0,0.1); --text-main: #1e293b; --text-muted: #64748b; }
+        body.light-mode aside { background: rgba(255,255,255,0.97); }
+        body.light-mode .modal { background: #fff; }
+        body.light-mode .add-rule-form { background: rgba(99,102,241,0.04); }
+        body.light-mode .customer-search-results { background: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMenu()"></div>
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
+<aside id="sidebar">
+    <div class="brand">
+        <span><i class="fa-solid fa-layer-group"></i><span class="brand-text"> VenueDesk</span></span>
+        <div style="display:flex;align-items:center;gap:2px;">
+            <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+            <button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+    <nav>
+        <a href="index.html"        class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+        <a href="calendar.html"     class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+        <a href="members.html"      class="nav-link active" data-label="Members"><i class="fa-solid fa-id-card"></i><span class="nav-label"> Members</span></a>
+        <a href="accounts.html"     class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+        <a href="audit-log.html"    class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+        <a href="users.html"        class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+        <a href="admin-config.html" class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+        <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+    </nav>
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════ -->
+<main>
+    <header>
+        <div style="display:flex;align-items:center;">
+            <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+            <h1 style="font-size:1.8rem;font-weight:700;"><i class="fa-solid fa-id-card" style="color:var(--primary);margin-right:12px;"></i>Members</h1>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+    </header>
+
+    <!-- Metrics -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon purple"><i class="fa-solid fa-users"></i></div>
+            <div><div class="metric-val" id="stat-total">—</div><div class="metric-label">Total Members</div></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon green"><i class="fa-solid fa-circle-check"></i></div>
+            <div><div class="metric-val" id="stat-active">—</div><div class="metric-label">Active</div></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon amber"><i class="fa-solid fa-pause"></i></div>
+            <div><div class="metric-val" id="stat-paused">—</div><div class="metric-label">Paused</div></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon red"><i class="fa-solid fa-sterling-sign"></i></div>
+            <div><div class="metric-val" id="stat-balance">—</div><div class="metric-label">Balance Due</div></div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Search by name, plan or email…" oninput="filterCards()">
+        <select id="filter-status" onchange="filterCards()">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="cancelled">Cancelled</option>
+        </select>
+        <button class="btn btn-ghost" onclick="loadMembers()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        <button class="btn btn-primary" onclick="openAddMemberModal()"><i class="fa-solid fa-plus"></i> Add Member</button>
+    </div>
+
+    <!-- Cards -->
+    <div id="members-container">
+        <div class="loading-spinner"></div>
+    </div>
+</main>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: ADD MEMBER
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="add-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-user-plus" style="color:var(--primary);margin-right:8px;"></i>Add Member</h2>
+            <button class="modal-close" onclick="closeModal('add-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Customer</label>
+                    <input type="text" id="add-customer-search" placeholder="Type name or email to search…" oninput="searchCustomers()" autocomplete="off">
+                    <div class="customer-search-results" id="csr-list" style="display:none;"></div>
+                    <input type="hidden" id="add-customer-id">
+                    <div id="add-customer-name-display" style="margin-top:6px;font-size:0.82rem;color:var(--success);display:none;"><i class="fa-solid fa-circle-check"></i> <span id="add-customer-name-label"></span></div>
+                </div>
+                <div class="form-group">
+                    <label>Plan Name</label>
+                    <input type="text" id="add-plan-name" placeholder="e.g. Standard Recurring">
+                </div>
+                <div class="form-group">
+                    <label>Policy Template</label>
+                    <select id="add-policy">
+                        <option value="B">B — Recurring Member</option>
+                        <option value="A">A — Standard (One-off)</option>
+                        <option value="C">C — Community / Charity</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Rate (£)</label>
+                    <input type="number" id="add-monthly-rate" placeholder="e.g. 250.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="add-start-date">
+                </div>
+                <div class="form-group">
+                    <label>Notice Period (days)</label>
+                    <input type="number" id="add-notice-days" value="30" min="0">
+                </div>
+                <div class="form-group full">
+                    <label>Notes (optional)</label>
+                    <textarea id="add-notes" placeholder="Internal notes…"></textarea>
+                </div>
+            </div>
+
+            <!-- Recurring Rule -->
+            <div style="margin-top:1.2rem;">
+                <div style="font-size:0.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.8rem;"><i class="fa-solid fa-repeat" style="margin-right:6px;color:var(--primary);"></i>First Recurring Rule</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Room</label>
+                        <select id="add-room-id"><option value="">Loading rooms…</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Day of Week</label>
+                        <select id="add-day-of-week">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="0">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="add-start-time" value="09:00">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="add-end-time" value="11:00">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate Per Session (£)</label>
+                        <input type="number" id="add-rate-per-session" placeholder="Optional" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('add-modal')">Cancel</button>
+            <button class="btn btn-primary" id="add-submit-btn" onclick="submitAddMember()"><i class="fa-solid fa-floppy-disk"></i> Create Member</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: MEMBER DETAIL
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="detail-modal">
+    <div class="modal" style="max-width:720px;">
+        <div class="modal-header">
+            <div>
+                <h2 id="dm-name">—</h2>
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px;" id="dm-plan">—</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span class="status-tag" id="dm-status-tag">—</span>
+                <button class="modal-close" onclick="closeModal('detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="detail-tabs">
+                <button class="detail-tab active" onclick="switchDetailTab('overview', this)">Overview</button>
+                <button class="detail-tab" onclick="switchDetailTab('rules', this)">Recurring Rules</button>
+                <button class="detail-tab" onclick="switchDetailTab('invoices', this)">Invoices</button>
+            </div>
+
+            <!-- OVERVIEW TAB -->
+            <div class="tab-pane active" id="dt-overview">
+                <dl class="detail-kv">
+                    <dt>Customer</dt><dd id="dm-customer-name">—</dd>
+                    <dt>Email</dt><dd id="dm-email">—</dd>
+                    <dt>Phone</dt><dd id="dm-phone">—</dd>
+                    <dt>Monthly Rate</dt><dd id="dm-rate">—</dd>
+                    <dt>Policy Template</dt><dd id="dm-policy">—</dd>
+                    <dt>Start Date</dt><dd id="dm-start">—</dd>
+                    <dt>Notice Period</dt><dd id="dm-notice">—</dd>
+                    <dt>Member Since</dt><dd id="dm-created">—</dd>
+                    <dt>Notes</dt><dd id="dm-notes" style="white-space:pre-wrap;">—</dd>
+                </dl>
+                <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-ghost" id="dm-pause-btn" onclick="changeStatus('paused')"><i class="fa-solid fa-pause"></i> Pause</button>
+                    <button class="btn btn-ghost" id="dm-activate-btn" onclick="changeStatus('active')" style="color:var(--success);border-color:rgba(16,185,129,0.3);"><i class="fa-solid fa-circle-check"></i> Activate</button>
+                    <button class="btn btn-ghost" id="dm-cancel-btn" onclick="changeStatus('cancelled')" style="color:var(--danger);border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-ban"></i> Cancel Membership</button>
+                </div>
+            </div>
+
+            <!-- RULES TAB -->
+            <div class="tab-pane" id="dt-rules">
+                <div id="rules-content"><div class="loading-spinner"></div></div>
+                <!-- Add new rule form (inline) -->
+                <div class="add-rule-form" id="add-rule-form" style="display:none;">
+                    <div style="font-size:0.82rem;font-weight:700;margin-bottom:0.8rem;color:var(--primary);"><i class="fa-solid fa-plus"></i> Add Recurring Rule</div>
+                    <div class="add-rule-grid">
+                        <div class="form-group">
+                            <label>Room</label>
+                            <select id="nr-room"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Day</label>
+                            <select id="nr-day">
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                                <option value="0">Sunday</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rate/Session (£)</label>
+                            <input type="number" id="nr-rate" placeholder="Optional" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="time" id="nr-start" value="09:00">
+                        </div>
+                        <div class="form-group">
+                            <label>End Time</label>
+                            <input type="time" id="nr-end" value="11:00">
+                        </div>
+                    </div>
+                    <div style="margin-top:0.8rem;display:flex;gap:8px;">
+                        <button class="btn btn-primary" onclick="submitAddRule()"><i class="fa-solid fa-check"></i> Save Rule</button>
+                        <button class="btn btn-ghost" onclick="document.getElementById('add-rule-form').style.display='none'">Cancel</button>
+                    </div>
+                </div>
+                <div style="margin-top:1rem;">
+                    <button class="btn btn-ghost" onclick="document.getElementById('add-rule-form').style.display=document.getElementById('add-rule-form').style.display==='none'?'block':'none'">
+                        <i class="fa-solid fa-plus"></i> Add Rule
+                    </button>
+                </div>
+            </div>
+
+            <!-- INVOICES TAB -->
+            <div class="tab-pane" id="dt-invoices">
+                <div id="invoices-content"><div class="loading-spinner"></div></div>
+                <div style="margin-top:1rem;">
+                    <button class="btn btn-ghost" onclick="openRecordPaymentModal()"><i class="fa-solid fa-sterling-sign"></i> Record Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: RECORD PAYMENT
+════════════════════════════════════════════ -->
+<div class="modal-overlay" id="payment-modal">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-sterling-sign" style="color:var(--success);margin-right:8px;"></i>Record Payment</h2>
+            <button class="modal-close" onclick="closeModal('payment-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Invoice</label>
+                    <select id="pay-invoice-id"><option value="">Select invoice…</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (£)</label>
+                    <input type="number" id="pay-amount" placeholder="0.00" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select id="pay-method">
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label>Reference (optional)</label>
+                    <input type="text" id="pay-reference" placeholder="e.g. BACS ref, receipt no.">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('payment-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitPayment()"><i class="fa-solid fa-check"></i> Record</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONSTANTS & GLOBALS
+// ═══════════════════════════════════════════
+const N8N = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+function _TID() { return sessionStorage.getItem('vp_tenant_id') || '1001'; }
+
+let _allMembers  = [];
+let _allCustomers = [];
+let _rooms       = [];
+let _activeMemberId = null;
+let _activeInvoices = [];
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    // Set today as default start date
+    document.getElementById('add-start-date').value = new Date().toISOString().slice(0,10);
+    loadMembers();
+    loadRooms();
+    loadAllCustomers();
+});
+
+// ═══════════════════════════════════════════
+// LOAD ALL MEMBERS
+// ═══════════════════════════════════════════
+async function loadMembers() {
+    document.getElementById('members-container').innerHTML = '<div class="loading-spinner"></div>';
+    try {
+        const res = await fetch(`${N8N}/get-all-memberships?tenant_id=${_TID()}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        _allMembers = data.data || (Array.isArray(data) ? data : []);
+        renderMetrics();
+        renderCards(_allMembers);
+    } catch(e) {
+        document.getElementById('members-container').innerHTML =
+            `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>Could not load members. Is the <strong>get-all-memberships</strong> workflow active?<br><small style="color:var(--danger)">${e.message}</small></p></div>`;
+    }
+}
+
+function renderMetrics() {
+    const total    = _allMembers.length;
+    const active   = _allMembers.filter(m => m.status === 'active').length;
+    const paused   = _allMembers.filter(m => m.status === 'paused').length;
+    const balance  = _allMembers.reduce((s, m) => s + parseFloat(m.total_balance_due || 0), 0);
+    document.getElementById('stat-total').textContent  = total;
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-paused').textContent = paused;
+    document.getElementById('stat-balance').textContent = '£' + balance.toFixed(2);
+}
+
+function renderCards(members) {
+    const container = document.getElementById('members-container');
+    if (!members.length) {
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-id-card"></i><p>No members found.<br>Click <strong>+ Add Member</strong> to create the first one.</p></div>`;
+        return;
+    }
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    container.innerHTML = `<div class="members-grid">${members.map(m => {
+        const initials = (m.customer_name || '?').split(' ').map(w=>w[0]).slice(0,2).join('');
+        const balance  = parseFloat(m.total_balance_due || 0);
+        const ruleSummary = m.rules && m.rules.length
+            ? m.rules.slice(0,2).map(r => `${DAYS[r.day_of_week]} ${r.start_time?.slice(0,5)}–${r.end_time?.slice(0,5)}`).join(', ') + (m.rules.length > 2 ? ` +${m.rules.length-2}` : '')
+            : 'No recurring rules';
+        return `
+        <div class="member-card ${m.status}-card" onclick="openDetailModal('${m.membership_id}')">
+            <div class="mc-header">
+                <div class="mc-avatar">${esc(initials)}</div>
+                <div style="flex:1;">
+                    <div class="mc-name">${esc(m.customer_name || '—')}</div>
+                    <div class="mc-plan">${esc(m.plan_name || '—')}</div>
+                </div>
+                <span class="mc-badge ${m.status}">${m.status}</span>
+            </div>
+            <div class="mc-details">
+                <span><i class="fa-solid fa-envelope"></i>${esc(m.email || '—')}</span>
+                <span><i class="fa-solid fa-sterling-sign"></i>${m.monthly_rate ? '£'+parseFloat(m.monthly_rate).toFixed(2)+'/mo' : 'No rate'}</span>
+                <span><i class="fa-solid fa-repeat"></i>${esc(ruleSummary)}</span>
+                <span><i class="fa-solid fa-calendar-day"></i>Since ${m.start_date ? m.start_date.slice(0,10) : '—'}</span>
+            </div>
+            <div class="mc-footer">
+                <span style="font-size:0.78rem;color:var(--text-muted);">${m.rules ? m.rules.length : 0} rule${m.rules?.length !== 1 ? 's' : ''}</span>
+                <span class="${balance > 0 ? 'mc-balance-due' : 'mc-balance-ok'}">
+                    ${balance > 0 ? '<i class="fa-solid fa-circle-exclamation" style="margin-right:4px;"></i>£'+balance.toFixed(2)+' due' : '<i class="fa-solid fa-circle-check" style="margin-right:4px;"></i>Clear'}
+                </span>
+            </div>
+        </div>`;
+    }).join('')}</div>`;
+}
+
+function filterCards() {
+    const q  = document.getElementById('search-input').value.toLowerCase();
+    const st = document.getElementById('filter-status').value;
+    const filtered = _allMembers.filter(m => {
+        const matchQ = !q || (m.customer_name||'').toLowerCase().includes(q) || (m.plan_name||'').toLowerCase().includes(q) || (m.email||'').toLowerCase().includes(q);
+        const matchS = !st || m.status === st;
+        return matchQ && matchS;
+    });
+    renderCards(filtered);
+}
+
+// ═══════════════════════════════════════════
+// LOAD ROOMS (for selects)
+// ═══════════════════════════════════════════
+async function loadRooms() {
+    try {
+        const res = await fetch(`${N8N}/get-rooms?tenant_id=${_TID()}`);
+        const data = await res.json();
+        _rooms = data.data || (Array.isArray(data) ? data : []);
+        populateRoomSelects();
+    } catch(e) { console.warn('Could not load rooms', e); }
+}
+
+function populateRoomSelects() {
+    const opts = _rooms.filter(r => r.is_active !== false).map(r =>
+        `<option value="${r.id}">${esc(r.name)}</option>`).join('');
+    document.getElementById('add-room-id').innerHTML = opts || '<option value="">No rooms found</option>';
+    document.getElementById('nr-room').innerHTML = opts || '<option value="">No rooms found</option>';
+}
+
+// ═══════════════════════════════════════════
+// LOAD ALL CUSTOMERS (for search)
+// ═══════════════════════════════════════════
+async function loadAllCustomers() {
+    try {
+        const res = await fetch(`${N8N}/all-customers?tenant_id=${_TID()}`);
+        const data = await res.json();
+        _allCustomers = data.customers || data.data || (Array.isArray(data) ? data : []);
+    } catch(e) { console.warn('Could not load customers', e); }
+}
+
+// ═══════════════════════════════════════════
+// CUSTOMER SEARCH (add member form)
+// ═══════════════════════════════════════════
+let _csrTimeout = null;
+function searchCustomers() {
+    clearTimeout(_csrTimeout);
+    _csrTimeout = setTimeout(() => {
+        const q = document.getElementById('add-customer-search').value.toLowerCase().trim();
+        const list = document.getElementById('csr-list');
+        if (!q) { list.style.display = 'none'; return; }
+        const matches = _allCustomers.filter(c =>
+            (c.full_name||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q)
+        ).slice(0, 8);
+        if (!matches.length) { list.style.display = 'none'; return; }
+        list.innerHTML = matches.map(c =>
+            `<div class="csr-item" onclick="selectCustomer('${c.id}','${esc(c.full_name)}','${esc(c.email||'')}')">
+                <div>${esc(c.full_name)}</div>
+                <div class="csr-sub">${esc(c.email||'—')}</div>
+            </div>`
+        ).join('');
+        list.style.display = 'block';
+    }, 200);
+}
+
+function selectCustomer(id, name, email) {
+    document.getElementById('add-customer-id').value = id;
+    document.getElementById('add-customer-search').value = name;
+    document.getElementById('add-customer-name-label').textContent = name + (email ? ` (${email})` : '');
+    document.getElementById('add-customer-name-display').style.display = 'flex';
+    document.getElementById('csr-list').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
+// ADD MEMBER MODAL
+// ═══════════════════════════════════════════
+function openAddMemberModal() {
+    document.getElementById('add-customer-id').value = '';
+    document.getElementById('add-customer-search').value = '';
+    document.getElementById('add-customer-name-display').style.display = 'none';
+    document.getElementById('add-plan-name').value = '';
+    document.getElementById('add-monthly-rate').value = '';
+    document.getElementById('add-notes').value = '';
+    document.getElementById('add-start-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('add-notice-days').value = '30';
+    document.getElementById('add-rate-per-session').value = '';
+    openModal('add-modal');
+}
+
+async function submitAddMember() {
+    const customerId = document.getElementById('add-customer-id').value.trim();
+    const planName   = document.getElementById('add-plan-name').value.trim();
+    const startDate  = document.getElementById('add-start-date').value;
+    const roomId     = document.getElementById('add-room-id').value;
+    if (!customerId) { toast('Please select a customer', 'error'); return; }
+    if (!planName)   { toast('Plan name is required', 'error'); return; }
+    if (!startDate)  { toast('Start date is required', 'error'); return; }
+    if (!roomId)     { toast('Please select a room', 'error'); return; }
+
+    const btn = document.getElementById('add-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating…';
+
+    try {
+        const body = {
+            tenant_id:        parseInt(_TID()),
+            customer_id:      customerId,
+            plan_name:        planName,
+            policy_template:  document.getElementById('add-policy').value,
+            monthly_rate:     parseFloat(document.getElementById('add-monthly-rate').value || '0') || null,
+            start_date:       startDate,
+            notice_period_days: parseInt(document.getElementById('add-notice-days').value || '30'),
+            notes:            document.getElementById('add-notes').value.trim() || null,
+            room_id:          roomId,
+            day_of_week:      parseInt(document.getElementById('add-day-of-week').value),
+            start_time:       document.getElementById('add-start-time').value,
+            end_time:         document.getElementById('add-end-time').value,
+            rate_per_session: parseFloat(document.getElementById('add-rate-per-session').value || '0') || null
+        };
+        const res = await fetch(`${N8N}/create-membership`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) { const t = await res.text(); throw new Error(t); }
+        toast('Member created successfully!', 'success');
+        closeModal('add-modal');
+        loadMembers();
+    } catch(e) {
+        toast('Failed to create member: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Create Member';
+    }
+}
+
+// ═══════════════════════════════════════════
+// DETAIL MODAL
+// ═══════════════════════════════════════════
+async function openDetailModal(membershipId) {
+    _activeMemberId = membershipId;
+    const m = _allMembers.find(x => x.membership_id === membershipId);
+    if (!m) return;
+
+    // Populate overview
+    document.getElementById('dm-name').textContent         = m.customer_name || '—';
+    document.getElementById('dm-plan').textContent         = m.plan_name || '—';
+    document.getElementById('dm-customer-name').textContent= m.customer_name || '—';
+    document.getElementById('dm-email').textContent        = m.email || '—';
+    document.getElementById('dm-phone').textContent        = m.phone || '—';
+    document.getElementById('dm-rate').textContent         = m.monthly_rate ? '£' + parseFloat(m.monthly_rate).toFixed(2) + ' / month' : '—';
+    document.getElementById('dm-policy').textContent       = {A:'A — Standard',B:'B — Recurring',C:'C — Community'}[m.policy_template] || m.policy_template || '—';
+    document.getElementById('dm-start').textContent        = m.start_date ? m.start_date.slice(0,10) : '—';
+    document.getElementById('dm-notice').textContent       = (m.notice_period_days || 30) + ' days';
+    document.getElementById('dm-created').textContent      = m.created_at ? m.created_at.slice(0,10) : '—';
+    document.getElementById('dm-notes').textContent        = m.notes || '—';
+
+    const statusTag = document.getElementById('dm-status-tag');
+    statusTag.className = 'status-tag ' + (m.status || 'active');
+    statusTag.innerHTML = `<i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> ${m.status || 'active'}`;
+
+    // Show/hide action buttons based on current status
+    document.getElementById('dm-pause-btn').style.display    = m.status === 'active'    ? 'inline-flex' : 'none';
+    document.getElementById('dm-activate-btn').style.display = m.status !== 'active'   ? 'inline-flex' : 'none';
+    document.getElementById('dm-cancel-btn').style.display   = m.status !== 'cancelled' ? 'inline-flex' : 'none';
+
+    // Reset tabs
+    switchDetailTab('overview', document.querySelector('.detail-tab'));
+
+    openModal('detail-modal');
+
+    // Load rules & invoices async
+    loadRulesTab(m);
+    loadInvoicesTab(membershipId);
+}
+
+function switchDetailTab(name, btn) {
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    else { document.querySelectorAll('.detail-tab').forEach(t => { if (t.textContent.toLowerCase().includes(name)) t.classList.add('active'); }); }
+    document.getElementById('dt-' + name).classList.add('active');
+}
+
+// ─── RULES TAB ───
+function loadRulesTab(m) {
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const rules = m.rules || [];
+    const el = document.getElementById('rules-content');
+    if (!rules.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;padding:8px 0;">No recurring rules. Use <strong>Add Rule</strong> below to set one up.</p>';
+        return;
+    }
+    el.innerHTML = `<table class="rules-table">
+        <thead><tr><th>Room</th><th>Day</th><th>Time</th><th>Rate/Session</th><th>Status</th></tr></thead>
+        <tbody>${rules.map(r => `
+        <tr>
+            <td>${esc(r.room_name || r.room_id || '—')}</td>
+            <td>${DAYS[r.day_of_week] || r.day_of_week}</td>
+            <td>${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}</td>
+            <td>${r.rate_per_session ? '£'+parseFloat(r.rate_per_session).toFixed(2) : '—'}</td>
+            <td><span class="badge ${r.active ? 'badge-active':'badge-inactive'}">${r.active ? 'Active' : 'Inactive'}</span></td>
+        </tr>`).join('')}
+        </tbody></table>`;
+}
+
+// ─── INVOICES TAB ───
+async function loadInvoicesTab(membershipId) {
+    const el = document.getElementById('invoices-content');
+    el.innerHTML = '<div class="loading-spinner"></div>';
+    try {
+        const res = await fetch(`${N8N}/get-member-invoices?tenant_id=${_TID()}&membership_id=${membershipId}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        _activeInvoices = data.data || (Array.isArray(data) ? data : []);
+        renderInvoicesTable(_activeInvoices);
+        populatePayInvoiceSelect(_activeInvoices);
+    } catch(e) {
+        el.innerHTML = `<p style="color:var(--text-muted);font-size:0.85rem;">Could not load invoices. Is the <strong>get-member-invoices</strong> workflow active?</p>`;
+        _activeInvoices = [];
+    }
+}
+
+function renderInvoicesTable(invoices) {
+    const el = document.getElementById('invoices-content');
+    if (!invoices.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:0.88rem;padding:8px 0;">No invoices yet. The monthly invoice generator will create them automatically.</p>';
+        return;
+    }
+    const today = new Date().toISOString().slice(0,10);
+    el.innerHTML = `<table class="inv-table">
+        <thead><tr><th>Month</th><th>Total</th><th>Paid</th><th>Balance</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>${invoices.map(inv => {
+            const isOverdue = inv.status === 'unpaid' && inv.due_date && inv.due_date.slice(0,10) < today;
+            const statusClass = isOverdue ? 'overdue' : inv.status;
+            return `<tr>
+                <td>${inv.invoice_month ? inv.invoice_month.slice(0,7) : '—'}</td>
+                <td>£${parseFloat(inv.total_amount||0).toFixed(2)}</td>
+                <td>£${parseFloat(inv.amount_paid||0).toFixed(2)}</td>
+                <td style="color:${parseFloat(inv.balance_due||0)>0?'var(--warning)':'var(--success)'}">£${parseFloat(inv.balance_due||0).toFixed(2)}</td>
+                <td>${inv.due_date ? inv.due_date.slice(0,10) : '—'}</td>
+                <td><span class="inv-status ${statusClass}">${isOverdue ? 'overdue' : inv.status}</span></td>
+            </tr>`;
+        }).join('')}</tbody></table>`;
+}
+
+function populatePayInvoiceSelect(invoices) {
+    const sel = document.getElementById('pay-invoice-id');
+    const unpaid = invoices.filter(i => i.status !== 'paid' && i.status !== 'waived');
+    sel.innerHTML = unpaid.length
+        ? unpaid.map(i => `<option value="${i.id}">${i.invoice_month?.slice(0,7)||'—'} — £${parseFloat(i.balance_due||0).toFixed(2)} due</option>`).join('')
+        : '<option value="">No outstanding invoices</option>';
+}
+
+// ─── CHANGE STATUS ───
+async function changeStatus(newStatus) {
+    if (!_activeMemberId) return;
+    const m = _allMembers.find(x => x.membership_id === _activeMemberId);
+    if (!confirm(`${newStatus === 'cancelled' ? 'Cancel' : newStatus === 'paused' ? 'Pause' : 'Activate'} membership for ${m?.customer_name}?`)) return;
+    try {
+        const res = await fetch(`${N8N}/update-membership-status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenant_id: parseInt(_TID()), membership_id: _activeMemberId, status: newStatus })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        toast(`Membership ${newStatus}`, 'success');
+        closeModal('detail-modal');
+        loadMembers();
+    } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ─── ADD RULE (from detail modal) ───
+async function submitAddRule() {
+    const roomId = document.getElementById('nr-room').value;
+    const startT = document.getElementById('nr-start').value;
+    const endT   = document.getElementById('nr-end').value;
+    if (!roomId || !startT || !endT) { toast('Room, start and end time are required', 'error'); return; }
+    try {
+        const res = await fetch(`${N8N}/add-recurring-rule`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tenant_id:      parseInt(_TID()),
+                membership_id:  _activeMemberId,
+                room_id:        roomId,
+                day_of_week:    parseInt(document.getElementById('nr-day').value),
+                start_time:     startT,
+                end_time:       endT,
+                rate_per_session: parseFloat(document.getElementById('nr-rate').value || '0') || null
+            })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        toast('Rule added!', 'success');
+        document.getElementById('add-rule-form').style.display = 'none';
+        closeModal('detail-modal');
+        await loadMembers();
+        // Re-open detail with fresh data
+        openDetailModal(_activeMemberId);
+    } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ─── RECORD PAYMENT ───
+function openRecordPaymentModal() {
+    if (!_activeInvoices.length) { toast('No outstanding invoices to record payment against', 'error'); return; }
+    document.getElementById('pay-amount').value = '';
+    document.getElementById('pay-reference').value = '';
+    openModal('payment-modal');
+}
+
+async function submitPayment() {
+    const invId  = document.getElementById('pay-invoice-id').value;
+    const amount = parseFloat(document.getElementById('pay-amount').value);
+    if (!invId)   { toast('Select an invoice', 'error'); return; }
+    if (!amount || amount <= 0) { toast('Enter a valid amount', 'error'); return; }
+    try {
+        const res = await fetch(`${N8N}/record-member-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tenant_id:    parseInt(_TID()),
+                invoice_id:   invId,
+                amount:       amount,
+                method:       document.getElementById('pay-method').value,
+                reference:    document.getElementById('pay-reference').value.trim() || null
+            })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        toast('Payment recorded!', 'success');
+        closeModal('payment-modal');
+        loadInvoicesTab(_activeMemberId);
+        loadMembers();
+    } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    const el = document.createElement('div');
+    el.className = 'toast-msg ' + type;
+    el.textContent = msg;
+    t.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+function logout() {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+}
+
+function toggleMenu() {
+    const s = document.getElementById('sidebar');
+    const o = document.getElementById('sidebar-overlay');
+    s.classList.toggle('open');
+    o.classList.toggle('active');
+}
+
+function toggleSidebarCollapse() {
+    document.body.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed'));
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+    document.querySelector('.theme-toggle i').className = document.body.classList.contains('light-mode') ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+}
+
+function applyTheme() {
+    if (localStorage.getItem('theme') === 'light') { document.body.classList.add('light-mode'); document.querySelector('.theme-toggle i') && (document.querySelector('.theme-toggle i').className = 'fa-solid fa-sun'); }
+    if (localStorage.getItem('sidebarCollapsed') === 'true') document.body.classList.add('sidebar-collapsed');
+}
+</script>
+</body>
+</html>
