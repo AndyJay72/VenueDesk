@@ -1112,15 +1112,8 @@ const API = {
     deleteService:  BASE + '/delete-service',
 };
 
-function getAuthHeaders() {
-    const tid = sessionStorage.getItem('vp_tenant_id') || '';
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-        'X-Tenant-ID': tid,
-        'X-Venue-ID':  tid
-    };
-}
+function getAuthHeaders() { return {}; }
+function tidParam(sep = '?') { return sep + 'tenant_id=' + _TID(); }
 function withRole(obj) {
     const u = JSON.parse(sessionStorage.getItem('vp_user') || '{}');
     const tenantId = parseInt(sessionStorage.getItem('vp_tenant_id') || '0', 10) || undefined;
@@ -1171,11 +1164,13 @@ function switchTab(name) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    event.target.closest('.tab-btn').classList.add('active');
-    if (name === 'pricing')  renderPricingGrid();
-    if (name === 'services') syncServicesFromDb().then(renderServicesTable);
-    if (name === 'settings') loadSettings();
-    if (name === 'cancellation') { loadSettings().then(loadCancellationPolicy); }
+    const activeBtn = document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    if (name === 'pricing')          renderPricingGrid();
+    if (name === 'services')         syncServicesFromDb().then(renderServicesTable);
+    if (name === 'settings')         loadSettings();
+    if (name === 'cancellation')     { loadSettings().then(loadCancellationPolicy); }
+    if (name === 'policy-templates') loadPolicyTemplates();
 }
 
 // Fetch services from DB API and merge into sessionStorage so DB-added services appear
@@ -1183,7 +1178,7 @@ async function syncServicesFromDb() {
     const tid = _TID();
     if (!tid) return;
     try {
-        const res = await fetch(API.getServices + '?tenant_id=' + tid, { headers: getAuthHeaders() });
+        const res = await fetch(API.getServices + '?tenant_id=' + tid, {});
         if (!res.ok) return;
         const d = await res.json();
         const apiSvcs = d.data || [];
@@ -1202,7 +1197,7 @@ async function syncServicesFromDb() {
 // ─────────────────────────────────────────────
 async function loadRooms() {
     try {
-        const res = await fetch(API.getRooms(), { headers: getAuthHeaders() });
+        const res = await fetch(API.getRooms() + tidParam(), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         rooms = json.data || (Array.isArray(json) ? json : []);
@@ -1255,7 +1250,7 @@ async function addRoom() {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding...';
     try {
         const res = await fetch(API.createRoom, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ name, capacity: cap || null, day_rate: dr, description: desc || null }))
         });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
@@ -1318,7 +1313,7 @@ async function saveModal() {
                 is_active:   document.getElementById('me_active').classList.contains('on')
             };
             if (!payload.name) throw new Error('Room name is required');
-            const res = await fetch(API.updateRoom, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole(payload)) });
+            const res = await fetch(API.updateRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
             if (!res.ok) throw new Error('Update failed');
             const openTime  = (document.getElementById('me_open')  || {}).value || '';
             const closeTime = (document.getElementById('me_close') || {}).value || '';
@@ -1335,7 +1330,7 @@ async function saveModal() {
                 is_active:   document.getElementById('me_active').classList.contains('on')
             };
             if (!payload.name) throw new Error('Name is required');
-            const res = await fetch(API.updateEventType, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole(payload)) });
+            const res = await fetch(API.updateEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
             if (!res.ok) throw new Error('Update failed');
             showToast('Event type updated!');
             await loadEventTypes();
@@ -1361,7 +1356,7 @@ async function saveModal() {
 async function softDeleteRoom(id, name) {
     if (!confirm(`Deactivate "${name}"? It won't appear in booking forms but historical data is kept.`)) return;
     try {
-        await fetch(API.deleteRoom, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole({ room_id: id })) });
+        await fetch(API.deleteRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ room_id: id })) });
         showToast('Room deactivated');
         await loadRooms();
     } catch(e) { showToast('Error', 'error'); }
@@ -1373,7 +1368,7 @@ async function restoreRoom(id, name) {
     if (!r) return;
     try {
         await fetch(API.updateRoom, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ ...r, id, is_active: true }))
         });
         showToast('Room re-activated');
@@ -1386,7 +1381,7 @@ async function restoreRoom(id, name) {
 // ─────────────────────────────────────────────
 async function loadEventTypes() {
     try {
-        const res = await fetch(API.getEventTypes(), { headers: getAuthHeaders() });
+        const res = await fetch(API.getEventTypes() + tidParam(), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         eventTypes = json.data || (Array.isArray(json) ? json : []);
@@ -1438,7 +1433,7 @@ async function addEventType() {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding...';
     try {
         const res = await fetch(API.createEventType, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ name, description: desc || null }))
         });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
@@ -1468,7 +1463,7 @@ function editEventType(id) {
 async function softDeleteEventType(id, name) {
     if (!confirm(`Deactivate "${name}"?`)) return;
     try {
-        await fetch(API.deleteEventType, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(withRole({ event_type_id: id })) });
+        await fetch(API.deleteEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ event_type_id: id })) });
         showToast('Event type deactivated');
         await loadEventTypes();
     } catch(e) { showToast('Error', 'error'); }
@@ -1480,7 +1475,7 @@ async function restoreEventType(id, name) {
     if (!et) return;
     try {
         await fetch(API.updateEventType, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ ...et, id, is_active: true }))
         });
         showToast('Event type re-activated');
@@ -1498,7 +1493,7 @@ function closeModal() {
 // ─────────────────────────────────────────────
 async function loadPricing() {
     try {
-        const res = await fetch(API.getPricing, { headers: getAuthHeaders() });
+        const res = await fetch(API.getPricing + tidParam(), {});
         const json = await res.json();
         pricing = json.data || (Array.isArray(json) ? json : []);
     } catch(e) { pricing = []; }
@@ -1571,7 +1566,7 @@ async function savePricingCell(input) {
 
     try {
         const res = await fetch(API.setPricing, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ room_id, event_type_id, day_rate }))
         });
         if (!res.ok) throw new Error('Failed');
@@ -1587,7 +1582,7 @@ async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
     const cell = btn ? btn.closest('td') : (inputEl ? inputEl.closest('td') : null);
     try {
         const res = await fetch(API.deletePricing, {
-            method: 'POST', headers: getAuthHeaders(),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ room_id, event_type_id }))
         });
         if (!res.ok) throw new Error('Failed');
@@ -1609,7 +1604,7 @@ async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
 async function loadSettings() {
     document.getElementById('bufferCurrentText').textContent = 'Loading...';
     try {
-        const res = await fetch(API.getSettings, { headers: getAuthHeaders() });
+        const res = await fetch(API.getSettings + tidParam(), {});
         const json = await res.json();
         settings = json.data || (Array.isArray(json) ? json : []);
         const bufferSetting = settings.find(s => s.key === 'booking_buffer_minutes');
@@ -1652,8 +1647,8 @@ async function saveBufferSetting() {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
     try {
         const res = await fetch(API.updateSetting, {
-            method: 'POST', headers: getAuthHeaders(),
-            body: JSON.stringify({ key: 'booking_buffer_minutes', value: minutes })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'booking_buffer_minutes', value: minutes, tenant_id: parseInt(_TID()) })
         });
         if (!res.ok) throw new Error('Save failed');
         showToast(`Buffer set to ${minutes === 0 ? 'no buffer' : minutes + ' minutes'}`);
@@ -1756,7 +1751,7 @@ async function saveCancellationPolicy() {
     statusEl.textContent = '';
     try {
         const save = async (key, value) => {
-            const r = await fetch(API.updateSetting, { method:'POST', headers:getAuthHeaders(), body:JSON.stringify({key, value}) });
+            const r = await fetch(API.updateSetting, { method:'POST', headers:{ 'Content-Type': 'application/json' }, body:JSON.stringify({key, value, tenant_id: parseInt(_TID())}) });
             if (!r.ok) throw new Error('Save failed: ' + key);
         };
         await save('cancel_full_refund_days',    fullDays);
@@ -1792,12 +1787,12 @@ function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stri
 function _persistSvcToDb(svc) {
     const tid = parseInt(_TID() || '0');
     if (!tid) return;
-    fetch(API.saveService, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ ...svc, tenant_id: tid }) }).catch(() => {});
+    fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...svc, tenant_id: tid }) }).catch(() => {});
 }
 function _deleteSvcFromDb(id) {
     const tid = parseInt(_TID() || '0');
     if (!tid) return;
-    fetch(API.deleteService, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ id, tenant_id: tid }) }).catch(() => {});
+    fetch(API.deleteService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, tenant_id: tid }) }).catch(() => {});
 }
 
 function generateTimeOptions() {
@@ -2046,7 +2041,7 @@ init();
 // ─────────────────────────────────────────────
 async function loadPolicyTemplates() {
     try {
-        const res = await fetch(API.getPolicyTemplates + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
+        const res = await fetch(API.getPolicyTemplates + '?tenant_id=' + _TID(), {});
         if (!res.ok) return;
         const rows = await res.json();
         for (const row of (Array.isArray(rows) ? rows : [])) {
@@ -2069,7 +2064,7 @@ async function savePolicyTemplate(code) {
     try {
         const res = await fetch(API.savePolicyTemplate, {
             method: 'POST',
-            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 tenant_id: parseInt(_TID() || '0'),
                 code, name: nameMap[code] || code,
@@ -2084,12 +2079,6 @@ async function savePolicyTemplate(code) {
     }
 }
 
-// Auto-load templates when tab is switched to policy-templates
-const _baseSwitchTab = switchTab;
-function switchTab(name) {
-    _baseSwitchTab(name);
-    if (name === 'policy-templates') loadPolicyTemplates();
-}
 
 </script>
     <!-- FinTech Revamp -->
