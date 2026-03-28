@@ -59,6 +59,7 @@
         .type-enquiry{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
         .type-interaction{background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.3)}
         .type-email{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
+        .type-membership{background:rgba(236,72,153,0.15);color:#ec4899;border:1px solid rgba(236,72,153,0.3)}
         .type-other{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)}
         .method-badge{padding:3px 8px;border-radius:8px;font-size:0.7rem;font-weight:600;background:rgba(0,0,0,0.3);border:1px solid var(--border);text-transform:capitalize}
         .pagination{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-top:1px solid var(--border)}
@@ -679,6 +680,7 @@
             enquiry:     { cls:'type-enquiry',     label:'Enquiry',     icon:'fa-inbox' },
             interaction: { cls:'type-interaction', label:'Interaction', icon:'fa-comments' },
             email:       { cls:'type-email',       label:'Email',       icon:'fa-envelope' },
+            membership:  { cls:'type-membership',  label:'Membership',  icon:'fa-id-card' },
         };
         function getTypeCfg(t) { return TYPE_CONFIG[t] || {cls:'type-other',label:t||'Other',icon:'fa-circle'}; }
 
@@ -781,8 +783,9 @@
                     try{
                         const ij=await intR.value.json();const ia=ij.data||(Array.isArray(ij)?ij:[]);
                         ia.forEach(i=>{
-                            const isEmail=/email/i.test(i.interaction_type||'');
-                            events.push({type:isEmail?'email':'interaction',ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:`${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`,amount:null,ref:i.subject||i.notes||''});
+                            const itype=(i.interaction_type||'').toLowerCase();
+                            const evType=/membership/i.test(itype)?'membership':/email/i.test(itype)?'email':'interaction';
+                            events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:`${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`,amount:null,ref:i.subject||i.notes||''});
                         });
                     }catch(e){}
                 }
