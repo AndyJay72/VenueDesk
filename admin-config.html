@@ -683,6 +683,7 @@
         <button class="tab-btn"        onclick="switchTab('services')"><i class="fa-solid fa-concierge-bell"></i> Services</button>
         <button class="tab-btn"        onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> Settings</button>
         <button class="tab-btn"        onclick="switchTab('cancellation')"><i class="fa-solid fa-ban"></i> Cancellation Policy</button>
+        <button class="tab-btn"        onclick="switchTab('policy-templates')"><i class="fa-solid fa-file-contract"></i> Policy Templates</button>
     </div>
 
     <!-- ═══════════════════════════════════════ -->
@@ -1011,6 +1012,76 @@
         </div>
     </div>
 
+    <!-- POLICY TEMPLATES TAB -->
+    <div class="tab-panel" id="tab-policy-templates">
+        <div style="max-width:900px;">
+            <div style="margin-bottom:1.5rem;">
+                <div class="card-title" style="font-size:1.1rem;margin-bottom:0.5rem;"><i class="fa-solid fa-file-contract" style="color:var(--primary);margin-right:8px"></i>Membership Policy Templates</div>
+                <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">These policy texts are automatically appended to confirmation and invoice emails based on the booking type. Edit the base terms and any additional clauses, then save each template individually.</p>
+            </div>
+
+            <!-- Template A -->
+            <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--success);">
+                <div class="card-title" style="color:var(--success);margin-bottom:0.75rem;">
+                    <i class="fa-solid fa-file-lines"></i> Policy A — Standard One-off
+                </div>
+                <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem;">Applied to all single, one-time bookings. Standard terms with no recurring clauses.</p>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Base Terms</label>
+                    <textarea id="ptA-base" rows="3" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="Standard terms and conditions text…"></textarea>
+                </div>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Additional Clauses <span style="font-weight:400;color:var(--text-muted)">(leave blank if none)</span></label>
+                    <textarea id="ptA-extra" rows="2" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="Any extra clauses appended for this type…"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="savePolicyTemplate('A')" style="display:inline-flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Policy A
+                </button>
+                <span id="ptA-status" style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+
+            <!-- Template B -->
+            <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--primary);">
+                <div class="card-title" style="color:var(--primary);margin-bottom:0.75rem;">
+                    <i class="fa-solid fa-repeat"></i> Policy B — Recurring Member
+                </div>
+                <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem;">Applied to all recurring membership bookings. Include notice period and cancellation clauses here.</p>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Base Terms</label>
+                    <textarea id="ptB-base" rows="3" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="Recurring membership terms…"></textarea>
+                </div>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Recurring Notice Period Clauses</label>
+                    <textarea id="ptB-extra" rows="3" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="e.g. 30-day written notice required to cancel or pause membership…"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="savePolicyTemplate('B')" style="display:inline-flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Policy B
+                </button>
+                <span id="ptB-status" style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+
+            <!-- Template C -->
+            <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--warning);">
+                <div class="card-title" style="color:var(--warning);margin-bottom:0.75rem;">
+                    <i class="fa-solid fa-hand-holding-heart"></i> Policy C — Community / Charity
+                </div>
+                <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem;">Applied to discounted community or charity bookings. Include storage restrictions and review clauses.</p>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Base Terms</label>
+                    <textarea id="ptC-base" rows="3" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="Community booking terms…"></textarea>
+                </div>
+                <div class="input-group" style="margin-bottom:1rem;">
+                    <label>Additional Clauses</label>
+                    <textarea id="ptC-extra" rows="3" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;color:var(--text-main);font-size:0.85rem;resize:vertical;outline:none;line-height:1.5;" placeholder="e.g. No overnight storage, pricing reviewed annually…"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="savePolicyTemplate('C')" style="display:inline-flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Policy C
+                </button>
+                <span id="ptC-status" style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <script>
@@ -1020,6 +1091,8 @@
 const BASE = 'https://n8n.srv1090894.hstgr.cloud/webhook';
 const _TID = () => sessionStorage.getItem('vp_tenant_id') || '';
 const API = {
+    getPolicyTemplates:  BASE + '/get-policy-templates',
+    savePolicyTemplate:  BASE + '/save-policy-template',
     getRooms:       () => BASE + '/get-rooms',
     createRoom:     BASE + '/create-room',
     updateRoom:     BASE + '/update-room',
@@ -1967,6 +2040,57 @@ init();
         var btn = document.getElementById('theme-btn');
         if(btn) { var isLight = document.body.classList.contains('light-mode'); btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>'; }
     });
+
+// ─────────────────────────────────────────────
+// POLICY TEMPLATES
+// ─────────────────────────────────────────────
+async function loadPolicyTemplates() {
+    try {
+        const res = await fetch(API.getPolicyTemplates + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const rows = await res.json();
+        for (const row of (Array.isArray(rows) ? rows : [])) {
+            const code = row.code;
+            const b = document.getElementById('pt' + code + '-base');
+            const e = document.getElementById('pt' + code + '-extra');
+            if (b) b.value = row.base_terms   || '';
+            if (e) e.value = row.extra_clauses || '';
+        }
+    } catch(err) { /* silent — webhooks may not exist yet */ }
+}
+
+async function savePolicyTemplate(code) {
+    const base   = (document.getElementById('pt' + code + '-base')?.value  || '').trim();
+    const extra  = (document.getElementById('pt' + code + '-extra')?.value || '').trim();
+    const status = document.getElementById('pt' + code + '-status');
+    const nameMap = { A: 'Standard (One-off)', B: 'Recurring Member', C: 'Community / Charity' };
+    if (!base) { if(status) status.textContent = 'Base terms cannot be empty.'; return; }
+    if (status) status.textContent = 'Saving…';
+    try {
+        const res = await fetch(API.savePolicyTemplate, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tenant_id: parseInt(_TID() || '0'),
+                code, name: nameMap[code] || code,
+                base_terms: base,
+                extra_clauses: extra || null
+            })
+        });
+        if (status) status.textContent = res.ok ? '✓ Saved' : '✗ Save failed';
+        if (res.ok) setTimeout(() => { if(status) status.textContent = ''; }, 3000);
+    } catch(err) {
+        if (status) status.textContent = '✗ Error: ' + err.message;
+    }
+}
+
+// Auto-load templates when tab is switched to policy-templates
+const _baseSwitchTab = switchTab;
+function switchTab(name) {
+    _baseSwitchTab(name);
+    if (name === 'policy-templates') loadPolicyTemplates();
+}
+
 </script>
     <!-- FinTech Revamp -->
     <style>
