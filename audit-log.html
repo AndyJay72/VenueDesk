@@ -61,6 +61,7 @@
         .type-email{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
         .type-membership{background:rgba(236,72,153,0.15);color:#ec4899;border:1px solid rgba(236,72,153,0.3)}
         .type-other{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)}
+        .type-recurring{background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.4)}
         .method-badge{padding:3px 8px;border-radius:8px;font-size:0.7rem;font-weight:600;background:rgba(0,0,0,0.3);border:1px solid var(--border);text-transform:capitalize}
         .pagination{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-top:1px solid var(--border)}
         .pg-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:0.2s;font-family:inherit}
@@ -592,7 +593,7 @@
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="audit-log.html" class="nav-link active" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
             <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
-            <a href="members.html" class="nav-link" data-label="Members"><i class="fa-solid fa-id-card"></i><span class="nav-label"> Members</span></a>
+
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
@@ -619,6 +620,7 @@
                 <option value="deposit">Deposit</option>
                 <option value="refund">Refund</option>
                 <option value="booking">Booking</option>
+                <option value="recurring">Recurring Series</option>
                 <option value="enquiry">Enquiry</option>
                 <option value="interaction">Interaction</option>
                 <option value="email">Email</option>
@@ -677,6 +679,7 @@
             deposit:     { cls:'type-deposit',     label:'Deposit',     icon:'fa-coins' },
             refund:      { cls:'type-refund',      label:'Refund',      icon:'fa-rotate-left' },
             booking:     { cls:'type-booking',     label:'Booking',     icon:'fa-calendar-check' },
+            recurring:   { cls:'type-recurring',   label:'Recurring',   icon:'fa-repeat' },
             enquiry:     { cls:'type-enquiry',     label:'Enquiry',     icon:'fa-inbox' },
             interaction: { cls:'type-interaction', label:'Interaction', icon:'fa-comments' },
             email:       { cls:'type-email',       label:'Email',       icon:'fa-envelope' },
@@ -784,8 +787,17 @@
                         const ij=await intR.value.json();const ia=ij.data||(Array.isArray(ij)?ij:[]);
                         ia.forEach(i=>{
                             const itype=(i.interaction_type||'').toLowerCase();
-                            const evType=/membership/i.test(itype)?'membership':/email/i.test(itype)?'email':'interaction';
-                            events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:`${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`,amount:null,ref:i.subject||i.notes||''});
+                            const evType=/recurring/i.test(itype)?'recurring':/membership/i.test(itype)?'membership':/email/i.test(itype)?'email':'interaction';
+                            let evDetails;
+                            if (evType === 'recurring') {
+                                const notes = i.notes || '';
+                                const sessM = notes.match(/(\d+)\s+sessions in series/);
+                                const freqM = (i.subject||'').replace('Recurring booking created: ','').trim();
+                                evDetails = [freqM||'Recurring', sessM?sessM[1]+' sessions':'', i.staff_member?'by '+i.staff_member:''].filter(Boolean).join(' \u00b7 ');
+                            } else {
+                                evDetails = `${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`;
+                            }
+                            events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:evDetails,amount:null,ref:i.subject||i.notes||''});
                         });
                     }catch(e){}
                 }
