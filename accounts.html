@@ -337,6 +337,21 @@
         body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
         body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
         @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
+
+        /* ── Recurring Payment Schedule ── */
+        .rec-series-card { background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 14px; margin-bottom: 1.25rem; overflow: hidden; }
+        .rec-series-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid rgba(99,102,241,0.15); }
+        .rec-series-title { font-size: 1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .rec-series-meta { font-size: 0.8rem; color: var(--text-muted); }
+        .rec-period-table { width: 100%; border-collapse: collapse; }
+        .rec-period-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 8px 1.25rem; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(148,163,184,0.1); text-align: left; }
+        .rec-period-table td { padding: 10px 1.25rem; border-bottom: 1px solid rgba(148,163,184,0.07); font-size: 0.85rem; color: var(--text-main); }
+        .rec-period-table tr:last-child td { border-bottom: none; }
+        .rps-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+        .rps-pending  { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+        .rps-paid     { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
+        .rps-overridden { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+        .rps-cancelled  { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
         </style>
   <style>
     /* ═══════════════════════════════════════════════════════════
@@ -693,7 +708,7 @@
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="accounts.html" class="nav-link active" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
             <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
-            <a href="members.html" class="nav-link" data-label="Members"><i class="fa-solid fa-id-card"></i><span class="nav-label"> Members</span></a>
+
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
             <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
@@ -794,6 +809,21 @@
 </div>
             </div>
         </div>
+
+        <!-- ── RECURRING PAYMENT SCHEDULE ─────────────────────────────── -->
+        <div class="section-container" id="rec-schedule-section" style="margin-top:2rem;display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h2 style="font-size:1.15rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-repeat" style="color:#a5b4fc;"></i> Recurring Payment Schedule
+                    </h2>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 0;">Monthly billing periods across all active recurring series</p>
+                </div>
+            </div>
+            <div id="rec-schedule-body">
+                <div style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</div>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -806,7 +836,9 @@
         }
 
         const fmt = n => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
-        const API_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
+        const API_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
+        const REC_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-recurring-bookings';
+        const OVERRIDE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/override-recurring-payment';
         const MONTHS_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1086,6 +1118,107 @@
         }
 
         loadAccounts();
+        loadRecurringSchedule();
+
+        async function overridePayment(scheduleId, customerName, periodLabel) {
+            // scheduleId is actually the rule_id from get-recurring-bookings — we need the schedule row id
+            // The get-recurring-bookings endpoint returns the most recent period; we use period lookup
+            const note = prompt(`Override payment for ${customerName} (${periodLabel})?\n\nEnter a reason / note for the override:`);
+            if (note === null) return; // cancelled
+            const staffName = sessionStorage.getItem('vp_user') || 'Staff';
+            try {
+                const res = await fetch(OVERRIDE_URL, {
+                    method: 'POST',
+                    headers: {},
+                    body: JSON.stringify({
+                        schedule_id:   scheduleId,
+                        override_by:   staffName,
+                        override_note: note || 'Management discretion',
+                        tenant_id:     parseInt(_TID())
+                    })
+                });
+                const json = await res.json();
+                if (json.status === 'overridden') {
+                    alert(`Payment period overridden successfully.`);
+                    loadRecurringSchedule(); // refresh
+                } else {
+                    alert(`Override not applied — the period may already be paid or overridden.`);
+                }
+            } catch(e) {
+                alert('Connection error — could not apply override.');
+            }
+        }
+
+        async function loadRecurringSchedule() {
+            try {
+                const res  = await fetch(REC_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
+                const json = await res.json();
+                const data = json.data || (Array.isArray(json) ? json : []);
+                const section = document.getElementById('rec-schedule-section');
+                const body    = document.getElementById('rec-schedule-body');
+
+                if (!data.length) { body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">No active recurring series.</div>'; section.style.display=''; return; }
+
+                section.style.display = '';
+                body.innerHTML = data.map(s => {
+                    const freq   = s.frequency || 'recurring';
+                    const label  = (freq.charAt(0).toUpperCase() + freq.slice(1));
+                    const total  = parseInt(s.total_bookings || 0);
+                    const pStat  = (s.payment_status || 'pending').toLowerCase();
+                    const amtDue = parseFloat(s.amount_due || 0);
+                    const dueD   = s.due_date ? new Date(s.due_date.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                    const pStart = s.period_start ? new Date(s.period_start.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                    const pEnd   = s.period_end   ? new Date(s.period_end.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                    const nextD  = s.next_date    ? new Date(s.next_date.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                    const statBadge = pStat === 'paid'
+                        ? `<span class="rps-badge rps-paid"><i class="fa-solid fa-check"></i> Paid</span>`
+                        : pStat === 'overridden'
+                        ? `<span class="rps-badge rps-overridden"><i class="fa-solid fa-shield-halved"></i> Override</span>`
+                        : pStat === 'cancelled'
+                        ? `<span class="rps-badge rps-cancelled"><i class="fa-solid fa-ban"></i> Cancelled</span>`
+                        : `<span class="rps-badge rps-pending"><i class="fa-solid fa-hourglass-half"></i> Pending</span>`;
+
+                    return `<div class="rec-series-card">
+                        <div class="rec-series-header">
+                            <div>
+                                <div class="rec-series-title">
+                                    <i class="fa-solid fa-repeat" style="color:#a5b4fc;font-size:0.9rem;"></i>
+                                    ${s.customer_name || 'Unknown'}
+                                    <span style="font-size:0.78rem;font-weight:600;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.35);padding:2px 9px;border-radius:20px;">${label} &times;${total}</span>
+                                </div>
+                                <div class="rec-series-meta" style="margin-top:4px;">
+                                    <i class="fa-solid fa-layer-group"></i> ${s.room_name || '—'} &nbsp;·&nbsp;
+                                    <i class="fa-solid fa-clock"></i> ${(s.start_time||'').slice(0,5)} – ${(s.end_time||'').slice(0,5)} &nbsp;·&nbsp;
+                                    Next session: <strong style="color:var(--text-main);">${nextD}</strong>
+                                </div>
+                            </div>
+                            <div>${statBadge}</div>
+                        </div>
+                        <table class="rec-period-table">
+                            <thead><tr>
+                                <th>Billing Period</th>
+                                <th>Amount Due</th>
+                                <th>Due By</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr></thead>
+                            <tbody>
+                                ${pStart !== '—' ? `<tr>
+                                    <td>${pStart} – ${pEnd}</td>
+                                    <td style="font-weight:700;color:${amtDue > 0 && pStat === 'pending' ? 'var(--warning)' : 'var(--text-main)'};">${fmt(amtDue)}</td>
+                                    <td style="color:${pStat==='pending' && s.due_date && new Date(s.due_date) < new Date() ? 'var(--danger)' : 'var(--text-muted)'};">${dueD}</td>
+                                    <td>${statBadge}</td>
+                                    <td>${pStat === 'pending' ? `<button onclick="overridePayment('${s.schedule_id || ''}','${(s.customer_name||'').replace(/'/g,'')}','${pStart} – ${pEnd}')" style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;padding:4px 10px;border-radius:6px;font-size:0.75rem;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap;">Override</button>` : ''}</td>
+                                </tr>` : `<tr><td colspan="5" style="color:var(--text-muted);font-size:0.82rem;">No billing period set — series has no session rate or starts in the future.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                // Recurring schedule not yet available (migration 007 pending) — silently skip
+                console.warn('Recurring schedule not available:', e.message);
+            }
+        }
 
         // ---- HELPER ----
         function hexToRgba(hex, alpha) {
