@@ -1236,6 +1236,34 @@ async function submitAddMember() {
         if (!startDate) { toast('Start date is required','error'); return; }
         if (!roomId)    { toast('Please select a room','error'); return; }
 
+        // ── Availability check: first occurrence of chosen day on/after start_date ──
+        const room       = _rooms.find(r => r.id === roomId);
+        const roomName   = room?.name || '';
+        const dayOfWeek  = parseInt(document.getElementById('add-dow').value);
+        const sdUTC      = new Date(startDate + 'T00:00:00Z');
+        const daysToAdd  = (dayOfWeek - sdUTC.getUTCDay() + 7) % 7;
+        const firstOcc   = new Date(sdUTC);
+        firstOcc.setUTCDate(firstOcc.getUTCDate() + daysToAdd);
+        const firstBookingDate = firstOcc.toISOString().slice(0, 10);
+
+        const availRes = await fetch(`${N8N}/check-availability`, {
+            method: 'POST', headers: {},
+            body: JSON.stringify({
+                roomName,
+                eventDate: firstBookingDate,
+                timeFrom:  document.getElementById('add-stime').value,
+                timeTo:    document.getElementById('add-etime').value,
+                tenant_id: parseInt(_TID())
+            })
+        });
+        if (!availRes.ok) throw new Error('Availability check failed: HTTP ' + availRes.status);
+        const availData  = await availRes.json();
+        const isAvailable = availData.available === true || availData.available === 'true'
+                         || availData.status === 'available';
+        if (!isAvailable) {
+            throw new Error(`Room not available on ${firstBookingDate}. ${availData.message || ''}`);
+        }
+
         const res = await fetch(`${N8N}/create-membership`,{
             method:'POST', headers:{},
             body: JSON.stringify({
