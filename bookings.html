@@ -62,6 +62,17 @@
         .filter-btn.fb-post:hover, .filter-btn.fb-post.active { background: rgba(6,182,212,0.18); color: #06b6d4; border-color: #06b6d4; }
         .filter-btn.fb-cancelled { color: var(--danger); border-color: rgba(239,68,68,0.4); }
         .filter-btn.fb-cancelled:hover, .filter-btn.fb-cancelled.active { background: rgba(239,68,68,0.18); color: var(--danger); border-color: var(--danger); }
+        .filter-btn.fb-rec { color: #a5b4fc; border-color: rgba(99,102,241,0.4); }
+        .filter-btn.fb-rec:hover, .filter-btn.fb-rec.active { background: rgba(99,102,241,0.18); color: #a5b4fc; border-color: var(--primary); }
+        /* Series card */
+        .series-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; background:rgba(99,102,241,0.18); color:#a5b4fc; border:1px solid rgba(99,102,241,0.35); white-space:nowrap; }
+        .series-expand-btn { background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); color:#a5b4fc; padding:5px 12px; border-radius:6px; font-size:0.78rem; cursor:pointer; font-weight:600; white-space:nowrap; transition:0.2s; }
+        .series-expand-btn:hover { background:rgba(99,102,241,0.22); }
+        .series-sessions { display:none; margin-top:10px; padding:10px 12px; border-top:1px solid rgba(148,163,184,0.1); background:rgba(0,0,0,0.15); border-radius:0 0 10px 10px; font-size:0.8rem; }
+        .series-sessions.open { display:block; }
+        .ss-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(148,163,184,0.07); color:var(--text-muted); }
+        .ss-row:last-child { border-bottom:none; }
+        .ss-row span { color:var(--text-main); }
 
         /* BOOKING CARD */
         .booking-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s; }
@@ -691,7 +702,7 @@
             <a href="bookings.html" class="nav-link active" data-label="Bookings"><i class="fa-solid fa-calendar-days"></i><span class="nav-label"> Bookings</span></a>
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
-            <a href="members.html" class="nav-link" data-label="Members"><i class="fa-solid fa-id-card"></i><span class="nav-label"> Members</span></a>
+
             <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>            
         </nav>
     </aside>
@@ -722,6 +733,7 @@
             <button class="filter-btn fb-booked" onclick="filterList('booked', this)">Paid</button>
             <button class="filter-btn fb-post" onclick="filterList('post', this)">Completed</button>
             <button class="filter-btn fb-cancelled" onclick="filterList('cancelled', this)">Cancelled</button>
+            <button class="filter-btn fb-rec" onclick="filterList('recurring', this)"><i class="fa-solid fa-repeat"></i> Recurring Series</button>
         </div>
         <div id="booking-container"><div style="text-align: center; padding: 2rem; color: var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading data...</div></div>
     </main>
@@ -793,6 +805,7 @@
         const API_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const PAY_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const CANCEL_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
+        const GET_RECURRING_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-recurring-bookings';
 
         function getAuthHeaders() { return {}; }
         function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
@@ -801,6 +814,7 @@
 
         
         let allBookings = [];
+        let _rawMappedSessions = []; // cache for series expand
         const formatCurrency = (num) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(num || 0);
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
@@ -817,33 +831,32 @@
 
         async function fetchBookings() {
             try {
-                const res = await fetch(API_URL + tidParam(), { headers: getAuthHeaders() });
-                const json = await res.json();
+                // Fetch individual bookings; also try series endpoint (requires migration 007)
+                const [bookRes, seriesResRaw] = await Promise.allSettled([
+                    fetch(API_URL + tidParam(), { headers: getAuthHeaders() }),
+                    fetch(GET_RECURRING_URL + tidParam(), { headers: getAuthHeaders() })
+                ]);
+
+                const json = bookRes.status === 'fulfilled' ? await bookRes.value.json() : {};
                 const rawData = json.data || (Array.isArray(json) ? json : []);
-                const now = new Date(); now.setHours(0,0,0,0); 
+                const now = new Date(); now.setHours(0,0,0,0);
 
                 const mapped = rawData.map(b => {
-                    const bDate = new Date((b.date_from || b.booking_date).split('T')[0]+'T00:00:00'); // start date for badge/sorting
-                    const bDateEnd = new Date((b.date_to || b.date_from || b.booking_date).split('T')[0]+'T00:00:00'); // end date: multi-day bookings stay active until last day
-                    const balance = parseFloat(b.balance_due || 0);
+                    const bDate    = new Date((b.date_from || b.booking_date).split('T')[0]+'T00:00:00');
+                    const bDateEnd = new Date((b.date_to || b.date_from || b.booking_date).split('T')[0]+'T00:00:00');
+                    const balance  = parseFloat(b.balance_due || 0);
                     let category = 'pre';
-
-                    // LOGIC UPDATED: Check status FIRST
-                    if (b.status === 'cancelled') {
-                        category = 'cancelled';
-                    } else if (bDateEnd < now) {
-                        category = 'post';
-                    } else if (balance <= 0) {
-                        category = 'booked';
-                    } else {
-                        category = 'pre';
-                    }
-
+                    if (b.status === 'cancelled')  category = 'cancelled';
+                    else if (bDateEnd < now)        category = 'post';
+                    else if (balance <= 0)          category = 'booked';
                     return { ...b, category, dateObj: bDate, balanceNum: balance };
                 });
-                // Group multi-room bookings (same customer + date + time) into one card
+
+                // ── Step 1: multi-room grouping (non-recurring only) ──────────────
+                _rawMappedSessions = mapped; // cache for expand
+                const singleMapped = mapped.filter(b => !b.recurring_rule_id);
                 const grouped = {};
-                mapped.forEach(b => {
+                singleMapped.forEach(b => {
                     const key = `${b.customer_id}|${(b.date_from||b.booking_date||'').slice(0,10)}|${b.start_time||''}|${b.end_time||''}`;
                     if (!grouped[key]) {
                         grouped[key] = { ...b, _allIds: [b.id], _roomNames: [b.room_name] };
@@ -855,12 +868,10 @@
                         grouped[key].balanceNum   = parseFloat(grouped[key].balance_due);
                     }
                 });
-                allBookings = Object.values(grouped).map(b => {
-                    // Re-evaluate category based on final GROUPED balance (fixes multi-room edge case
-                    // where first DB row's category might not match the summed total)
+                const singleBookings = Object.values(grouped).map(b => {
                     const totalBal = parseFloat(b.balance_due || 0);
                     const endDate  = new Date((b.date_to || b.date_from || b.booking_date).split('T')[0]+'T00:00:00');
-                    let category = b.category; // preserve 'cancelled' from original
+                    let category = b.category;
                     if (b.status !== 'cancelled') {
                         if (endDate < now)      category = 'post';
                         else if (totalBal <= 0) category = 'booked';
@@ -868,13 +879,63 @@
                     }
                     return { ...b, room_name: b._roomNames.join(', '), category, balanceNum: totalBal };
                 });
+
+                // ── Step 2: build series rows from get-recurring-bookings ─────────
+                let seriesBookings = [];
+                if (seriesResRaw.status === 'fulfilled') {
+                    try {
+                        const sJson = await seriesResRaw.value.json();
+                        const sData = sJson.data || (Array.isArray(sJson) ? sJson : []);
+                        seriesBookings = sData.map(s => {
+                            const nextDate = s.next_date ? new Date(s.next_date.split('T')[0]+'T00:00:00')
+                                                         : (s.last_date ? new Date(s.last_date.split('T')[0]+'T00:00:00') : new Date());
+                            const freq = (s.frequency||'recurring');
+                            const label = s.series_label || (freq.charAt(0).toUpperCase()+freq.slice(1));
+                            const totalBal = parseFloat(s.amount_due || 0);
+                            let category = 'pre';
+                            if (totalBal <= 0 && parseInt(s.pending_count||0) === 0) category = 'booked';
+                            else if (parseInt(s.pending_count||0) === 0 && parseInt(s.confirmed_count||0) > 0) category = 'booked';
+                            return {
+                                ...s,
+                                _isSeries:     true,
+                                _ruleId:        s.rule_id,
+                                _seriesLabel:   label,
+                                _totalSessions: parseInt(s.total_bookings || 0),
+                                _pendingCount:  parseInt(s.pending_count || 0),
+                                _nextDate:      s.next_date,
+                                _firstDate:     s.first_date,
+                                _lastDate:      s.last_date,
+                                _paymentStatus: s.payment_status || 'pending',
+                                id:             s.rule_id,
+                                customer_name:  s.customer_name,
+                                customer_id:    s.customer_id,
+                                room_name:      s.room_name,
+                                start_time:     s.start_time,
+                                end_time:       s.end_time,
+                                date_from:      s.next_date || s.first_date,
+                                booking_date:   s.next_date || s.first_date,
+                                category,
+                                dateObj:        nextDate,
+                                balanceNum:     totalBal,
+                                total_amount:   parseFloat(s.amount_due || 0),
+                                balance_due:    String(parseFloat(s.amount_due || 0)),
+                                _allIds:        [s.rule_id]
+                            };
+                        });
+                    } catch(e) { /* series endpoint not yet ready, silent */ }
+                }
+
+                // ── Step 3: merge and update state ────────────────────────────────
+                allBookings = [...singleBookings, ...seriesBookings];
                 updateMetrics();
-                // Populate room filter
+
+                // Populate room filter (single bookings only — series rooms already included)
                 const rooms = [...new Set(allBookings.map(b => b.room_name).filter(Boolean))].sort();
                 const roomSel = document.getElementById('sf-room');
                 roomSel.innerHTML = '<option value="">All Rooms</option>';
                 rooms.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roomSel.appendChild(o); });
-                filterList('all', document.querySelector('.filter-btn.active')); 
+
+                filterList('all', document.querySelector('.filter-btn.active'));
             } catch (e) { console.error(e); }
         }
 
@@ -1048,7 +1109,17 @@
             const fromDate = document.getElementById('sf-from')?.value;
             const toDate   = document.getElementById('sf-to')?.value;
             const roomVal  = document.getElementById('sf-room')?.value;
-            let filtered   = filterType === 'all' ? allBookings : allBookings.filter(b => b.category === filterType);
+
+            let filtered;
+            if (filterType === 'recurring') {
+                filtered = allBookings.filter(b => b._isSeries);
+            } else if (filterType === 'all') {
+                filtered = allBookings;
+            } else {
+                // Hide series rows from individual status filters — they have their own tab
+                filtered = allBookings.filter(b => !b._isSeries && b.category === filterType);
+            }
+
             if (search) filtered = filtered.filter(b =>
                 (b.customer_name || '').toLowerCase().includes(search) ||
                 (b.customer_email || b.email || '').toLowerCase().includes(search) ||
@@ -1058,58 +1129,143 @@
             if (toDate)   filtered = filtered.filter(b => (b.date_to || b.date_from || b.booking_date) && (b.date_to || b.date_from || b.booking_date).slice(0,10) <= toDate);
             if (roomVal)  filtered = filtered.filter(b => b.room_name === roomVal);
             filtered.sort((a, b) => filterType === 'post' ? b.dateObj - a.dateObj : a.dateObj - b.dateObj);
-            
+
             const container = document.getElementById('booking-container');
             if (filtered.length === 0) { container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-muted);">No bookings found.</div>`; return; }
 
             container.innerHTML = filtered.map(b => {
+                // ── SERIES CARD ──────────────────────────────────────────────────
+                if (b._isSeries) {
+                    const freq = b._seriesLabel || 'Recurring';
+                    const cnt  = b._totalSessions || 0;
+                    const psStatus = b._paymentStatus || 'pending';
+                    const payPill = psStatus === 'paid'
+                        ? `<span class="status-pill status-booked" style="font-size:0.7rem;">Payment Paid</span>`
+                        : psStatus === 'overridden'
+                        ? `<span class="status-pill" style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid var(--warning);">Overridden</span>`
+                        : b.amount_due > 0
+                        ? `<span class="status-pill status-pre" style="font-size:0.7rem;">${formatCurrency(b.amount_due)} due</span>`
+                        : `<span class="status-pill status-completed" style="font-size:0.7rem;">No charge</span>`;
+                    const nextFmt = b._nextDate
+                        ? new Date(b._nextDate.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+                        : '—';
+                    const firstFmt = b._firstDate
+                        ? new Date(b._firstDate.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+                        : '—';
+                    const lastFmt  = b._lastDate
+                        ? new Date(b._lastDate.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+                        : '—';
+                    return `<div class="booking-card" style="border-left:4px solid #6366f1;flex-direction:column;cursor:default;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
+                            <div class="b-left">
+                                <div class="date-badge" style="border-color:rgba(99,102,241,0.4);">
+                                    <div class="db-day" style="font-size:0.9rem;color:#a5b4fc;">NEXT</div>
+                                    <div class="db-month">${nextFmt}</div>
+                                </div>
+                                <div class="b-details">
+                                    <h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        ${esc(b.customer_name)||'Guest'}
+                                        <span class="series-badge"><i class="fa-solid fa-repeat"></i> ${esc(freq)} &times;${cnt}</span>
+                                    </h4>
+                                    <div class="b-meta">
+                                        <span><i class="fa-solid fa-layer-group"></i> ${esc(b.room_name)}</span>
+                                        <span><i class="fa-solid fa-clock"></i> ${(b.start_time||'').slice(0,5)} – ${(b.end_time||'').slice(0,5)}</span>
+                                        <span><i class="fa-solid fa-calendar-range"></i> ${firstFmt} → ${lastFmt}</span>
+                                        ${b._pendingCount > 0 ? `<span style="color:#f59e0b;font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> ${b._pendingCount} upcoming</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                ${payPill}
+                                <button class="series-expand-btn" onclick="toggleSeriesExpand('${b._ruleId}')">
+                                    <i class="fa-solid fa-chevron-down" id="series-icon-${CSS.escape(b._ruleId)}"></i> Sessions
+                                </button>
+                            </div>
+                        </div>
+                        <div id="series-${CSS.escape(b._ruleId)}" class="series-sessions">
+                            <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:6px;">Loading sessions…</div>
+                        </div>
+                    </div>`;
+                }
+
+                // ── SINGLE BOOKING CARD ──────────────────────────────────────────
                 let statusInfo = { text: `${formatCurrency(b.balanceNum)} due`, cls: 'status-pre', color: 'var(--warning)' };
-                if(b.category === 'booked') statusInfo = { text: 'Paid', cls: 'status-booked', color: 'var(--primary)' };
+                if(b.category === 'booked')    statusInfo = { text: 'Paid',      cls: 'status-booked',    color: 'var(--primary)' };
                 else if(b.category === 'post') statusInfo = { text: 'Completed', cls: 'status-completed', color: 'var(--success)' };
                 else if(b.category === 'cancelled') statusInfo = { text: 'Cancelled', cls: 'status-cancelled', color: 'var(--danger)' };
 
-                let actions = '';
-                let cardClick = '';
-                // Add Pay button if Payment Due
+                let actions = '', cardClick = '';
                 if(b.category === 'pre') {
                     const safeEnc = encodeURIComponent(JSON.stringify(b));
-                    actions += `<button class="pay-btn" onclick="event.stopPropagation();openPayModalByData('${safeEnc}')"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
-                    cardClick = `onclick="openPayModalByData('${safeEnc}')"`;
+                    actions   += `<button class="pay-btn" onclick="event.stopPropagation();openPayModalByData('${safeEnc}')"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
+                    cardClick  = `onclick="openPayModalByData('${safeEnc}')"`;
                 }
-                
-                // Add Cancel button if Pre or Booked (Active events)
                 if(b.category === 'pre' || b.category === 'booked') {
-                    actions += `<button class="cancel-btn" onclick="event.stopPropagation();cancelBooking('${(b._allIds||[b.id]).join(',')}', decodeURIComponent('${encodeURIComponent(b.customer_name || '')}'  ))"><i class="fa-solid fa-trash"></i> Cancel</button>`;
+                    actions += `<button class="cancel-btn" onclick="event.stopPropagation();cancelBooking('${(b._allIds||[b.id]).join(',')}', decodeURIComponent('${encodeURIComponent(b.customer_name||'')}'))"><i class="fa-solid fa-trash"></i> Cancel</button>`;
                 }
 
-                return `<div class="booking-card" ${cardClick} style="border-left: 4px solid ${statusInfo.color}; cursor:${b.category === 'pre' ? 'pointer' : 'default'};">
+                return `<div class="booking-card" ${cardClick} style="border-left:4px solid ${statusInfo.color};cursor:${b.category==='pre'?'pointer':'default'};">
                     <div class="b-left">
-                        <div class="date-badge"><div class="db-day">${b.dateObj.getDate()}</div><div class="db-month">${b.dateObj.toLocaleString('default', { month: 'short' })}</div></div>
+                        <div class="date-badge"><div class="db-day">${b.dateObj.getDate()}</div><div class="db-month">${b.dateObj.toLocaleString('default',{month:'short'})}</div></div>
                         <div class="b-details">
-                            <h4>${esc(b.customer_name) || 'Guest'}</h4>
+                            <h4>${esc(b.customer_name)||'Guest'}</h4>
                             <div class="b-meta">
                                 <span><i class="fa-solid fa-layer-group"></i> ${esc(b.room_name)}</span>
-                                <span><i class="fa-solid fa-clock"></i> ${b.start_time?.slice(0,5)} - ${b.end_time?.slice(0,5)}</span>
+                                <span><i class="fa-solid fa-clock"></i> ${b.start_time?.slice(0,5)} – ${b.end_time?.slice(0,5)}</span>
                                 ${b.date_from && b.date_to && b.date_from.slice(0,10) !== b.date_to.slice(0,10) ? `<span><i class="fa-solid fa-calendar-days"></i> ${new Date(b.date_from.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(b.date_to.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>` : ''}
                                 <span><i class="fa-solid fa-sterling-sign"></i> Total: ${formatCurrency(b.total_amount)}</span>
-                                ${b.category === 'pre' ? `<span style="color:var(--warning); font-weight:600;"><i class="fa-solid fa-coins"></i> Balance Due: ${formatCurrency(b.balanceNum)}</span>` : ''}
+                                ${b.category === 'pre' ? `<span style="color:var(--warning);font-weight:600;"><i class="fa-solid fa-coins"></i> Balance Due: ${formatCurrency(b.balanceNum)}</span>` : ''}
                             </div>
-                            ${(() => {
-                                const bal = b.balanceNum;
-                                const isPast = b.category === 'post';
-                                const allDone = (bal <= 0);
-                                const d1 = 'done', d2 = allDone ? 'done' : (b.category==='pre'?'active':'pending'), d3 = allDone ? 'done' : 'pending';
-                                const l1 = 'done', l2 = allDone ? 'done' : 'pending';
-                                const i1 = '<i class="fa-solid fa-check"></i>', i2 = allDone ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-coins"></i>', i3 = allDone ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-circle"></i>';
-                                if(b.category === 'cancelled') return '';
+                            ${(()=>{
+                                if(b.category==='cancelled') return '';
+                                const allDone=(b.balanceNum<=0);
+                                const d1='done', d2=allDone?'done':(b.category==='pre'?'active':'pending'), d3=allDone?'done':'pending';
+                                const l1='done', l2=allDone?'done':'pending';
+                                const i1='<i class="fa-solid fa-check"></i>', i2=allDone?'<i class="fa-solid fa-check"></i>':'<i class="fa-solid fa-coins"></i>', i3=allDone?'<i class="fa-solid fa-circle-check"></i>':'<i class="fa-solid fa-circle"></i>';
                                 return `<div class="card-timeline"><div class="ct-step"><div class="ct-dot ${d1}">${i1}</div><div class="ct-lbl">Deposit</div></div><div class="ct-line ${l1}"></div><div class="ct-step"><div class="ct-dot ${d2}">${i2}</div><div class="ct-lbl">Balance</div></div><div class="ct-line ${l2}"></div><div class="ct-step"><div class="ct-dot ${d3}">${i3}</div><div class="ct-lbl">Settled</div></div></div>`;
                             })()}
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
                         <div class="status-pill ${statusInfo.cls}">${statusInfo.text}</div>
                         ${actions}
                     </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Expand/collapse a series' individual sessions (uses cached _rawMappedSessions)
+        function toggleSeriesExpand(ruleId) {
+            const panel = document.getElementById('series-'+CSS.escape(ruleId));
+            const icon  = document.getElementById('series-icon-'+CSS.escape(ruleId));
+            if (!panel) return;
+            if (panel.classList.contains('open')) {
+                panel.classList.remove('open');
+                if (icon) icon.className = 'fa-solid fa-chevron-down';
+                return;
+            }
+            panel.classList.add('open');
+            if (icon) icon.className = 'fa-solid fa-chevron-up';
+
+            const rows = _rawMappedSessions
+                .filter(b => b.recurring_rule_id === ruleId)
+                .sort((a,b) => (a.booking_date||a.date_from||'').localeCompare(b.booking_date||b.date_from||''));
+
+            if (rows.length === 0) {
+                panel.innerHTML = '<div class="ss-row"><span style="color:var(--text-muted)">No sessions in cache — they will appear here after next page load once the series is created.</span></div>';
+                return;
+            }
+            const now = new Date(); now.setHours(0,0,0,0);
+            panel.innerHTML = rows.map(r => {
+                const d = new Date((r.booking_date||r.date_from||'').split('T')[0]+'T00:00:00');
+                const isPast = d < now;
+                const isCan  = r.status === 'cancelled';
+                const bal    = parseFloat(r.balance_due||0);
+                const statusTxt = isCan ? '🚫 Cancelled' : isPast ? '✅ Past' : bal>0 ? `⏳ £${bal.toFixed(2)} due` : '✅ Paid';
+                return `<div class="ss-row">
+                    <span>${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</span>
+                    <span style="color:var(--text-muted)">${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}</span>
+                    <span style="font-size:0.75rem">${statusTxt}</span>
                 </div>`;
             }).join('');
         }
