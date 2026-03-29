@@ -1290,6 +1290,8 @@
             qbCalculateCost();qbCheckAvailability();renderQbExtraRooms();
         }
         function qbCalculateCost(){
+            // If recurring mode is on, total is handled by qbRecalcRecurring
+            if(document.getElementById('qb-rec-toggle')?.checked){qbRecalcRecurring();return;}
             const roomName=document.getElementById('qb-roomSelect').value;
             const eventType=document.getElementById('qb-eventType').value;
             const{from,to}=qbGetDates();
@@ -1424,6 +1426,11 @@
             preview.innerHTML='<strong>'+dates.length+'</strong> sessions · First month: <strong>'+fmDates.length+'</strong> session'+(fmDates.length!==1?'s':'')
                 +(rate>0?', <strong>£'+firstAmt+'</strong> due in 7 days':'')
                 +'<br><span style="font-size:0.72rem;opacity:0.7">From '+dates[0]+' to '+dates[dates.length-1]+'</span>';
+            // Update the main total display with first-month recurring cost
+            const monthlyTotal=fmDates.length*rate;
+            qbTotalAmount=monthlyTotal;
+            document.getElementById('qb-totalDisplay').textContent=rate>0?'£'+monthlyTotal.toFixed(2):'£0.00';
+            document.getElementById('qb-costBreakdown').textContent=rate>0?fmDates.length+' session'+(fmDates.length!==1?'s':'')+' in month 1 × £'+rate.toFixed(2)+'/session':'Enter rate per session';
         }
 
         function _qbCalcDates(startDate,endDate,freq){
@@ -1488,6 +1495,7 @@
             if(isSpecific&&_qbRecSelected.size===0){showToast('Please select at least one date','error');return;}
             const room=qbRoomsData.find(function(r){return(r.name||r.room_name||r.id)===roomName;});
             const roomId=room?room.id:'';
+            if(!roomId){showToast('Room not found — please refresh the page and try again','error');return;}
             const btn=document.getElementById('qb-btn-recurring');
             btn.disabled=true;
             btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Creating…';
