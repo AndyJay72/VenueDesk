@@ -585,7 +585,8 @@
         <nav>
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="users.html" class="nav-link active" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
-            <a href="admin-config.html"    class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+            <a href="admin-config.html" class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+
             <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
     </aside>
@@ -657,14 +658,9 @@
         const CREATE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/create-user';
         const DELETE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/delete-user';
 
-        function getAuthHeaders() {
-            const tid = sessionStorage.getItem('vp_tenant_id') || '';
-            return {
-                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-                'X-Tenant-ID': tid,
-                'X-Venue-ID':  tid
-            };
-        }
+        function getAuthHeaders() { return {}; }
+        function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+        function tidParam(sep='?') { return sep + 'tenant_id=' + _TID(); }
 
 
         function toggleMenu() {
@@ -709,7 +705,7 @@
         // 1. Load Users
         async function loadUsers() {
             try {
-                const res = await fetch(GET_URL, { headers: getAuthHeaders() });
+                const res = await fetch(GET_URL + tidParam(), { headers: getAuthHeaders() });
                 if (!res.ok) throw new Error("Connection Error");
                 
                 const json = await res.json();
@@ -764,8 +760,8 @@
             try {
                 const res = await fetch(CREATE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ full_name: name, username: user, password: pass, role: role })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: name, username: user, password: pass, role: role, tenant_id: parseInt(_TID()) })
                 });
 
                 if(res.ok) {
@@ -784,8 +780,8 @@
             try {
                 const res = await fetch(DELETE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ user_id: id })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, tenant_id: parseInt(_TID()) })
                 });
                 if(res.ok) { loadUsers(); } else { alert("Failed to delete."); }
             } catch(e) { alert("Connection Error"); }
