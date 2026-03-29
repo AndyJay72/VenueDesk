@@ -950,7 +950,7 @@ async function submitInlinePayment() {
     try {
         const activeMember = _allMembers.find(x=>x.membership_id===_activeMemberId);
         const res = await fetch(`${N8N}/record-member-payment`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{},
             body: JSON.stringify({
                 tenant_id:      parseInt(_TID()),
                 membership_id:  _activeMemberId,
@@ -1020,7 +1020,7 @@ async function submitEditMember() {
             performed_by:       _USER()
         };
         const res = await fetch(`${N8N}/update-membership`,{
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+            method:'POST', headers:{}, body:JSON.stringify(body)
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
         toast('Member details updated','success');
@@ -1068,7 +1068,7 @@ async function submitEditRule(ruleId) {
             performed_by:     _USER()
         };
         const res = await fetch(`${N8N}/update-recurring-rule`,{
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+            method:'POST', headers:{}, body:JSON.stringify(body)
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
         toast('Rule updated','success');
@@ -1086,7 +1086,7 @@ async function changeMemberStatus(newStatus) {
     if (!confirm(`${verb} membership for ${m?.customer_name||'this member'}?`)) return;
     try {
         const res = await fetch(`${N8N}/update-membership-status`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{},
             body:JSON.stringify({tenant_id:parseInt(_TID()),membership_id:_activeMemberId,status:newStatus,customer_name:m?.customer_name||'',customer_email:m?.email||'',performed_by:_USER()})
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
@@ -1105,7 +1105,7 @@ async function submitAddRule() {
     try {
         const m = _allMembers.find(x=>x.membership_id===_activeMemberId);
         const res = await fetch(`${N8N}/add-recurring-rule`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{},
             body:JSON.stringify({
                 tenant_id:    parseInt(_TID()),
                 membership_id:_activeMemberId,
@@ -1214,7 +1214,7 @@ async function submitAddMember() {
             customerEmail = document.getElementById('new-cust-email').value.trim()||'';
             if (!customerName) { toast('Customer name is required','error'); return; }
             const createRes = await fetch(`${N8N}/create-customer-record`,{
-                method:'POST', headers:{'Content-Type':'application/json'},
+                method:'POST', headers:{},
                 body: JSON.stringify({
                     full_name:  customerName,
                     email:      customerEmail,
@@ -1237,7 +1237,7 @@ async function submitAddMember() {
         if (!roomId)    { toast('Please select a room','error'); return; }
 
         const res = await fetch(`${N8N}/create-membership`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{},
             body: JSON.stringify({
                 tenant_id:          parseInt(_TID()),
                 customer_id:        customerId,
@@ -1291,7 +1291,7 @@ async function submitPayment() {
     try {
         const activeMember = _allMembers.find(x=>x.membership_id===_activeMemberId);
         const res = await fetch(`${N8N}/record-member-payment`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{},
             body: JSON.stringify({
                 tenant_id:      parseInt(_TID()),
                 membership_id:  _activeMemberId,
