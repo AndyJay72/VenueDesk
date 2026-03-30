@@ -1015,6 +1015,37 @@
                         <button class="qb-btn-cancel" onclick="closeQbModal()">Cancel</button>
                     </div>
                 </div>
+                <!-- RIGHT: Summary -->
+                <div class="qb-summary-section">
+                    <div class="qb-summary-card">
+                        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:0.75rem">Booking Total</div>
+                        <div id="qb-totalDisplay" class="qb-total-big">£0.00</div>
+                        <div id="qb-costBreakdown" class="qb-breakdown"></div>
+                    </div>
+                    <div class="qb-summary-card">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.83rem;color:var(--text-muted);margin-bottom:0.5rem">
+                            <input type="checkbox" id="qb-overrideToggle" onchange="qbTogglePriceOverride()" style="width:auto;margin:0;min-height:unset">
+                            Override price
+                        </label>
+                        <div id="qb-overrideRow" style="display:none;margin-bottom:0.75rem">
+                            <label class="qb-label">Custom Total (£)</label>
+                            <input type="number" id="qb-overrideAmount" class="qb-input" min="0" step="0.01" placeholder="0.00" oninput="qbApplyOverride()">
+                        </div>
+                        <div style="margin-top:0.5rem">
+                            <label class="qb-label">Payment Amount (£)</label>
+                            <input type="number" id="qb-payAmount" class="qb-input" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div style="margin-top:0.75rem">
+                            <label class="qb-label">Payment Method</label>
+                            <select id="qb-payMethodSelect" class="qb-select">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="bacs">BACS</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
