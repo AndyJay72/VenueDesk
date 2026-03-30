@@ -970,7 +970,7 @@
                     '<td>' + pDate + '</td>' +
                     '<td>' + refHtml + '</td>' +
                     '<td>' + linkedHtml + '</td>' +
-                    '<td>' + (t.customer_name || '—') + (isCancelled ? ' <span style="font-size:0.72rem;color:var(--danger);font-weight:700;">CANCELLED</span>' : '') + '</td>' +
+                    '<td>' + (t.customer_name || '—') + (isCancelled ? ' <span style="font-size:0.72rem;color:var(--danger);font-weight:700;">CANCELLED</span>' : '') + (t.is_recurring ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;"><i class="fa-solid fa-repeat" style="font-size:0.58rem"></i> Recurring</span>' : '') + '</td>' +
                     '<td>' + (t.room_name     || '—') + '</td>' +
                     '<td>' + bDate + (time ? '<br><span style="font-size:0.78rem; color:var(--text-muted);">' + time + '</span>' : '') + '</td>' +
                     '<td><span class="type-badge ' + typeClass(t.payment_type, t.booking_balance_due) + '">' + typeLabel(t.payment_type, t.booking_balance_due) + '</span></td>' +
