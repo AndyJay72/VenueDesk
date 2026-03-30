@@ -719,6 +719,7 @@
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="calendar.html" class="nav-link active" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
             <a href="bookings.html" class="nav-link" data-label="Bookings"><i class="fa-solid fa-calendar-days"></i><span class="nav-label"> Bookings</span></a>
+            <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
 
             <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
@@ -1002,85 +1003,6 @@
                     <div id="qb-availStatus" class="qb-avail-box qb-avail-idle"><span id="qb-availText">Fill in room, date &amp; times to check availability.</span></div>
                     <div id="qb-guestCapWarning" class="qb-cap-warning" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span id="qb-guestCapMsg"></span></div>
                     <div id="qb-services-wrap" style="margin:0.6rem 0"></div>
-
-                    <!-- RECURRING BOOKING SECTION -->
-                    <div id="qb-recurring-wrap" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.12)">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;font-weight:600;color:#a5b4fc">
-                            <input type="checkbox" id="qb-rec-toggle" onchange="qbToggleRecurring()" style="width:auto;margin:0;accent-color:#6366f1">
-                            <i class="fa-solid fa-repeat" style="color:#818cf8"></i> Recurring Booking
-                        </label>
-                        <div id="qb-rec-panel" style="display:none;margin-top:12px;padding:12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px">
-                            <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Frequency</div>
-                            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.83rem">
-                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="qb-rec-freq" value="weekly" checked onchange="qbRecalcRecurring()" style="accent-color:#6366f1"> Weekly</label>
-                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="qb-rec-freq" value="fortnightly" onchange="qbRecalcRecurring()" style="accent-color:#6366f1"> Fortnightly</label>
-                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="qb-rec-freq" value="monthly" onchange="qbRecalcRecurring()" style="accent-color:#6366f1"> Monthly</label>
-                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="qb-rec-freq" value="daily" onchange="qbRecalcRecurring()" style="accent-color:#6366f1"> Daily</label>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-                                <div>
-                                    <label class="qb-label">End Date</label>
-                                    <input type="date" id="qb-rec-enddate" class="qb-input" onchange="qbRecalcRecurring()">
-                                </div>
-                                <div>
-                                    <label class="qb-label">Rate/Session (£)</label>
-                                    <input type="number" id="qb-rec-rate" class="qb-input" min="0" step="0.01" placeholder="e.g. 50.00" oninput="qbRecalcRecurring()">
-                                </div>
-                            </div>
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
-                                <input type="checkbox" id="qb-rec-specific-toggle" onchange="qbToggleSpecificDates()" style="width:auto;margin:0;accent-color:#6366f1"> Select specific dates manually
-                            </label>
-                            <div id="qb-rec-specific-wrap" style="display:none;margin-bottom:10px">
-                                <div id="qb-rec-mini-cal" style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:8px"></div>
-                                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Click dates to select them</div>
-                            </div>
-                            <div id="qb-rec-preview" style="font-size:0.78rem;color:#818cf8;min-height:1.2em;line-height:1.5"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- RIGHT: Summary -->
-                <div class="qb-summary-section">
-                    <div>
-                        <span class="qb-section-label" style="margin-top:0">Payment Summary</span>
-                        <div class="qb-summary-card">
-                            <div style="display:flex;justify-content:space-between;align-items:center">
-                                <span style="font-size:0.85rem;color:var(--text-muted);font-weight:500">Estimated Total</span>
-                                <strong class="qb-total-big" id="qb-totalDisplay">£0.00</strong>
-                            </div>
-                            <div id="qb-costBreakdown" class="qb-breakdown">Select a room to see pricing</div>
-                        </div>
-                    </div>
-                    <!-- Override price -->
-                    <div>
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:var(--text-muted)">
-                            <input type="checkbox" id="qb-overrideToggle" onchange="qbTogglePriceOverride()" style="width:auto;margin:0">
-                            Override price manually
-                        </label>
-                        <div id="qb-overrideRow" style="display:none;margin-top:6px">
-                            <label class="qb-label">Override Total (£)</label>
-                            <input type="number" id="qb-overrideAmount" class="qb-input" min="0" step="0.01" placeholder="Custom total..." oninput="qbApplyOverride()">
-                        </div>
-                    </div>
-                    <!-- Payment -->
-                    <div>
-                        <span class="qb-section-label" style="margin-top:0">Payment</span>
-                        <div class="qb-grid" style="margin-top:0.5rem">
-                            <div>
-                                <label class="qb-label">Method</label>
-                                <select id="qb-payMethodSelect" class="qb-select">
-                                    <option value="Cash">Cash</option>
-                                    <option value="Card">Card</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="qb-label">Amount Paid (£)</label>
-                                <input type="number" id="qb-payAmount" class="qb-input" min="0" step="0.01" placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
                     <!-- Action Buttons -->
                     <div class="qb-btn-stack">
                         <div id="qb-regular-btns">
@@ -1089,9 +1011,6 @@
                                 <button class="qb-btn-deposit" id="qb-btn-deposit" onclick="qbSubmitBooking('deposit')" disabled><i class="fa-solid fa-circle-half-stroke"></i> Take Deposit (<span id="qb-depositLabel">30%</span>)</button>
                                 <button class="qb-btn-pending" id="qb-btn-pending" onclick="qbSubmitBooking('pending')"><i class="fa-solid fa-paper-plane"></i> Submit as Pending</button>
                             </div>
-                        </div>
-                        <div id="qb-recurring-btn-wrap" style="display:none">
-                            <button id="qb-btn-recurring" onclick="qbSubmitRecurring()" style="width:100%;padding:11px;background:#6366f1;border:none;color:white;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.88rem"><i class="fa-solid fa-repeat"></i> Create Recurring Series</button>
                         </div>
                         <button class="qb-btn-cancel" onclick="closeQbModal()">Cancel</button>
                     </div>
@@ -1116,8 +1035,6 @@
         const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/walk-in-booking';
         const CHECK_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
         const PRICING_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-pricing';
-        const QBR_RECURRING_URL='https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-booking';
-        const QBR_CREATE_CUST_URL='https://n8n.srv1090894.hstgr.cloud/webhook/create-customer-record';
         const TYPES_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-event-types';
         const QBR_DEPOSIT_PCT=30;
         const DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -1214,7 +1131,7 @@
         async function deleteBlockedDate(id){
             if(!confirm('Remove this block?'))return;
             try{
-                const res=await fetch(BLOCKED_API,{method:'DELETE',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({id})});
+                const res=await fetch(BLOCKED_API+'?id='+id+'&tenant_id='+_CAL_TID(),{method:'DELETE',headers:{}});
                 const json=await res.json();
                 if(json.success){
                     allBlockedRules=allBlockedRules.filter(b=>b.id!==id);blockedBgEvents=generateBlockedBgEvents(allBlockedRules);
@@ -1290,8 +1207,6 @@
             qbCalculateCost();qbCheckAvailability();renderQbExtraRooms();
         }
         function qbCalculateCost(){
-            // If recurring mode is on, total is handled by qbRecalcRecurring
-            if(document.getElementById('qb-rec-toggle')?.checked){qbRecalcRecurring();return;}
             const roomName=document.getElementById('qb-roomSelect').value;
             const eventType=document.getElementById('qb-eventType').value;
             const{from,to}=qbGetDates();
@@ -1396,148 +1311,7 @@
             }catch(err){showToast('Failed to submit: '+err.message,'error');}
             finally{['qb-btn-deposit','qb-btn-full','qb-btn-pending'].forEach(id=>document.getElementById(id).disabled=false);qbSetButtons(true);}
         }
-        // ── RECURRING BOOKING HELPERS ───────────────────────────────────────
-        let _qbRecMiniCalYear=null,_qbRecMiniCalMonth=null;
-        const _qbRecSelected=new Set();
-
-        function qbToggleRecurring(){
-            const on=document.getElementById('qb-rec-toggle').checked;
-            document.getElementById('qb-rec-panel').style.display=on?'block':'none';
-            document.getElementById('qb-regular-btns').style.display=on?'none':'block';
-            document.getElementById('qb-recurring-btn-wrap').style.display=on?'block':'none';
-            if(on)qbRecalcRecurring();
-        }
-
-        function qbRecalcRecurring(){
-            const freq=(document.querySelector('input[name="qb-rec-freq"]:checked')||{}).value||'weekly';
-            const endDate=document.getElementById('qb-rec-enddate').value;
-            const rate=parseFloat(document.getElementById('qb-rec-rate').value)||0;
-            const isSpecific=document.getElementById('qb-rec-specific-toggle').checked;
-            const{from}=qbGetDates();
-            const preview=document.getElementById('qb-rec-preview');
-            if(isSpecific){const c=_qbRecSelected.size;preview.textContent=c>0?c+' date'+(c!==1?'s':'')+' selected':'No dates selected';return;}
-            if(!from){preview.textContent='Select a date to preview sessions';return;}
-            const dates=_qbCalcDates(from,endDate,freq);
-            if(!dates.length){preview.textContent='No dates generated';return;}
-            const first=new Date(dates[0]+'T00:00:00Z');
-            const firstMonthEnd=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0));
-            const fmDates=dates.filter(function(d){const dt=new Date(d+'T00:00:00Z');return dt>=first&&dt<=firstMonthEnd;});
-            const firstAmt=(fmDates.length*rate).toFixed(2);
-            preview.innerHTML='<strong>'+dates.length+'</strong> sessions · First month: <strong>'+fmDates.length+'</strong> session'+(fmDates.length!==1?'s':'')
-                +(rate>0?', <strong>£'+firstAmt+'</strong> due in 7 days':'')
-                +'<br><span style="font-size:0.72rem;opacity:0.7">From '+dates[0]+' to '+dates[dates.length-1]+'</span>';
-            // Update the main total display with first-month recurring cost
-            const monthlyTotal=fmDates.length*rate;
-            qbTotalAmount=monthlyTotal;
-            document.getElementById('qb-totalDisplay').textContent=rate>0?'£'+monthlyTotal.toFixed(2):'£0.00';
-            document.getElementById('qb-costBreakdown').textContent=rate>0?fmDates.length+' session'+(fmDates.length!==1?'s':'')+' in month 1 × £'+rate.toFixed(2)+'/session':'Enter rate per session';
-        }
-
-        function _qbCalcDates(startDate,endDate,freq){
-            const start=new Date(startDate+'T00:00:00Z');
-            const end=endDate?new Date(endDate+'T00:00:00Z'):(function(){const d=new Date(start);d.setUTCMonth(d.getUTCMonth()+12);return d;})();
-            const dates=[];
-            if(freq==='daily'){const c=new Date(start);while(c<=end&&dates.length<366){dates.push(c.toISOString().slice(0,10));c.setUTCDate(c.getUTCDate()+1);}}
-            else{const c=new Date(start);while(c<=end&&dates.length<200){dates.push(c.toISOString().slice(0,10));if(freq==='monthly')c.setUTCMonth(c.getUTCMonth()+1);else if(freq==='fortnightly')c.setUTCDate(c.getUTCDate()+14);else c.setUTCDate(c.getUTCDate()+7);}}
-            return dates;
-        }
-
-        function qbToggleSpecificDates(){
-            const on=document.getElementById('qb-rec-specific-toggle').checked;
-            document.getElementById('qb-rec-specific-wrap').style.display=on?'block':'none';
-            document.getElementById('qb-rec-enddate').disabled=on;
-            if(on){const now=new Date();_qbRecMiniCalYear=now.getFullYear();_qbRecMiniCalMonth=now.getMonth();_qbRecSelected.clear();qbBuildMiniCal();}
-            qbRecalcRecurring();
-        }
-
-        function qbBuildMiniCal(){
-            const container=document.getElementById('qb-rec-mini-cal');if(!container)return;
-            const mN=['January','February','March','April','May','June','July','August','September','October','November','December'];
-            const dN=['Su','Mo','Tu','We','Th','Fr','Sa'];
-            const fd=new Date(_qbRecMiniCalYear,_qbRecMiniCalMonth,1);
-            const dim=new Date(_qbRecMiniCalYear,_qbRecMiniCalMonth+1,0).getDate();
-            let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-                +'<button onclick="qbMiniCalPrev()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:0 6px;line-height:1">\u2039</button>'
-                +'<span style="font-size:0.82rem;font-weight:700">'+mN[_qbRecMiniCalMonth]+' '+_qbRecMiniCalYear+'</span>'
-                +'<button onclick="qbMiniCalNext()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:0 6px;line-height:1">\u203a</button>'
-                +'</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center">';
-            dN.forEach(function(d){html+='<div style="font-size:0.65rem;color:var(--text-muted);padding:2px 0">'+d+'</div>';});
-            for(let i=0;i<fd.getDay();i++)html+='<div></div>';
-            for(let day=1;day<=dim;day++){
-                const ds=_qbRecMiniCalYear+'-'+String(_qbRecMiniCalMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-                const sel=_qbRecSelected.has(ds);
-                html+='<div onclick="qbMiniCalToggle(\''+ds+'\')" style="padding:5px 2px;border-radius:5px;cursor:pointer;font-size:0.78rem;'+(sel?'background:#6366f1;color:white':'background:rgba(0,0,0,0.15);color:var(--text-main)')+'">'+day+'</div>';
-            }
-            html+='</div>';
-            container.innerHTML=html;
-        }
-
-        function qbMiniCalPrev(){_qbRecMiniCalMonth--;if(_qbRecMiniCalMonth<0){_qbRecMiniCalMonth=11;_qbRecMiniCalYear--;}qbBuildMiniCal();}
-        function qbMiniCalNext(){_qbRecMiniCalMonth++;if(_qbRecMiniCalMonth>11){_qbRecMiniCalMonth=0;_qbRecMiniCalYear++;}qbBuildMiniCal();}
-        function qbMiniCalToggle(ds){if(_qbRecSelected.has(ds))_qbRecSelected.delete(ds);else _qbRecSelected.add(ds);qbBuildMiniCal();qbRecalcRecurring();}
-
-        async function qbSubmitRecurring(){
-            const name=document.getElementById('qb-customerName').value.trim();
-            const phone=document.getElementById('qb-customerPhone').value.trim();
-            const email=document.getElementById('qb-customerEmail').value.trim();
-            const roomName=document.getElementById('qb-roomSelect').value;
-            const{from}=qbGetDates();
-            const startT=document.getElementById('qb-startTime').value;
-            const endT=document.getElementById('qb-endTime').value;
-            const freq=(document.querySelector('input[name="qb-rec-freq"]:checked')||{}).value||'weekly';
-            const endDate=document.getElementById('qb-rec-enddate').value;
-            const rate=parseFloat(document.getElementById('qb-rec-rate').value)||0;
-            const isSpecific=document.getElementById('qb-rec-specific-toggle').checked;
-            if(!name||!phone){showToast('Customer name and phone are required','error');return;}
-            if(!roomName){showToast('Please select a room','error');return;}
-            if(!from){showToast('Please select a start date','error');return;}
-            if(!isSpecific&&!endDate){showToast('Please set an end date for the recurring series','error');return;}
-            if(isSpecific&&_qbRecSelected.size===0){showToast('Please select at least one date','error');return;}
-            const room=qbRoomsData.find(function(r){return(r.name||r.room_name||r.id)===roomName;});
-            const roomId=room?room.id:'';
-            if(!roomId){showToast('Room not found — please refresh the page and try again','error');return;}
-            const btn=document.getElementById('qb-btn-recurring');
-            btn.disabled=true;
-            btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Creating…';
-            try{
-                // Step 1: Create / look up customer
-                const custRes=await fetch(QBR_CREATE_CUST_URL,{method:'POST',headers:{},body:JSON.stringify({full_name:name,email:email||'',phone:phone,tenant_id:parseInt(_CAL_TID())})});
-                if(!custRes.ok)throw new Error('Customer creation failed: HTTP '+custRes.status);
-                const custData=await custRes.json();
-                const customerId=custData.customer_id||custData.id;
-                if(!customerId)throw new Error('No customer_id returned');
-                // Step 2: Create recurring series
-                const startDateObj=new Date(from+'T00:00:00Z');
-                const payload={
-                    customer_id:      customerId,
-                    customer_name:    name,
-                    customer_email:   email||'',
-                    customer_phone:   phone,
-                    room_id:          roomId,
-                    start_time:       startT,
-                    end_time:         endT,
-                    start_date:       from,
-                    day_of_week:      startDateObj.getUTCDay(),
-                    frequency:        freq,
-                    end_date:         isSpecific?'':endDate,
-                    specific_dates:   isSpecific?Array.from(_qbRecSelected).sort().join(','):'',
-                    rate_per_session: rate,
-                    tenant_id:        parseInt(_CAL_TID()),
-                    performed_by:     sessionStorage.getItem('vp_user')||'Staff'
-                };
-                const recRes=await fetch(QBR_RECURRING_URL,{method:'POST',headers:{},body:JSON.stringify(payload)});
-                if(!recRes.ok)throw new Error('HTTP '+recRes.status);
-                const rj=await recRes.json().catch(function(){return{};});
-                closeQbModal();
-                showToast('Recurring series created! '+(rj.booking_count||'')+' sessions. First month £'+(rj.amount_due||'0')+' due '+(rj.due_date||'in 7 days'),'success');
-                setTimeout(function(){location.reload();},1500);
-            }catch(err){
-                showToast('Failed to create recurring series: '+err.message,'error');
-            }finally{
-                btn.disabled=false;
-                btn.innerHTML='<i class="fa-solid fa-repeat"></i> Create Recurring Series';
-            }
-        }
+        
         // ── END RECURRING HELPERS ───────────────────────────────────────────
 
         // ── MULTI-ROOM HELPERS ──────────────────────────────────────────────
