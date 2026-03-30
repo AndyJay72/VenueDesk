@@ -1858,30 +1858,7 @@
                         const room=p.room_name?`<span style="opacity:0.75;font-size:0.74rem"> \u00b7 ${svcEsc(p.room_name)}</span>`:'';
                         return{html:`<div style="padding:2px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong>${svcEsc(arg.event.title)}</strong>${room}</div>`};
                     },
-                    eventClick:function(info){openEventModal(info.event);},
-                    selectable:true,
-                    selectMirror:true,
-                    selectAllow:function(sel){const today=new Date();today.setHours(0,0,0,0);return new Date(sel.startStr+'T00:00:00')>=today;},
-                    select:function(info){
-                        const today=new Date();today.setHours(0,0,0,0);
-                        if(new Date(info.startStr+'T00:00:00')<today)return;
-                        const isBlocked=blockedBgEvents.some(b=>b.start===info.startStr);
-                        if(isBlocked){showToast('This date is blocked — manage via Blocked Dates','info');return;}
-                        const roomVal=document.getElementById('roomFilter').value;
-                        const selMap=dateStatusMap[roomVal]||dateStatusMap['']||{};
-                        if(selMap[info.startStr]==='booked'||selMap[info.startStr]==='pending'){
-                            const match=allEvents.find(e=>{
-                                if(roomVal&&e.extendedProps.room_name!==roomVal)return false;
-                                const s=e.start.split('T')[0];
-                                if(e.allDay&&e.end)return new Date(info.startStr+'T00:00:00')>=new Date(s+'T00:00:00')&&new Date(info.startStr+'T00:00:00')<new Date(e.end+'T00:00:00');
-                                return s===info.startStr;
-                            });
-                            if(match){openEventModal(match);return;}
-                        }
-                        const endD=new Date(new Date(info.endStr+'T00:00:00').getTime()-86400000);
-                        const endStr=`${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2,'0')}-${String(endD.getDate()).padStart(2,'0')}`;
-                        openQbModal(info.startStr,endStr);
-                    }
+                    eventClick:function(info){openEventModal(info.event);}
                 });
                 calendarInstance.render();
             }catch(e){console.error('Calendar error:',e);}
