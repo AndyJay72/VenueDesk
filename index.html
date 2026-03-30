@@ -2769,7 +2769,7 @@
                 const dataStr = encodeURIComponent(JSON.stringify(b));
                 return `<tr onclick="openBookingModal('${dataStr}')" style="cursor:pointer;">
                     <td><div style="font-weight:600;">${fmtBookingDate(b, {day:'numeric',month:'short'})}</div></td>
-                    <td><div style="font-weight:500;">${esc(b.customer_name) || 'Guest'}</div>${b.customer_email ? `<div style="font-size:0.75rem; color:var(--text-muted);">${esc(b.customer_email)}</div>` : ''}</td>
+                    <td><div style="font-weight:500;">${esc(b.customer_name) || 'Guest'}${b.is_recurring ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;margin-left:4px;"><i class=\'fa-solid fa-repeat\' style=\'font-size:0.58rem\'></i> Recurring</span>' : ''}</div>${b.customer_email ? `<div style="font-size:0.75rem; color:var(--text-muted);">${esc(b.customer_email)}</div>` : ''}</td>
                     <td>${esc(b.room_name)}</td>
                     <td><span class="status-badge ${parseFloat(b.balance_due) > 0 ? 'balance' : 'paid'}">${parseFloat(b.balance_due) > 0 ? formatCurrency(b.balance_due) + ' Due' : 'Paid'}</span></td>
                 </tr>`;
@@ -3611,4 +3611,3 @@
 </script>
 </body>
 </html>
-
