@@ -122,6 +122,7 @@
         .btn-submit:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
 
         /* FullCalendar overrides — light surface matching calendar.html */
+        #rb-calendar{background:#ffffff;border-radius:12px;padding:16px;}
         #rb-calendar .fc{font-family:'Plus Jakarta Sans',sans-serif;font-size:.83rem;color:#1e293b;}
         #rb-calendar .fc .fc-toolbar-title{font-size:1.05rem;font-weight:700;color:#1e293b !important;}
         #rb-calendar .fc .fc-button{background:#1e293b !important;border:none !important;border-radius:7px !important;color:#ffffff !important;font-size:.79rem;padding:5px 11px;font-family:inherit;font-weight:600 !important;min-height:32px !important;transition:background 0.2s ease !important;}
@@ -130,11 +131,15 @@
         #rb-calendar .fc .fc-button-group{display:inline-flex !important;gap:4px !important;}
         #rb-calendar .fc-theme-standard td,#rb-calendar .fc-theme-standard th{border-color:rgba(0,0,0,0.08) !important;}
         #rb-calendar .fc .fc-day-today{background:rgba(99,102,241,.08) !important;}
-        #rb-calendar .fc-col-header-cell{background:#f1f5f9;padding:8px 0;border:none !important;color:#1e293b !important;}
+        #rb-calendar .fc-col-header-cell{background:#f1f5f9 !important;padding:8px 0;border:none !important;color:#1e293b !important;font-weight:600;}
+        #rb-calendar .fc-col-header-cell a{color:#1e293b !important;}
         #rb-calendar .fc-scrollgrid{border:1px solid rgba(0,0,0,0.10) !important;}
+        #rb-calendar .fc-daygrid-day{background:#ffffff !important;}
+        #rb-calendar .fc-daygrid-day.fc-day-today{background:rgba(99,102,241,.08) !important;}
         #rb-calendar .fc-daygrid-day:not(.fc-day-disabled){cursor:pointer;}
         #rb-calendar .fc-daygrid-day:not(.fc-day-disabled):hover .fc-daygrid-day-frame{background:rgba(99,102,241,.07);}
-        #rb-calendar .fc-daygrid-day-number{color:#64748b;font-size:.8rem;}
+        #rb-calendar .fc-daygrid-day-number{color:#1e293b !important;font-size:.8rem;}
+        #rb-calendar .fc-day-past .fc-daygrid-day-number{color:#94a3b8 !important;}
         #rb-calendar .fc-event{cursor:pointer;border:none !important;padding:2px 5px !important;font-size:0.79rem;border-radius:5px !important;}
 
         /* ── Mini calendars section ──────────────────────── */
