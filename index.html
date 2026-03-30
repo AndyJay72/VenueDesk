@@ -1288,6 +1288,7 @@
             <a href="index.html" class="nav-link active" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="calendar.html" class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>   
             <a href="bookings.html" class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
+            <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
             <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
             <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
 
@@ -1540,40 +1541,6 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- RECURRING BOOKING TOGGLE -->
-                        <div id="m-recurring-wrap" style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.15)">
-                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;font-weight:600;color:#a5b4fc">
-                                <input type="checkbox" id="m-rec-toggle" onchange="mToggleRecurring()" style="width:auto;margin:0;accent-color:#6366f1">
-                                <i class="fa-solid fa-repeat" style="color:#818cf8"></i> Recurring Booking
-                            </label>
-                            <div id="m-rec-panel" style="display:none;margin-top:12px;padding:12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px">
-                                <div style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Frequency</div>
-                                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.83rem">
-                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="m-rec-freq" value="weekly" checked onchange="mRecalcRecurring()" style="accent-color:#6366f1"> Weekly</label>
-                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="m-rec-freq" value="fortnightly" onchange="mRecalcRecurring()" style="accent-color:#6366f1"> Fortnightly</label>
-                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="m-rec-freq" value="monthly" onchange="mRecalcRecurring()" style="accent-color:#6366f1"> Monthly</label>
-                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="m-rec-freq" value="daily" onchange="mRecalcRecurring()" style="accent-color:#6366f1"> Daily</label>
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-                                    <div>
-                                        <label style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">End Date</label>
-                                        <input type="date" id="m-rec-enddate" style="width:100%;padding:7px 10px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.83rem;outline:none;box-sizing:border-box" onchange="mRecalcRecurring()">
-                                    </div>
-                                    <div>
-                                        <label style="font-size:0.73rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px">Rate/Session (£)</label>
-                                        <input type="number" id="m-rec-rate" min="0" step="0.01" placeholder="e.g. 50.00" style="width:100%;padding:7px 10px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;color:white;font-size:0.83rem;outline:none;box-sizing:border-box" oninput="mRecalcRecurring()">
-                                    </div>
-                                </div>
-                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">
-                                    <input type="checkbox" id="m-rec-specific-toggle" onchange="mToggleSpecificDates()" style="width:auto;margin:0;accent-color:#6366f1"> Select specific dates manually
-                                </label>
-                                <div id="m-rec-specific-wrap" style="display:none;margin-bottom:10px">
-                                    <div id="m-rec-mini-cal" style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:8px"></div>
-                                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Click dates to select them</div>
-                                </div>
-                                <div id="m-rec-preview" style="font-size:0.78rem;color:#818cf8;min-height:1.2em;line-height:1.5"></div>
-                            </div>
-                        </div>
                         <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
                             <button id="m-confirm-btn" onclick="submitConfirmFromDashboard()" style="width:100%;padding:10px;background:#f59e0b;color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88rem">
                                 <i class="fa-solid fa-check"></i> Confirm &amp; Record Deposit
@@ -1765,7 +1732,6 @@
         let currentPendingData       = null;
         const EXPIRY_WARNING_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/send-expiry-warning';
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
-        const CREATE_RECURRING_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-booking';
         const ALL_BOOKINGS_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const PAY_BALANCE_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
 
@@ -2491,10 +2457,6 @@
 
         async function submitConfirmFromDashboard() {
             if (!currentPendingData) return;
-            // If recurring toggle is on, hand off to recurring submit
-            if (document.getElementById('m-rec-toggle') && document.getElementById('m-rec-toggle').checked) {
-                return submitRecurringFromDashboard();
-            }
             const total   = parseFloat(document.getElementById('m-confirm-total').value || 0);
             const deposit = parseFloat(document.getElementById('m-confirm-deposit').value || 0);
             const method  = document.getElementById('m-confirm-method').value;
@@ -2552,164 +2514,6 @@
             } catch(e) { showToast('Error confirming: ' + e.message, 'error'); }
             finally { if (btn) btn.disabled = false; }
         }
-
-        // ── Recurring Booking Panel (inline confirm) ──────────────────────────
-        let _mRecMiniCalYear = null, _mRecMiniCalMonth = null;
-        const _mRecSelected = new Set();
-
-        function mToggleRecurring() {
-            const on = document.getElementById('m-rec-toggle').checked;
-            document.getElementById('m-rec-panel').style.display = on ? 'block' : 'none';
-            const btn = document.getElementById('m-confirm-btn');
-            if (btn) btn.innerHTML = on
-                ? '<i class="fa-solid fa-repeat"></i> Create Recurring Series'
-                : '<i class="fa-solid fa-check"></i> Confirm &amp; Record Deposit';
-            if (on) mRecalcRecurring();
-        }
-
-        function mRecalcRecurring() {
-            const freq = (document.querySelector('input[name="m-rec-freq"]:checked') || {}).value || 'weekly';
-            const endDate = document.getElementById('m-rec-enddate').value;
-            const rate = parseFloat(document.getElementById('m-rec-rate').value) || 0;
-            const isSpecific = document.getElementById('m-rec-specific-toggle').checked;
-            const startDate = currentPendingData
-                ? (currentPendingData.event_date || currentPendingData.booking_date || currentPendingData.date_from || '').split('T')[0]
-                : '';
-            const preview = document.getElementById('m-rec-preview');
-            if (isSpecific) {
-                const count = _mRecSelected.size;
-                preview.textContent = count > 0 ? count + ' date' + (count !== 1 ? 's' : '') + ' selected' : 'No dates selected';
-                return;
-            }
-            if (!startDate) { preview.textContent = ''; return; }
-            const dates = _mCalcDates(startDate, endDate, freq);
-            if (!dates.length) { preview.textContent = 'No dates generated'; return; }
-            const first = new Date(dates[0] + 'T00:00:00Z');
-            const firstMonthEnd = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0));
-            const firstMonthDates = dates.filter(function(d) {
-                const dt = new Date(d + 'T00:00:00Z'); return dt >= first && dt <= firstMonthEnd;
-            });
-            const firstAmt = (firstMonthDates.length * rate).toFixed(2);
-            preview.innerHTML = '<strong>' + dates.length + '</strong> sessions · First month: <strong>' + firstMonthDates.length + '</strong> session' + (firstMonthDates.length !== 1 ? 's' : '')
-                + (rate > 0 ? ', <strong>£' + firstAmt + '</strong> due in 7 days' : '')
-                + '<br><span style="font-size:0.72rem;opacity:0.7">From ' + dates[0] + ' to ' + dates[dates.length - 1] + '</span>';
-        }
-
-        function _mCalcDates(startDate, endDate, freq) {
-            const start = new Date(startDate + 'T00:00:00Z');
-            const end = endDate
-                ? new Date(endDate + 'T00:00:00Z')
-                : (function() { const d = new Date(start); d.setUTCMonth(d.getUTCMonth() + 12); return d; })();
-            const dates = [];
-            if (freq === 'daily') {
-                const c = new Date(start);
-                while (c <= end && dates.length < 366) { dates.push(c.toISOString().slice(0, 10)); c.setUTCDate(c.getUTCDate() + 1); }
-            } else {
-                const c = new Date(start);
-                while (c <= end && dates.length < 200) {
-                    dates.push(c.toISOString().slice(0, 10));
-                    if (freq === 'monthly') c.setUTCMonth(c.getUTCMonth() + 1);
-                    else if (freq === 'fortnightly') c.setUTCDate(c.getUTCDate() + 14);
-                    else c.setUTCDate(c.getUTCDate() + 7);
-                }
-            }
-            return dates;
-        }
-
-        function mToggleSpecificDates() {
-            const on = document.getElementById('m-rec-specific-toggle').checked;
-            document.getElementById('m-rec-specific-wrap').style.display = on ? 'block' : 'none';
-            document.getElementById('m-rec-enddate').disabled = on;
-            if (on) {
-                const now = new Date();
-                _mRecMiniCalYear = now.getFullYear(); _mRecMiniCalMonth = now.getMonth();
-                _mRecSelected.clear(); mBuildMiniCal();
-            }
-            mRecalcRecurring();
-        }
-
-        function mBuildMiniCal() {
-            const container = document.getElementById('m-rec-mini-cal');
-            if (!container) return;
-            const mNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            const dNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-            const firstDay = new Date(_mRecMiniCalYear, _mRecMiniCalMonth, 1);
-            const dim = new Date(_mRecMiniCalYear, _mRecMiniCalMonth + 1, 0).getDate();
-            let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-                + '<button onclick="mMiniCalPrev()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:0 6px;line-height:1">\u2039</button>'
-                + '<span style="font-size:0.82rem;font-weight:700">' + mNames[_mRecMiniCalMonth] + ' ' + _mRecMiniCalYear + '</span>'
-                + '<button onclick="mMiniCalNext()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:0 6px;line-height:1">\u203a</button>'
-                + '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center">';
-            dNames.forEach(function(d) { html += '<div style="font-size:0.65rem;color:var(--text-muted);padding:2px 0">' + d + '</div>'; });
-            for (let i = 0; i < firstDay.getDay(); i++) html += '<div></div>';
-            for (let day = 1; day <= dim; day++) {
-                const ds = _mRecMiniCalYear + '-' + String(_mRecMiniCalMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-                const sel = _mRecSelected.has(ds);
-                html += '<div onclick="mMiniCalToggle(\'' + ds + '\')" style="padding:5px 2px;border-radius:5px;cursor:pointer;font-size:0.78rem;'
-                    + (sel ? 'background:#6366f1;color:white' : 'background:rgba(0,0,0,0.15);color:var(--text-main)') + '">' + day + '</div>';
-            }
-            html += '</div>';
-            container.innerHTML = html;
-        }
-
-        function mMiniCalPrev() {
-            _mRecMiniCalMonth--; if (_mRecMiniCalMonth < 0) { _mRecMiniCalMonth = 11; _mRecMiniCalYear--; } mBuildMiniCal();
-        }
-        function mMiniCalNext() {
-            _mRecMiniCalMonth++; if (_mRecMiniCalMonth > 11) { _mRecMiniCalMonth = 0; _mRecMiniCalYear++; } mBuildMiniCal();
-        }
-        function mMiniCalToggle(ds) {
-            if (_mRecSelected.has(ds)) _mRecSelected.delete(ds); else _mRecSelected.add(ds);
-            mBuildMiniCal(); mRecalcRecurring();
-        }
-
-        async function submitRecurringFromDashboard() {
-            if (!currentPendingData) return;
-            const freq = (document.querySelector('input[name="m-rec-freq"]:checked') || {}).value || 'weekly';
-            const endDate = document.getElementById('m-rec-enddate').value;
-            const rate = parseFloat(document.getElementById('m-rec-rate').value) || 0;
-            const isSpecific = document.getElementById('m-rec-specific-toggle').checked;
-            const startDate = (currentPendingData.event_date || currentPendingData.booking_date || currentPendingData.date_from || '').split('T')[0];
-            if (!startDate) { showToast('No booking date found on request', 'error'); return; }
-            if (!isSpecific && !endDate) { showToast('Please set an end date for the recurring series', 'error'); return; }
-            if (isSpecific && _mRecSelected.size === 0) { showToast('Please select at least one date', 'error'); return; }
-            const rooms = mGetRoomsPayload();
-            const room = rooms[0] || {};
-            if (!room.room_id) { showToast('Please tick at least one room', 'error'); return; }
-            const startDateObj = new Date(startDate + 'T00:00:00Z');
-            const btn = document.getElementById('m-confirm-btn');
-            btn.disabled = true;
-            try {
-                const payload = {
-                    customer_id:      currentPendingData.id,
-                    customer_name:    currentPendingData.full_name || '',
-                    customer_email:   currentPendingData.email || '',
-                    customer_phone:   currentPendingData.phone || '',
-                    room_id:          room.room_id,
-                    start_time:       (room.start_time || currentPendingData.start_time || '09:00').slice(0, 5),
-                    end_time:         (room.end_time   || currentPendingData.end_time   || '17:00').slice(0, 5),
-                    start_date:       startDate,
-                    day_of_week:      startDateObj.getUTCDay(),
-                    frequency:        freq,
-                    end_date:         isSpecific ? '' : endDate,
-                    specific_dates:   isSpecific ? Array.from(_mRecSelected).sort().join(',') : '',
-                    rate_per_session: rate,
-                    tenant_id:        parseInt(_TID()),
-                    performed_by:     sessionStorage.getItem('vp_user') || 'Staff'
-                };
-                const res = await fetch(CREATE_RECURRING_URL, { method: 'POST', headers: {}, body: JSON.stringify(payload) });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const rj = await res.json().catch(function() { return {}; });
-                showToast('Recurring series created! ' + (rj.booking_count || '') + ' sessions. First month £' + (rj.amount_due || '0') + ' due ' + (rj.due_date || 'in 7 days'), 'success');
-                document.getElementById('custModal').classList.remove('open');
-                setTimeout(function() { loadDashboard(); }, 1500);
-            } catch(e) {
-                showToast('Error creating recurring series: ' + e.message, 'error');
-            } finally {
-                btn.disabled = false;
-            }
-        }
-        // ── End Recurring Booking Panel ──────────────────────────────────────
 
         async function cancelRequest(id, name) {
             if (!confirm(`Cancel the pending request for ${name}?`)) return;
@@ -3807,3 +3611,4 @@
 </script>
 </body>
 </html>
+
