@@ -121,22 +121,21 @@
         .btn-submit:hover{opacity:.9;box-shadow:0 6px 18px rgba(99,102,241,.45);}
         .btn-submit:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
 
-        /* FullCalendar overrides */
-        .fc{font-family:'Plus Jakarta Sans',sans-serif;font-size:.83rem;}
-        .fc .fc-toolbar-title{font-size:1.05rem;font-weight:700;color:var(--text-main);}
-        .fc .fc-button{background:rgba(255,255,255,.07);border:1px solid rgba(148,163,184,.2);color:var(--text-main);font-size:.79rem;padding:5px 11px;border-radius:7px!important;font-family:inherit;}
-        .fc .fc-button:hover{background:rgba(255,255,255,.12);border-color:rgba(148,163,184,.35);}
-        .fc .fc-button-primary:not(:disabled).fc-button-active,.fc .fc-button-primary:not(:disabled):active{background:var(--primary);border-color:var(--primary);}
-        .fc-theme-standard td,.fc-theme-standard th{border-color:rgba(148,163,184,.12);}
-        .fc .fc-day-today{background:rgba(99,102,241,.08)!important;}
-        .fc .fc-col-header-cell{background:rgba(255,255,255,.04);}
-        .fc .fc-daygrid-day:hover{background:rgba(99,102,241,.06)!important;cursor:pointer;}
-        .fc-daygrid-day-number{color:var(--text-muted);font-size:.8rem;}
-        body.light-mode .fc .fc-button{background:#f1f5f9;color:#1e293b;border-color:#cbd5e1;}
-        body.light-mode .fc .fc-button:hover{background:#e2e8f0;}
-        body.light-mode .fc-theme-standard td,body.light-mode .fc-theme-standard th{border-color:#e2e8f0;}
-        body.light-mode .fc-daygrid-day-number{color:#64748b;}
-        body.light-mode .fc .fc-col-header-cell{background:#f8fafc;}
+        /* FullCalendar overrides — light surface matching calendar.html */
+        #rb-calendar .fc{font-family:'Plus Jakarta Sans',sans-serif;font-size:.83rem;color:#1e293b;}
+        #rb-calendar .fc .fc-toolbar-title{font-size:1.05rem;font-weight:700;color:#1e293b !important;}
+        #rb-calendar .fc .fc-button{background:#1e293b !important;border:none !important;border-radius:7px !important;color:#ffffff !important;font-size:.79rem;padding:5px 11px;font-family:inherit;font-weight:600 !important;min-height:32px !important;transition:background 0.2s ease !important;}
+        #rb-calendar .fc .fc-button:hover{background:#0f172a !important;}
+        #rb-calendar .fc .fc-button:is(:focus,:focus-visible),#rb-calendar .fc .fc-button-active{outline:none !important;background:#0f172a !important;}
+        #rb-calendar .fc .fc-button-group{display:inline-flex !important;gap:4px !important;}
+        #rb-calendar .fc-theme-standard td,#rb-calendar .fc-theme-standard th{border-color:rgba(0,0,0,0.08) !important;}
+        #rb-calendar .fc .fc-day-today{background:rgba(99,102,241,.08) !important;}
+        #rb-calendar .fc-col-header-cell{background:#f1f5f9;padding:8px 0;border:none !important;color:#1e293b !important;}
+        #rb-calendar .fc-scrollgrid{border:1px solid rgba(0,0,0,0.10) !important;}
+        #rb-calendar .fc-daygrid-day:not(.fc-day-disabled){cursor:pointer;}
+        #rb-calendar .fc-daygrid-day:not(.fc-day-disabled):hover .fc-daygrid-day-frame{background:rgba(99,102,241,.07);}
+        #rb-calendar .fc-daygrid-day-number{color:#64748b;font-size:.8rem;}
+        #rb-calendar .fc-event{cursor:pointer;border:none !important;padding:2px 5px !important;font-size:0.79rem;border-radius:5px !important;}
 
         /* ── Mini calendars section ──────────────────────── */
         .mini-cals-section{margin-top:1.5rem;}
@@ -350,8 +349,8 @@
                     <input type="tel" id="rb-phone" class="form-input" placeholder="+44…">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" id="rb-email" class="form-input" placeholder="optional">
+                    <label class="form-label">Email *</label>
+                    <input type="email" id="rb-email" class="form-input" placeholder="email@example.com">
                 </div>
             </div>
 
@@ -737,6 +736,7 @@ async function rbSubmit(){
 
     if(!name)   { showToast('Please enter a customer name','error'); return; }
     if(!phone)  { showToast('Please enter a phone number','error'); return; }
+    if(!email)  { showToast('Email is required for recurring bookings (used for payment reminders)','error'); return; }
     if(!roomVal){ showToast('Please select a room','error'); return; }
     if(!startT||!endT){ showToast('Please set start and end times','error'); return; }
     if(rate<=0) { showToast('Please enter a rate per session','error'); return; }
@@ -992,9 +992,16 @@ async function rbInitCalendar(refreshOnly){
         var todayD=new Date(); todayD.setHours(0,0,0,0);
         document.querySelectorAll('#rb-calendar .fc-daygrid-day[data-date]').forEach(function(cell){
             var ds=cell.getAttribute('data-date');
-            if(new Date(ds+'T00:00:00')<todayD){cell.style.backgroundColor='';return;}
+            if(new Date(ds+'T00:00:00')<todayD){
+                cell.style.removeProperty('background-color');
+                return;
+            }
             var s=dateStatusMap[ds];
-            cell.style.backgroundColor=s==='booked'?'rgba(239,68,68,0.18)':s==='pending'?'rgba(245,158,11,0.18)':'rgba(16,185,129,0.10)';
+            cell.style.setProperty('background-color',
+                s==='booked'  ? 'rgba(239,68,68,0.25)' :
+                s==='pending' ? 'rgba(245,158,11,0.25)' :
+                                'rgba(16,185,129,0.22)',
+                'important');
         });
     }
 
@@ -1005,9 +1012,6 @@ async function rbInitCalendar(refreshOnly){
         headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,listWeek'},
         events:events,
         height:'auto',
-        selectable:true,
-        selectMirror:false,
-        unselectAuto:false,
         datesSet:function(){ setTimeout(rbApplyCellColors,0); },
         dateClick:function(info){
             var today=new Date(); today.setHours(0,0,0,0);
