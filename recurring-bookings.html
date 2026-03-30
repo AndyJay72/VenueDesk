@@ -198,6 +198,60 @@
         /* Theme btn */
         .theme-btn{background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem;transition:all .2s;}
         .theme-btn:hover{color:var(--text-main);border-color:var(--text-muted);}
+
+        /* ── Payment Modal ──────────────────────────────── */
+        .pay-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);z-index:5000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+        .pay-overlay.open{opacity:1;pointer-events:all;}
+        .pay-modal{background:#1e293b;border:1px solid rgba(148,163,184,.18);border-radius:20px;padding:2rem;max-width:520px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.6);position:relative;}
+        .pay-modal-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
+        .pay-modal-title{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+        .pay-modal-title i{color:var(--primary);}
+        .pay-modal-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;padding:2px 6px;border-radius:6px;transition:.15s;}
+        .pay-modal-close:hover{color:var(--text-main);background:rgba(255,255,255,.07);}
+        .pay-summary-box{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:13px 16px;margin-bottom:1.25rem;font-size:.84rem;color:#c7d2fe;line-height:1.7;}
+        .pay-summary-box strong{color:#fff;}
+
+        /* Plan cards */
+        .plan-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+        @media(max-width:480px){.plan-cards{grid-template-columns:1fr;}}
+        .plan-card{background:rgba(255,255,255,.04);border:2px solid rgba(148,163,184,.15);border-radius:14px;padding:14px 12px;cursor:pointer;transition:all .18s;text-align:center;position:relative;}
+        .plan-card:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.06);}
+        .plan-card.active{border-color:#6366f1;background:rgba(99,102,241,.14);box-shadow:0 0 0 1px rgba(99,102,241,.3);}
+        .plan-card input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
+        .plan-icon{font-size:1.35rem;margin-bottom:7px;display:block;}
+        .plan-name{font-size:.78rem;font-weight:700;color:var(--text-main);margin-bottom:4px;}
+        .plan-desc{font-size:.68rem;color:var(--text-muted);line-height:1.45;}
+
+        /* Payment fields (shown for In Advance) */
+        .pay-fields{display:none;margin-bottom:1.1rem;gap:10px;}
+        .pay-fields.visible{display:grid;grid-template-columns:1fr 1fr;}
+        @media(max-width:480px){.pay-fields.visible{grid-template-columns:1fr;}}
+
+        /* Method chips */
+        .method-chips{display:flex;gap:7px;flex-wrap:wrap;}
+        .method-chip{padding:5px 14px;border-radius:20px;font-size:.76rem;font-weight:600;border:1px solid rgba(148,163,184,.2);background:rgba(255,255,255,.05);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+        .method-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+        .pay-actions{display:flex;gap:10px;margin-top:1.25rem;}
+        .pay-btn-confirm{flex:1;padding:11px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s;box-shadow:0 3px 10px rgba(22,163,74,.35);}
+        .pay-btn-confirm:hover{opacity:.9;}
+        .pay-btn-confirm:disabled{opacity:.4;cursor:not-allowed;}
+        .pay-btn-skip{padding:11px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(148,163,184,.2);color:var(--text-muted);border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;transition:.15s;}
+        .pay-btn-skip:hover{background:rgba(255,255,255,.09);color:var(--text-main);}
+
+        /* Receipt */
+        .pay-receipt{display:none;text-align:center;padding:1rem 0;}
+        .pay-receipt.visible{display:block;}
+        .receipt-icon{font-size:2.8rem;color:#22c55e;margin-bottom:10px;}
+        .receipt-title{font-size:1rem;font-weight:700;color:#fff;margin-bottom:6px;}
+        .receipt-sub{font-size:.83rem;color:var(--text-muted);}
+
+        /* Light mode overrides */
+        body.light-mode .pay-modal{background:#fff;border-color:#e2e8f0;}
+        body.light-mode .pay-summary-box{background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.2);}
+        body.light-mode .plan-card{background:#f8fafc;border-color:#e2e8f0;}
+        body.light-mode .plan-card.active{background:rgba(99,102,241,.08);border-color:#6366f1;}
+        body.light-mode .plan-desc{color:#64748b;}
     </style>
 </head>
 <body>
@@ -241,11 +295,16 @@
         <div>
             <!-- Main FullCalendar -->
             <div class="cal-wrap">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
                     <span style="font-size:.8rem;color:var(--text-muted)"><i class="fa-solid fa-circle-info" style="margin-right:4px"></i>Click a date to add it to your selection. Existing bookings shown for reference.</span>
                     <select id="roomFilter" style="padding:5px 10px;background:rgba(255,255,255,.07);border:1px solid rgba(148,163,184,.2);border-radius:8px;color:var(--text-main);font-size:.8rem;outline:none;font-family:inherit">
                         <option value="">All Rooms</option>
                     </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:.76rem;color:var(--text-muted);flex-wrap:wrap;">
+                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0"></span> Available</span>
+                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span> Booked</span>
+                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0"></span> Pending</span>
                 </div>
                 <div id="rb-calendar"></div>
             </div>
@@ -718,8 +777,7 @@ async function rbSubmit(){
         var res = await fetch(RB_CREATE_REC_URL,{method:'POST',headers:{},body:JSON.stringify(payload)});
         if(!res.ok) throw new Error('HTTP '+res.status);
         var rj = await res.json().catch(function(){return{};});
-        showToast('Recurring series created! '+(rj.booking_count||'')+' sessions.'+(rj.amount_due?' First month £'+rj.amount_due+' due '+(rj.due_date||'in 7 days')+'.':''),'success');
-        // Reset
+        // Reset form
         ['rb-name','rb-phone','rb-email','rb-notes','rb-startdate'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
         document.getElementById('rb-room').value='';
         document.getElementById('rb-rate').value='';
@@ -729,10 +787,114 @@ async function rbSubmit(){
         rbBuildMiniCals();
         rbRecalc();
         setTimeout(function(){ rbInitCalendar(true); }, 1200);
+        // Open payment modal
+        openPayModal(
+            rj.rule_id||'',
+            rj.customer_id||'',
+            rj.amount_due||'0',
+            rj.due_date||'',
+            rj.first_month_sessions||rj.booking_count||0,
+            rj.frequency||_rbFreq,
+            name
+        );
     } catch(e){
         showToast('Error: '+e.message,'error');
     } finally {
         btn.disabled=false;
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   PAYMENT MODAL
+═══════════════════════════════════════════════════ */
+const RB_RECORD_PAY_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/record-recurring-payment';
+var _payModalData = {};  // set after successful booking
+var _payPlan      = 'in_advance';
+var _payMethod    = 'cash';
+
+function openPayModal(ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName){
+    _payModalData = { ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName };
+    _payPlan      = 'in_advance';
+    _payMethod    = 'cash';
+
+    // Fill summary
+    var freq  = (frequency||'weekly').charAt(0).toUpperCase()+(frequency||'weekly').slice(1);
+    var due   = dueDate ? new Date(dueDate+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}) : 'within 7 days';
+    document.getElementById('pm-customer').textContent = customerName||'Customer';
+    document.getElementById('pm-sessions').textContent = sessions||'—';
+    document.getElementById('pm-freq').textContent     = freq;
+    document.getElementById('pm-amount').textContent   = '£'+(parseFloat(amountDue)||0).toFixed(2);
+    document.getElementById('pm-due').textContent      = due;
+    document.getElementById('pm-amount-input').value   = (parseFloat(amountDue)||0).toFixed(2);
+
+    // Reset to initial state
+    document.getElementById('pm-receipt').classList.remove('visible');
+    document.getElementById('pm-form-body').style.display='';
+    selectPlan('in_advance');
+    selectMethod('cash');
+
+    document.getElementById('pm-overlay').classList.add('open');
+}
+
+function closePayModal(){
+    document.getElementById('pm-overlay').classList.remove('open');
+}
+
+function selectPlan(plan){
+    _payPlan = plan;
+    document.querySelectorAll('.plan-card').forEach(function(c){ c.classList.remove('active'); });
+    var card = document.getElementById('plan-'+plan);
+    if(card) card.classList.add('active');
+    // Show amount/method fields only for in_advance
+    var fields = document.getElementById('pm-pay-fields');
+    if(plan==='in_advance'){
+        fields.classList.add('visible');
+        document.getElementById('pm-confirm-btn').textContent = 'Record Payment';
+    } else {
+        fields.classList.remove('visible');
+        document.getElementById('pm-confirm-btn').textContent = 'Set Plan & Continue';
+    }
+}
+
+function selectMethod(method){
+    _payMethod = method;
+    document.querySelectorAll('.method-chip').forEach(function(c){ c.classList.remove('active'); });
+    var chip = document.querySelector('.method-chip[data-method="'+method+'"]');
+    if(chip) chip.classList.add('active');
+}
+
+async function submitPayModal(){
+    var btn = document.getElementById('pm-confirm-btn');
+    btn.disabled = true;
+    try {
+        var performedBy = (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })();
+        var amountPaid  = _payPlan==='in_advance' ? parseFloat(document.getElementById('pm-amount-input').value)||0 : 0;
+        var payload = {
+            rule_id:        _payModalData.ruleId,
+            customer_id:    _payModalData.customerId||'',
+            tenant_id:      parseInt(_TID()),
+            payment_plan:   _payPlan,
+            payment_method: _payMethod,
+            amount_paid:    amountPaid,
+            performed_by:   performedBy
+        };
+        var res = await fetch(RB_RECORD_PAY_URL,{method:'POST',headers:{},body:JSON.stringify(payload)});
+        var rj  = await res.json().catch(function(){return{};});
+        // Show receipt
+        document.getElementById('pm-form-body').style.display='none';
+        var receipt = document.getElementById('pm-receipt');
+        var planLabels = {in_advance:'Month paid in advance',per_session:'Pay per session set',in_arrears:'Invoice in arrears set'};
+        document.getElementById('pm-receipt-title').textContent  = planLabels[_payPlan]||'Plan saved';
+        document.getElementById('pm-receipt-detail').textContent =
+            _payPlan==='in_advance'
+            ? '£'+amountPaid.toFixed(2)+' recorded via '+_payMethod+'. Booking complete.'
+            : 'Payment plan recorded. Booking complete.';
+        receipt.classList.add('visible');
+        setTimeout(closePayModal, 2800);
+    } catch(e){
+        showToast('Payment record failed: '+e.message,'error');
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -799,7 +961,7 @@ async function rbInitCalendar(refreshOnly){
             var st=(e.start_time||'09:00').slice(0,5);
             var et=(e.end_time||'10:00').slice(0,5);
             var isPend=e.status==='pending'||e.status==='enquiry'||e.status==='contacted';
-            var color=isPast?'#475569':isPend?'#f59e0b':'#6366f1';
+            var color=isPast?'#475569':isPend?'#f59e0b':'#ef4444';
             var multi=s!==en;
             var endExcl=multi?(function(){var p=en.split('-').map(Number);return new Date(Date.UTC(p[0],p[1]-1,p[2]+1)).toISOString().split('T')[0];})():null;
             var obj={title:e.customer_name||'Guest',backgroundColor:color,borderColor:color,extendedProps:{room_name:e.room_name||'',status:e.status||'confirmed',time:st+'–'+et}};
@@ -808,6 +970,33 @@ async function rbInitCalendar(refreshOnly){
             return obj;
         });
     }catch(e){}
+
+    // Build dateStatusMap for day-cell background colours (green=available, red=booked, amber=pending)
+    var dateStatusMap={};
+    events.forEach(function(ev){
+        if(!ev.start)return;
+        var st=ev.extendedProps.status||'confirmed';
+        var isPendEv=st==='pending'||st==='enquiry'||st==='contacted';
+        var eStatus=isPendEv?'pending':'booked';
+        var setDs=function(ds){if(dateStatusMap[ds]!=='booked')dateStatusMap[ds]=eStatus;};
+        if(ev.allDay&&ev.end){
+            var d=new Date(ev.start+'T00:00:00');
+            var endD=new Date(ev.end+'T00:00:00');
+            while(d<endD){setDs(d.toISOString().split('T')[0]);d.setDate(d.getDate()+1);}
+        } else {
+            setDs(ev.start.split('T')[0]);
+        }
+    });
+
+    function rbApplyCellColors(){
+        var todayD=new Date(); todayD.setHours(0,0,0,0);
+        document.querySelectorAll('#rb-calendar .fc-daygrid-day[data-date]').forEach(function(cell){
+            var ds=cell.getAttribute('data-date');
+            if(new Date(ds+'T00:00:00')<todayD){cell.style.backgroundColor='';return;}
+            var s=dateStatusMap[ds];
+            cell.style.backgroundColor=s==='booked'?'rgba(239,68,68,0.18)':s==='pending'?'rgba(245,158,11,0.18)':'rgba(16,185,129,0.10)';
+        });
+    }
 
     if(_rbCalInstance){ _rbCalInstance.destroy(); }
 
@@ -819,6 +1008,7 @@ async function rbInitCalendar(refreshOnly){
         selectable:true,
         selectMirror:false,
         unselectAuto:false,
+        datesSet:function(){ setTimeout(rbApplyCellColors,0); },
         dateClick:function(info){
             var today=new Date(); today.setHours(0,0,0,0);
             var clicked=new Date(info.dateStr+'T00:00:00');
@@ -875,5 +1065,86 @@ document.addEventListener('DOMContentLoaded',function(){
     rbRecalc();
 });
 </script>
+
+<!-- ── Payment Modal ─────────────────────────────────────────── -->
+<div class="pay-overlay" id="pm-overlay">
+    <div class="pay-modal">
+        <div class="pay-modal-header">
+            <div class="pay-modal-title">
+                <i class="fa-solid fa-sterling-sign"></i>
+                Payment &amp; Billing Plan
+            </div>
+            <button class="pay-modal-close" onclick="closePayModal()" title="Skip for now"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div id="pm-form-body">
+            <!-- Summary -->
+            <div class="pay-summary-box">
+                <strong id="pm-customer">—</strong> &mdash;
+                <span id="pm-freq">Weekly</span> series &mdash;
+                <span id="pm-sessions">—</span> sessions this month<br>
+                First month total: <strong id="pm-amount">£0.00</strong>
+                &nbsp;&bull;&nbsp; Due: <span id="pm-due">within 7 days</span>
+            </div>
+
+            <!-- Plan selection -->
+            <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Billing Plan</div>
+            <div class="plan-cards">
+                <div class="plan-card active" id="plan-in_advance" onclick="selectPlan('in_advance')">
+                    <input type="radio" name="plan" value="in_advance" checked>
+                    <span class="plan-icon">📅</span>
+                    <div class="plan-name">In Advance</div>
+                    <div class="plan-desc">Customer pays at the start of each month for that month's sessions</div>
+                </div>
+                <div class="plan-card" id="plan-per_session" onclick="selectPlan('per_session')">
+                    <input type="radio" name="plan" value="per_session">
+                    <span class="plan-icon">🎟️</span>
+                    <div class="plan-name">Per Session</div>
+                    <div class="plan-desc">Customer pays on the day of each individual session</div>
+                </div>
+                <div class="plan-card" id="plan-in_arrears" onclick="selectPlan('in_arrears')">
+                    <input type="radio" name="plan" value="in_arrears">
+                    <span class="plan-icon">📋</span>
+                    <div class="plan-name">In Arrears</div>
+                    <div class="plan-desc">Invoice sent after the month — customer pays on receipt</div>
+                </div>
+            </div>
+
+            <!-- Payment fields (shown for In Advance only) -->
+            <div class="pay-fields visible" id="pm-pay-fields">
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Amount Received (£)</label>
+                    <input type="number" id="pm-amount-input" class="form-input" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Payment Method</label>
+                    <div class="method-chips" style="margin-top:6px">
+                        <span class="method-chip active" data-method="cash" onclick="selectMethod('cash')">Cash</span>
+                        <span class="method-chip" data-method="card" onclick="selectMethod('card')">Card</span>
+                        <span class="method-chip" data-method="bank_transfer" onclick="selectMethod('bank_transfer')">Bank</span>
+                        <span class="method-chip" data-method="cheque" onclick="selectMethod('cheque')">Cheque</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pay-actions">
+                <button class="pay-btn-confirm" id="pm-confirm-btn" onclick="submitPayModal()">
+                    <i class="fa-solid fa-check"></i> Record Payment
+                </button>
+                <button class="pay-btn-skip" onclick="closePayModal()">
+                    Skip for now
+                </button>
+            </div>
+        </div>
+
+        <!-- Receipt screen -->
+        <div class="pay-receipt" id="pm-receipt">
+            <div class="receipt-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="receipt-title" id="pm-receipt-title">Payment recorded</div>
+            <div class="receipt-sub" id="pm-receipt-detail"></div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
