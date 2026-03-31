@@ -1470,6 +1470,7 @@
                         <div class="detail-group"><label>Estimated Cost</label><div class="detail-value" id="m-cost">--</div></div>
                         <div class="detail-group" id="m-services-wrap" style="grid-column:span 2;display:none;"><label>Requested Services</label><div class="detail-value" id="m-services">--</div></div>
                         <div class="detail-group" style="grid-column:span 2;"><label>Notes</label><div class="detail-value" id="m-notes" style="white-space:pre-wrap;line-height:1.6;">--</div></div>
+                    </div><!-- end .modal-grid -->
 
                     <!-- BOOKING HISTORY -->
                     <div class="bh-section" id="bh-section">
@@ -1768,7 +1769,6 @@
         let currentView = 'requests';
         let currentPage = 1;
         const PAGE_SIZE = 6;
-        const UPCOMING_PAGE_SIZE = 4;
         let searchTerm = '';
 
         const formatCurrency = (num) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(num);
@@ -2751,103 +2751,6 @@
             const ev = (b.booking_date || b.event_date || '').split('T')[0];
             if (df && dt && df !== dt) return fmtD(df) + ' – ' + fmtD(dt);
             return ev ? fmtD(ev) : '—';
-        }
-
-        function renderUpcomingRows(list) {
-            upcomingFiltered = list || [];
-            const bookBody   = document.getElementById('table-bookings');
-            if (!upcomingFiltered.length) {
-                bookBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding: 2rem;">No matching bookings</td></tr>`;
-                updateUpcomingPagination();
-                return;
-            }
-            const totalPages = Math.ceil(upcomingFiltered.length / UPCOMING_PAGE_SIZE);
-            if (upcomingPage > totalPages) upcomingPage = totalPages;
-            const start = (upcomingPage - 1) * UPCOMING_PAGE_SIZE;
-            const page  = upcomingFiltered.slice(start, start + UPCOMING_PAGE_SIZE);
-            bookBody.innerHTML = page.map(b => {
-                const dataStr = encodeURIComponent(JSON.stringify(b));
-                return `<tr onclick="openBookingModal('${dataStr}')" style="cursor:pointer;">
-                    <td><div style="font-weight:600;">${fmtBookingDate(b, {day:'numeric',month:'short'})}</div></td>
-                    <td><div style="font-weight:500;">${esc(b.customer_name) || 'Guest'}${b.is_recurring ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;margin-left:4px;"><i class=\'fa-solid fa-repeat\' style=\'font-size:0.58rem\'></i> Recurring</span>' : ''}</div>${b.customer_email ? `<div style="font-size:0.75rem; color:var(--text-muted);">${esc(b.customer_email)}</div>` : ''}</td>
-                    <td>${esc(b.room_name)}</td>
-                    <td><span class="status-badge ${parseFloat(b.balance_due) > 0 ? 'balance' : 'paid'}">${parseFloat(b.balance_due) > 0 ? formatCurrency(b.balance_due) + ' Due' : 'Paid'}</span></td>
-                </tr>`;
-            }).join('');
-            updateUpcomingPagination();
-        }
-
-        function updateUpcomingPagination() {
-            const bar = document.getElementById('upcoming-pagination');
-            const total = upcomingFiltered.length;
-            if (total <= UPCOMING_PAGE_SIZE) { bar.style.display = 'none'; return; }
-            const totalPages = Math.ceil(total / UPCOMING_PAGE_SIZE);
-            bar.style.display = 'flex';
-            document.getElementById('upcoming-page-info').innerText = `Page ${upcomingPage} of ${totalPages}  ·  ${total} bookings`;
-            document.getElementById('upcoming-prev').disabled = upcomingPage <= 1;
-            document.getElementById('upcoming-next').disabled = upcomingPage >= totalPages;
-        }
-
-        function changeUpcomingPage(delta) {
-            upcomingPage += delta;
-            renderUpcomingRows(upcomingFiltered);
-        }
-
-        function renderPreBookedCards(list) {
-            const container = document.getElementById('prebooked-list');
-            if (!list || list.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-muted);"><i class="fa-solid fa-check-circle" style="color:var(--success)"></i> No outstanding balances</div>`;
-                return;
-            }
-            container.innerHTML = list.map(b => {
-                const _pbStartDate = ((b.date_from || b.booking_date || '').split('T')[0]);
-                const d       = new Date(_pbStartDate + 'T00:00:00');
-                const day     = d.getDate();
-                const mon     = d.toLocaleString('default', { month: 'short' });
-                const balance = parseFloat(b.balance_due || 0);
-                const dataStr = encodeURIComponent(JSON.stringify(b));
-                return `<div class="prebooked-card" onclick="openBookingModal('${dataStr}')" style="cursor:pointer;">
-                    <div class="pb-left">
-                        <div class="pb-date"><div class="day">${day}</div><div class="mon">${mon}</div></div>
-                        <div class="pb-info">
-                            <h4>${b.customer_name || 'Guest'}</h4>
-                            <div class="pb-meta">
-                                <span><i class="fa-solid fa-layer-group"></i> ${b.room_name}</span>
-                                <span><i class="fa-solid fa-clock"></i> ${(b.start_time||'').slice(0,5)} – ${(b.end_time||'').slice(0,5)}</span>
-                                <span><i class="fa-solid fa-sterling-sign"></i> Total: ${formatCurrency(b.total_amount)}</span>
-                                ${b.customer_email ? `<span><i class="fa-solid fa-envelope"></i> ${b.customer_email}</span>` : ''}
-                                ${(b.date_from && b.date_to && b.date_from.split('T')[0] !== b.date_to.split('T')[0]) ? `<span><i class="fa-solid fa-calendar-week"></i> Until ${new Date(b.date_to.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pb-right">
-                        <span class="balance-pill"><i class="fa-solid fa-triangle-exclamation"></i> ${formatCurrency(balance)} due</span>
-                        <button class="pb-pay-btn" onclick="event.stopPropagation(); openPayModalByData('${dataStr}')"><i class="fa-solid fa-credit-card"></i> Pay</button>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // ---- SEARCH FILTERS ----
-        function filterUpcoming() {
-            const term = document.getElementById('search-upcoming').value.toLowerCase().trim();
-            const filtered = term
-                ? allUpcomingEvents.filter(b =>
-                    (b.customer_name||'').toLowerCase().includes(term) ||
-                    (b.customer_email||'').toLowerCase().includes(term))
-                : allUpcomingEvents;
-            upcomingPage = 1;
-            renderUpcomingRows(filtered);
-        }
-
-        function filterPreBooked() {
-            const term = document.getElementById('search-prebooked').value.toLowerCase().trim();
-            const filtered = term
-                ? allOutstandingPayments.filter(b =>
-                    (b.customer_name||'').toLowerCase().includes(term) ||
-                    (b.customer_email||'').toLowerCase().includes(term))
-                : allOutstandingPayments;
-            renderPreBookedCards(filtered);
         }
 
         // ---- BOOKING DETAIL MODAL ----
