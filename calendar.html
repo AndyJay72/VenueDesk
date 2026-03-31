@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1718,12 +1718,47 @@
         }
         async function cancelBookingFromModal(){
             if(!currentModalBookingId){showToast('Booking ID not found — cancel from the Bookings page','error');return;}
-            if(!confirm('Cancel this booking? This cannot be undone.'))return;
+            const p=currentModalProps;
+            let cancel_series=false;
+            // If this is a recurring booking, ask the user what to cancel
+            if(p&&p.is_recurring&&p.recurring_rule_id){
+                const choice=await showCancelSeriesDialog(p.customer_name,p.dateLabel);
+                if(choice===null)return; // user cancelled the dialog
+                cancel_series=(choice==='series');
+            } else {
+                if(!confirm('Cancel this booking? This cannot be undone.'))return;
+            }
             try{
-                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,tenant_id:parseInt(_CAL_TID())})});
-                if(res.ok){showToast('Booking cancelled','success');closeModal();setTimeout(()=>location.reload(),1500);}
-                else showToast('Error cancelling — try the Bookings page','error');
+                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,tenant_id:parseInt(_CAL_TID()),cancel_series})});
+                if(res.ok){
+                    const data=await res.json().catch(()=>({}));
+                    const msg=data.series_cancelled?'Recurring series cancelled':'Booking cancelled';
+                    showToast(msg,'success');closeModal();setTimeout(()=>location.reload(),1500);
+                }else showToast('Error cancelling — try the Bookings page','error');
             }catch(e){showToast('Error: '+e.message,'error');}
+        }
+        function showCancelSeriesDialog(customerName,dateLabel){
+            return new Promise(function(resolve){
+                // Remove any existing dialog
+                const existing=document.getElementById('cancel-series-dialog');
+                if(existing)existing.remove();
+                const overlay=document.createElement('div');
+                overlay.id='cancel-series-dialog';
+                overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML='<div style="background:#1e293b;border:1px solid rgba(99,102,241,0.4);border-radius:12px;padding:28px 32px;max-width:420px;width:90%;color:#e2e8f0;box-shadow:0 20px 60px rgba(0,0,0,0.6);">'
+                    +'<h3 style="margin:0 0 8px;font-size:1.1rem;color:#f1f5f9;">Cancel Recurring Booking</h3>'
+                    +'<p style="margin:0 0 20px;font-size:0.88rem;color:#94a3b8;">This is a recurring session for <strong style="color:#e2e8f0;">'+customerName+'</strong> on <strong style="color:#e2e8f0;">'+dateLabel+'</strong>.</p>'
+                    +'<p style="margin:0 0 20px;font-size:0.88rem;color:#94a3b8;">What would you like to cancel?</p>'
+                    +'<div style="display:flex;gap:10px;flex-direction:column;">'
+                    +'<button id="csd-single" style="padding:10px 16px;border-radius:8px;border:1px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.15);color:#c7d2fe;font-size:0.9rem;cursor:pointer;">This session only</button>'
+                    +'<button id="csd-series" style="padding:10px 16px;border-radius:8px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.15);color:#fca5a5;font-size:0.9rem;cursor:pointer;">Cancel entire series (all future sessions)</button>'
+                    +'<button id="csd-cancel" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#64748b;font-size:0.85rem;cursor:pointer;">Keep booking</button>'
+                    +'</div></div>';
+                document.body.appendChild(overlay);
+                document.getElementById('csd-single').onclick=function(){overlay.remove();resolve('single');};
+                document.getElementById('csd-series').onclick=function(){overlay.remove();resolve('series');};
+                document.getElementById('csd-cancel').onclick=function(){overlay.remove();resolve(null);};
+            });
         }
         function recordPaymentFromModal(){
             const sec=document.getElementById('e-pay-section');
@@ -1836,7 +1871,7 @@
                     const eventObj={
                         title:e.customer_name||'Guest',
                         backgroundColor:color,borderColor:color,
-                        extendedProps:{booking_id:e.id||e.booking_id||null,customer_id:e.customer_id||null,request_id:e.request_id||null,room_id:e.room_id||null,has_booking:e.has_booking!==false,customer_name:e.customer_name||'Guest',customer_email:e.customer_email||e.email||'',customer_phone:e.customer_phone||e.phone||'',room_name:e.room_name||e.room||'Unknown',booking_date:e.booking_date,date_from:e.date_from,date_to:e.date_to,dateLabel,time:`${startT} \u2013 ${endT}`,total_amount:e.total_amount,balance_due:e.balance_due,guest_count:e.guest_count,notes:e.notes||e.customer_notes||'',estimated_cost:e.estimated_cost||null,isPast,isPending,status:e.status||'confirmed'}
+                        extendedProps:{booking_id:e.id||e.booking_id||null,customer_id:e.customer_id||null,request_id:e.request_id||null,room_id:e.room_id||null,has_booking:e.has_booking!==false,customer_name:e.customer_name||'Guest',customer_email:e.customer_email||e.email||'',customer_phone:e.customer_phone||e.phone||'',room_name:e.room_name||e.room||'Unknown',booking_date:e.booking_date,date_from:e.date_from,date_to:e.date_to,dateLabel,time:`${startT} \u2013 ${endT}`,total_amount:e.total_amount,balance_due:e.balance_due,guest_count:e.guest_count,notes:e.notes||e.customer_notes||'',estimated_cost:e.estimated_cost||null,isPast,isPending,status:e.status||'confirmed',is_recurring:e.is_recurring||false,recurring_rule_id:e.recurring_rule_id||null}
                     };
                     if(isMultiDay){eventObj.start=startDateStr;eventObj.end=endExcl;eventObj.allDay=true;}
                     else{eventObj.start=`${startDateStr}T${startT}:00`;eventObj.end=`${startDateStr}T${endT}:00`;}
