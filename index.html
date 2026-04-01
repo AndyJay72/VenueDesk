@@ -3356,6 +3356,7 @@
             payment:     { bg:'rgba(6,182,212,0.15)',    color:'#06b6d4', icon:'fa-credit-card',    label:'Payment' },
             interaction: { bg:'rgba(139,92,246,0.15)',   color:'#8b5cf6', icon:'fa-comments',       label:'Interaction' },
             email:       { bg:'rgba(59,130,246,0.15)',   color:'#3b82f6', icon:'fa-envelope',       label:'Email' },
+            billing:     { bg:'rgba(245,158,11,0.15)',   color:'#f59e0b', icon:'fa-file-invoice-dollar', label:'Invoice Due' },
         };
         function actRelTime(ts) {
             if (!ts) return '—';
@@ -3459,10 +3460,11 @@
         async function loadActivityFeed() {
             const list = document.getElementById('act-feed-list');
             try {
-                const [dashR, txR, intR] = await Promise.allSettled([
+                const [dashR, txR, intR, billingR] = await Promise.allSettled([
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard' + tidParam(),          {headers:getAuthHeaders()}),
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data' + tidParam(),            {headers:getAuthHeaders()}),
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions' + tidParam(),    {headers:getAuthHeaders()}),
+                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-payments' + tidParam(), {headers:getAuthHeaders()}),
                 ]);
                 const evts = [];
                 if (dashR.status==='fulfilled' && dashR.value.ok) {
@@ -3483,6 +3485,15 @@
                     try {
                         const ij=await intR.value.json(); const ia=ij.data||(Array.isArray(ij)?ij:[]);
                         ia.forEach(i=>{ const isEmail=/email/i.test(i.interaction_type||''); evts.push({type:isEmail?'email':'interaction',ts:i.timestamp||i.created_at,name:i.customer_name||'—',detail:`${i.interaction_type||'Interaction'} · ${i.subject||''} · ${i.room_name||''}`.replace(/(·\s*){2,}/g,'· ').replace(/·\s*$/,'')}) });
+                    } catch(e){}
+                }
+                if (billingR.status==='fulfilled' && billingR.value.ok) {
+                    try {
+                        const bj=await billingR.value.json(); const ba=(bj.data||(Array.isArray(bj)?bj:[]));
+                        ba.forEach(function(p){
+                            var due = p.due_date ? new Date(p.due_date+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                            evts.push({type:'billing',ts:p.created_at||p.due_date,name:p.customer_name||'—',detail:'Invoice due '+due+' · '+( p.room_name||'')+ ' · £'+parseFloat(p.amount_due||0).toFixed(2)});
+                        });
                     } catch(e){}
                 }
                 evts.sort((a,b)=>new Date(b.ts||0)-new Date(a.ts||0));
