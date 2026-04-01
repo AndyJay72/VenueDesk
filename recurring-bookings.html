@@ -386,6 +386,16 @@
                     <select id="rb-event-type" class="form-input"><option value="">Optional…</option></select>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Total Months</label>
+                    <input type="number" id="rb-total-months" class="form-input" min="1" step="1" placeholder="e.g. 12" oninput="rbRecalc()" title="Number of monthly payment cycles">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Billing Day <span style="font-size:.72rem;opacity:.65">(of month)</span></label>
+                    <input type="number" id="rb-billing-day" class="form-input" min="1" max="31" step="1" placeholder="e.g. 1" title="Day of the month when each invoice is raised">
+                </div>
+            </div>
 
             <hr class="sep">
 
@@ -543,8 +553,16 @@ function rbCalcDates(startDate, endDate, freq){
    PREVIEW RECALC
 ═══════════════════════════════════════════════════ */
 function rbRecalc(){
-    var preview = document.getElementById('rb-preview');
-    var rate    = parseFloat(document.getElementById('rb-rate').value)||0;
+    var preview     = document.getElementById('rb-preview');
+    var rate        = parseFloat(document.getElementById('rb-rate').value)||0;
+    var totalMonths = parseInt((document.getElementById('rb-total-months')||{}).value||'')||0;
+
+    function ledgerLine(upfrontAmt){
+        if(!totalMonths||!rate) return '';
+        var remaining = totalMonths - 1;
+        return '<br><span style="font-size:.78rem;color:#a5b4fc">💳 Upfront: <strong>£'+upfrontAmt+'</strong>'
+            +(remaining>0?' &nbsp;|&nbsp; Remaining: <strong>'+remaining+'</strong> payment'+(remaining!==1?'s':'')+' of <strong>£'+upfrontAmt+'</strong>':' &nbsp;|&nbsp; <em>Single payment</em>')+'</span>';
+    }
 
     if(_rbMode==='specific'){
         var count = _rbSelected.size;
@@ -553,9 +571,11 @@ function rbRecalc(){
         if(count===0){
             preview.innerHTML = 'Select dates in the calendars below ↓';
         } else {
+            var monthAmt = rate.toFixed(2);
             preview.innerHTML = '<strong>'+count+'</strong> date'+(count!==1?'s':'')+' selected'
                 + (rate>0 ? ' · Total <strong>£'+total+'</strong>' : '')
-                + '<br><span style="font-size:.72rem;opacity:.7">'+sortedDates[0]+' → '+sortedDates[sortedDates.length-1]+'</span>';
+                + '<br><span style="font-size:.72rem;opacity:.7">'+sortedDates[0]+' → '+sortedDates[sortedDates.length-1]+'</span>'
+                + ledgerLine(monthAmt);
         }
         return;
     }
@@ -576,7 +596,8 @@ function rbRecalc(){
     preview.innerHTML = '<strong>'+dates.length+'</strong> sessions'
         +' · First month: <strong>'+firstMonthDates.length+'</strong> session'+(firstMonthDates.length!==1?'s':'')
         +(rate>0 ? ', <strong>£'+firstAmt+'</strong> due in 7 days' : '')
-        +'<br><span style="font-size:.72rem;opacity:.7">From '+dates[0]+' to '+dates[dates.length-1]+'</span>';
+        +'<br><span style="font-size:.72rem;opacity:.7">From '+dates[0]+' to '+dates[dates.length-1]+'</span>'
+        + ledgerLine(firstAmt);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -748,9 +769,11 @@ async function rbSubmit(){
     if(!isSpecific && !startDate){ showToast('Please set a start date','error'); return; }
     if(isSpecific && _rbSelected.size===0){ showToast('Please select at least one date in the calendars below','error'); return; }
 
-    var roomRecord = _rbRoomsData.find(function(r){ return (r.name||r.room_name||r.id)===roomVal; })||{};
-    var roomId     = roomRecord.id||roomRecord.room_id||'';
-    var roomName   = roomRecord.name||roomRecord.room_name||roomVal;
+    var roomRecord  = _rbRoomsData.find(function(r){ return (r.name||r.room_name||r.id)===roomVal; })||{};
+    var roomId      = roomRecord.id||roomRecord.room_id||'';
+    var roomName    = roomRecord.name||roomRecord.room_name||roomVal;
+    var totalMonths = parseInt((document.getElementById('rb-total-months')||{}).value||'')||null;
+    var billingDay  = parseInt((document.getElementById('rb-billing-day')||{}).value||'')||null;
 
     var anchorDate = isSpecific ? Array.from(_rbSelected).sort()[0] : startDate;
     var anchorDow  = new Date(anchorDate+'T00:00:00Z').getUTCDay();
@@ -776,6 +799,9 @@ async function rbSubmit(){
             rate_per_session: rate,
             event_type:       eventType||null,
             notes:            notes||null,
+            total_months:     totalMonths,
+            billing_day:      billingDay,
+            upfront_paid:     totalMonths ? true : false,
             tenant_id:        parseInt(_TID()),
             performed_by:     performedBy
         };
@@ -783,7 +809,7 @@ async function rbSubmit(){
         if(!res.ok) throw new Error('HTTP '+res.status);
         var rj = await res.json().catch(function(){return{};});
         // Reset form
-        ['rb-name','rb-phone','rb-email','rb-notes','rb-startdate'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
+        ['rb-name','rb-phone','rb-email','rb-notes','rb-startdate','rb-total-months','rb-billing-day'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
         document.getElementById('rb-room').value='';
         document.getElementById('rb-rate').value='';
         document.getElementById('rb-start').value='09:00';
@@ -800,7 +826,9 @@ async function rbSubmit(){
             rj.due_date||'',
             rj.first_month_sessions||rj.booking_count||0,
             rj.frequency||_rbFreq,
-            name
+            name,
+            rj.total_cycles||totalMonths||null,
+            rj.billing_day||billingDay||null
         );
     } catch(e){
         showToast('Error: '+e.message,'error');
@@ -817,8 +845,8 @@ var _payModalData = {};  // set after successful booking
 var _payPlan      = 'in_advance';
 var _payMethod    = 'cash';
 
-function openPayModal(ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName){
-    _payModalData = { ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName };
+function openPayModal(ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName, totalCycles, billingDay){
+    _payModalData = { ruleId, customerId, amountDue, dueDate, sessions, frequency, customerName, totalCycles: totalCycles||null, billingDay: billingDay||null };
     _payPlan      = 'in_advance';
     _payMethod    = 'cash';
 
@@ -831,6 +859,23 @@ function openPayModal(ruleId, customerId, amountDue, dueDate, sessions, frequenc
     document.getElementById('pm-amount').textContent   = '£'+(parseFloat(amountDue)||0).toFixed(2);
     document.getElementById('pm-due').textContent      = due;
     document.getElementById('pm-amount-input').value   = (parseFloat(amountDue)||0).toFixed(2);
+
+    // Billing cycle breakdown
+    var ledgerEl = document.getElementById('pm-ledger-summary');
+    if(ledgerEl){
+        if(totalCycles && totalCycles > 0){
+            var remaining = totalCycles - 1;
+            var bdLabel   = billingDay ? ' (billed on day '+billingDay+' each month)' : '';
+            ledgerEl.style.display = '';
+            ledgerEl.innerHTML = '💳 <strong>Upfront:</strong> £'+(parseFloat(amountDue)||0).toFixed(2)
+                +(remaining>0
+                    ? '&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Remaining:</strong> '+remaining+' payment'+(remaining!==1?'s':'')+' of £'+(parseFloat(amountDue)||0).toFixed(2)+bdLabel
+                    : '&nbsp;&nbsp;|&nbsp;&nbsp;<em>Single payment only</em>');
+        } else {
+            ledgerEl.style.display = 'none';
+            ledgerEl.innerHTML = '';
+        }
+    }
 
     // Reset to initial state
     document.getElementById('pm-receipt').classList.remove('visible');
@@ -1095,6 +1140,7 @@ document.addEventListener('DOMContentLoaded',function(){
                 First month total: <strong id="pm-amount">£0.00</strong>
                 &nbsp;&bull;&nbsp; Due: <span id="pm-due">within 7 days</span>
             </div>
+            <div id="pm-ledger-summary" style="display:none;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:10px 14px;margin-bottom:1.1rem;font-size:.82rem;color:#c7d2fe;line-height:1.6"></div>
 
             <!-- Plan selection -->
             <div style="font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Billing Plan</div>
