@@ -701,6 +701,7 @@
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
             <a href="bookings.html" class="nav-link active" data-label="Bookings"><i class="fa-solid fa-calendar-days"></i><span class="nav-label"> Bookings</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
+            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
 
@@ -898,29 +899,34 @@
                             else if (parseInt(s.pending_count||0) === 0 && parseInt(s.confirmed_count||0) > 0) category = 'booked';
                             return {
                                 ...s,
-                                _isSeries:     true,
-                                _ruleId:        s.rule_id,
-                                _seriesLabel:   label,
-                                _totalSessions: parseInt(s.total_bookings || 0),
-                                _pendingCount:  parseInt(s.pending_count || 0),
-                                _nextDate:      s.next_date,
-                                _firstDate:     s.first_date,
-                                _lastDate:      s.last_date,
-                                _paymentStatus: s.payment_status || 'pending',
-                                id:             s.rule_id,
-                                customer_name:  s.customer_name,
-                                customer_id:    s.customer_id,
-                                room_name:      s.room_name,
-                                start_time:     s.start_time,
-                                end_time:       s.end_time,
-                                date_from:      s.next_date || s.first_date,
-                                booking_date:   s.next_date || s.first_date,
+                                _isSeries:        true,
+                                _ruleId:          s.rule_id,
+                                _seriesLabel:     label,
+                                _totalSessions:   parseInt(s.total_bookings || 0),
+                                _pendingCount:    parseInt(s.pending_count || 0),
+                                _nextDate:        s.next_date,
+                                _firstDate:       s.first_date,
+                                _lastDate:        s.last_date,
+                                _paymentStatus:   s.payment_status || 'pending',
+                                _seriesRef:       s.series_reference || null,
+                                _monthlyFee:      parseFloat(s.monthly_fee || 0),
+                                _isContract:      s.customer_type === 'contract',
+                                _totalCycles:     parseInt(s.total_cycles || 0),
+                                _remainingCycles: parseInt(s.remaining_cycles || 0),
+                                id:               s.rule_id,
+                                customer_name:    s.customer_name,
+                                customer_id:      s.customer_id,
+                                room_name:        s.room_name,
+                                start_time:       s.start_time,
+                                end_time:         s.end_time,
+                                date_from:        s.next_date || s.first_date,
+                                booking_date:     s.next_date || s.first_date,
                                 category,
-                                dateObj:        nextDate,
-                                balanceNum:     totalBal,
-                                total_amount:   parseFloat(s.amount_due || 0),
-                                balance_due:    String(parseFloat(s.amount_due || 0)),
-                                _allIds:        [s.rule_id]
+                                dateObj:          nextDate,
+                                balanceNum:       totalBal,
+                                total_amount:     parseFloat(s.amount_due || 0),
+                                balance_due:      String(parseFloat(s.amount_due || 0)),
+                                _allIds:          [s.rule_id]
                             };
                         });
                     } catch(e) { /* series endpoint not yet ready, silent */ }
@@ -1156,7 +1162,19 @@
                     const lastFmt  = b._lastDate
                         ? new Date(b._lastDate.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
                         : '—';
-                    return `<div class="booking-card" style="border-left:4px solid #6366f1;flex-direction:column;cursor:default;">
+                    const contractBadge = b._isContract
+                        ? `<span style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);border-radius:20px;padding:2px 9px;font-size:0.68rem;font-weight:600;white-space:nowrap;"><i class="fa-solid fa-file-contract" style="margin-right:3px;font-size:0.6rem"></i>Contract</span>`
+                        : '';
+                    const seriesRefBadge = b._seriesRef
+                        ? `<span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#8b5cf6;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:5px;padding:1px 7px;">${esc(b._seriesRef)}</span>`
+                        : '';
+                    const monthlyFeeLine = b._monthlyFee > 0
+                        ? `<span style="color:#10b981;font-weight:600;"><i class="fa-solid fa-sterling-sign"></i> ${formatCurrency(b._monthlyFee)}/mo</span>`
+                        : '';
+                    const cycleInfo = b._totalCycles > 0
+                        ? `<span style="color:var(--text-muted);"><i class="fa-solid fa-circle-nodes"></i> ${b._totalCycles - b._remainingCycles}/${b._totalCycles} cycles</span>`
+                        : '';
+                    return `<div class="booking-card" style="border-left:4px solid ${b._isContract ? '#8b5cf6' : '#6366f1'};flex-direction:column;cursor:default;">
                         <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
                             <div class="b-left">
                                 <div class="date-badge" style="border-color:rgba(99,102,241,0.4);">
@@ -1167,11 +1185,15 @@
                                     <h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                         ${esc(b.customer_name)||'Guest'}
                                         <span class="series-badge"><i class="fa-solid fa-repeat"></i> ${esc(freq)} &times;${cnt}</span>
+                                        ${contractBadge}
+                                        ${seriesRefBadge}
                                     </h4>
                                     <div class="b-meta">
                                         <span><i class="fa-solid fa-layer-group"></i> ${esc(b.room_name)}</span>
                                         <span><i class="fa-solid fa-clock"></i> ${(b.start_time||'').slice(0,5)} – ${(b.end_time||'').slice(0,5)}</span>
                                         <span><i class="fa-solid fa-calendar-range"></i> ${firstFmt} → ${lastFmt}</span>
+                                        ${monthlyFeeLine}
+                                        ${cycleInfo}
                                         ${b._pendingCount > 0 ? `<span style="color:#f59e0b;font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> ${b._pendingCount} upcoming</span>` : ''}
                                     </div>
                                 </div>
