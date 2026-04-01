@@ -3398,6 +3398,29 @@
 
             let items = allOutstandingPayments || [];
 
+            // Deduplicate by customer: one row per customer, keeping nearest upcoming booking.
+            // This prevents repeat-booking customers (with many future sessions) appearing multiple times.
+            // accounts.html shows the full per-booking breakdown.
+            (function() {
+                const seen = new Map();
+                items.forEach(function(b) {
+                    const key = b.customer_id || b.full_name || b.customer_name || '';
+                    if (!key) return;
+                    const existingDate = seen.has(key)
+                        ? new Date(seen.get(key).date_from || seen.get(key).booking_date || 0)
+                        : null;
+                    const thisDate = new Date(b.date_from || b.booking_date || 0);
+                    if (!seen.has(key) || thisDate < existingDate) {
+                        seen.set(key, b);
+                    }
+                });
+                items = Array.from(seen.values());
+                // Re-sort by nearest date after dedup
+                items.sort(function(a, b) {
+                    return new Date(a.date_from || a.booking_date || 0) - new Date(b.date_from || b.booking_date || 0);
+                });
+            })();
+
             if (outSearchTerm) {
                 items = items.filter(b => {
                     const name = (b.full_name || b.customer_name || '').toLowerCase();
