@@ -393,7 +393,16 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Billing Day <span style="font-size:.72rem;opacity:.65">(of month)</span></label>
-                    <input type="number" id="rb-billing-day" class="form-input" min="1" max="31" step="1" placeholder="e.g. 1" title="Day of the month when each invoice is raised">
+                    <input type="number" id="rb-billing-day" class="form-input" min="1" max="31" step="1" placeholder="e.g. 20" value="20" title="Day of the month when each invoice is raised">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Monthly Fee (£) <span style="font-size:.72rem;opacity:.65">Contract clients</span></label>
+                    <input type="number" id="rb-monthly-fee" class="form-input" min="0" step="0.01" placeholder="e.g. 400.00" title="Flat monthly contract fee (separate from per-session rate)">
+                </div>
+                <div class="form-group">
+                    <!-- placeholder for layout balance -->
                 </div>
             </div>
 
@@ -774,6 +783,7 @@ async function rbSubmit(){
     var roomName    = roomRecord.name||roomRecord.room_name||roomVal;
     var totalMonths = parseInt((document.getElementById('rb-total-months')||{}).value||'')||null;
     var billingDay  = parseInt((document.getElementById('rb-billing-day')||{}).value||'')||null;
+    var monthlyFee  = parseFloat((document.getElementById('rb-monthly-fee')||{}).value||'')||null;
 
     var anchorDate = isSpecific ? Array.from(_rbSelected).sort()[0] : startDate;
     var anchorDow  = new Date(anchorDate+'T00:00:00Z').getUTCDay();
@@ -801,6 +811,7 @@ async function rbSubmit(){
             notes:            notes||null,
             total_months:     totalMonths,
             billing_day:      billingDay,
+            monthly_fee:      monthlyFee,
             upfront_paid:     totalMonths ? true : false,
             tenant_id:        parseInt(_TID()),
             performed_by:     performedBy
@@ -809,7 +820,7 @@ async function rbSubmit(){
         if(!res.ok) throw new Error('HTTP '+res.status);
         var rj = await res.json().catch(function(){return{};});
         // Reset form
-        ['rb-name','rb-phone','rb-email','rb-notes','rb-startdate','rb-total-months','rb-billing-day'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
+        ['rb-name','rb-phone','rb-email','rb-notes','rb-startdate','rb-total-months','rb-billing-day','rb-monthly-fee'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
         document.getElementById('rb-room').value='';
         document.getElementById('rb-rate').value='';
         document.getElementById('rb-start').value='09:00';
