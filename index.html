@@ -1289,6 +1289,7 @@
             <a href="calendar.html" class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>   
             <a href="bookings.html" class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
+            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
             <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
             <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
 
@@ -3357,6 +3358,7 @@
             interaction: { bg:'rgba(139,92,246,0.15)',   color:'#8b5cf6', icon:'fa-comments',       label:'Interaction' },
             email:       { bg:'rgba(59,130,246,0.15)',   color:'#3b82f6', icon:'fa-envelope',       label:'Email' },
             billing:     { bg:'rgba(245,158,11,0.15)',   color:'#f59e0b', icon:'fa-file-invoice-dollar', label:'Invoice Due' },
+            contract:    { bg:'rgba(139,92,246,0.15)',   color:'#8b5cf6', icon:'fa-file-contract',       label:'Contract' },
         };
         function actRelTime(ts) {
             if (!ts) return '—';
@@ -3442,10 +3444,13 @@
             }
             list.innerHTML = slice.map(ev => {
                 const c = ACT_CONFIG[ev.type] || ACT_CONFIG.booking;
+                const contractPill = ev.isContract
+                    ? `<span class="act-type-badge" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2)"><i class="fa-solid fa-file-contract" style="font-size:0.65rem"></i> Contract</span>`
+                    : '';
                 return `<div class="act-item">
                     <div class="act-dot" style="background:${c.bg}"><i class="fa-solid ${c.icon}" style="color:${c.color}"></i></div>
                     <div class="act-body">
-                        <div class="act-name">${ev.name} <span class="act-type-badge" style="background:${c.bg};color:${c.color};border:1px solid ${c.color}33">${c.label}</span></div>
+                        <div class="act-name">${ev.name} <span class="act-type-badge" style="background:${c.bg};color:${c.color};border:1px solid ${c.color}33">${c.label}</span>${contractPill}</div>
                         <div class="act-detail">${ev.detail||''}</div>
                     </div>
                     <div class="act-right"><div class="act-time">${actRelTime(ev.ts)}</div></div>
@@ -3492,7 +3497,16 @@
                         const bj=await billingR.value.json(); const ba=(bj.data||(Array.isArray(bj)?bj:[]));
                         ba.forEach(function(p){
                             var due = p.due_date ? new Date(p.due_date+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
-                            evts.push({type:'billing',ts:p.created_at||p.due_date,name:p.customer_name||'—',detail:'Invoice due '+due+' · '+( p.room_name||'')+ ' · £'+parseFloat(p.amount_due||0).toFixed(2)});
+                            var cycleInfo = p.cycle_number && p.total_cycles ? ' · Cycle '+p.cycle_number+'/'+p.total_cycles : '';
+                            var seriesRef = p.series_reference ? ' · '+p.series_reference : '';
+                            evts.push({
+                                type: 'billing',
+                                ts: p.created_at||p.due_date,
+                                name: p.customer_name||'—',
+                                detail: 'Invoice due '+due+seriesRef+cycleInfo+' · '+(p.room_name||'')+' · £'+parseFloat(p.amount_due||0).toFixed(2),
+                                isContract: p.customer_type === 'contract',
+                                seriesRef: p.series_reference||null
+                            });
                         });
                     } catch(e){}
                 }
