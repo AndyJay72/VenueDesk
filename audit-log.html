@@ -596,6 +596,7 @@
 
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
+            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
             <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
     </aside>
@@ -658,6 +659,7 @@
         const PAYMENTS_API      = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
         const INTERACTIONS_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
         const DASHBOARD_API     = 'https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard';
+        const LEDGER_API        = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-payments';
         const fmt = n => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
         function getAuthHeaders(){return{};}
         function _TID(){return sessionStorage.getItem('vp_tenant_id')||'0';}
@@ -676,15 +678,17 @@
         function logout(){if(confirm("Log out?")){sessionStorage.removeItem('vp_token');window.location.href='login.html';}}
 
         const TYPE_CONFIG = {
-            payment:     { cls:'type-payment',     label:'Payment',     icon:'fa-credit-card' },
-            deposit:     { cls:'type-deposit',     label:'Deposit',     icon:'fa-coins' },
-            refund:      { cls:'type-refund',      label:'Refund',      icon:'fa-rotate-left' },
-            booking:     { cls:'type-booking',     label:'Booking',     icon:'fa-calendar-check' },
-            recurring:   { cls:'type-recurring',   label:'Recurring',   icon:'fa-repeat' },
-            enquiry:     { cls:'type-enquiry',     label:'Enquiry',     icon:'fa-inbox' },
-            interaction: { cls:'type-interaction', label:'Interaction', icon:'fa-comments' },
-            email:       { cls:'type-email',       label:'Email',       icon:'fa-envelope' },
-            membership:  { cls:'type-membership',  label:'Membership',  icon:'fa-id-card' },
+            payment:          { cls:'type-payment',          label:'Payment',          icon:'fa-credit-card' },
+            deposit:          { cls:'type-deposit',          label:'Deposit',          icon:'fa-coins' },
+            refund:           { cls:'type-refund',           label:'Refund',           icon:'fa-rotate-left' },
+            booking:          { cls:'type-booking',          label:'Booking',          icon:'fa-calendar-check' },
+            recurring:        { cls:'type-recurring',        label:'Recurring',        icon:'fa-repeat' },
+            enquiry:          { cls:'type-enquiry',          label:'Enquiry',          icon:'fa-inbox' },
+            interaction:      { cls:'type-interaction',      label:'Interaction',      icon:'fa-comments' },
+            email:            { cls:'type-email',            label:'Email',            icon:'fa-envelope' },
+            membership:       { cls:'type-membership',       label:'Membership',       icon:'fa-id-card' },
+            series_created:   { cls:'type-recurring',        label:'Series Created',   icon:'fa-file-contract' },
+            invoice_generated:{ cls:'type-deposit',          label:'Invoice Generated',icon:'fa-file-invoice-dollar' },
         };
         function getTypeCfg(t) { return TYPE_CONFIG[t] || {cls:'type-other',label:t||'Other',icon:'fa-circle'}; }
 
@@ -764,10 +768,11 @@
         async function loadData(){
             document.getElementById('log-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr>';
             try{
-                const [txR,intR,dashR]=await Promise.allSettled([
+                const [txR,intR,dashR,ledgerR]=await Promise.allSettled([
                     fetch(PAYMENTS_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
                     fetch(INTERACTIONS_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
                     fetch(DASHBOARD_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
+                    fetch(LEDGER_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
                 ]);
                 const events=[];
                 if(txR.status==='fulfilled'&&txR.value.ok){
@@ -807,6 +812,26 @@
                         const dj=await dashR.value.json();const dd=dj.data||dj;
                         (dd.recent_customers||[]).forEach(c=>events.push({type:'enquiry',ts:c.created_at||c.requested_date,customer_name:c.full_name||c.customer_name,customer_email:c.email,room_name:c.room_name,details:`${c.event_type||''} \u00b7 ${c.guests_count||c.guest_count||'?'} guests`.replace(/^\s*\u00b7\s*/,''),amount:null,ref:c.notes||''}));
                         (dd.upcoming_bookings||[]).forEach(b=>events.push({type:'booking',ts:b.booking_created_at||b.booking_date||b.date_from,customer_name:b.customer_name,customer_email:b.customer_email,room_name:b.room_name,details:`${(b.status||'confirmed').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} \u00b7 ${b.guest_count||'?'} guests`,amount:b.total_amount,ref:b.id||''}));
+                    }catch(e){}
+                }
+                if(ledgerR.status==='fulfilled'&&ledgerR.value.ok){
+                    try{
+                        const lj=await ledgerR.value.json();const la=lj.data||(Array.isArray(lj)?lj:[]);
+                        la.forEach(p=>{
+                            const cycleStr=p.cycle_number&&p.total_cycles?` · Cycle ${p.cycle_number}/${p.total_cycles}`:'';
+                            const seriesStr=p.series_reference?` · ${p.series_reference}`:'';
+                            const dueStr=p.due_date?new Date(p.due_date+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
+                            events.push({
+                                type:'invoice_generated',
+                                ts:p.created_at||p.due_date,
+                                customer_name:p.customer_name||'—',
+                                customer_email:p.customer_email||'',
+                                room_name:p.room_name||'—',
+                                details:`Due ${dueStr}${seriesStr}${cycleStr}`,
+                                amount:p.amount_due,
+                                ref:p.series_reference||''
+                            });
+                        });
                     }catch(e){}
                 }
                 events.sort((a,b)=>new Date(b.ts||0)-new Date(a.ts||0));
