@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Repeat Clients | Venue Manager Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border: rgba(148, 163, 184, 0.1);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --contract: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --sidebar-width: 260px;
+        }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-dark); background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+
+        /* SIDEBAR */
+        aside { width: var(--sidebar-width); background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s ease; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted); text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: all 0.2s; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); }
+        .close-sidebar { display: none; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+        .sidebar-collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 4px 7px; border-radius: 6px; }
+        .sidebar-collapse-btn:hover { color: var(--primary); }
+        body.sidebar-collapsed aside { width: 68px; padding: 1.25rem 0.6rem; }
+        body.sidebar-collapsed main { margin-left: 68px; }
+        body.sidebar-collapsed .brand-text, body.sidebar-collapsed .nav-label { opacity: 0; width: 0; display: inline-block; }
+        body.sidebar-collapsed .nav-link { justify-content: center; gap: 0; padding: 12px 8px; }
+        body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; }
+        body.sidebar-collapsed .nav-link { position: relative; }
+
+        /* MAIN */
+        main { margin-left: var(--sidebar-width); flex: 1; padding: 2rem; transition: margin-left 0.3s ease; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header-title h1 { font-size: 1.8rem; font-weight: 700; }
+        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+        .menu-toggle { display: none; background: var(--bg-card); border: 1px solid var(--border); color: white; width: 40px; height: 40px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* SEARCH + STATS BAR */
+        .top-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .search-wrap { flex: 1; min-width: 200px; position: relative; }
+        .search-wrap input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 10px 12px 10px 38px; border-radius: 10px; font-size: 0.88rem; outline: none; }
+        .search-wrap input::placeholder { color: var(--text-muted); }
+        .search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .stat-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 16px; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+        .stat-chip strong { color: var(--text-main); }
+
+        /* CLIENT CARDS GRID */
+        .clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem; }
+
+        .client-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .client-card:hover { border-color: rgba(139,92,246,0.35); box-shadow: 0 4px 20px rgba(139,92,246,0.08); }
+
+        .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.9rem; }
+        .card-name { font-size: 1rem; font-weight: 700; }
+        .card-email { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+        .contract-pill { background: rgba(139,92,246,0.15); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.25); border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; }
+
+        .series-ref { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--contract); background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.15); border-radius: 6px; padding: 2px 8px; display: inline-block; margin-bottom: 0.75rem; }
+
+        .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin-bottom: 0.9rem; }
+        .meta-item { font-size: 0.8rem; }
+        .meta-label { color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+        .meta-val { font-weight: 600; }
+
+        .card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+        .cycles-bar-wrap { flex: 1; margin-right: 1rem; }
+        .cycles-label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px; }
+        .cycles-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.07); overflow: hidden; }
+        .cycles-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8b5cf6, #6366f1); transition: width 0.4s ease; }
+        .next-due { text-align: right; }
+        .next-due-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .next-due-val { font-size: 0.85rem; font-weight: 700; color: var(--warning); margin-top: 2px; }
+        .next-due-amount { font-size: 0.75rem; color: var(--text-muted); }
+
+        .no-series { opacity: 0.5; font-size: 0.8rem; font-style: italic; margin-top: 0.5rem; }
+
+        /* EMPTY + LOADING STATES */
+        .state-box { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+        .state-box i { font-size: 2.5rem; margin-bottom: 1rem; display: block; opacity: 0.4; }
+
+        @media (max-width: 768px) {
+            aside { transform: translateX(-100%); }
+            aside.active { transform: translateX(0); }
+            main { margin-left: 0; padding: 1.5rem 1rem; }
+            .menu-toggle { display: flex; }
+            .close-sidebar { display: block; }
+            .clients-grid { grid-template-columns: 1fr; }
+        }
+
+        /* LIGHT MODE */
+        body.light-mode { background-color: #f1f5f9; background-image: none; color: #1e293b; }
+        body.light-mode aside { background: rgba(255,255,255,0.97); }
+        body.light-mode .client-card { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.08); }
+        body.light-mode .search-wrap input { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.12); }
+        body.light-mode .stat-chip { background: #fff; border-color: rgba(0,0,0,0.08); color: #475569; }
+        body.light-mode .nav-link { color: #475569; }
+        body.light-mode .nav-link:hover, body.light-mode .nav-link.active { background: rgba(99,102,241,0.1); color: var(--primary); }
+        body.light-mode .meta-label { color: #94a3b8; }
+        body.light-mode .cycles-bar { background: rgba(0,0,0,0.07); }
+
+        /* THEME BTN */
+        .icon-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .icon-btn:hover { color: var(--primary); border-color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div id="sidebarOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99" onclick="toggleMenu()"></div>
+
+    <aside id="sidebar">
+        <div class="brand">
+            <span><i class="fa-solid fa-layer-group"></i><span class="brand-text"> VenueDesk</span></span>
+            <div style="display:flex;align-items:center;gap:2px;">
+                <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+                <button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <nav>
+            <a href="index.html"              class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
+            <a href="calendar.html"           class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+            <a href="bookings.html"           class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
+            <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
+            <a href="repeat-clients.html"     class="nav-link active" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
+            <a href="accounts.html"           class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+            <a href="audit-log.html"          class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+            <a href="users.html"              class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+            <a href="admin-config.html"       class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
+            <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+        </nav>
+    </aside>
+
+    <main>
+        <header>
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-users-between-lines" style="color:var(--contract);margin-right:0.5rem"></i>Repeat Clients</h1>
+                    <p>All contract customers with active recurring series</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+            </div>
+        </header>
+
+        <div class="top-bar">
+            <div class="search-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="rc-search" placeholder="Search by name, email or series ref…" oninput="applyFilter()">
+            </div>
+            <div class="stat-chip">Total: <strong id="stat-total">—</strong></div>
+            <div class="stat-chip">Active Series: <strong id="stat-active">—</strong></div>
+            <div class="stat-chip">MRR: <strong id="stat-mrr">—</strong></div>
+        </div>
+
+        <div id="clients-grid" class="clients-grid">
+            <div class="state-box"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading repeat clients…</div>
+        </div>
+    </main>
+
+<script>
+    // ── AUTH HELPERS ──
+    function getToken() { return sessionStorage.getItem('vp_token') || ''; }
+    function getAuthHeaders() { return {}; }
+    function tidParam() { return '?tenant_id=1001'; }
+    function logout() { sessionStorage.clear(); window.location.href = 'login.html'; }
+
+    // ── SIDEBAR ──
+    function toggleMenu() {
+        const sb = document.getElementById('sidebar');
+        const ov = document.getElementById('sidebarOverlay');
+        const open = sb.classList.toggle('active');
+        ov.style.display = open ? 'block' : 'none';
+    }
+    function toggleSidebarCollapse() {
+        const col = document.body.classList.toggle('sidebar-collapsed');
+        sessionStorage.setItem('vp_sidebar_col', col ? '1' : '0');
+    }
+    (function(){ if(sessionStorage.getItem('vp_sidebar_col')==='1') document.body.classList.add('sidebar-collapsed'); })();
+
+    // ── THEME ──
+    (function(){ if(sessionStorage.getItem('vp_theme')==='light') document.body.classList.add('light-mode'); })();
+    function toggleTheme() {
+        const l = document.body.classList.toggle('light-mode');
+        sessionStorage.setItem('vp_theme', l ? 'light' : 'dark');
+        const btn = document.getElementById('theme-btn');
+        if(btn) btn.innerHTML = l ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        const btn = document.getElementById('theme-btn');
+        if(btn) btn.innerHTML = document.body.classList.contains('light-mode') ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    });
+
+    // ── DATA ──
+    let allClients = [];
+
+    function fmtCur(v) { return '£' + parseFloat(v||0).toFixed(2); }
+    function fmtDate(d) {
+        if (!d) return '—';
+        const dt = new Date(d + 'T00:00:00Z');
+        return isNaN(dt) ? '—' : dt.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+    }
+    function dayName(n) {
+        return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][n] || '—';
+    }
+
+    function renderCard(c) {
+        const hasActive = c.series_active;
+        const seriesLabel = c.series_reference
+            ? `<div class="series-ref"><i class="fa-solid fa-hashtag" style="font-size:0.65rem;margin-right:3px"></i>${c.series_reference}</div>`
+            : '';
+
+        const totalC = parseInt(c.total_cycles) || 0;
+        const remainC = parseInt(c.remaining_cycles) || 0;
+        const doneC = Math.max(0, totalC - remainC);
+        const pct = totalC > 0 ? Math.round((doneC / totalC) * 100) : 0;
+        const cyclesHtml = totalC > 0
+            ? `<div class="cycles-bar-wrap">
+                <div class="cycles-label">Cycles: ${doneC} / ${totalC} complete</div>
+                <div class="cycles-bar"><div class="cycles-bar-fill" style="width:${pct}%"></div></div>
+               </div>`
+            : `<div class="cycles-bar-wrap"><div class="cycles-label" style="opacity:.5">No cycle data</div></div>`;
+
+        const nextDue = c.next_due_date
+            ? `<div class="next-due">
+                <div class="next-due-label">Next Due</div>
+                <div class="next-due-val">${fmtDate(c.next_due_date)}</div>
+                <div class="next-due-amount">${fmtCur(c.next_amount_due)}</div>
+               </div>`
+            : `<div class="next-due"><div class="next-due-label" style="opacity:.5">No pending payment</div></div>`;
+
+        const statusDot = hasActive
+            ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:5px"></span>`
+            : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#64748b;margin-right:5px"></span>`;
+
+        return `<div class="client-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-name">${c.full_name || '—'}</div>
+                    <div class="card-email">${c.email || ''}</div>
+                </div>
+                <span class="contract-pill"><i class="fa-solid fa-file-contract" style="margin-right:4px;font-size:0.65rem"></i>Contract</span>
+            </div>
+            ${seriesLabel}
+            ${hasActive ? '' : '<div class="no-series">No active series</div>'}
+            ${hasActive ? `<div class="card-meta">
+                <div class="meta-item"><div class="meta-label">Day</div><div class="meta-val">${dayName(c.day_of_week)}</div></div>
+                <div class="meta-item"><div class="meta-label">Room</div><div class="meta-val">${c.room_name || '—'}</div></div>
+                <div class="meta-item"><div class="meta-label">Time</div><div class="meta-val">${(c.start_time||'').slice(0,5)} – ${(c.end_time||'').slice(0,5)}</div></div>
+                <div class="meta-item"><div class="meta-label">Monthly Fee</div><div class="meta-val">${c.monthly_fee ? fmtCur(c.monthly_fee) : '—'}</div></div>
+                <div class="meta-item"><div class="meta-label">Billing Day</div><div class="meta-val">${c.billing_day ? c.billing_day + (c.billing_day==1?'st':c.billing_day==2?'nd':c.billing_day==3?'rd':'th') + ' of month' : '—'}</div></div>
+                <div class="meta-item"><div class="meta-label">Status</div><div class="meta-val">${statusDot}${hasActive ? 'Active' : 'Inactive'}</div></div>
+            </div>` : ''}
+            <div class="card-footer">
+                ${cyclesHtml}
+                ${nextDue}
+            </div>
+        </div>`;
+    }
+
+    function applyFilter() {
+        const q = (document.getElementById('rc-search').value || '').toLowerCase();
+        const filtered = q
+            ? allClients.filter(c =>
+                (c.full_name||'').toLowerCase().includes(q) ||
+                (c.email||'').toLowerCase().includes(q) ||
+                (c.series_reference||'').toLowerCase().includes(q)
+              )
+            : allClients;
+
+        const grid = document.getElementById('clients-grid');
+        if (!filtered.length) {
+            grid.innerHTML = `<div class="state-box"><i class="fa-solid fa-magnifying-glass"></i>No clients match "${q}"</div>`;
+            return;
+        }
+        grid.innerHTML = filtered.map(renderCard).join('');
+    }
+
+    async function loadRepeatClients() {
+        const grid = document.getElementById('clients-grid');
+        try {
+            const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/get-repeat-clients' + tidParam(), { headers: getAuthHeaders() });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const raw = await res.json();
+            allClients = Array.isArray(raw) ? raw : (raw.data || []);
+
+            // Stats
+            document.getElementById('stat-total').innerText = allClients.length;
+            document.getElementById('stat-active').innerText = allClients.filter(c => c.series_active).length;
+            const mrr = allClients.reduce((s, c) => s + parseFloat(c.monthly_fee || 0), 0);
+            document.getElementById('stat-mrr').innerText = mrr > 0 ? fmtCur(mrr) : '—';
+
+            if (!allClients.length) {
+                grid.innerHTML = `<div class="state-box"><i class="fa-solid fa-users-between-lines"></i>No contract clients yet.<br><small style="margin-top:0.5rem;display:block">Create a recurring booking to add one.</small></div>`;
+                return;
+            }
+            applyFilter();
+        } catch(e) {
+            grid.innerHTML = `<div class="state-box" style="color:#ef4444"><i class="fa-solid fa-triangle-exclamation"></i>Failed to load repeat clients.<br><small>${e.message}</small></div>`;
+        }
+    }
+
+    loadRepeatClients();
+</script>
+</body>
+</html>
