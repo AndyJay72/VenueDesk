@@ -712,6 +712,7 @@
             <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
             <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
+            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
             <a href="#" onclick="logout()" class="nav-link" style="margin-top: auto; color: #ef4444; border-top: 1px solid rgba(255,255,255,0.05);" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
     </aside>
@@ -825,6 +826,37 @@
                 <div style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</div>
             </div>
         </div>
+
+        <!-- SUBSCRIPTION LEDGER -->
+        <div class="section-container" id="ledger-section" style="margin-top:2rem;display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h2 style="font-size:1.15rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-file-contract" style="color:#8b5cf6;"></i> Subscription Ledger
+                    </h2>
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 0;">All outstanding instalment cycles across contract series</p>
+                </div>
+                <div id="ledger-summary" style="font-size:0.82rem;color:var(--text-muted);display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;">
+                            <th style="padding:8px 12px;text-align:left;font-weight:600;">Series</th>
+                            <th style="padding:8px 12px;text-align:left;font-weight:600;">Customer</th>
+                            <th style="padding:8px 12px;text-align:left;font-weight:600;">Room</th>
+                            <th style="padding:8px 12px;text-align:center;font-weight:600;">Cycle</th>
+                            <th style="padding:8px 12px;text-align:left;font-weight:600;">Due Date</th>
+                            <th style="padding:8px 12px;text-align:right;font-weight:600;">Amount Due</th>
+                            <th style="padding:8px 12px;text-align:center;font-weight:600;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledger-body">
+                        <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -837,9 +869,10 @@
         }
 
         const fmt = n => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
-        const API_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
-        const REC_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-recurring-bookings';
+        const API_URL      = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
+        const REC_URL      = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-recurring-bookings';
         const OVERRIDE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/override-recurring-payment';
+        const LEDGER_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-payments';
         const MONTHS_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1120,6 +1153,7 @@
 
         loadAccounts();
         loadRecurringSchedule();
+        loadSubscriptionLedger();
 
         async function overridePayment(scheduleId, customerName, periodLabel) {
             // scheduleId is actually the rule_id from get-recurring-bookings — we need the schedule row id
@@ -1218,6 +1252,61 @@
             } catch(e) {
                 // Recurring schedule not yet available (migration 007 pending) — silently skip
                 console.warn('Recurring schedule not available:', e.message);
+            }
+        }
+
+        async function loadSubscriptionLedger() {
+            const section = document.getElementById('ledger-section');
+            const tbody   = document.getElementById('ledger-body');
+            const summary = document.getElementById('ledger-summary');
+            try {
+                const res  = await fetch(LEDGER_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const json = await res.json();
+                const data = json.data || (Array.isArray(json) ? json : []);
+
+                if (!data.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">No outstanding subscription cycles.</td></tr>';
+                    section.style.display = '';
+                    return;
+                }
+
+                section.style.display = '';
+
+                // Summary chips
+                const totalDue = data.reduce((s, r) => s + parseFloat(r.amount_due || 0), 0);
+                const overdue  = data.filter(r => r.due_date && new Date(r.due_date) < new Date()).length;
+                summary.innerHTML =
+                    `<span>Total pending: <strong style="color:var(--warning)">${fmt(totalDue)}</strong></span>` +
+                    (overdue > 0 ? `<span style="color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i> ${overdue} overdue</span>` : '');
+
+                tbody.innerHTML = data.map(r => {
+                    const dueDate   = r.due_date ? new Date(r.due_date.split('T')[0]+'T00:00:00') : null;
+                    const dueFmt    = dueDate ? dueDate.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+                    const isOverdue = dueDate && dueDate < new Date() && r.status === 'pending';
+                    const cycleStr  = r.cycle_number && r.total_cycles
+                        ? `${r.cycle_number} / ${r.total_cycles}`
+                        : (r.cycle_number ? String(r.cycle_number) : '—');
+                    const seriesRef = r.series_reference
+                        ? `<span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#8b5cf6;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:5px;padding:1px 6px;">${r.series_reference}</span>`
+                        : '—';
+                    const statusBadge = r.status === 'paid'
+                        ? `<span style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:2px 8px;font-size:.7rem;font-weight:700;">Paid</span>`
+                        : isOverdue
+                        ? `<span style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:2px 8px;font-size:.7rem;font-weight:700;">Overdue</span>`
+                        : `<span style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:2px 8px;font-size:.7rem;font-weight:700;">Pending</span>`;
+                    return `<tr style="border-bottom:1px solid var(--border);transition:background .15s;" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background=''">
+                        <td style="padding:10px 12px;">${seriesRef}</td>
+                        <td style="padding:10px 12px;">${r.customer_name || '—'}</td>
+                        <td style="padding:10px 12px;color:var(--text-muted);">${r.room_name || '—'}</td>
+                        <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:0.78rem;">${cycleStr}</td>
+                        <td style="padding:10px 12px;color:${isOverdue ? 'var(--danger)' : 'var(--text-main)'};">${dueFmt}</td>
+                        <td style="padding:10px 12px;text-align:right;font-weight:700;color:${isOverdue ? 'var(--danger)' : 'var(--warning)'};">${fmt(r.amount_due || 0)}</td>
+                        <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
+                    </tr>`;
+                }).join('');
+            } catch(e) {
+                console.warn('Subscription ledger not available:', e.message);
             }
         }
 
