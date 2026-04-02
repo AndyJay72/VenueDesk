@@ -487,6 +487,23 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label class="form-label">Payment Terms</label>
+                        <select id="rb-payment-timing" class="form-input" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text-main);padding:9px 12px;font-size:0.88rem;font-family:inherit;width:100%">
+                            <option value="in_advance">In Advance — invoice at period start</option>
+                            <option value="per_session">Per Session — invoice each session</option>
+                            <option value="in_arrears">In Arrears — invoice 7 days after period</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Billing Frequency</label>
+                        <select id="rb-billing-frequency" class="form-input" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text-main);padding:9px 12px;font-size:0.88rem;font-family:inherit;width:100%">
+                            <option value="monthly">Monthly</option>
+                            <option value="fortnightly">Fortnightly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">Start Date *</label>
                         <input type="date" id="rb-startdate" class="form-input" onchange="rbRecalc()">
                     </div>
@@ -913,7 +930,10 @@ async function rbSubmit(){
             total_months:     totalMonths,
             billing_day:      billingDay,
             monthly_fee:      monthlyFee,
+            monthly_rate:     monthlyFee,
+            billing_frequency:(document.getElementById('rb-billing-frequency')||{}).value||'monthly',
             upfront_paid:     totalMonths ? true : false,
+            payment_timing:   (document.getElementById('rb-payment-timing')||{}).value||'in_advance',
             tenant_id:        parseInt(_TID()),
             performed_by:     performedBy
         };
