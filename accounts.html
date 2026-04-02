@@ -922,10 +922,11 @@
         function typeLabel(t, bDue) {
             if (!t) return '—';
             t = t.toLowerCase();
-            if (t === 'deposit')      return 'Deposit';
-            if (t === 'full')         return 'Final Payment';
-            if (t === 'partial')      return 'Part Payment';
-            if (t === 'cancellation') return 'Cancellation';
+            if (t === 'deposit')           return 'Deposit';
+            if (t === 'full')              return 'Final Payment';
+            if (t === 'partial')           return 'Part Payment';
+            if (t === 'cancellation')      return 'Cancellation';
+            if (t === 'recurring_payment') return 'Recurring Payment';
             if (t === 'balance') {
                 return (parseFloat(bDue) > 0.005) ? 'Part Payment' : 'Final Payment';
             }
@@ -983,8 +984,13 @@
                 return;
             }
 
-            // Filter out recurring session payments — those are shown in the Recurring Payments section
-            const nonRecurringTx = transactions.filter(t => !t.is_recurring && !t.recurring_rule_id);
+            // Exclude recurring SESSIONS from the transaction list (they have their own schedule section)
+            // BUT include actual recorded recurring PAYMENTS (payment_type = 'recurring_payment')
+            const nonRecurringTx = transactions.filter(t => {
+                const pType = (t.payment_type || '').toLowerCase();
+                if (pType === 'recurring_payment') return true; // always show recorded recurring payments
+                return !t.is_recurring && !t.recurring_rule_id;
+            });
 
             // Deduplicate: collapse any remaining duplicates for the same booking session
             // (same customer + date + start_time + end_time + payment_type + amount)
