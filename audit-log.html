@@ -779,11 +779,18 @@
                     try{
                         const tj=await txR.value.json();const td=tj.data||tj;
                         const txns=Array.isArray(td)?td:(td.transactions||td.payments||[]);
-                        txns.filter(t=>t&&t.amount).forEach(p=>{
+                        txns.filter(t=>{
+                            if(!t||!t.amount) return false;
+                            const raw=(t.payment_type||t.type||'').toLowerCase();
+                            // Skip £0 refunds — these are artefacts from cancelled recurring sessions with no deposit
+                            if(/refund/.test(raw)&&parseFloat(t.amount||0)===0) return false;
+                            return true;
+                        }).forEach(p=>{
                             const raw=(p.payment_type||p.type||'payment').toLowerCase();
                             let type='payment';
                             if(/deposit/.test(raw))type='deposit';
                             else if(/refund/.test(raw))type='refund';
+                            else if(/recurring_payment/.test(raw))type='payment';
                             events.push({type,ts:p.payment_created_at||p.created_at||p.payment_date,customer_name:p.customer_name,customer_email:p.customer_email||p.email,room_name:p.room_name,details:(p.payment_method||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'—',amount:p.amount,method:p.payment_method,ref:p.reference||p.reference_number||p.deposit_reference||''});
                         });
                     }catch(e){}
