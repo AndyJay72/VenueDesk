@@ -811,7 +811,9 @@
                     try{
                         const dj=await dashR.value.json();const dd=dj.data||dj;
                         (dd.recent_customers||[]).forEach(c=>events.push({type:'enquiry',ts:c.created_at||c.requested_date,customer_name:c.full_name||c.customer_name,customer_email:c.email,room_name:c.room_name,details:`${c.event_type||''} \u00b7 ${c.guests_count||c.guest_count||'?'} guests`.replace(/^\s*\u00b7\s*/,''),amount:null,ref:c.notes||''}));
-                        (dd.upcoming_bookings||[]).forEach(b=>events.push({type:'booking',ts:b.booking_created_at||b.booking_date||b.date_from,customer_name:b.customer_name,customer_email:b.customer_email,room_name:b.room_name,details:`${(b.status||'confirmed').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} \u00b7 ${b.guest_count||'?'} guests`,amount:b.total_amount,ref:b.id||''}));
+                        // Skip individual recurring sessions — they create noise (one event per session per series)
+                        // Recurring series activity is captured via the customer-interactions log instead
+                        (dd.upcoming_bookings||[]).filter(b=>!b.is_recurring&&!b.recurring_rule_id).forEach(b=>events.push({type:'booking',ts:b.booking_created_at||b.booking_date||b.date_from,customer_name:b.customer_name,customer_email:b.customer_email,room_name:b.room_name,details:`${(b.status||'confirmed').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} \u00b7 ${b.guest_count||'?'} guests`,amount:b.total_amount,ref:b.id||''}));
                     }catch(e){}
                 }
                 if(ledgerR.status==='fulfilled'&&ledgerR.value.ok){
