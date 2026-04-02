@@ -813,18 +813,18 @@
         </div>
 
         <!-- ── RECURRING PAYMENT SCHEDULE ─────────────────────────────── -->
-        <div class="section-container" id="rec-schedule-section" style="margin-top:2rem;display:none;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;">
-                <div>
-                    <h2 style="font-size:1.15rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
-                        <i class="fa-solid fa-repeat" style="color:#a5b4fc;"></i> Recurring Payment Schedule
-                    </h2>
-                    <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 0;">Monthly billing periods across all active recurring series</p>
+        <!-- Recurring Payments — now managed on the dedicated Recurring Bookings page -->
+        <div id="rec-schedule-section" style="margin-top:2rem;display:block;">
+            <a href="recurring-bookings.html" style="display:flex;align-items:center;gap:16px;padding:18px 20px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;text-decoration:none;transition:all .2s;" onmouseover="this.style.background='rgba(99,102,241,0.13)'" onmouseout="this.style.background='rgba(99,102,241,0.08)'">
+                <div style="width:48px;height:48px;border-radius:12px;background:rgba(99,102,241,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-repeat" style="font-size:1.3rem;color:#a5b4fc;"></i>
                 </div>
-            </div>
-            <div id="rec-schedule-body">
-                <div style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</div>
-            </div>
+                <div>
+                    <div style="font-size:.95rem;font-weight:700;color:var(--text-main);margin-bottom:3px;">Recurring Series &amp; Payment Management</div>
+                    <div style="font-size:.8rem;color:var(--text-muted);">Record payments, view session history, cancel series or individual sessions — all on the dedicated Recurring Bookings page.</div>
+                </div>
+                <i class="fa-solid fa-arrow-right" style="color:#a5b4fc;margin-left:auto;font-size:1rem;flex-shrink:0;"></i>
+            </a>
         </div>
 
         <!-- SUBSCRIPTION LEDGER -->
