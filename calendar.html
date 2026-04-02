@@ -1037,11 +1037,25 @@
                             <input type="date" id="qb-rec-endDate" class="qb-input" onchange="qbUpdateRecurrencePreview()">
                         </div>
                         <div style="margin-top:0.75rem">
+                            <span class="qb-label">Billing Frequency</span>
+                            <div class="qb-freq-pills" style="margin-top:0.4rem">
+                                <button type="button" class="qb-freq-pill active" data-billing="monthly" onclick="qbOnBillingFreqChange('monthly')">Monthly</button>
+                                <button type="button" class="qb-freq-pill" data-billing="fortnightly" onclick="qbOnBillingFreqChange('fortnightly')">Fortnightly</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.75rem;display:flex;gap:0.75rem;align-items:flex-end">
+                            <div style="flex:1">
+                                <label class="qb-label">Monthly Rate (£) <span style="font-weight:400;opacity:0.7">— fixed subscription fee</span></label>
+                                <input type="number" id="qb-rec-monthlyRate" class="qb-input" min="0" step="0.01" placeholder="0.00" oninput="qbUpdateRecurrencePreview()">
+                            </div>
+                            <div style="padding-bottom:2px;white-space:nowrap;font-size:0.75rem;color:var(--text-muted);line-height:2.2rem" id="qb-rec-billingHint"></div>
+                        </div>
+                        <div style="margin-top:0.75rem">
                             <label class="qb-label">Payment Terms</label>
                             <select id="qb-rec-payterms" class="qb-select">
-                                <option value="in_advance">In Advance — pay at start of each period</option>
-                                <option value="per_session">Per Session — pay on each booking date</option>
-                                <option value="in_arrears">In Arrears — pay 7 days after period ends</option>
+                                <option value="in_advance">In Advance — invoice sent at start of each period</option>
+                                <option value="per_session">Per Session — pay on each session date</option>
+                                <option value="in_arrears">In Arrears — invoice sent 7 days after period ends</option>
                             </select>
                         </div>
                         <div id="qb-rec-preview" class="qb-recurring-preview">Select a start date and end date to preview sessions.</div>
@@ -1238,7 +1252,7 @@
         function closeModal(){document.getElementById('eventModal').classList.remove('open');const ps=document.getElementById('e-pay-section');if(ps)ps.style.display='none';}
 
 
-        let qbRoomsData=[],qbPricingData=[],_qbAvailTimeout=null,qbInitDone=false,qbTotalAmount=0,qbDepositAmount=0,qbIsRecurring=false,qbRecurrenceDates=[],qbRecurrenceFreq='weekly';
+        let qbRoomsData=[],qbPricingData=[],_qbAvailTimeout=null,qbInitDone=false,qbTotalAmount=0,qbDepositAmount=0,qbIsRecurring=false,qbRecurrenceDates=[],qbRecurrenceFreq='weekly',qbBillingFreq='monthly';
         async function qbInit(){
             if(qbInitDone)return;qbInitDone=true;
             try{const r=await fetch(tidUrl(ROOMS_API),{headers:getAuthHeaders()});const rj=await r.json();qbRoomsData=(rj.data||(Array.isArray(rj)?rj:[])).filter(x=>x.is_active||x.is_active===undefined);const s=document.getElementById('qb-roomSelect');s.innerHTML='<option value="">Select room...</option>';qbRoomsData.forEach(r=>{const o=document.createElement('option');o.value=r.name||r.room_name||r.id;o.textContent=r.name||r.room_name||r.id;s.appendChild(o);});renderQbExtraRooms();}catch(e){}
@@ -1268,7 +1282,11 @@
             const _rEndDate=document.getElementById('qb-rec-endDate');if(_rEndDate)_rEndDate.value='';
             const _rPayTerms=document.getElementById('qb-rec-payterms');if(_rPayTerms)_rPayTerms.value='in_advance';
             const _rPrev=document.getElementById('qb-rec-preview');if(_rPrev)_rPrev.innerHTML='Select a start date and end date to preview sessions.';
-            document.querySelectorAll('.qb-freq-pill').forEach(p=>p.classList.toggle('active',p.dataset.freq==='weekly'));
+            qbBillingFreq='monthly';
+            document.querySelectorAll('.qb-freq-pill[data-freq]').forEach(p=>p.classList.toggle('active',p.dataset.freq==='weekly'));
+            document.querySelectorAll('.qb-freq-pill[data-billing]').forEach(p=>p.classList.toggle('active',p.dataset.billing==='monthly'));
+            const _rMonthRate=document.getElementById('qb-rec-monthlyRate');if(_rMonthRate)_rMonthRate.value='';
+            const _rBillHint=document.getElementById('qb-rec-billingHint');if(_rBillHint)_rBillHint.textContent='';
             document.getElementById('qb-totalDisplay').textContent='£0.00';
             document.getElementById('qb-costBreakdown').textContent='';
             const av=document.getElementById('qb-availStatus');av.className='qb-avail-box qb-avail-idle';
@@ -1325,8 +1343,24 @@
             const svcRes=qbGetServicesTotal();
             if(svcRes.total>0){total+=svcRes.total;breakdown+=` + services ${fmt(svcRes.total)}`;}
             const _perSessAmt=total;
-            if(qbIsRecurring&&qbRecurrenceDates.length>0){total=_perSessAmt*qbRecurrenceDates.length;breakdown+=` × ${qbRecurrenceDates.length} sessions (${fmt(_perSessAmt)}/session)`;}
-            qbTotalAmount=total;qbDepositAmount=qbIsRecurring&&qbRecurrenceDates.length>0?Math.round(_perSessAmt*QBR_DEPOSIT_PCT)/100:Math.round(total*QBR_DEPOSIT_PCT)/100;
+            if(qbIsRecurring&&qbRecurrenceDates.length>0){
+                // Subscription ledger: fixed monthly rate × billing periods
+                const _sessPerMonth={weekly:4,fortnightly:2,monthly:1}[qbRecurrenceFreq]||4;
+                const _autoMR=parseFloat((_perSessAmt*_sessPerMonth).toFixed(2));
+                const _mrEl=document.getElementById('qb-rec-monthlyRate');
+                // Auto-populate monthly rate if blank
+                if(_mrEl&&(!_mrEl.value||parseFloat(_mrEl.value)===0)){_mrEl.value=_autoMR.toFixed(2);}
+                const _monthlyRate=_mrEl&&parseFloat(_mrEl.value)>0?parseFloat(_mrEl.value):_autoMR;
+                const _periodAmt=qbBillingFreq==='fortnightly'?_monthlyRate/2:_monthlyRate;
+                const _numPeriods=qbCountBillingPeriods();
+                total=parseFloat((_periodAmt*_numPeriods).toFixed(2));
+                const _pLabel=qbBillingFreq==='fortnightly'?'fortnight':'month';
+                breakdown=`${qbRecurrenceDates.length} sessions — ${fmt(_monthlyRate)}/month (${fmt(_periodAmt)}/${_pLabel} × ${_numPeriods} billing periods)`;
+                const _billHint=document.getElementById('qb-rec-billingHint');
+                if(_billHint)_billHint.textContent=`= ${fmt(_periodAmt)}/${_pLabel}`;
+                qbDepositAmount=Math.round(_periodAmt*QBR_DEPOSIT_PCT)/100;
+            }else{qbDepositAmount=Math.round(total*QBR_DEPOSIT_PCT)/100;}
+            qbTotalAmount=total;
             document.getElementById('qb-totalDisplay').textContent=fmt(total);
             document.getElementById('qb-costBreakdown').textContent=breakdown;
             document.getElementById('qb-depositLabel').textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(qbDepositAmount)}`;
@@ -1408,6 +1442,25 @@
         }
         
         // ── RECURRING HELPERS ───────────────────────────────────────────────
+        // Count billing periods between first and last session date
+        function qbCountBillingPeriods(){
+            if(!qbRecurrenceDates.length)return 0;
+            const s=new Date(qbRecurrenceDates[0]+'T12:00:00');
+            const e=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1]+'T12:00:00');
+            if(qbBillingFreq==='fortnightly'){
+                // 14-day periods: round up to nearest fortnight
+                return Math.max(1,Math.ceil((e-s)/(14*86400000))+1);
+            }else{
+                // Calendar months inclusive
+                return Math.max(1,(e.getFullYear()-s.getFullYear())*12+(e.getMonth()-s.getMonth())+1);
+            }
+        }
+        function qbOnBillingFreqChange(billing){
+            qbBillingFreq=billing;
+            document.querySelectorAll('.qb-freq-pill[data-billing]').forEach(p=>p.classList.toggle('active',p.dataset.billing===billing));
+            qbUpdateRecurrencePreview();
+            qbCalculateCost();
+        }
         function qbToggleRecurrence(){
             qbIsRecurring=!qbIsRecurring;
             const btn=document.getElementById('qb-recurring-toggle-btn');
@@ -1425,25 +1478,28 @@
         }
         function qbOnFrequencyChange(freq){
             qbRecurrenceFreq=freq;
-            document.querySelectorAll('.qb-freq-pill').forEach(p=>p.classList.toggle('active',p.dataset.freq===freq));
+            document.querySelectorAll('.qb-freq-pill[data-freq]').forEach(p=>p.classList.toggle('active',p.dataset.freq===freq));
             qbUpdateRecurrencePreview();
             qbCalculateCost();
         }
+        // Local date helper — avoids UTC shift caused by toISOString() in UK timezone
+        function _ld(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
         function qbGenerateRecurrenceDates(){
             const{from}=qbGetDates();
             const endDate=document.getElementById('qb-rec-endDate')?document.getElementById('qb-rec-endDate').value:'';
             if(!from||!endDate||endDate<from)return[];
             const dates=[];
-            const d=new Date(from+'T00:00:00');
-            const end=new Date(endDate+'T00:00:00');
+            // Parse at midday to avoid DST boundary crossing midnight
+            const d=new Date(from+'T12:00:00');
+            const end=new Date(endDate+'T12:00:00');
             if(qbRecurrenceFreq==='monthly'){
                 const dom=d.getDate();
-                let cur=new Date(d.getFullYear(),d.getMonth(),dom);
-                while(cur<=end){dates.push(cur.toISOString().split('T')[0]);cur=new Date(cur.getFullYear(),cur.getMonth()+1,dom);}
+                let cur=new Date(d.getFullYear(),d.getMonth(),dom,12,0,0);
+                while(cur<=end){dates.push(_ld(cur));cur=new Date(cur.getFullYear(),cur.getMonth()+1,dom,12,0,0);}
             }else{
                 const stepDays=qbRecurrenceFreq==='fortnightly'?14:7;
                 let cur=new Date(d);
-                while(cur<=end){dates.push(cur.toISOString().split('T')[0]);cur=new Date(cur);cur.setDate(cur.getDate()+stepDays);}
+                while(cur<=end){dates.push(_ld(cur));cur=new Date(cur);cur.setDate(cur.getDate()+stepDays);}
             }
             return dates;
         }
@@ -1453,10 +1509,18 @@
             qbRecurrenceDates=qbGenerateRecurrenceDates();
             qbCalculateCost();
             if(!qbRecurrenceDates.length){prev.innerHTML='Select a start date and end date to preview sessions.';return;}
-            const first=new Date(qbRecurrenceDates[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-            const last=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1]+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-            const perSession=qbRecurrenceDates.length>0?qbTotalAmount/qbRecurrenceDates.length:qbTotalAmount;
-            prev.innerHTML=`<strong style="color:var(--text-main)">${qbRecurrenceDates.length} sessions</strong> &mdash; ${first} to ${last}<br><span style="color:#34d399">${fmt(perSession)}/session &bull; ${fmt(qbTotalAmount)} total</span>`;
+            const first=new Date(qbRecurrenceDates[0]+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+            const last=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1]+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+            const _mrEl=document.getElementById('qb-rec-monthlyRate');
+            const _mRate=_mrEl&&parseFloat(_mrEl.value)>0?parseFloat(_mrEl.value):0;
+            const _pAmt=qbBillingFreq==='fortnightly'?_mRate/2:_mRate;
+            const _nPeriods=qbCountBillingPeriods();
+            const _pLabel=qbBillingFreq==='fortnightly'?'fortnight':'month';
+            const _dateList=qbRecurrenceDates.slice(0,6).map(d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})).join(' · ');
+            const _more=qbRecurrenceDates.length>6?` <em>+${qbRecurrenceDates.length-6} more</em>`:'';
+            prev.innerHTML=`<strong style="color:var(--text-main)">${qbRecurrenceDates.length} sessions</strong> &mdash; ${first} → ${last}<br>`+
+                `<span style="color:#34d399;font-weight:600">${fmt(_mRate)}/month &bull; ${fmt(_pAmt)}/${_pLabel} × ${_nPeriods} periods = ${fmt(qbTotalAmount)} total</span><br>`+
+                `<span style="color:#94a3b8;font-size:0.76rem">${_dateList}${_more}</span>`;
             qbUpdateRecurringButtons();
         }
         function qbUpdateRecurringButtons(){
@@ -1465,9 +1529,12 @@
             ['qb-rec-btn-deposit','qb-rec-btn-full'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!(hasAvail&&hasDates);});
             const depLabel=document.getElementById('qb-rec-depositLabel');
             if(depLabel&&qbRecurrenceDates.length>0){
-                const perSess=qbTotalAmount/qbRecurrenceDates.length;
-                const dep=Math.round(perSess*QBR_DEPOSIT_PCT)/100;
-                depLabel.textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(dep)}`;
+                // Deposit = % of first billing period amount
+                const _mrEl=document.getElementById('qb-rec-monthlyRate');
+                const _mRate=_mrEl&&parseFloat(_mrEl.value)>0?parseFloat(_mrEl.value):0;
+                const _pAmt=qbBillingFreq==='fortnightly'?_mRate/2:_mRate;
+                const dep=Math.round(_pAmt*QBR_DEPOSIT_PCT)/100;
+                depLabel.textContent=`${QBR_DEPOSIT_PCT}% of 1st period = ${fmt(dep)}`;
             }
         }
         async function qbSubmitRecurringBooking(type){
@@ -1488,11 +1555,16 @@
             if(!qbRecurrenceDates.length){showToast('No recurring dates — please set a series end date','error');return;}
             const room=qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
             const roomId=room?room.id:'';
-            const perSessionCost=parseFloat((qbTotalAmount/qbRecurrenceDates.length).toFixed(2));
+            // Subscription ledger values
+            const _mrEl2=document.getElementById('qb-rec-monthlyRate');
+            const monthlyRate=_mrEl2&&parseFloat(_mrEl2.value)>0?parseFloat(_mrEl2.value):0;
+            const periodAmount=parseFloat((qbBillingFreq==='fortnightly'?monthlyRate/2:monthlyRate).toFixed(2));
+            const numBillingPeriods=qbCountBillingPeriods();
+            const perSessionCost=parseFloat((qbTotalAmount/Math.max(1,qbRecurrenceDates.length)).toFixed(2));
             const paymentType=type==='recurring_full'?'full':type==='recurring_deposit'?'deposit':'none';
             const status=type==='recurring_pending'?'pending':'confirmed';
-            const balance=parseFloat(Math.max(0,perSessionCost-payAmt).toFixed(2));
-            const startDateObj=new Date(from+'T00:00:00');
+            const balance=parseFloat(Math.max(0,periodAmount-payAmt).toFixed(2));
+            const startDateObj=new Date(from+'T12:00:00');
             const payload={
                 customer_name:name,customer_email:email||null,customer_phone:phone,
                 room_id:roomId||null,room_name:roomName,
@@ -1503,6 +1575,10 @@
                 end_date:qbRecurrenceDates[qbRecurrenceDates.length-1]||from,
                 specific_dates:qbRecurrenceDates.join(','),
                 rate_per_session:perSessionCost,
+                monthly_rate:monthlyRate,
+                billing_frequency:qbBillingFreq,
+                period_amount:periodAmount,
+                num_billing_periods:numBillingPeriods,
                 payment_timing:document.getElementById('qb-rec-payterms')?.value||'in_advance',
                 event_type:eventType||null,notes:notes||null,
                 total_sessions:qbRecurrenceDates.length,
