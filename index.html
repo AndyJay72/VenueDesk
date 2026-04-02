@@ -1950,8 +1950,10 @@
             if (isRequest) {
                 const daysPassed = item.created_at ? Math.floor((Date.now() - new Date(item.created_at).getTime()) / 86400000) : 0;
                 const daysLeft = Math.max(0, 7 - daysPassed);
-                statusHtml = `<span class="status-pill status-pending">${item.status}</span><br><small style="color:var(--text-muted)">${daysLeft}d left</small>`;
-                actionHtml = '';
+                const overdue = daysPassed >= 7;
+                statusHtml = `<span class="status-pill status-pending">${item.status}</span><br><small style="color:${overdue ? '#f87171' : 'var(--text-muted)'}">${overdue ? 'Overdue' : daysLeft + 'd left'}</small>`;
+                const safeName = (item.full_name || '').replace(/'/g, "\\'");
+                actionHtml = `<button class="pay-btn" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.3)" onclick="event.stopPropagation();removeRequest('${item.id}','${safeName}')"><i class="fa-solid fa-trash-can"></i> Remove</button>`;
                 metaHtml = `<span><i class="fa-solid fa-user"></i> ${item.event_type || 'Event'}</span><span><i class="fa-solid fa-user-group"></i> ${guests > 0 ? guests + ' guests' : '—'}</span>`;
                 const reqDataStr = encodeURIComponent(JSON.stringify(item));
                 cardOnclick = `openModal('${reqDataStr}')`;
@@ -2102,11 +2104,13 @@
 
             if (isPendingOrContacted) {
                 // Book Now removed — Confirm Booking inline is the only booking action
-                const cancelBtn  = `<button class="btn-modal btn-cancel" onclick="cancelRequest('${data.id}','${(data.full_name||'').replace(/'/g,"\\'")}')"><i class="fa-solid fa-ban"></i> Cancel</button>`;
+                const safeName2 = (data.full_name||'').replace(/'/g,"\\'");
+                const cancelBtn  = `<button class="btn-modal btn-cancel" onclick="cancelRequest('${data.id}','${safeName2}')"><i class="fa-solid fa-ban"></i> Cancel</button>`;
+                const removeBtn  = `<button class="btn-modal" style="background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;gap:8px" onclick="removeRequest('${data.id}','${safeName2}')"><i class="fa-solid fa-trash-can"></i> Remove</button>`;
                 const confirmBtn = `<button class="btn-modal" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);display:flex;align-items:center;gap:8px" onclick="toggleConfirmSection()"><i class="fa-solid fa-calendar-check"></i> Confirm Booking</button>`;
                 btnContainer.innerHTML = countdownHtml
                     + `<div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:1rem">`
-                    + confirmBtn + cancelBtn
+                    + confirmBtn + cancelBtn + removeBtn
                     + `<button class="btn-modal btn-close" onclick="closeModal()">Close</button></div>`;
             } else if (data.status === 'deposit_paid') {
                 btnContainer.innerHTML = `<a href="final-payment.html" class="btn-modal btn-pay"><i class="fa-solid fa-credit-card"></i> Pay Balance</a><button class="btn-modal btn-close" onclick="closeModal()">Close</button>`;
@@ -2529,6 +2533,21 @@
                 closeModal();
                 setTimeout(() => { loadDashboard(); loadActivityFeed(); }, 800);
             } catch(e) { showToast('Failed to cancel', 'error'); }
+        }
+
+        async function removeRequest(id, name) {
+            if (!confirm(`Permanently remove ${name} from the pending requests list?`)) return;
+            try {
+                const r = await fetch(CANCEL_PENDING_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ customer_id: id, tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0'), force_remove: true })
+                });
+                if (!r.ok) throw new Error();
+                showToast(`${name} removed from pending requests`);
+                closeModal();
+                setTimeout(() => { loadDashboard(); loadActivityFeed(); }, 800);
+            } catch(e) { showToast('Failed to remove request', 'error'); }
         }
 
         // Single fetch for both Upcoming Events and Outstanding Payments
