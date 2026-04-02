@@ -70,9 +70,22 @@
         .series-expand-btn:hover { background:rgba(99,102,241,0.22); }
         .series-sessions { display:none; margin-top:10px; padding:10px 12px; border-top:1px solid rgba(148,163,184,0.1); background:rgba(0,0,0,0.15); border-radius:0 0 10px 10px; font-size:0.8rem; }
         .series-sessions.open { display:block; }
-        .ss-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(148,163,184,0.07); color:var(--text-muted); }
-        .ss-row:last-child { border-bottom:none; }
-        .ss-row span { color:var(--text-main); }
+        /* ── Session expand table (matches accounts.html rec-period-table style) ── */
+        .ss-table { width:100%; border-collapse:collapse; margin-top:4px; }
+        .ss-table th { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); padding:5px 10px; background:rgba(0,0,0,0.12); border-bottom:1px solid rgba(148,163,184,0.1); text-align:left; }
+        .ss-table td { padding:7px 10px; border-bottom:1px solid rgba(148,163,184,0.06); font-size:0.8rem; color:var(--text-main); vertical-align:middle; }
+        .ss-table tr:last-child td { border-bottom:none; }
+        .ss-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; font-size:0.68rem; font-weight:700; }
+        .ss-pending  { background:rgba(245,158,11,0.15); color:var(--warning); border:1px solid rgba(245,158,11,0.3); }
+        .ss-paid     { background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); }
+        .ss-past     { background:rgba(100,116,139,0.12); color:#94a3b8; border:1px solid rgba(100,116,139,0.25); }
+        .ss-cancelled{ background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.25); }
+        .ss-overdue  { background:rgba(239,68,68,0.12); color:var(--danger); border:1px solid rgba(239,68,68,0.3); }
+        .ss-btn { padding:3px 9px; border-radius:5px; font-size:0.7rem; cursor:pointer; font-weight:600; font-family:inherit; white-space:nowrap; transition:background 0.15s; }
+        .ss-btn-cancel { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; }
+        .ss-btn-cancel:hover { background:rgba(239,68,68,0.2); }
+        .ss-btn-pay { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#10b981; margin-right:4px; }
+        .ss-btn-pay:hover { background:rgba(16,185,129,0.2); }
 
         /* BOOKING CARD */
         .booking-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; transition: transform 0.2s; }
@@ -856,7 +869,8 @@
 
                 // ── Step 1: multi-room grouping (non-recurring only) ──────────────
                 _rawMappedSessions = mapped; // cache for expand
-                const singleMapped = mapped.filter(b => !b.recurring_rule_id);
+                // Exclude recurring sessions whether flagged by rule_id OR is_recurring
+                const singleMapped = mapped.filter(b => !b.recurring_rule_id && !b.is_recurring);
                 const grouped = {};
                 singleMapped.forEach(b => {
                     const key = `${b.customer_id}|${(b.date_from||b.booking_date||'').slice(0,10)}|${b.start_time||''}|${b.end_time||''}`;
@@ -1257,7 +1271,7 @@
             }).join('');
         }
 
-        // Expand/collapse a series' individual sessions (uses cached _rawMappedSessions)
+        // Expand/collapse a series' individual sessions — styled like accounts.html rec-period-table
         function toggleSeriesExpand(ruleId) {
             const panel = document.getElementById('series-'+CSS.escape(ruleId));
             const icon  = document.getElementById('series-icon-'+CSS.escape(ruleId));
@@ -1275,22 +1289,69 @@
                 .sort((a,b) => (a.booking_date||a.date_from||'').localeCompare(b.booking_date||b.date_from||''));
 
             if (rows.length === 0) {
-                panel.innerHTML = '<div class="ss-row"><span style="color:var(--text-muted)">No sessions in cache — they will appear here after next page load once the series is created.</span></div>';
+                panel.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:0.5rem 0;">No sessions found — they will appear here after the next page load once the series is created.</div>';
                 return;
             }
+
             const now = new Date(); now.setHours(0,0,0,0);
-            panel.innerHTML = rows.map(r => {
-                const d = new Date((r.booking_date||r.date_from||'').split('T')[0]+'T00:00:00');
+            const tableRows = rows.map(r => {
+                const d      = new Date((r.booking_date||r.date_from||'').split('T')[0]+'T00:00:00');
                 const isPast = d < now;
                 const isCan  = r.status === 'cancelled';
                 const bal    = parseFloat(r.balance_due||0);
-                const statusTxt = isCan ? '🚫 Cancelled' : isPast ? '✅ Past' : bal>0 ? `⏳ £${bal.toFixed(2)} due` : '✅ Paid';
-                return `<div class="ss-row">
-                    <span>${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</span>
-                    <span style="color:var(--text-muted)">${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}</span>
-                    <span style="font-size:0.75rem">${statusTxt}</span>
-                </div>`;
+
+                // Status badge
+                let badge;
+                if (isCan) {
+                    badge = `<span class="ss-badge ss-cancelled"><i class="fa-solid fa-ban"></i> Cancelled</span>`;
+                } else if (isPast && bal > 0) {
+                    badge = `<span class="ss-badge ss-overdue"><i class="fa-solid fa-triangle-exclamation"></i> Overdue</span>`;
+                } else if (isPast) {
+                    badge = `<span class="ss-badge ss-past"><i class="fa-solid fa-check"></i> Completed</span>`;
+                } else if (bal > 0) {
+                    badge = `<span class="ss-badge ss-pending"><i class="fa-solid fa-coins"></i> Balance Due</span>`;
+                } else {
+                    badge = `<span class="ss-badge ss-paid"><i class="fa-solid fa-check"></i> Paid</span>`;
+                }
+
+                // Action buttons — only for future non-cancelled sessions
+                let actions = '';
+                if (!isCan && !isPast) {
+                    if (bal > 0) {
+                        const safeEnc = encodeURIComponent(JSON.stringify({
+                            id: r.id, customer_id: r.customer_id, customer_name: r.customer_name,
+                            room_name: r.room_name, date_from: r.date_from||r.booking_date,
+                            date_to: r.date_to||r.date_from||r.booking_date,
+                            start_time: r.start_time, end_time: r.end_time,
+                            total_amount: r.total_amount, balance_due: r.balance_due
+                        }));
+                        actions += `<button class="ss-btn ss-btn-pay" onclick="event.stopPropagation();openPayModalByData('${safeEnc}')"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
+                    }
+                    actions += `<button class="ss-btn ss-btn-cancel" onclick="event.stopPropagation();cancelBooking('${r.id}',decodeURIComponent('${encodeURIComponent(r.customer_name||'')}'))"><i class="fa-solid fa-xmark"></i> Cancel</button>`;
+                }
+
+                return `<tr>
+                    <td>${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</td>
+                    <td style="color:var(--text-muted)">${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}</td>
+                    <td style="color:var(--text-muted)">${esc(r.room_name||'—')}</td>
+                    <td>${badge}</td>
+                    <td style="text-align:right;font-weight:${bal>0?'700':'400'};color:${bal>0?'var(--warning)':'var(--text-muted)'};">${bal>0?formatCurrency(bal):'—'}</td>
+                    <td style="text-align:right;white-space:nowrap">${actions}</td>
+                </tr>`;
             }).join('');
+
+            panel.innerHTML = `
+                <table class="ss-table">
+                    <thead><tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Room</th>
+                        <th>Status</th>
+                        <th style="text-align:right">Balance</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>${tableRows}</tbody>
+                </table>`;
         }
 
         document.addEventListener('DOMContentLoaded', fetchBookings);
