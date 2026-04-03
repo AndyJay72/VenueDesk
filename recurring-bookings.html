@@ -315,11 +315,34 @@ function mpRenderCard(s) {
     const confirmed = parseInt(s.confirmed_count || 0);
     const cancelled = parseInt(s.cancelled_count || 0);
     const ratePS    = parseFloat(s.rate_per_session || 0);
-    const amtDue    = parseFloat(s.amount_due || 0);
+    // Use monthly_amount_due (computed by API from monthly_fee / rate_per_session × sessPerMonth)
+    // Fall back to amount_due from schedule row, then to zero
+    const amtDue    = parseFloat(s.monthly_amount_due || s.amount_due || 0);
     const pStat     = (s.payment_status || 'pending').toLowerCase();
     const dayName   = s.day_of_week != null ? DAYS[s.day_of_week] || '?' : '?';
     const safeId    = ruleId.replace(/[^a-zA-Z0-9-]/g,'');
     const safeName  = (s.customer_name||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+
+    // Calendar-month billing view
+    const freq        = (s.frequency || 'weekly').toLowerCase();
+    const sessPerMo   = freq === 'fortnightly' ? 2 : freq === 'monthly' ? 1 : 4;
+    const monthlyRate = parseFloat(s.monthly_fee || 0) > 0
+                          ? parseFloat(s.monthly_fee)
+                          : ratePS * sessPerMo;
+    let calMonths = null;
+    if (s.first_date && s.last_date) {
+        const f = new Date(s.first_date.split('T')[0]+'T00:00:00');
+        const l = new Date(s.last_date.split('T')[0]+'T00:00:00');
+        calMonths = Math.max(1, (l.getFullYear() - f.getFullYear()) * 12 + (l.getMonth() - f.getMonth()));
+    } else if (total > 0) {
+        calMonths = Math.max(1, Math.round(total / sessPerMo));
+    }
+    const monthLabel = calMonths !== null
+        ? `${calMonths} calendar month${calMonths !== 1 ? 's' : ''}`
+        : `${total} session${total !== 1 ? 's' : ''}`;
+    const sessionDetail = calMonths !== null
+        ? `${total} session${total !== 1 ? 's' : ''} (${pending} upcoming · ${confirmed} confirmed · ${cancelled} cancelled)`
+        : `(${pending} upcoming · ${confirmed} confirmed · ${cancelled} cancelled)`;
 
     // Payment status badge
     const now = new Date();
@@ -354,8 +377,8 @@ function mpRenderCard(s) {
                     <span><i class="fa-solid fa-layer-group"></i> ${s.room_name || '—'}</span>
                     <span><i class="fa-solid fa-calendar-day"></i> ${dayName}s</span>
                     <span><i class="fa-solid fa-clock"></i> ${(s.start_time||'').slice(0,5)} – ${(s.end_time||'').slice(0,5)}</span>
-                    ${ratePS > 0 ? `<span><i class="fa-solid fa-sterling-sign"></i> ${mpFmt(ratePS)}/session</span>` : ''}
-                    <span style="color:${pending > 0 ? 'var(--warning)' : 'var(--text-muted)'}"><i class="fa-solid fa-calendar-check"></i> ${total} sessions (${pending} upcoming · ${confirmed} confirmed · ${cancelled} cancelled)</span>
+                    ${monthlyRate > 0 ? `<span><i class="fa-solid fa-sterling-sign"></i> ${mpFmt(monthlyRate)}/month</span>` : (ratePS > 0 ? `<span><i class="fa-solid fa-sterling-sign"></i> ${mpFmt(ratePS)}/session</span>` : '')}
+                    <span style="color:${pending > 0 ? 'var(--warning)' : 'var(--text-muted)'}"><i class="fa-solid fa-calendar-check"></i> ${monthLabel} · ${sessionDetail}</span>
                 </div>
                 <div style="font-size:.77rem;color:var(--text-muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
@@ -363,7 +386,7 @@ function mpRenderCard(s) {
                 </div>
             </div>
             <div class="mp-card-actions">
-                ${canPay ? `<button class="mp-btn mp-btn-pay" onclick="mpOpenPayModal('${ruleId}','${safeName}','${s.schedule_id||''}','${amtDue}','${s.period_start||''}','${s.period_end||''}','${s.customer_id||''}')"><i class="fa-solid fa-sterling-sign"></i> Record Payment</button>` : ''}
+                ${canPay ? `<button class="mp-btn mp-btn-pay" onclick="mpOpenPayModal('${ruleId}','${safeName}','${s.schedule_id||''}','${amtDue}','${s.period_start||''}','${s.period_end||''}','${s.customer_id||''}','${(s.series_reference||'').replace(/'/g,'')}')"><i class="fa-solid fa-sterling-sign"></i> Record Payment</button>` : ''}
                 <button class="mp-btn mp-btn-sessions" onclick="mpToggleSessions('${safeId}','${ruleId}')"><i class="fa-solid fa-list"></i> Sessions</button>
                 ${hasFuture ? `<button class="mp-btn mp-btn-cancel" onclick="mpCancelSeries('${ruleId}','${safeName}')"><i class="fa-solid fa-ban"></i> Cancel</button>` : ''}
                 <span class="mp-badge ${badgeClass}">${badgeLabel}</span>
@@ -383,6 +406,7 @@ function mpToggleSessions(safeId, ruleId) {
         return;
     }
     wrap.classList.add('open');
+
     const sessions = _allSessions.filter(b => b.recurring_rule_id === ruleId);
     if (!sessions.length) {
         wrap.innerHTML = '<div style="font-size:.8rem;color:var(--text-muted);padding:4px 0;">No sessions found for this series. (Sessions may still be loading — try Refresh.)</div>';
@@ -390,32 +414,58 @@ function mpToggleSessions(safeId, ruleId) {
     }
     sessions.sort((a,b) => new Date(a.date_from||a.booking_date||0) - new Date(b.date_from||b.booking_date||0));
     const today = new Date(); today.setHours(0,0,0,0);
-    wrap.innerHTML = `<table class="mp-sess-table">
-        <thead><tr>
-            <th>Date</th><th>Time</th><th>Room</th><th>Status</th><th>Amount</th><th>Balance</th><th></th>
-        </tr></thead>
-        <tbody>
-        ${sessions.map(r => {
-            const d     = r.date_from || r.booking_date || '';
-            const dt    = d ? new Date(d.split('T')[0]+'T00:00:00') : null;
-            const fDate = dt ? dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '—';
+
+    // Group sessions by calendar month (YYYY-MM)
+    const monthGroups = {};
+    const monthOrder  = [];
+    sessions.forEach(r => {
+        const d  = r.date_from || r.booking_date || '';
+        const dt = d ? new Date(d.split('T')[0]+'T00:00:00') : null;
+        const key = dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}` : 'unknown';
+        if (!monthGroups[key]) { monthGroups[key] = []; monthOrder.push(key); }
+        monthGroups[key].push({ ...r, _dt: dt });
+    });
+
+    let rows = '';
+    monthOrder.forEach(key => {
+        const grp = monthGroups[key];
+        const firstDt = grp[0]._dt;
+        const monthName = firstDt
+            ? firstDt.toLocaleDateString('en-GB',{month:'long',year:'numeric'})
+            : key;
+        const nonCancelled = grp.filter(r => (r.status||'') !== 'cancelled').length;
+        rows += `<tr class="mp-sess-month-header">
+            <td colspan="5" style="background:rgba(99,102,241,.08);padding:5px 10px;font-size:.76rem;font-weight:700;color:#a5b4fc;letter-spacing:.04em;text-transform:uppercase;border-top:1px solid rgba(99,102,241,.15);">
+                <i class="fa-regular fa-calendar" style="margin-right:5px;"></i>${monthName}
+                <span style="float:right;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;">${nonCancelled} session${nonCancelled!==1?'s':''}</span>
+            </td>
+        </tr>`;
+
+        grp.forEach(r => {
+            const d      = r.date_from || r.booking_date || '';
+            const dt     = r._dt;
+            const fDate  = dt ? dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : '—';
             const isPast = dt && dt < today;
             const isCan  = (r.status||'') === 'cancelled';
             const isFut  = dt && dt >= today && !isCan;
             const statCls = isCan ? 'cancelled' : isPast ? 'confirmed' : (r.status||'pending');
             const statLbl = isCan ? 'Cancelled' : isPast ? 'Past' : (r.status||'pending').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
             const cancelBtn = isFut ? `<button class="mp-sess-cancel-btn" onclick="mpCancelSession('${r.id}','${(r.customer_name||'').replace(/'/g,'')}','${d}')"><i class="fa-solid fa-xmark"></i></button>` : '';
-            return `<tr style="${isCan ? 'opacity:0.45;' : isPast ? 'opacity:0.7;' : ''}">
-                <td>${fDate}</td>
+            rows += `<tr style="${isCan ? 'opacity:0.4;' : isPast ? 'opacity:0.65;' : ''}">
+                <td style="padding-left:18px;">${fDate}</td>
                 <td style="white-space:nowrap;">${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}</td>
                 <td>${r.room_name||'—'}</td>
                 <td><span class="mp-sess-badge ${statCls}">${statLbl}</span></td>
-                <td>${mpFmt(r.total_amount)}</td>
-                <td style="color:${parseFloat(r.balance_due)>0?'var(--warning)':'var(--success)'};">${mpFmt(r.balance_due)}</td>
                 <td>${cancelBtn}</td>
             </tr>`;
-        }).join('')}
-        </tbody>
+        });
+    });
+
+    wrap.innerHTML = `<table class="mp-sess-table">
+        <thead><tr>
+            <th>Date</th><th>Time</th><th>Room</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
     </table>`;
 }
 
@@ -457,8 +507,8 @@ async function mpCancelSeries(ruleId, customerName) {
 }
 
 /* ─── Payment modal ─────────────────────────────── */
-function mpOpenPayModal(ruleId, customerName, scheduleId, amtDue, periodStart, periodEnd, customerId) {
-    _mpPayData = { ruleId, customerName, scheduleId, amtDue: parseFloat(amtDue)||0, customerId: customerId||'' };
+function mpOpenPayModal(ruleId, customerName, scheduleId, amtDue, periodStart, periodEnd, customerId, seriesRef) {
+    _mpPayData = { ruleId, customerName, scheduleId, amtDue: parseFloat(amtDue)||0, customerId: customerId||'', seriesRef: seriesRef||'' };
     const periodLabel = (periodStart && periodEnd)
         ? `${mpFmtDate(periodStart)} – ${mpFmtDate(periodEnd)}`
         : 'Current billing period';
@@ -484,14 +534,15 @@ async function mpSubmitPayment() {
     btn.textContent = 'Recording…';
     try {
         const payload = {
-            rule_id:        _mpPayData.ruleId,
-            customer_id:    _mpPayData.customerId || '',
-            schedule_id:    _mpPayData.scheduleId || '',
-            amount_paid:    amount,
-            payment_method: method,
-            payment_plan:   'per_period',
-            tenant_id:      parseInt(_TID()),
-            performed_by:   (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })()
+            rule_id:          _mpPayData.ruleId,
+            customer_id:      _mpPayData.customerId || '',
+            schedule_id:      _mpPayData.scheduleId || '',
+            series_reference: _mpPayData.seriesRef  || '',
+            amount_paid:      amount,
+            payment_method:   method,
+            payment_plan:     'per_period',
+            tenant_id:        parseInt(_TID()),
+            performed_by:     (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })()
         };
         const res = await fetch(REC_PAYMENT_URL, {
             method:'POST', headers:{'Content-Type':'application/json'},
