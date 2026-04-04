@@ -1661,17 +1661,20 @@
             const endDateStr=qbRecurrenceDates[qbRecurrenceDates.length-1]||from;
             const payload={
                 customer_name:name,customer_email:email||null,customer_phone:phone,
-                room_id:roomId||null,room_name:roomName,
+                room_id:roomId?parseInt(roomId)||null:null,   // integer prevents "Various Rooms" fallback
+                room_name:roomName,
                 start_time:startT,end_time:endT,
                 start_date:from,
                 day_of_week:startDateObj.getDay(),
                 frequency:'weekly',                          // 4-week cycle is always weekly
                 end_date:endDateStr,
                 specific_dates:qbRecurrenceDates.join(','),
+                session_price:perSessionCost,                // per-session rate locked at contract creation
                 rate_per_session:perSessionCost,
-                monthly_fee:cyclePrice,                      // "monthly_fee" stores the 4-wk cycle price in DB
+                monthly_fee:cyclePrice,                      // cycle price in DB (4 sessions × session_price)
                 period_amount:cyclePrice,
-                agreed_price:cyclePrice,                     // for BillingCycleTrigger outstanding payments
+                agreed_price:cyclePrice,                     // locked; never recalculated from room rates
+                sessions_per_cycle:4,                        // weekly = 4 sessions per 4-wk cycle
                 total_cycles:totalCycles,
                 remaining_cycles:totalCycles,
                 billing_type:'4_week_cycle',
@@ -1684,7 +1687,7 @@
                 payment_amount:payAmt,balance_due:balance,
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
-                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} at ${fmt(cyclePrice)} per 4 weeks.`,
+                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
                 tenant_id:parseInt(_CAL_TID()),
                 status:status
@@ -2577,7 +2580,8 @@
 
             const payload={
                 customer_name:name, customer_email:email||null, customer_phone:phone,
-                room_id:roomId||null, room_name:roomName,
+                room_id:roomId?parseInt(roomId)||null:null,   // integer prevents "Various Rooms" fallback
+                room_name:roomName,
                 start_time:primary.startTime, end_time:primary.endTime,
                 start_date:startStr,
                 day_of_week:primary.dow,
@@ -2585,10 +2589,12 @@
                 end_date:endDateStr,
                 specific_dates:sessions.map(s=>s.date).join(','),
                 day_schedule:daySchedule,
+                session_price:rate,                           // per-session rate locked at contract creation
                 rate_per_session:rate,
-                monthly_fee:cyclePrice,
+                monthly_fee:cyclePrice,                       // cycle price (sessPerCycle × rate)
                 period_amount:cyclePrice,
-                agreed_price:cyclePrice,
+                agreed_price:cyclePrice,                      // locked; never recalculated from room rates
+                sessions_per_cycle:sessPerCycle,              // 4 weekly / 2 fortnightly / 1 monthly
                 total_cycles:totalCycles,
                 remaining_cycles:totalCycles,
                 billing_type:'4_week_cycle',
@@ -2601,7 +2607,7 @@
                 payment_amount:payAmt, balance_due:balance,
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
-                contract_notes:`${durWeeks}-wk ${rbFrequency} contract · ${name} · ${roomName} · Days: ${dayNames} · ${fmt(cyclePrice)}/4-wk cycle.`,
+                contract_notes:`${durWeeks}-wk ${rbFrequency} contract · ${name} · ${roomName} · Days: ${dayNames} · ${fmt(rate)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
                 tenant_id:parseInt(_CAL_TID()),
                 status
