@@ -187,6 +187,17 @@
 
     <!-- MANAGE view -->
     <div id="view-manage">
+        <!-- Info: new contracts created via Calendar -->
+        <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:12px;padding:12px 18px;margin-bottom:1rem;display:flex;align-items:center;gap:12px;font-size:.84rem;">
+            <i class="fa-solid fa-circle-info" style="color:#818cf8;font-size:1rem;flex-shrink:0;"></i>
+            <span style="color:var(--text-muted);">
+                <strong style="color:#818cf8;">New recurring contracts</strong> are created from the
+                <a href="calendar.html" style="color:#6366f1;font-weight:700;text-decoration:none;">
+                    <i class="fa-solid fa-calendar-days"></i> Calendar
+                </a>
+                — click a date, fill in the booking details, then toggle <em>"Repeat this booking"</em> and choose a contract duration.
+            </span>
+        </div>
         <div class="manage-panel">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:.5rem;">
                 <div>
@@ -282,26 +293,28 @@ async function mpLoadSeries() {
     const grid = document.getElementById('mp-series-grid');
     grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:8px;display:block;"></i>Loading series…</div>';
     try {
-        // Load series + all bookings in parallel
-        const [seriesRes, bkgRes] = await Promise.all([
-            fetch(REC_MANAGE_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() }),
-            fetch(REC_ALL_BKG_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() })
-        ]);
+        // Load series first — this is the critical data for the page
+        const seriesRes  = await fetch(REC_MANAGE_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
         const seriesJson = await seriesRes.json();
-        const bkgJson    = await bkgRes.json();
-
-        const series = seriesJson.data || (Array.isArray(seriesJson) ? seriesJson : []);
-        const allBkg = bkgJson.data || (Array.isArray(bkgJson) ? bkgJson : []);
-
-        // Cache all bookings for session expansion
-        _allSessions = allBkg.filter(b => b.is_recurring || b.recurring_rule_id);
+        const series     = seriesJson.data || (Array.isArray(seriesJson) ? seriesJson : []);
 
         if (!series.length) {
             grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-calendar-xmark" style="font-size:1.8rem;margin-bottom:8px;display:block;color:var(--text-muted);"></i>No active recurring series found.</div>';
             return;
         }
 
+        // Render cards immediately — don't wait for bookings fetch
         grid.innerHTML = series.map(s => mpRenderCard(s)).join('');
+
+        // Load bookings separately in background — failure won't affect series display
+        fetch(REC_ALL_BKG_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() })
+            .then(r => r.json())
+            .then(bkgJson => {
+                const allBkg = bkgJson.data || (Array.isArray(bkgJson) ? bkgJson : []);
+                _allSessions = allBkg.filter(b => b.is_recurring || b.recurring_rule_id);
+            })
+            .catch(() => { /* bookings unavailable — session expansion may be limited */ });
+
     } catch(e) {
         grid.innerHTML = '<div class="mp-empty" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation" style="display:block;font-size:1.4rem;margin-bottom:8px;"></i>Error loading series: ' + e.message + '</div>';
     }
