@@ -1247,12 +1247,16 @@
 
                 section.style.display = '';
                 body.innerHTML = data.map(s => {
-                    const freq   = s.frequency || 'recurring';
-                    const label  = (freq.charAt(0).toUpperCase() + freq.slice(1));
+                    const label  = ((s.frequency || 'recurring').charAt(0).toUpperCase() + (s.frequency || 'recurring').slice(1));
                     const total  = parseInt(s.total_bookings || 0);
                     const pStat  = (s.payment_status || 'pending').toLowerCase();
-                    const amtDue = parseFloat(s.amount_due || 0);
+                    // Use monthly_amount_due (correctly = session_price × sessions_per_cycle)
+                    // Fall back to stored amount_due, then compute from rate if needed
                     const ratePS = parseFloat(s.rate_per_session || 0);
+                    const freq   = (s.frequency || 'weekly').toLowerCase();
+                    const sessPerCycle = parseInt(s.sessions_per_cycle||0) || (freq==='fortnightly'?2:freq==='monthly'?1:4);
+                    const cyclePrice   = parseFloat(s.agreed_price||0) || parseFloat(s.monthly_amount_due||0) || parseFloat(s.monthly_fee||0) || (ratePS * sessPerCycle);
+                    const amtDue       = cyclePrice > 0 ? cyclePrice : parseFloat(s.amount_due || 0);
                     const dueD   = s.due_date ? new Date(s.due_date.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
                     const pStart = s.period_start ? new Date(s.period_start.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
                     const pEnd   = s.period_end   ? new Date(s.period_end.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
