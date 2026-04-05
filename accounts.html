@@ -684,6 +684,7 @@
                     <div class="invoice-row"><span class="ilabel">Payment Method</span><span class="ivalue" id="invMethod">—</span></div>
                     <div class="invoice-row"><span class="ilabel">Reference</span><span class="ivalue mono" id="invRefDetail">—</span></div>
                     <div class="invoice-row" id="invOrigRefRow"><span class="ilabel">Linked to Deposit</span><span class="ivalue mono" id="invOrigRef">—</span></div>
+                    <div class="invoice-row" id="invSeriesRefRow" style="display:none"><span class="ilabel">Series Ref</span><span class="ivalue mono" id="invSeriesRef" style="color:#8b5cf6;">—</span></div>
                     <div class="invoice-row"><span class="ilabel">Status</span><span class="ivalue" id="invStatus">—</span></div>
                 </div>
                 <div class="invoice-total-row">
@@ -812,6 +813,32 @@
             </div>
         </div>
 
+        <!-- ── OUTSTANDING ITEMS PANEL ──────────────────────────────────── -->
+        <div id="outstanding-items-section" style="margin-top:2rem;display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <h3 style="margin:0;font-size:1rem;font-weight:700;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);margin-right:8px;"></i>Outstanding Balances</h3>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin:4px 0 0;">Unpaid single bookings and pending contract cycles. Recurring customers are shown once at their cycle price — not per session.</p>
+                </div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);">
+                            <th style="padding:10px 12px;text-align:left;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Customer</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Description</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Type</th>
+                            <th style="padding:10px 12px;text-align:left;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Due</th>
+                            <th style="padding:10px 12px;text-align:right;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="outstanding-items-body">
+                        <tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text-muted);">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ── RECURRING PAYMENT SCHEDULE ─────────────────────────────── -->
         <!-- Recurring Payments — now managed on the dedicated Recurring Bookings page -->
         <div id="rec-schedule-section" style="margin-top:2rem;display:block;">
@@ -898,6 +925,10 @@
         }
 
         function fmtTxDate(t) {
+            // Recurring payments (no booking_id) have no booking dates — show payment date
+            if (!t.booking_id && t.series_reference) {
+                return t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
+            }
             const f = t.date_from, e = t.date_to;
             const fmtD = s => new Date(s.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB');
             if (f && e && e.slice(0,10) !== f.slice(0,10)) return fmtD(f) + ' – ' + fmtD(e);
@@ -974,6 +1005,12 @@
 
                 renderTransactions(transactions);
 
+                // outstanding_items comes from DB: Acc Metrics JSON_AGG
+                // n8n may return it as a JSON string or already-parsed array
+                let outItems = metrics.outstanding_items;
+                if (typeof outItems === 'string') { try { outItems = JSON.parse(outItems); } catch(_) { outItems = []; } }
+                renderOutstandingItems(outItems || []);
+
             } catch(e) { console.error('loadAccounts:', e); }
         }
 
@@ -1016,20 +1053,56 @@
                 const refHtml   = isCancelled
                     ? '<span class="ref-mono" style="color:var(--danger);">' + (t.reference_number || '—') + '</span>'
                     : '<span class="ref-mono">' + (t.reference_number || '—') + '</span>';
-                // Linked To: show original booking ref or deposit ref
-                const linkedHtml = isCancelled && t.cancellation_booking_ref
-                    ? '<span class="linked-ref" title="Original booking">' + t.cancellation_booking_ref + '</span>'
-                    : (isLink ? '<span class="linked-ref">' + t.deposit_reference + '</span>' : '<span style="color:var(--text-muted); font-size:0.8rem;">—</span>');
+                // Linked To: show series_reference for recurring payments, deposit ref for others
+                const isRecurringPmt = !t.booking_id && t.series_reference;
+                const linkedHtml = isRecurringPmt
+                    ? '<span style="font-family:monospace;font-size:0.72rem;color:#8b5cf6;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:5px;padding:2px 7px;" title="Recurring series reference">' + t.series_reference + '</span>'
+                    : isCancelled && t.cancellation_booking_ref
+                        ? '<span class="linked-ref" title="Original booking">' + t.cancellation_booking_ref + '</span>'
+                        : (isLink ? '<span class="linked-ref">' + t.deposit_reference + '</span>' : '<span style="color:var(--text-muted); font-size:0.8rem;">—</span>');
                 return '<tr class="' + rowClass + '" onclick="showInvoice(' + i + ')">' +
                     '<td>' + pDate + '</td>' +
                     '<td>' + refHtml + '</td>' +
                     '<td>' + linkedHtml + '</td>' +
                     '<td>' + (t.customer_name || '—') + (isCancelled ? ' <span style="font-size:0.72rem;color:var(--danger);font-weight:700;">CANCELLED</span>' : '') + (t.is_recurring ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;"><i class="fa-solid fa-repeat" style="font-size:0.58rem"></i> Recurring</span>' : '') + '</td>' +
-                    '<td>' + (t.room_name     || '—') + '</td>' +
+                    '<td>' + (t.room_name || (t.description ? '<span style="color:#8b5cf6;font-size:0.82rem;">' + t.description + '</span>' : '—')) + '</td>' +
                     '<td>' + bDate + (time ? '<br><span style="font-size:0.78rem; color:var(--text-muted);">' + time + '</span>' : '') + '</td>' +
                     '<td><span class="type-badge ' + typeClass(t.payment_type, t.booking_balance_due) + '">' + typeLabel(t.payment_type, t.booking_balance_due) + '</span></td>' +
                     '<td style="font-weight:700; color:' + color + '">' + fmt(amt) + '</td>' +
                     '<td><span style="color:' + color + '; text-transform:uppercase; font-size:0.78rem;">' + (t.status || '—') + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        // ── renderOutstandingItems ───────────────────────────────────────────────
+        // Renders the unified outstanding items list returned by DB: Acc Metrics.
+        // Items have type: 'single' | 'recurring' so we can label them correctly.
+        function renderOutstandingItems(items) {
+            const section = document.getElementById('outstanding-items-section');
+            const tbody   = document.getElementById('outstanding-items-body');
+            if (!section || !tbody) return;
+            if (!items || !items.length) {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            tbody.innerHTML = items.map(item => {
+                const isRecurring = (item.type === 'recurring');
+                const typeBadge = isRecurring
+                    ? '<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);white-space:nowrap"><i class="fa-solid fa-repeat" style="font-size:0.58rem"></i>&nbsp;Cycle Fee</span>'
+                    : '<span style="padding:1px 8px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(52,211,153,0.13);color:#34d399;border:1px solid rgba(52,211,153,0.3);white-space:nowrap">Single</span>';
+                const itemLabel = isRecurring
+                    ? (item.item_name || ('Contract Cycle' + (item.series_reference ? ' — ' + item.series_reference : '')))
+                    : (item.item_name || 'Single Booking');
+                const dueStr = item.due_date
+                    ? new Date(item.due_date).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})
+                    : '—';
+                return '<tr style="border-bottom:1px solid var(--border);">' +
+                    '<td style="padding:10px 12px;">' + (item.full_name || '—') + '</td>' +
+                    '<td style="padding:10px 12px;color:var(--text-muted);font-size:0.84rem;">' + itemLabel + '</td>' +
+                    '<td style="padding:10px 12px;">' + typeBadge + '</td>' +
+                    '<td style="padding:10px 12px;color:var(--text-muted);">' + dueStr + '</td>' +
+                    '<td style="padding:10px 12px;text-align:right;font-weight:700;color:var(--warning);">' + fmt(parseFloat(item.amount) || 0) + '</td>' +
                     '</tr>';
             }).join('');
         }
@@ -1103,6 +1176,16 @@
                 origRefRow.style.display = 'flex';
             } else {
                 origRefRow.style.display = 'none';
+            }
+            // Series reference row — visible for recurring payments (no booking_id)
+            const seriesRefRow = document.getElementById('invSeriesRefRow');
+            if (seriesRefRow) {
+                if (!t.booking_id && t.series_reference) {
+                    document.getElementById('invSeriesRef').innerText = t.series_reference;
+                    seriesRefRow.style.display = 'flex';
+                } else {
+                    seriesRefRow.style.display = 'none';
+                }
             }
 
             // Cancellation notice block
@@ -1372,7 +1455,7 @@
                         <td style="padding:10px 12px;color:var(--text-muted);">${r.room_name || '—'}</td>
                         <td style="padding:10px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:0.78rem;">${cycleStr}</td>
                         <td style="padding:10px 12px;color:${isOverdue ? 'var(--danger)' : 'var(--text-main)'};">${dueFmt}</td>
-                        <td style="padding:10px 12px;text-align:right;font-weight:700;color:${isOverdue ? 'var(--danger)' : 'var(--warning)'};">${fmt(r.amount_due || 0)}</td>
+                        <td style="padding:10px 12px;text-align:right;font-weight:700;color:${isOverdue ? 'var(--danger)' : 'var(--warning)'};">${fmt(r.amount_due || 0)}<br><span style="font-size:0.68rem;font-weight:600;color:#8b5cf6;letter-spacing:0.03em;">Cycle Fee</span></td>
                         <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
                     </tr>`;
                 }).join('');
