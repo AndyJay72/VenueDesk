@@ -124,25 +124,20 @@
         body.light-mode .qb-recurring-section{background:rgba(99,102,241,0.03);border-color:rgba(99,102,241,0.12)}
         body.light-mode .qb-freq-pill{background:rgba(0,0,0,0.04);border-color:rgba(0,0,0,0.12);color:#64748b}
         body.light-mode .qb-recurring-preview{background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.08)}
-        /* ── Recurring Series Modal (rb-qb-card) ── */
-        .rb-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:5500;display:none;justify-content:center;align-items:flex-start;padding-top:2rem;overflow-y:auto}
-        .rb-overlay.open{display:flex}
-        .rb-card{background:#1e293b;border:1px solid var(--border);width:97%;max-width:1060px;border-radius:20px;padding:0;box-shadow:0 30px 60px rgba(0,0,0,0.5);animation:slideUp 0.25s ease;margin-bottom:2rem;overflow:hidden}
-        .rb-header{padding:1.25rem 2rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:1.1rem;font-weight:700}
-        .rb-day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:0.5rem}
-        .rb-day-tile{background:rgba(255,255,255,.07);border:1px solid rgba(148,163,184,.15);border-radius:8px;padding:11px 4px;text-align:center;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s;user-select:none;color:var(--text-muted)}
-        .rb-day-tile:hover{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:#818cf8}
-        .rb-day-tile.active{background:linear-gradient(135deg,#6366f1,#818cf8);border-color:#6366f1;color:#fff;box-shadow:0 2px 10px rgba(99,102,241,.4);transform:scale(1.04)}
-        .rb-day-time-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,.15);border:1px solid rgba(148,163,184,.1);border-radius:8px}
-        .rb-day-time-label{font-size:0.78rem;font-weight:700;color:#818cf8;width:34px;flex-shrink:0;text-align:center}
-        .rb-time-sel{font-size:0.82rem !important;padding:6px 8px !important}
-        .rb-no-days-hint{font-size:0.8rem;color:var(--text-muted);padding:10px 12px;background:rgba(255,255,255,.03);border:1px dashed rgba(148,163,184,.15);border-radius:8px;text-align:center;margin-top:0.5rem}
-        body.light-mode .rb-card{background:#fff;border-color:rgba(0,0,0,.12);color:#0f172a}
-        body.light-mode .rb-day-tile{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.12);color:#64748b}
-        body.light-mode .rb-day-tile:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3);color:#6366f1}
-        body.light-mode .rb-day-tile.active{background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff}
-        body.light-mode .rb-day-time-row{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.1)}
-        body.light-mode .rb-no-days-hint{background:rgba(0,0,0,.02);border-color:rgba(0,0,0,.1)}
+        /* ── Recurring Day-of-Week Grid ── */
+        .qb-rec-days-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin:0.75rem 0 0.4rem}
+        .qb-rec-day-grid{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem}
+        .qb-rec-day-tile{flex:1;min-width:3rem;max-width:4.5rem;text-align:center;padding:7px 4px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.75rem;font-weight:700;color:var(--text-muted);background:rgba(255,255,255,0.04);transition:all 0.15s;user-select:none;font-family:inherit}
+        .qb-rec-day-tile:hover{background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.3);color:#a5b4fc}
+        .qb-rec-day-tile.active{background:rgba(99,102,241,0.22);border-color:#6366f1;color:#818cf8}
+        .qb-rec-day-time-rows{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem}
+        .qb-rec-day-time-row{display:flex;align-items:center;gap:0.5rem;background:rgba(0,0,0,0.18);border-radius:7px;padding:6px 10px}
+        .qb-rec-day-time-row .qb-dt-lbl{font-size:0.76rem;font-weight:700;color:#818cf8;min-width:2.6rem}
+        .qb-rec-day-time-row select{flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-main);font-size:0.78rem;padding:3px 6px;font-family:inherit}
+        body.light-mode .qb-rec-day-tile{background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.12);color:#64748b}
+        body.light-mode .qb-rec-day-tile:hover{background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.25);color:#4f46e5}
+        body.light-mode .qb-rec-day-tile.active{background:rgba(99,102,241,0.12);border-color:#6366f1;color:#4338ca}
+        body.light-mode .qb-rec-day-time-row{background:rgba(0,0,0,0.04)}
         /* ── Blocked Dates Modal ── */
         .bd-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:3000;display:none;justify-content:center;align-items:flex-start;padding-top:3rem;overflow-y:auto}
         .bd-modal-overlay.open{display:flex}
@@ -1036,12 +1031,51 @@
                     <div id="qb-availStatus" class="qb-avail-box qb-avail-idle"><span id="qb-availText">Fill in room, date &amp; times to check availability.</span></div>
                     <div id="qb-guestCapWarning" class="qb-cap-warning" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span id="qb-guestCapMsg"></span></div>
                     <div id="qb-services-wrap" style="margin:0.6rem 0"></div>
-                    <!-- Recurring Booking — opens dedicated modal -->
-                    <button type="button" class="qb-recurring-toggle" onclick="openRbQbModal()">
+                    <!-- Recurring Booking Toggle (inline) -->
+                    <button type="button" id="qb-recurring-toggle-btn" class="qb-recurring-toggle" onclick="qbToggleRecurrence()">
                         <i class="fa-solid fa-rotate"></i>
-                        <span>Repeat this booking</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto;font-size:0.75rem;opacity:0.6"></i>
+                        <span id="qb-rec-toggle-label">Repeat this booking</span>
+                        <i class="fa-solid fa-chevron-down" style="margin-left:auto;font-size:0.75rem;opacity:0.6"></i>
                     </button>
+                    <!-- Inline Recurring Contract Section -->
+                    <div class="qb-recurring-section" id="qb-recurring-section">
+                        <!-- Day-of-week grid: select one or more recurring days -->
+                        <div class="qb-rec-days-label">Recurring Days</div>
+                        <div class="qb-rec-day-grid" id="qb-rec-day-grid">
+                            <button type="button" class="qb-rec-day-tile" data-dow="1" onclick="qbToggleRecDay(1)">Mon</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="2" onclick="qbToggleRecDay(2)">Tue</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="3" onclick="qbToggleRecDay(3)">Wed</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="4" onclick="qbToggleRecDay(4)">Thu</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="5" onclick="qbToggleRecDay(5)">Fri</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="6" onclick="qbToggleRecDay(6)">Sat</button>
+                            <button type="button" class="qb-rec-day-tile" data-dow="0" onclick="qbToggleRecDay(0)">Sun</button>
+                        </div>
+                        <!-- Per-day time rows (shown for each selected day) -->
+                        <div class="qb-rec-day-time-rows" id="qb-rec-day-time-rows"></div>
+                        <div class="qb-grid" style="margin-bottom:0.5rem">
+                            <div class="qb-full">
+                                <label class="qb-label">Contract Duration</label>
+                                <select id="qb-rec-duration" class="qb-select" onchange="qbOnDurationChange()">
+                                    <option value="">Select duration…</option>
+                                    <option value="12">3 Months (12 Weeks)</option>
+                                    <option value="24">6 Months (24 Weeks)</option>
+                                    <option value="48">1 Year (48 Weeks)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="qb-label">Payment Terms</label>
+                                <select id="qb-rec-payterms" class="qb-select">
+                                    <option value="in_advance">In Advance</option>
+                                    <option value="in_arrears">In Arrears</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="qb-label">Billing Day</label>
+                                <input type="number" id="qb-rec-billingDay" class="qb-input" min="1" max="28" step="1" value="1" style="text-align:center">
+                            </div>
+                        </div>
+                        <div id="qb-rec-preview" class="qb-recurring-preview">Select recurring days and contract duration to preview.</div>
+                    </div>
                     <!-- Action Buttons -->
                     <div class="qb-btn-stack">
                         <div id="qb-regular-btns">
@@ -1050,6 +1084,11 @@
                                 <button class="qb-btn-deposit" id="qb-btn-deposit" onclick="qbSubmitBooking('deposit')" disabled><i class="fa-solid fa-circle-half-stroke"></i> Take Deposit (<span id="qb-depositLabel">30%</span>)</button>
                                 <button class="qb-btn-pending" id="qb-btn-pending" onclick="qbSubmitBooking('pending')"><i class="fa-solid fa-paper-plane"></i> Submit as Pending</button>
                             </div>
+                        </div>
+                        <div id="qb-recurring-btns" style="display:none;flex-direction:column;gap:0.6rem">
+                            <button class="qb-btn-full" id="qb-rec-btn-full" onclick="qbSubmitBooking('recurring_full')" disabled><i class="fa-solid fa-rotate"></i> Create Series (Full Payment)</button>
+                            <button class="qb-btn-deposit" id="qb-rec-btn-deposit" onclick="qbSubmitBooking('recurring_deposit')" disabled><i class="fa-solid fa-circle-half-stroke"></i> Create Series + Deposit (<span id="qb-rec-depositLabel">30%</span>)</button>
+                            <button class="qb-btn-pending" id="qb-rec-btn-pending" onclick="qbSubmitBooking('recurring_pending')"><i class="fa-solid fa-paper-plane"></i> Submit as Pending</button>
                         </div>
                         <button class="qb-btn-cancel" onclick="closeQbModal()">Cancel</button>
                     </div>
@@ -1088,139 +1127,7 @@
             </div>
         </div>
     </div>
-    <!-- RECURRING SERIES MODAL (rb-qb-card) -->
-    <div id="rbQbModal" class="rb-overlay" onclick="if(event.target.id==='rbQbModal')closeRbQbModal()">
-        <div class="rb-card">
-            <div class="rb-header">
-                <span><i class="fa-solid fa-repeat" style="color:var(--primary);margin-right:8px"></i> Create Recurring Series</span>
-                <button onclick="closeRbQbModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:0">&times;</button>
-            </div>
-            <div class="qb-container">
-                <!-- LEFT: Form -->
-                <div class="qb-form-section">
-                    <span class="qb-section-label">Customer Details</span>
-                    <div class="qb-grid">
-                        <div class="qb-full">
-                            <label class="qb-label">Customer Name *</label>
-                            <input type="text" id="rb-customerName" class="qb-input" placeholder="Full name">
-                        </div>
-                        <div>
-                            <label class="qb-label">Phone *</label>
-                            <input type="tel" id="rb-customerPhone" class="qb-input" placeholder="+44...">
-                        </div>
-                        <div>
-                            <label class="qb-label">Email</label>
-                            <input type="email" id="rb-customerEmail" class="qb-input" placeholder="email@example.com">
-                        </div>
-                    </div>
 
-                    <span class="qb-section-label">Room &amp; Event Type</span>
-                    <div class="qb-grid">
-                        <div>
-                            <label class="qb-label">Room *</label>
-                            <select id="rb-roomSelect" class="qb-select" onchange="rbOnRoomChange()">
-                                <option value="">Select room...</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="qb-label">Event Type</label>
-                            <select id="rb-eventType" class="qb-select">
-                                <option value="">Select type...</option>
-                            </select>
-                        </div>
-                        <div class="qb-full">
-                            <label class="qb-label">Contract Start Date *</label>
-                            <input type="date" id="rb-startDate" class="qb-input" onchange="rbUpdatePreview()">
-                        </div>
-                    </div>
-
-                    <span class="qb-section-label" style="margin-top:1rem">Booking Frequency</span>
-                    <div class="qb-freq-pills" style="margin:0.5rem 0 0.25rem">
-                        <button class="qb-freq-pill active" data-freq="weekly" onclick="rbSetFrequency('weekly')">Weekly</button>
-                        <button class="qb-freq-pill" data-freq="fortnightly" onclick="rbSetFrequency('fortnightly')">Fortnightly</button>
-                        <button class="qb-freq-pill" data-freq="monthly" onclick="rbSetFrequency('monthly')">Monthly</button>
-                    </div>
-
-                    <span class="qb-section-label" style="margin-top:1rem">Days <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">— click to select, multiple allowed</span></span>
-                    <div class="rb-day-grid" id="rb-day-grid"></div>
-                    <div id="rb-day-time-rows" style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.45rem">
-                        <div class="rb-no-days-hint"><i class="fa-regular fa-hand-pointer" style="margin-right:6px"></i>Select one or more days above to set times</div>
-                    </div>
-
-                    <span class="qb-section-label" style="margin-top:1rem">Pricing &amp; Contract</span>
-                    <div class="qb-grid">
-                        <div>
-                            <label class="qb-label">Rate per Session (£) *</label>
-                            <input type="number" id="rb-ratePerSess" class="qb-input" min="0" step="0.01" placeholder="0.00" oninput="rbUpdatePreview()">
-                        </div>
-                        <div>
-                            <label class="qb-label">Contract Duration *</label>
-                            <select id="rb-duration" class="qb-select" onchange="rbUpdatePreview()">
-                                <option value="">Select length…</option>
-                                <option value="12">Quarterly — 12 Weeks</option>
-                                <option value="24">Half-Year — 24 Weeks</option>
-                                <option value="48">Full-Year — 48 Weeks</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="qb-label">Payment Terms</label>
-                            <select id="rb-payterms" class="qb-select">
-                                <option value="in_advance">In Advance</option>
-                                <option value="in_arrears">In Arrears</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="qb-label">Billing Day <span style="font-weight:400;opacity:0.7">— day of month</span></label>
-                            <input type="number" id="rb-billingDay" class="qb-input" min="1" max="28" step="1" value="1" style="text-align:center">
-                        </div>
-                        <div class="qb-full">
-                            <label class="qb-label">Notes</label>
-                            <input type="text" id="rb-notes" class="qb-input" placeholder="Optional notes">
-                        </div>
-                    </div>
-
-                    <div id="rb-preview" class="qb-recurring-preview" style="margin-top:0.75rem">
-                        Select days, frequency and contract length to preview.
-                    </div>
-                </div>
-                <!-- RIGHT: Summary -->
-                <div class="qb-summary-section">
-                    <div class="qb-summary-card">
-                        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:0.75rem">Contract Total</div>
-                        <div id="rb-totalDisplay" class="qb-total-big">£0.00</div>
-                        <div id="rb-breakdown" class="qb-breakdown"></div>
-                    </div>
-                    <div class="qb-summary-card">
-                        <div style="margin-bottom:0.75rem">
-                            <label class="qb-label">Payment Amount (£)</label>
-                            <input type="number" id="rb-payAmount" class="qb-input" min="0" step="0.01" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="qb-label">Payment Method</label>
-                            <select id="rb-payMethod" class="qb-select">
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="bacs">BACS</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="qb-btn-stack">
-                        <button class="qb-btn-full" id="rb-btn-full" onclick="rbSubmit('full')" disabled>
-                            <i class="fa-solid fa-rotate"></i> Create Series (Full Payment)
-                        </button>
-                        <button class="qb-btn-deposit" id="rb-btn-deposit" onclick="rbSubmit('deposit')" disabled>
-                            <i class="fa-solid fa-circle-half-stroke"></i> Create Series + Deposit (<span id="rb-depositLabel">30%</span>)
-                        </button>
-                        <button class="qb-btn-pending" onclick="rbSubmit('pending')">
-                            <i class="fa-solid fa-paper-plane"></i> Submit as Pending
-                        </button>
-                        <button class="qb-btn-cancel" onclick="closeRbQbModal()">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- qb Conflict Modal -->
         <!-- qb Conflict Modal -->
@@ -1361,7 +1268,7 @@
         function closeModal(){document.getElementById('eventModal').classList.remove('open');const ps=document.getElementById('e-pay-section');if(ps)ps.style.display='none';}
 
 
-        let qbRoomsData=[],qbPricingData=[],_qbAvailTimeout=null,qbInitDone=false,qbTotalAmount=0,qbDepositAmount=0,qbIsRecurring=false,qbRecurrenceDates=[],qbRecurrenceFreq='weekly',qbBillingFreq='monthly',qbRecDuration=0,qbCyclePrice=0;
+        let qbRoomsData=[],qbPricingData=[],_qbAvailTimeout=null,qbInitDone=false,qbTotalAmount=0,qbDepositAmount=0,qbIsRecurring=false,qbRecurrenceDates=[],qbRecurrenceFreq='weekly',qbBillingFreq='monthly',qbRecDuration=0,qbCyclePrice=0,qbRecSelectedDays=[];
         async function qbInit(){
             if(qbInitDone)return;qbInitDone=true;
             try{const r=await fetch(tidUrl(ROOMS_API),{headers:getAuthHeaders()});const rj=await r.json();qbRoomsData=(rj.data||(Array.isArray(rj)?rj:[])).filter(x=>x.is_active||x.is_active===undefined);const s=document.getElementById('qb-roomSelect');s.innerHTML='<option value="">Select room...</option>';qbRoomsData.forEach(r=>{const o=document.createElement('option');o.value=r.name||r.room_name||r.id;o.textContent=r.name||r.room_name||r.id;s.appendChild(o);});renderQbExtraRooms();}catch(e){}
@@ -1382,7 +1289,7 @@
             document.getElementById('qb-overrideRow').style.display='none';
             document.getElementById('qb-overrideAmount').value='';
             document.getElementById('qb-payAmount').value='';
-            qbIsRecurring=false;qbRecurrenceDates=[];qbRecurrenceFreq='weekly';qbRecDuration=0;qbCyclePrice=0;
+            qbIsRecurring=false;qbRecurrenceDates=[];qbRecurrenceFreq='weekly';qbRecDuration=0;qbCyclePrice=0;qbRecSelectedDays=[];
             const _rSec=document.getElementById('qb-recurring-section');if(_rSec)_rSec.classList.remove('visible');
             const _rTBtn=document.getElementById('qb-recurring-toggle-btn');if(_rTBtn)_rTBtn.classList.remove('active');
             const _rRBtns=document.getElementById('qb-recurring-btns');if(_rRBtns)_rRBtns.style.display='none';
@@ -1449,16 +1356,19 @@
             if(svcRes.total>0){total+=svcRes.total;breakdown+=` + services ${fmt(svcRes.total)}`;}
             const _perSessAmt=total;
             if(qbIsRecurring){
-                // 4-week cycle model: weekly sessions, billing every 4 sessions (1 cycle)
-                qbCyclePrice=parseFloat((_perSessAmt*4).toFixed(2));
+                // 4-week cycle model: N selected days/week × 4 weeks = sessions_per_cycle
+                const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
+                const _sessPerCycle=_daysPerWeek*4;
+                qbCyclePrice=parseFloat((_perSessAmt*_sessPerCycle).toFixed(2));
                 const _totalCycles=qbRecDuration>0?Math.round(qbRecDuration/4):0;
                 if(qbRecDuration>0&&qbRecurrenceDates.length>0){
                     total=parseFloat((qbCyclePrice*_totalCycles).toFixed(2));
-                    breakdown=`${qbRecurrenceDates.length} sessions — ${fmt(_perSessAmt)}/session · ${fmt(qbCyclePrice)}/4-wk cycle × ${_totalCycles} cycles`;
+                    const _dayNames=qbRecSelectedDays.map(d=>_DOW_NAMES[d.dow]).join(', ')||'';
+                    breakdown=`${qbRecurrenceDates.length} sessions (${_daysPerWeek}×/wk${_dayNames?' — '+_dayNames:''}) — ${fmt(_perSessAmt)}/session · ${fmt(qbCyclePrice)}/4-wk cycle × ${_totalCycles} cycles`;
                     qbDepositAmount=Math.round(qbCyclePrice*QBR_DEPOSIT_PCT)/100;
                 }else{
                     // Duration not yet selected — show per-session rate as placeholder
-                    breakdown=`${fmt(_perSessAmt)}/session — select contract duration to see full total`;
+                    breakdown=`${fmt(_perSessAmt)}/session — select recurring days & contract duration to see total`;
                     total=qbCyclePrice||_perSessAmt;
                     qbDepositAmount=Math.round((qbCyclePrice||_perSessAmt)*QBR_DEPOSIT_PCT)/100;
                 }
@@ -1548,19 +1458,109 @@
         // Local date helper — avoids UTC shift caused by toISOString() in UK timezone
         function _ld(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
-        // Generate weekly sessions for the chosen duration (12/24/48 weeks)
+        // ── Day-of-week grid helpers ──────────────────────────────────────────
+        const _DOW_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        function qbRenderRecDayGrid(){
+            // Sync tile active states
+            document.querySelectorAll('.qb-rec-day-tile').forEach(tile=>{
+                const dow=parseInt(tile.getAttribute('data-dow'));
+                tile.classList.toggle('active',qbRecSelectedDays.some(d=>d.dow===dow));
+            });
+            qbRenderRecDayTimeRows();
+        }
+        function qbToggleRecDay(dow){
+            const idx=qbRecSelectedDays.findIndex(d=>d.dow===dow);
+            if(idx>=0){qbRecSelectedDays.splice(idx,1);}
+            else{
+                // Default times: inherit from main time inputs, or fall back to 09:00–17:00
+                const startT=document.getElementById('qb-startTime').value||'09:00';
+                const endT=document.getElementById('qb-endTime').value||'17:00';
+                qbRecSelectedDays.push({dow,startTime:startT,endTime:endT});
+                // Keep sorted Mon–Sun (1–6,0)
+                qbRecSelectedDays.sort((a,b)=>(a.dow===0?7:a.dow)-(b.dow===0?7:b.dow));
+            }
+            qbRenderRecDayGrid();
+            qbRecurrenceDates=qbGenerateRecurrenceDates();
+            qbUpdateRecurrencePreview();
+            qbCalculateCost();
+        }
+        function qbRenderRecDayTimeRows(){
+            const container=document.getElementById('qb-rec-day-time-rows');
+            if(!container)return;
+            if(!qbRecSelectedDays.length){container.innerHTML='';return;}
+            const times=[];
+            for(let h=8;h<24;h++)for(let m=0;m<60;m+=30)times.push(`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`);
+            const opts=times.map(t=>`<option value="${t}">${t}</option>`).join('');
+            container.innerHTML=qbRecSelectedDays.map(day=>{
+                const nm=_DOW_NAMES[day.dow];
+                const sOpts=opts.replace(`value="${day.startTime}"`,`value="${day.startTime}" selected`);
+                const eOpts=opts.replace(`value="${day.endTime}"`,`value="${day.endTime}" selected`);
+                return `<div class="qb-rec-day-time-row">
+                    <span class="qb-dt-lbl">${nm}</span>
+                    <select onchange="qbSetRecDayTime(${day.dow},'start',this.value)">${sOpts}</select>
+                    <span style="font-size:0.75rem;color:var(--text-muted)">→</span>
+                    <select onchange="qbSetRecDayTime(${day.dow},'end',this.value)">${eOpts}</select>
+                </div>`;
+            }).join('');
+        }
+        function qbSetRecDayTime(dow,which,val){
+            const day=qbRecSelectedDays.find(d=>d.dow===dow);
+            if(!day)return;
+            if(which==='start')day.startTime=val;
+            else day.endTime=val;
+            qbCalculateCost();
+            qbRecurrenceDates=qbGenerateRecurrenceDates();
+            qbUpdateRecurrencePreview();
+        }
+
+        // Generate sessions for ALL selected days across the contract duration
+        // Returns array of {date, dow, startTime, endTime} objects
         function qbGenerateRecurrenceDates(){
             const{from}=qbGetDates();
             if(!from||!qbRecDuration)return[];
-            const dates=[];
-            const d=new Date(from+'T12:00:00');
-            // Always strictly 7-day increments to prevent day-of-week drift
-            for(let i=0;i<qbRecDuration;i++){
-                const cur=new Date(d);
-                cur.setDate(d.getDate()+i*7);
-                dates.push(_ld(cur));
+            // If no days selected yet, fall back to start date's DOW
+            const activeDays=qbRecSelectedDays.length>0?qbRecSelectedDays:null;
+            if(!activeDays){
+                // single-day fallback (start date's DOW, use main time inputs)
+                const d=new Date(from+'T12:00:00');
+                const startT=document.getElementById('qb-startTime').value||'09:00';
+                const endT=document.getElementById('qb-endTime').value||'17:00';
+                const dates=[];
+                for(let i=0;i<qbRecDuration;i++){
+                    const cur=new Date(d);cur.setDate(d.getDate()+i*7);
+                    dates.push({date:_ld(cur),dow:cur.getDay(),startTime:startT,endTime:endT});
+                }
+                return dates;
             }
-            return dates;
+            // Multi-day: generate one week at a time for qbRecDuration weeks
+            const dates=[];
+            const startD=new Date(from+'T12:00:00');
+            for(let wk=0;wk<qbRecDuration;wk++){
+                for(const daySpec of activeDays){
+                    // Find the date in this week that falls on daySpec.dow
+                    // Week 0 starts at Monday of the start-date's week
+                    const weekStart=new Date(startD);
+                    const dayOffset=wk*7;
+                    weekStart.setDate(startD.getDate()+dayOffset);
+                    // Find the Monday of weekStart's week
+                    const dayOfWeek=weekStart.getDay(); // 0=Sun
+                    const mondayOffset=dayOfWeek===0?-6:1-dayOfWeek;
+                    const monday=new Date(weekStart);
+                    monday.setDate(weekStart.getDate()+mondayOffset);
+                    // Then add daySpec.dow (1=Mon…6=Sat,0=Sun→7)
+                    const targetDow=daySpec.dow===0?7:daySpec.dow;
+                    const target=new Date(monday);
+                    target.setDate(monday.getDate()+targetDow-1);
+                    // Only include dates on or after the start date
+                    if(target>=new Date(from+'T00:00:00')){
+                        dates.push({date:_ld(target),dow:daySpec.dow,startTime:daySpec.startTime,endTime:daySpec.endTime});
+                    }
+                }
+            }
+            // Sort by date, deduplicate
+            dates.sort((a,b)=>a.date.localeCompare(b.date));
+            const seen=new Set();
+            return dates.filter(d=>{const k=d.date+'-'+d.dow;return seen.has(k)?false:seen.add(k)&&true;});
         }
 
         // Called when the contract duration dropdown changes
@@ -1579,21 +1579,23 @@
             qbRecurrenceDates=qbGenerateRecurrenceDates();
             qbCalculateCost();
             if(!qbRecurrenceDates.length){
-                prev.innerHTML='Select a start date and contract duration to preview.';
+                const noDays=qbRecSelectedDays.length===0;
+                prev.innerHTML=noDays?'Select recurring days and contract duration to preview.':'Select a start date and contract duration to preview.';
                 return;
             }
             const totalCycles=Math.round(qbRecDuration/4);
-            const lastDate=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1]+'T12:00:00')
+            const lastDate=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1].date+'T12:00:00')
                 .toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-            const firstDate=new Date(qbRecurrenceDates[0]+'T12:00:00')
-                .toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+            const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
+            const _dayNames=qbRecSelectedDays.map(d=>_DOW_NAMES[d.dow]).join(', ');
             const _dateList=qbRecurrenceDates.slice(0,5).map(d=>
-                new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})
+                new Date(d.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})
             ).join(' · ');
             const _more=qbRecurrenceDates.length>5?` <em>+${qbRecurrenceDates.length-5} more</em>`:'';
             prev.innerHTML=
-                `<strong style="color:var(--text-main)">Total: ${qbRecurrenceDates.length} Sessions</strong> &nbsp;|&nbsp; `+
-                `<span style="color:var(--text-muted)">End Date: ${lastDate}</span><br>`+
+                `<strong style="color:var(--text-main)">Total: ${qbRecurrenceDates.length} Sessions</strong>`+
+                (_dayNames?` &nbsp;|&nbsp; <span style="color:#818cf8">${_dayNames}</span>`:'')+
+                ` &nbsp;|&nbsp; <span style="color:var(--text-muted)">End: ${lastDate}</span><br>`+
                 `<span style="color:#34d399;font-weight:600">Billing: ${totalCycles} Cycles of ${fmt(qbCyclePrice)} per 4 weeks &bull; ${fmt(qbTotalAmount)} total</span><br>`+
                 `<span style="color:#94a3b8;font-size:0.76rem">${_dateList}${_more}</span>`;
             qbUpdateRecurringButtons();
@@ -1620,11 +1622,30 @@
             if(btn)btn.classList.toggle('active',qbIsRecurring);
             if(sec)sec.classList.toggle('visible',qbIsRecurring);
             if(regBtns)regBtns.style.display=qbIsRecurring?'none':'block';
-            if(recBtns)recBtns.style.display=qbIsRecurring?'block':'none';
+            if(recBtns)recBtns.style.display=qbIsRecurring?'flex':'none';
             if(lbl)lbl.textContent=qbIsRecurring?'Recurring Contract — click to cancel':'Repeat this booking';
-            if(!qbIsRecurring){qbRecDuration=0;qbCyclePrice=0;qbRecurrenceDates=[];const _rDur=document.getElementById('qb-rec-duration');if(_rDur)_rDur.value='';}
+            // When recurring is ON, disable multi-day mode (recurring uses single start date + duration)
+            const multiToggle=document.getElementById('qb-multiDayToggle');
+            if(multiToggle){
+                if(qbIsRecurring){multiToggle.checked=false;multiToggle.disabled=true;qbToggleMultiDay();}
+                else{multiToggle.disabled=false;}
+            }
+            if(!qbIsRecurring){qbRecDuration=0;qbCyclePrice=0;qbRecurrenceDates=[];qbRecSelectedDays=[];qbRenderRecDayGrid();const _rDur=document.getElementById('qb-rec-duration');if(_rDur)_rDur.value='';}
             qbCalculateCost();
-            if(qbIsRecurring)qbUpdateRecurrencePreview();
+            if(qbIsRecurring){
+                // Auto-select the start date's day-of-week if none selected yet
+                if(qbRecSelectedDays.length===0){
+                    const{from}=qbGetDates();
+                    if(from){
+                        const dow=new Date(from+'T12:00:00').getDay();
+                        const startT=document.getElementById('qb-startTime').value||'09:00';
+                        const endT=document.getElementById('qb-endTime').value||'17:00';
+                        qbRecSelectedDays=[{dow,startTime:startT,endTime:endT}];
+                    }
+                }
+                qbRenderRecDayGrid();
+                qbUpdateRecurrencePreview();
+            }
         }
 
         // Stub kept for backward-compat — frequency is always weekly in 4-week cycle model
@@ -1646,19 +1667,27 @@
             if(!roomName){showToast('Please select a room','error');return;}
             if(!from){showToast('Please select a date','error');return;}
             if(!qbRecDuration){showToast('Please select a contract duration','error');return;}
-            if(!qbRecurrenceDates.length){showToast('No sessions generated — check the start date','error');return;}
+            if(!qbRecurrenceDates.length){showToast('No sessions generated — select recurring days and start date','error');return;}
             const room=qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
             const roomId=room?room.id:'';
             // 4-week cycle model values
-            const totalCycles=Math.round(qbRecDuration/4);        // 3, 6, or 12
-            const cyclePrice=parseFloat(qbCyclePrice.toFixed(2));  // rate × 4 sessions
-            const perSessionCost=parseFloat((cyclePrice/4).toFixed(2));
+            const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
+            const _sessPerCycle=_daysPerWeek*4;
+            const totalCycles=Math.round(qbRecDuration/4);         // 3, 6, or 12
+            const cyclePrice=parseFloat(qbCyclePrice.toFixed(2));   // rate × sessions_per_cycle
+            const perSessionCost=parseFloat((cyclePrice/_sessPerCycle).toFixed(2));
             const totalAmount=parseFloat((cyclePrice*totalCycles).toFixed(2));
             const paymentType=type==='recurring_full'?'full':type==='recurring_deposit'?'deposit':'none';
             const status=type==='recurring_pending'?'pending':'confirmed';
             const balance=parseFloat(Math.max(0,cyclePrice-payAmt).toFixed(2));
             const startDateObj=new Date(from+'T12:00:00');
-            const endDateStr=qbRecurrenceDates[qbRecurrenceDates.length-1]||from;
+            const endDateStr=qbRecurrenceDates[qbRecurrenceDates.length-1].date||from;
+            // Build day_schedule array: [{dow, startTime, endTime}] for all selected days
+            const daySchedule=qbRecSelectedDays.length>0
+                ?qbRecSelectedDays.map(d=>({dow:d.dow,startTime:d.startTime,endTime:d.endTime}))
+                :[{dow:startDateObj.getDay(),startTime:startT,endTime:endT}];
+            // specific_dates = comma-separated list of date strings
+            const specificDatesStr=qbRecurrenceDates.map(d=>d.date).join(',');
             const payload={
                 customer_name:name,customer_email:email||null,customer_phone:phone,
                 room_id:roomId||null,
@@ -1666,15 +1695,16 @@
                 start_time:startT,end_time:endT,
                 start_date:from,
                 day_of_week:startDateObj.getDay(),
-                frequency:'weekly',                          // 4-week cycle is always weekly
+                frequency:'weekly',                           // 4-week cycle is always weekly
                 end_date:endDateStr,
-                specific_dates:qbRecurrenceDates.join(','),
-                session_price:perSessionCost,                // per-session rate locked at contract creation
+                specific_dates:specificDatesStr,
+                day_schedule:daySchedule,                     // per-day time overrides for multi-day
+                session_price:perSessionCost,                 // per-session rate locked at contract creation
                 rate_per_session:perSessionCost,
-                monthly_fee:cyclePrice,                      // cycle price in DB (4 sessions × session_price)
+                monthly_fee:cyclePrice,                       // cycle price in DB
                 period_amount:cyclePrice,
-                agreed_price:cyclePrice,                     // locked; never recalculated from room rates
-                sessions_per_cycle:4,                        // weekly = 4 sessions per 4-wk cycle
+                agreed_price:cyclePrice,                      // locked; never recalculated from room rates
+                sessions_per_cycle:_sessPerCycle,             // N days × 4 weeks
                 total_cycles:totalCycles,
                 remaining_cycles:totalCycles,
                 billing_type:'4_week_cycle',
@@ -1687,7 +1717,7 @@
                 payment_amount:payAmt,balance_due:balance,
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
-                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
+                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/week at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
                 tenant_id:parseInt(_CAL_TID()),
                 status:status
@@ -2290,349 +2320,6 @@
             }catch(e){console.error('Calendar error:',e);if(calEl)calEl.innerHTML='<div style="padding:2.5rem 2rem;text-align:center;"><i class="fa-solid fa-triangle-exclamation" style="font-size:2rem;margin-bottom:12px;display:block;color:#ef4444;"></i><strong style="color:#ef4444;">Calendar failed to load</strong><br><span style="font-size:0.85rem;opacity:0.7;margin-top:8px;display:block;">'+e.message+'</span><br><button onclick="location.reload()" style="margin-top:14px;padding:8px 22px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;"><i class="fa-solid fa-rotate-right" style="margin-right:6px;"></i>Retry</button></div>';}
         });
     
-
-        // ── RECURRING SERIES MODAL (rb-qb-card) ──────────────────────────────
-
-        // State
-        var rbFrequency='weekly';
-        var rbSelectedDays=[];  // [{dow:0-6, startTime:'HH:MM', endTime:'HH:MM'}]
-        var rbTotalAmount=0, rbDepositAmount=0, rbCyclePrice=0;
-        var _rbRenderScheduled=false;
-
-        const RB_DOW_ORDER=[1,2,3,4,5,6,0]; // Mon first
-        const RB_DOW_LABEL={0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
-        const RB_DOW_FULL={0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
-
-        function openRbQbModal(){
-            // Pre-fill from the parent qb-modal values
-            const qbName  = document.getElementById('qb-customerName')?.value  || '';
-            const qbPhone = document.getElementById('qb-customerPhone')?.value || '';
-            const qbEmail = document.getElementById('qb-customerEmail')?.value || '';
-            const qbNotes = document.getElementById('qb-notes')?.value         || '';
-            const qbFrom  = document.getElementById('qb-multiDayToggle')?.checked
-                ? document.getElementById('qb-dateFrom')?.value
-                : document.getElementById('qb-eventDate')?.value;
-
-            document.getElementById('rb-customerName').value  = qbName;
-            document.getElementById('rb-customerPhone').value = qbPhone;
-            document.getElementById('rb-customerEmail').value = qbEmail;
-            document.getElementById('rb-notes').value         = qbNotes;
-            if(qbFrom) document.getElementById('rb-startDate').value = qbFrom;
-
-            // Populate room dropdown from live qbRoomsData
-            const rbRoom = document.getElementById('rb-roomSelect');
-            rbRoom.innerHTML = '<option value="">Select room...</option>';
-            qbRoomsData.forEach(r=>{
-                const n=r.name||r.room_name||r.id;
-                const o=document.createElement('option');
-                o.value=n; o.textContent=n;
-                rbRoom.appendChild(o);
-            });
-            const qbRoomVal = document.getElementById('qb-roomSelect')?.value;
-            if(qbRoomVal) rbRoom.value = qbRoomVal;
-
-            // Populate event type from qb-eventType
-            const rbEt = document.getElementById('rb-eventType');
-            const qbEt = document.getElementById('qb-eventType');
-            if(qbEt){ rbEt.innerHTML = qbEt.innerHTML; rbEt.value = qbEt.value; }
-
-            // Reset state
-            rbFrequency='weekly'; rbSelectedDays=[];
-            rbTotalAmount=0; rbDepositAmount=0; rbCyclePrice=0;
-
-            // Reset frequency pills
-            document.querySelectorAll('#rbQbModal .qb-freq-pill').forEach(p=>{
-                p.classList.toggle('active', p.dataset.freq==='weekly');
-            });
-
-            // Reset duration & payterms
-            document.getElementById('rb-duration').value  = '';
-            document.getElementById('rb-payterms').value  = 'in_advance';
-            document.getElementById('rb-billingDay').value = '1';
-
-            // Reset rate (auto-fill from room if possible)
-            rbOnRoomChange();
-
-            // Reset totals
-            document.getElementById('rb-totalDisplay').textContent = '£0.00';
-            document.getElementById('rb-breakdown').textContent    = '';
-            document.getElementById('rb-payAmount').value          = '';
-            document.getElementById('rb-preview').innerHTML        = 'Select days, frequency and contract length to preview.';
-            document.getElementById('rb-btn-full').disabled        = true;
-            document.getElementById('rb-btn-deposit').disabled     = true;
-            document.getElementById('rb-depositLabel').textContent = '30%';
-
-            // Build day grid
-            rbRenderDayGrid();
-            rbRenderDayTimeRows();
-
-            document.getElementById('rbQbModal').classList.add('open');
-        }
-
-        function closeRbQbModal(){
-            document.getElementById('rbQbModal').classList.remove('open');
-        }
-
-        function rbRenderDayGrid(){
-            const grid = document.getElementById('rb-day-grid');
-            if(!grid) return;
-            grid.innerHTML = RB_DOW_ORDER.map(dow=>{
-                const active = rbSelectedDays.some(d=>d.dow===dow);
-                return `<div class="rb-day-tile${active?' active':''}" onclick="rbToggleDay(${dow})">${RB_DOW_LABEL[dow]}</div>`;
-            }).join('');
-        }
-
-        function rbToggleDay(dow){
-            const idx = rbSelectedDays.findIndex(d=>d.dow===dow);
-            if(idx>=0){
-                rbSelectedDays.splice(idx,1);
-            } else {
-                // Default times: 09:00–10:00
-                rbSelectedDays.push({dow, startTime:'09:00', endTime:'10:00'});
-                // Keep Mon→Sun order
-                rbSelectedDays.sort((a,b)=>RB_DOW_ORDER.indexOf(a.dow)-RB_DOW_ORDER.indexOf(b.dow));
-            }
-            rbRenderDayGrid();
-            rbRenderDayTimeRows();
-            rbUpdatePreview();
-        }
-
-        function rbRenderDayTimeRows(){
-            const container = document.getElementById('rb-day-time-rows');
-            if(!container) return;
-            if(!rbSelectedDays.length){
-                container.innerHTML='<div class="rb-no-days-hint"><i class="fa-regular fa-hand-pointer" style="margin-right:6px"></i>Select one or more days above to set times</div>';
-                return;
-            }
-            // Build time options once
-            const times=[];
-            for(let h=6;h<24;h++) for(let m=0;m<60;m+=30)
-                times.push(`${String(h).padStart(2,'0')}:${m===0?'00':'30'}`);
-            const opts=(sel)=>times.map(t=>`<option value="${t}"${t===sel?' selected':''}>${t}</option>`).join('');
-
-            container.innerHTML = rbSelectedDays.map(d=>`
-                <div class="rb-day-time-row">
-                    <span class="rb-day-time-label">${RB_DOW_LABEL[d.dow]}</span>
-                    <select class="qb-select rb-time-sel" style="flex:1;min-width:0" onchange="rbSetDayTime(${d.dow},'start',this.value)">${opts(d.startTime)}</select>
-                    <span style="color:var(--text-muted);font-size:0.85rem;flex-shrink:0">→</span>
-                    <select class="qb-select rb-time-sel" style="flex:1;min-width:0" onchange="rbSetDayTime(${d.dow},'end',this.value)">${opts(d.endTime)}</select>
-                </div>`).join('');
-        }
-
-        function rbSetDayTime(dow, which, value){
-            const d = rbSelectedDays.find(d=>d.dow===dow);
-            if(!d) return;
-            if(which==='start') d.startTime=value;
-            else d.endTime=value;
-            rbUpdatePreview();
-        }
-
-        function rbSetFrequency(freq){
-            rbFrequency=freq;
-            document.querySelectorAll('#rbQbModal .qb-freq-pill').forEach(p=>{
-                p.classList.toggle('active', p.dataset.freq===freq);
-            });
-            rbUpdatePreview();
-        }
-
-        function rbOnRoomChange(){
-            // Auto-fill rate from room day_rate (hourly × default 1hr)
-            const roomName = document.getElementById('rb-roomSelect')?.value;
-            const room = qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
-            if(room && room.day_rate){
-                const existing = parseFloat(document.getElementById('rb-ratePerSess').value)||0;
-                if(!existing) document.getElementById('rb-ratePerSess').value = parseFloat(room.day_rate).toFixed(2);
-            }
-            rbUpdatePreview();
-        }
-
-        function rbGenerateDates(){
-            // Returns [{date:'YYYY-MM-DD', dow:N, startTime, endTime}] sorted by date
-            const startStr = document.getElementById('rb-startDate')?.value;
-            const durWeeks = parseInt(document.getElementById('rb-duration')?.value)||0;
-            if(!startStr||!durWeeks||!rbSelectedDays.length) return [];
-
-            const endDate = new Date(startStr+'T12:00:00');
-            endDate.setDate(endDate.getDate() + durWeeks*7 - 1);
-            const endStr = _ld(endDate);
-
-            const stepDays = rbFrequency==='weekly' ? 7 : rbFrequency==='fortnightly' ? 14 : 28;
-            const sessions = [];
-
-            for(const slot of rbSelectedDays){
-                // Find first occurrence of this DOW on or after startDate
-                const anchor = new Date(startStr+'T12:00:00');
-                let safety=0;
-                while(anchor.getDay()!==slot.dow && safety++<7) anchor.setDate(anchor.getDate()+1);
-                if(anchor.getDay()!==slot.dow) continue;
-                if(_ld(anchor)>endStr) continue;
-
-                const cur = new Date(anchor);
-                while(_ld(cur)<=endStr){
-                    sessions.push({date:_ld(cur), dow:slot.dow, startTime:slot.startTime, endTime:slot.endTime});
-                    cur.setDate(cur.getDate()+stepDays);
-                }
-            }
-            sessions.sort((a,b)=>a.date.localeCompare(b.date));
-            return sessions;
-        }
-
-        function rbUpdatePreview(){
-            const prev    = document.getElementById('rb-preview');
-            const rate    = parseFloat(document.getElementById('rb-ratePerSess')?.value)||0;
-            const durWeeks= parseInt(document.getElementById('rb-duration')?.value)||0;
-            const startStr= document.getElementById('rb-startDate')?.value;
-
-            if(!rbSelectedDays.length||!durWeeks||!startStr){
-                if(prev) prev.innerHTML='Select days, frequency and contract length to preview.';
-                rbTotalAmount=0; rbDepositAmount=0; rbCyclePrice=0;
-                document.getElementById('rb-totalDisplay').textContent='£0.00';
-                document.getElementById('rb-breakdown').textContent='';
-                rbSetRbButtons(false);
-                return;
-            }
-
-            const sessions = rbGenerateDates();
-            if(!sessions.length){ if(prev) prev.innerHTML='No sessions could be generated — check start date.'; return; }
-
-            // Sessions per 4-week cycle (per selected day)
-            const sessPerDayPerCycle = rbFrequency==='weekly'?4 : rbFrequency==='fortnightly'?2 : 1;
-            const sessPerCycle       = sessPerDayPerCycle * rbSelectedDays.length;
-            const totalCycles        = Math.round(durWeeks/4);
-
-            rbCyclePrice   = parseFloat((rate * sessPerCycle).toFixed(2));
-            rbTotalAmount  = parseFloat((rbCyclePrice * totalCycles).toFixed(2));
-            rbDepositAmount= parseFloat((rbCyclePrice * QBR_DEPOSIT_PCT / 100).toFixed(2));
-
-            document.getElementById('rb-totalDisplay').textContent = fmt(rbTotalAmount);
-
-            const dayStr = rbSelectedDays.map(d=>RB_DOW_LABEL[d.dow]).join(' + ');
-            document.getElementById('rb-breakdown').innerHTML =
-                `${dayStr} · ${rbFrequency} · ${fmt(rate)}/session<br>`+
-                `${sessPerCycle} sess/cycle × ${fmt(rbCyclePrice)}/4-wk · ${totalCycles} cycles`;
-
-            document.getElementById('rb-depositLabel').textContent =
-                `${QBR_DEPOSIT_PCT}% = ${fmt(rbDepositAmount)}`;
-            document.getElementById('rb-payAmount').value = rbDepositAmount.toFixed(2);
-
-            const last  = sessions[sessions.length-1];
-            const first = sessions[0];
-            const sample = sessions.slice(0,4)
-                .map(s=>new Date(s.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))
-                .join(' · ');
-            const moreText = sessions.length>4 ? ` <em>+${sessions.length-4} more</em>` : '';
-
-            if(prev) prev.innerHTML =
-                `<strong style="color:var(--text-main)">${sessions.length} Sessions</strong> &nbsp;|&nbsp; `+
-                `<span style="color:var(--text-muted)">Ends ${new Date(last.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span><br>`+
-                `<span style="color:#34d399;font-weight:600">${totalCycles} cycles · ${fmt(rbCyclePrice)}/4 wks · ${fmt(rbTotalAmount)} total</span><br>`+
-                `<span style="color:#94a3b8;font-size:0.76rem">${sample}${moreText}</span>`;
-
-            rbSetRbButtons(rate>0 && sessions.length>0);
-        }
-
-        function rbSetRbButtons(enabled){
-            ['rb-btn-full','rb-btn-deposit'].forEach(id=>{
-                const el=document.getElementById(id);
-                if(el) el.disabled=!enabled;
-            });
-        }
-
-        async function rbSubmit(type){
-            const name    = document.getElementById('rb-customerName').value.trim();
-            const phone   = document.getElementById('rb-customerPhone').value.trim();
-            const email   = document.getElementById('rb-customerEmail').value.trim();
-            const roomName= document.getElementById('rb-roomSelect').value;
-            const startStr= document.getElementById('rb-startDate').value;
-            const rate    = parseFloat(document.getElementById('rb-ratePerSess').value)||0;
-            const durWeeks= parseInt(document.getElementById('rb-duration').value)||0;
-            const eventType=document.getElementById('rb-eventType').value;
-            const notes   = document.getElementById('rb-notes').value.trim();
-            const payMethod=document.getElementById('rb-payMethod').value;
-            const payAmt  = parseFloat(document.getElementById('rb-payAmount').value)||0;
-
-            if(!name||!phone){showToast('Customer name and phone are required','error');return;}
-            if(!roomName)    {showToast('Please select a room','error');return;}
-            if(!startStr)    {showToast('Please select a contract start date','error');return;}
-            if(!rbSelectedDays.length){showToast('Please select at least one day','error');return;}
-            if(!durWeeks)    {showToast('Please select a contract duration','error');return;}
-            if(!rate)        {showToast('Please enter a rate per session','error');return;}
-
-            const sessions = rbGenerateDates();
-            if(!sessions.length){showToast('No sessions could be generated — check the start date','error');return;}
-
-            const room    = qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
-            const roomId  = room?room.id:'';
-            const totalCycles      = Math.round(durWeeks/4);
-            const sessPerDayPerCycle = rbFrequency==='weekly'?4:rbFrequency==='fortnightly'?2:1;
-            const sessPerCycle     = sessPerDayPerCycle*rbSelectedDays.length;
-            const cyclePrice       = parseFloat((rate*sessPerCycle).toFixed(2));
-            const totalAmount      = parseFloat((cyclePrice*totalCycles).toFixed(2));
-            const paymentType      = type==='full'?'full':type==='deposit'?'deposit':'none';
-            const status           = type==='pending'?'pending':'confirmed';
-            const balance          = parseFloat(Math.max(0,cyclePrice-payAmt).toFixed(2));
-
-            // Primary day for day_of_week / start_time / end_time fields
-            const primary = rbSelectedDays[0];
-            const endDateStr = sessions[sessions.length-1].date;
-            const daySchedule= rbSelectedDays.map(d=>({dow:d.dow,day_name:RB_DOW_FULL[d.dow],start_time:d.startTime,end_time:d.endTime}));
-            const dayNames   = rbSelectedDays.map(d=>RB_DOW_FULL[d.dow]).join(', ');
-
-            const payload={
-                customer_name:name, customer_email:email||null, customer_phone:phone,
-                room_id:roomId||null,
-                room_name:roomName,
-                start_time:primary.startTime, end_time:primary.endTime,
-                start_date:startStr,
-                day_of_week:primary.dow,
-                frequency:rbFrequency,
-                end_date:endDateStr,
-                specific_dates:sessions.map(s=>s.date).join(','),
-                day_schedule:daySchedule,
-                session_price:rate,                           // per-session rate locked at contract creation
-                rate_per_session:rate,
-                monthly_fee:cyclePrice,                       // cycle price (sessPerCycle × rate)
-                period_amount:cyclePrice,
-                agreed_price:cyclePrice,                      // locked; never recalculated from room rates
-                sessions_per_cycle:sessPerCycle,              // 4 weekly / 2 fortnightly / 1 monthly
-                total_cycles:totalCycles,
-                remaining_cycles:totalCycles,
-                billing_type:'4_week_cycle',
-                payment_timing:document.getElementById('rb-payterms').value,
-                billing_day:parseInt(document.getElementById('rb-billingDay').value)||1,
-                event_type:eventType||null, notes:notes||null,
-                total_sessions:sessions.length,
-                total_amount:totalAmount,
-                payment_type:paymentType, payment_method:payMethod,
-                payment_amount:payAmt, balance_due:balance,
-                booking_source:'calendar_recurring',
-                interaction_type:'RECURRING_CONTRACT_CREATED',
-                contract_notes:`${durWeeks}-wk ${rbFrequency} contract · ${name} · ${roomName} · Days: ${dayNames} · ${fmt(rate)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
-                performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
-                tenant_id:parseInt(_CAL_TID()),
-                status
-            };
-
-            rbSetRbButtons(false);
-            document.querySelector('#rbQbModal .qb-btn-pending').disabled=true;
-            try{
-                const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{},body:JSON.stringify(payload)});
-                if(!res.ok) throw new Error('HTTP '+res.status);
-                const rj=await res.json().catch(()=>({}));
-                if(rj.success===false) throw new Error(rj.message||'Submission failed');
-                closeRbQbModal();
-                closeQbModal();
-                showToast('Recurring series created!','success');
-                setTimeout(()=>location.reload(),1500);
-            }catch(err){
-                showToast('Failed to submit: '+err.message,'error');
-            }finally{
-                rbSetRbButtons(true);
-                document.querySelector('#rbQbModal .qb-btn-pending').disabled=false;
-            }
-        }
-
-        // ── END RECURRING SERIES MODAL ────────────────────────────────────────
 
         function toggleSidebarCollapse(){
             const col=document.body.classList.toggle('sidebar-collapsed');
