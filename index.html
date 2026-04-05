@@ -2158,6 +2158,17 @@
                 document.getElementById('val-revenue-label').innerText = `${MONTHS[revenueMonth-1]} ${revenueYear}`;
                 document.getElementById('val-pending').innerText = metrics.pending_requests || 0;
 
+                // Outstanding: use API value (includes single bookings + recurring cycle amounts)
+                // This overrides the locally-computed sum that only covered confirmed_bookings.balance_due
+                if (metrics.outstanding !== undefined && metrics.outstanding !== null) {
+                    const outEl = document.getElementById('qs-outstanding');
+                    if (outEl) {
+                        const outstanding = parseFloat(metrics.outstanding) || 0;
+                        outEl.innerText = formatCurrency(outstanding);
+                        outEl.style.color = outstanding > 0 ? 'var(--warning)' : 'var(--success)';
+                    }
+                }
+
                 // REQUESTS - Store in global array
                 let requests = data.recent_customers || [];
                 // Exclude customers who already have a booking (has_booking) or whose status has moved on
