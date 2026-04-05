@@ -1661,7 +1661,7 @@
             const endDateStr=qbRecurrenceDates[qbRecurrenceDates.length-1]||from;
             const payload={
                 customer_name:name,customer_email:email||null,customer_phone:phone,
-                room_id:roomId?parseInt(roomId)||null:null,   // integer prevents "Various Rooms" fallback
+                room_id:roomId||null,
                 room_name:roomName,
                 start_time:startT,end_time:endT,
                 start_date:from,
@@ -2580,7 +2580,7 @@
 
             const payload={
                 customer_name:name, customer_email:email||null, customer_phone:phone,
-                room_id:roomId?parseInt(roomId)||null:null,   // integer prevents "Various Rooms" fallback
+                room_id:roomId||null,
                 room_name:roomName,
                 start_time:primary.startTime, end_time:primary.endTime,
                 start_date:startStr,
