@@ -1734,8 +1734,9 @@
         let currentPendingData       = null;
         const EXPIRY_WARNING_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/send-expiry-warning';
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
-        const ALL_BOOKINGS_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
-        const PAY_BALANCE_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
+        const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
+        const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
+        const PAY_BALANCE_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
 
         function getAuthHeaders() {
             // No custom headers — avoid CORS preflight failures.
@@ -1928,12 +1929,14 @@
         function renderCard(item) {
             // Determine item type
             const isRequest = item.status === 'pending' || item.status === 'contacted';
-            // Recurring outstanding: no booking_date but has series_reference + amount_due/cycle_price
-            const isRecurringOutstanding = !item.booking_id && item.series_reference &&
-                parseFloat(item.amount_due || item.cycle_price || 0) > 0;
+            // Recurring outstanding: booking_type === 'recurring' (from get-outstanding-bookings endpoint)
+            // OR legacy format: no booking_id but has series_reference + amount_due/cycle_price
+            const isRecurringOutstanding = item.booking_type === 'recurring' ||
+                (!item.booking_id && item.series_reference &&
+                 parseFloat(item.amount_due || item.cycle_price || 0) > 0);
             const isOutstanding = isRecurringOutstanding ||
-                (item.balance_due && parseFloat(item.balance_due) > 0 && item.booking_date);
-            const isUpcoming = item.booking_date && !isOutstanding && !isRequest;
+                (parseFloat(item.balance_due || 0) > 0 && (item.booking_date || item.date_from));
+            const isUpcoming = (item.booking_date || item.date_from) && !isOutstanding && !isRequest;
 
             // For recurring items, use due_date as the display date; fall back to booking_date
             const date = new Date(item.due_date || item.date_from || item.requested_date || item.event_date || item.booking_date);
@@ -1944,9 +1947,10 @@
             const name = item.full_name || item.customer_name || 'N/A';
             const room = item.room_name || (item.series_reference ? 'Recurring Contract' : 'N/A');
             const guests = item.guest_count || item.guests_count || item.num_people || item.numPeople || 0;
-            // Recurring items use amount_due/cycle_price; single bookings use balance_due
+            // Recurring items: use balance_due (from recurring_series) or legacy amount_due/cycle_price
+            // Single bookings: use balance_due from confirmed_bookings
             const balance = isRecurringOutstanding
-                ? parseFloat(item.cycle_price || item.amount_due || 0)
+                ? parseFloat(item.balance_due || item.cycle_price || item.amount_due || 0)
                 : parseFloat(item.balance_due || 0);
 
             let statusHtml = '';
@@ -2609,6 +2613,22 @@
             }));
         }
 
+        // Dedicated outstanding payments loader — calls the get-outstanding-bookings endpoint which
+        // returns BOTH single bookings (balance_due > 0) AND recurring series (from recurring_series table).
+        // This replaces the old approach of filtering confirmed_bookings.balance_due > 0, which broke
+        // after migration because all child recurring sessions now have balance_due = 0.
+        async function loadOutstandingPayments() {
+            try {
+                const res  = await fetch(OUTSTANDING_BOOKINGS_URL + tidParam(), { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const json = await res.json();
+                allOutstandingPayments = json.data || (Array.isArray(json) ? json : []);
+                renderOutstandingPanel();
+            } catch(e) {
+                console.error('loadOutstandingPayments error:', e);
+            }
+        }
+
         async function loadAllBookings() {
             try {
                 const res  = await fetch(ALL_BOOKINGS_URL + tidParam(), { headers: getAuthHeaders() });
@@ -2622,13 +2642,9 @@
 
                 const now  = new Date(); now.setHours(0,0,0,0);
 
-                // --- OUTSTANDING PAYMENTS: future + balance outstanding ---
-                allOutstandingPayments = raw.filter(b => {
-                    if (b.status === 'cancelled') return false;
-                    const bDate   = new Date(b.date_to || b.booking_date); // use date_to so multi-day events stay visible until last day
-                    const balance = parseFloat(b.balance_due || 0);
-                    return bDate >= now && balance > 0;
-                }).sort((a, b) => new Date(a.date_from || a.booking_date) - new Date(b.date_from || b.booking_date));
+                // Outstanding payments are now loaded by loadOutstandingPayments() which calls
+                // the dedicated get-outstanding-bookings endpoint (includes recurring series debt).
+                // Do NOT override allOutstandingPayments here.
 
                 // --- UPCOMING EVENTS: all future confirmed bookings (any payment status) ---
                 allUpcomingEvents = raw.filter(b => {
@@ -2837,8 +2853,8 @@
             if (!e || e.target.id === 'bookMod') document.getElementById('bookMod').classList.remove('open');
         }
 
-        startClock(); loadDashboard(); loadAllBookings(); loadAllInteractions(); loadActivityFeed(); setInterval(() => { loadDashboard(); loadAllBookings(); loadAllInteractions(); loadActivityFeed(); }, 60000);
-        window.addEventListener('pageshow', function(e) { if (e.persisted) { loadDashboard(); loadAllBookings(); loadAllInteractions(); loadActivityFeed(); } });
+        startClock(); loadDashboard(); loadAllBookings(); loadOutstandingPayments(); loadAllInteractions(); loadActivityFeed(); setInterval(() => { loadDashboard(); loadAllBookings(); loadOutstandingPayments(); loadAllInteractions(); loadActivityFeed(); }, 60000);
+        window.addEventListener('pageshow', function(e) { if (e.persisted) { loadDashboard(); loadAllBookings(); loadOutstandingPayments(); loadAllInteractions(); loadActivityFeed(); } });
 
         async function loadAllInteractions() {
             const INTERACTIONS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
