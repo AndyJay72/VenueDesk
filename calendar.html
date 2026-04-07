@@ -1139,6 +1139,21 @@
             <button onclick="qbCloseConflictModal()" style="background:var(--primary);border:none;color:white;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit">OK</button>
         </div>
     </div>
+
+    <!-- Recurring Pre-flight Confirmation Modal -->
+    <div id="qb-recurringClashModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:5100;justify-content:center;align-items:center;padding:1rem">
+        <div style="background:#1e293b;border:1px solid #f59e0b;border-radius:16px;padding:2rem;max-width:500px;width:100%">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+                <span style="font-size:1.75rem">⚠️</span>
+                <h3 style="color:#f59e0b;margin:0;font-size:1.1rem">Booking Conflicts Found</h3>
+            </div>
+            <div id="qb-clash-detail" style="color:#cbd5e1;font-size:0.87rem;line-height:1.7;margin-bottom:1.25rem;background:rgba(0,0,0,0.25);border-radius:8px;padding:1rem"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+                <button onclick="qbCloseClashModal()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-family:inherit;font-size:0.87rem">Cancel — Go back</button>
+                <button id="qb-clash-proceed-btn" onclick="qbProceedWithSafeDates()" style="background:#f59e0b;border:none;color:#0f172a;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.87rem">Proceed with available sessions</button>
+            </div>
+        </div>
+    </div>
     <script>
         const API_URL='https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const BLOCKED_API='https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
@@ -1146,6 +1161,7 @@
         const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/walk-in-booking';
         const RECURRING_CAL_API='https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-from-calendar';
         const CHECK_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+        const CHECK_RECURRING_CLASHES_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-recurring-clashes';
         const PRICING_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-pricing';
         const TYPES_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-event-types';
         const QBR_DEPOSIT_PCT=30;
@@ -1157,10 +1173,11 @@
 
         function showToast(msg,type){
             const t=document.createElement('div');
-            const bg=type==='error'?'#ef4444':type==='info'?'#6366f1':'#10b981';
-            t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;background:${bg};color:#fff;padding:12px 20px;border-radius:10px;font-size:0.88rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.25s`;
+            const bg=type==='error'?'#ef4444':type==='warning'?'#f59e0b':type==='info'?'#6366f1':'#10b981';
+            const dur=type==='warning'?7000:3500;
+            t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;background:${bg};color:#fff;padding:12px 20px;border-radius:10px;font-size:0.88rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.25s;max-width:420px;line-height:1.4`;
             t.textContent=msg;document.body.appendChild(t);
-            requestAnimationFrame(()=>{t.style.opacity='1';setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},3500);});
+            requestAnimationFrame(()=>{t.style.opacity='1';setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},dur);});
         }
 
         let allBlockedRules=[], blockedBgEvents=[];
@@ -1652,6 +1669,37 @@
         // Stub kept for backward-compat — frequency is always weekly in 4-week cycle model
         function qbOnFrequencyChange(freq){qbRecurrenceFreq=freq;qbUpdateRecurrencePreview();qbCalculateCost();}
         function qbOnBillingFreqChange(billing){qbBillingFreq=billing;qbCalculateCost();}
+        // Stored payload for when user confirms through the clash modal
+        let _qbPendingRecurringPayload = null;
+        let _qbPendingRecurringBtns    = [];
+
+        function qbCloseClashModal(){
+            document.getElementById('qb-recurringClashModal').style.display='none';
+            _qbPendingRecurringBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+            qbUpdateRecurringButtons();
+        }
+
+        async function qbProceedWithSafeDates(){
+            document.getElementById('qb-recurringClashModal').style.display='none';
+            if(_qbPendingRecurringPayload) await qbDoSubmitRecurring(_qbPendingRecurringPayload, _qbPendingRecurringBtns);
+        }
+
+        async function qbDoSubmitRecurring(payload, btns){
+            try{
+                const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{},body:JSON.stringify(payload)});
+                const rj=await res.json().catch(()=>({}));
+                if(!res.ok||rj.success===false) throw new Error(rj.message||('HTTP '+res.status));
+                closeQbModal();
+                showToast('Recurring series created — '+(rj.booking_count||payload.total_sessions||'')+' sessions booked.','success');
+                setTimeout(()=>location.reload(),1500);
+            }catch(err){
+                showToast('Could not create series: '+err.message,'error');
+            }finally{
+                btns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+                qbUpdateRecurringButtons();
+            }
+        }
+
         async function qbSubmitRecurringBooking(type){
             const name=document.getElementById('qb-customerName').value.trim();
             const phone=document.getElementById('qb-customerPhone').value.trim();
@@ -1669,70 +1717,134 @@
             if(!from){showToast('Please select a date','error');return;}
             if(!qbRecDuration){showToast('Please select a contract duration','error');return;}
             if(!qbRecurrenceDates.length){showToast('No sessions generated — select recurring days and start date','error');return;}
+
             const room=qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
             const roomId=room?room.id:'';
-            // 4-week cycle model values
+
+            // ── Step 1: Filter blocked dates ──────────────────────────────────
+            const allDates = qbRecurrenceDates.map(d=>d.date);
+            const blockedDates = allDates.filter(d => qbIsDateBlocked(d));
+            const nonBlockedDates = allDates.filter(d => !qbIsDateBlocked(d));
+
+            if(nonBlockedDates.length === 0){
+                showToast('All selected session dates are blocked venue days. Please choose different dates.','error');
+                return;
+            }
+
+            const allBtns=['qb-rec-btn-full','qb-rec-btn-pending'];
+            allBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
+
+            // ── Step 2: Pre-flight clash check ────────────────────────────────
+            let clashedDates = [];
+            try{
+                const cr = await fetch(CHECK_RECURRING_CLASHES_API,{
+                    method:'POST', headers:{},
+                    body: JSON.stringify({
+                        dates: nonBlockedDates.join(','),
+                        room_id: roomId,
+                        tenant_id: parseInt(_CAL_TID()),
+                        start_time: startT,
+                        end_time: endT
+                    })
+                });
+                const cj = await cr.json().catch(()=>({}));
+                clashedDates = (cj.clashed_dates || []).map(d=>String(d).trim().slice(0,10));
+            }catch(e){
+                // Clash check unreachable — proceed with all non-blocked dates, warn
+                showToast('Could not verify availability — proceeding with caution.','warning');
+            }
+
+            // ── Step 3: Compute safe dates ────────────────────────────────────
+            let safeDates = nonBlockedDates;
+            if(clashedDates.length > 0){
+                const sorted = [...clashedDates].sort();
+                const firstClash = sorted[0];
+                safeDates = nonBlockedDates.filter(d => d < firstClash);
+            }
+
+            if(safeDates.length === 0){
+                allBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+                qbUpdateRecurringButtons();
+                showToast('No sessions are available — the first date ('+(clashedDates.sort()[0]||'?')+') is already booked for this room.','error');
+                return;
+            }
+
+            // ── Step 4: Build payload using safe dates ────────────────────────
             const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
             const _sessPerCycle=_daysPerWeek*4;
-            const totalCycles=Math.round(qbRecDuration/4);         // 3, 6, or 12
-            const cyclePrice=parseFloat(qbCyclePrice.toFixed(2));   // rate × sessions_per_cycle
+            const totalCycles=Math.round(qbRecDuration/4);
+            const cyclePrice=parseFloat(qbCyclePrice.toFixed(2));
             const perSessionCost=parseFloat((cyclePrice/_sessPerCycle).toFixed(2));
             const totalAmount=parseFloat((cyclePrice*totalCycles).toFixed(2));
             const paymentType=type==='recurring_full'?'full':type==='recurring_deposit'?'deposit':'none';
             const status=type==='recurring_pending'?'pending':'confirmed';
             const balance=parseFloat(Math.max(0,cyclePrice-payAmt).toFixed(2));
             const startDateObj=new Date(from+'T12:00:00');
-            const endDateStr=qbRecurrenceDates[qbRecurrenceDates.length-1].date||from;
-            // Build day_schedule array: [{dow, startTime, endTime}] for all selected days
+            const endDateStr=safeDates[safeDates.length-1]||from;
             const daySchedule=qbRecSelectedDays.length>0
                 ?qbRecSelectedDays.map(d=>({dow:d.dow,startTime:d.startTime,endTime:d.endTime}))
                 :[{dow:startDateObj.getDay(),startTime:startT,endTime:endT}];
-            // specific_dates = comma-separated list of date strings
-            const specificDatesStr=qbRecurrenceDates.map(d=>d.date).join(',');
+
             const payload={
                 customer_name:name,customer_email:email||null,customer_phone:phone,
-                room_id:roomId||null,
-                room_name:roomName,
+                room_id:roomId||null,room_name:roomName,
                 start_time:startT,end_time:endT,
-                start_date:from,
-                day_of_week:startDateObj.getDay(),
-                frequency:'weekly',                           // 4-week cycle is always weekly
-                end_date:endDateStr,
-                specific_dates:specificDatesStr,
-                day_schedule:daySchedule,                     // per-day time overrides for multi-day
-                session_price:perSessionCost,                 // per-session rate locked at contract creation
-                rate_per_session:perSessionCost,
-                monthly_fee:cyclePrice,                       // cycle price in DB
-                period_amount:cyclePrice,
-                agreed_price:cyclePrice,                      // locked; never recalculated from room rates
-                sessions_per_cycle:_sessPerCycle,             // N days × 4 weeks
-                total_cycles:totalCycles,
-                remaining_cycles:totalCycles,
+                start_date:from,day_of_week:startDateObj.getDay(),
+                frequency:'weekly',end_date:endDateStr,
+                specific_dates:safeDates.join(','),
+                day_schedule:daySchedule,
+                session_price:perSessionCost,rate_per_session:perSessionCost,
+                monthly_fee:cyclePrice,period_amount:cyclePrice,agreed_price:cyclePrice,
+                sessions_per_cycle:_sessPerCycle,total_cycles:totalCycles,remaining_cycles:totalCycles,
                 billing_type:'4_week_cycle',
                 payment_timing:document.getElementById('qb-rec-payterms')?.value||'in_advance',
                 billing_day:parseInt(document.getElementById('qb-rec-billingDay')?.value||'1')||1,
                 event_type:eventType||null,notes:notes||null,
-                total_sessions:qbRecurrenceDates.length,
-                total_amount:totalAmount,
+                total_sessions:safeDates.length,total_amount:totalAmount,
                 payment_type:paymentType,payment_method:payMethod,
                 payment_amount:payAmt,balance_due:balance,
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
                 contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/week at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
-                tenant_id:parseInt(_CAL_TID()),
-                status:status
+                tenant_id:parseInt(_CAL_TID()),status:status
             };
-            const allBtns=['qb-rec-btn-full','qb-rec-btn-pending'];
-            allBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
-            try{
-                const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{},body:JSON.stringify(payload)});
-                if(!res.ok)throw new Error('HTTP '+res.status);
-                const rj=await res.json().catch(()=>({}));
-                if(rj.success===false)throw new Error(rj.message||'Submission failed');
-                closeQbModal();showToast('Recurring series created!','success');setTimeout(()=>location.reload(),1500);
-            }catch(err){showToast('Failed to submit: '+err.message,'error');}
-            finally{allBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});qbUpdateRecurringButtons();}
+
+            // ── Step 5: If conflicts exist, show confirmation modal ────────────
+            const hasBlockedDates  = blockedDates.length > 0;
+            const hasClashedDates  = clashedDates.length > 0;
+            const fmtD = d=>{const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});};
+
+            if(hasBlockedDates || hasClashedDates){
+                _qbPendingRecurringPayload = payload;
+                _qbPendingRecurringBtns    = allBtns;
+
+                let detail = '';
+                if(hasBlockedDates){
+                    detail += `<p style="margin:0 0 8px"><strong style="color:#f87171">Blocked venue days removed (${blockedDates.length}):</strong><br>`
+                            + blockedDates.slice(0,5).map(fmtD).join(', ')
+                            + (blockedDates.length>5?' … and '+(blockedDates.length-5)+' more':'')
+                            + '</p>';
+                }
+                if(hasClashedDates){
+                    const firstClash = [...clashedDates].sort()[0];
+                    detail += `<p style="margin:0 0 8px"><strong style="color:#fbbf24">Series cut short — ${fmtD(firstClash)} is already booked at this time.</strong></p>`;
+                }
+                detail += `<p style="margin:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">`
+                        + `<strong style="color:#34d399">${safeDates.length} session(s)</strong> can be booked `
+                        + `(${allDates.length - safeDates.length} removed). `
+                        + `Running from <strong>${fmtD(safeDates[0])}</strong> to <strong>${fmtD(safeDates[safeDates.length-1])}</strong>.`
+                        + `</p>`;
+
+                document.getElementById('qb-clash-detail').innerHTML = detail;
+                document.getElementById('qb-clash-proceed-btn').textContent = `Proceed with ${safeDates.length} session(s)`;
+                document.getElementById('qb-recurringClashModal').style.display='flex';
+                // Buttons stay disabled until modal is resolved
+                return;
+            }
+
+            // ── Step 6: No conflicts — submit directly ────────────────────────
+            await qbDoSubmitRecurring(payload, allBtns);
         }
         // ── END RECURRING HELPERS ───────────────────────────────────────────
 
