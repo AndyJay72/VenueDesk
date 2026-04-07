@@ -1929,29 +1929,21 @@
         function renderCard(item) {
             // Determine item type
             const isRequest = item.status === 'pending' || item.status === 'contacted';
-            // Recurring outstanding: booking_type === 'recurring' (from get-outstanding-bookings endpoint)
-            // OR legacy format: no booking_id but has series_reference + amount_due/cycle_price
-            const isRecurringOutstanding = item.booking_type === 'recurring' ||
-                (!item.booking_id && item.series_reference &&
-                 parseFloat(item.amount_due || item.cycle_price || 0) > 0);
-            const isOutstanding = isRecurringOutstanding ||
-                (parseFloat(item.balance_due || 0) > 0 && (item.booking_date || item.date_from));
+            const isRecurring = item.booking_type === 'recurring';
+            
+            // Ensure balance is treated as a number
+            const balance = parseFloat(item.balance_due || item.cycle_price || item.amount_due || 0);
+            const isOutstanding = balance > 0;
             const isUpcoming = (item.booking_date || item.date_from) && !isOutstanding && !isRequest;
 
-            // For recurring items, use due_date as the display date; fall back to booking_date
-            const date = new Date(item.due_date || item.date_from || item.requested_date || item.event_date || item.booking_date);
-            const isValidDate = !isNaN(date.getTime());
-            const dayNum = isValidDate ? date.getDate() : '—';
-            const monthName = isValidDate ? MONTHS[date.getMonth()] : 'TBC';
+            const dateStr = fmtBookingDate(item);
+            // Split for the badge UI
+            const dayNum = dateStr !== 'TBC' ? dateStr.split(' ')[0] : '—';
+            const monthName = dateStr !== 'TBC' ? dateStr.split(' ')[1] : 'TBC';
 
             const name = item.full_name || item.customer_name || 'N/A';
             const room = item.room_name || (item.series_reference ? 'Recurring Contract' : 'N/A');
             const guests = item.guest_count || item.guests_count || item.num_people || item.numPeople || 0;
-            // Recurring items: use balance_due (from recurring_series) or legacy amount_due/cycle_price
-            // Single bookings: use balance_due from confirmed_bookings
-            const balance = isRecurringOutstanding
-                ? parseFloat(item.balance_due || item.cycle_price || item.amount_due || 0)
-                : parseFloat(item.balance_due || 0);
 
             let statusHtml = '';
             let actionHtml = '';
@@ -1970,20 +1962,18 @@
                 const reqDataStr = encodeURIComponent(JSON.stringify(item));
                 cardOnclick = `openModal('${reqDataStr}')`;
             } else if (isOutstanding) {
-                const contractPill = isRecurringOutstanding
-                    ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.65rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;margin-left:4px;"><i class="fa-solid fa-repeat" style="font-size:0.55rem"></i> Cycle</span>`
-                    : '';
-                statusHtml = `<span class="status-pill status-outstanding">${formatCurrency(balance)} Due</span>${contractPill}`;
-                if (isRecurringOutstanding) {
-                    // Recurring cycles link to recurring-bookings page for payment
+                const typeLabel = isRecurring ? 'Cycle' : 'Due';
+                statusHtml = `<span class="status-pill status-outstanding">${formatCurrency(balance)} ${typeLabel}</span>`;
+                
+                if (isRecurring) {
                     actionHtml = `<a href="recurring-bookings.html" class="pay-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation()"><i class="fa-solid fa-repeat"></i> Manage</a>`;
-                    metaHtml = `<span><i class="fa-solid fa-rotate"></i> ${item.series_reference || 'Contract'}</span><span style="color:var(--warning);font-weight:600"><i class="fa-solid fa-coins"></i> ${formatCurrency(balance)}/cycle</span>`;
+                    metaHtml = `<span><i class="fa-solid fa-rotate"></i> ${item.series_reference || 'Contract'}</span>`;
                 } else {
                     actionHtml = `<button class="pay-btn" onclick="event.stopPropagation();payBooking('${item.booking_id || item.id}', '${item.customer_id}', ${balance})"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
                     metaHtml = `<span><i class="fa-solid fa-door-open"></i> ${room}</span><span><i class="fa-solid fa-user-group"></i> ${guests > 0 ? guests + ' guests' : '—'}</span>`;
                 }
                 const outDataStr = encodeURIComponent(JSON.stringify(item));
-                cardOnclick = isRecurringOutstanding ? '' : `openBookingModal('${outDataStr}')`;
+                cardOnclick = isRecurring ? '' : `openBookingModal('${outDataStr}')`;
             } else {
                 statusHtml = `<span class="status-pill status-upcoming">Confirmed</span>`;
                 actionHtml = `<button class="view-btn" onclick="event.stopPropagation();viewBookingDetails('${item.booking_id || item.id}')"><i class="fa-solid fa-eye"></i> View</button>`;
@@ -2808,13 +2798,27 @@
 
         // ---- RENDER HELPERS ----
         function fmtBookingDate(b, opts) {
-            const o = opts || {day:'numeric',month:'short',year:'numeric'};
-            const fmtD = d => { try { return new Date(d+'T00:00:00').toLocaleDateString('en-GB', o); } catch(e) { return d; } };
+            const o = opts || { day: 'numeric', month: 'short', year: 'numeric' };
+
+            // Robust guard: parse the date and reject anything clearly invalid
+            const rawDate = b.booking_date || b.event_date || b.date_from || '';
+            if (!rawDate) return 'TBC';
+            const _check = new Date(rawDate.includes('T') ? rawDate : rawDate + 'T00:00:00');
+            if (isNaN(_check.getTime()) || _check.getFullYear() < 2000) return 'TBC';
+        
+            const fmtD = d => { 
+                try { 
+                    const dateObj = new Date(d.includes('T') ? d : d + 'T00:00:00');
+                    return isNaN(dateObj.getTime()) ? 'TBC' : dateObj.toLocaleDateString('en-GB', o); 
+                } catch(e) { return 'TBC'; } 
+            };
+        
             const df = b.date_from ? b.date_from.split('T')[0] : null;
-            const dt = b.date_to   ? b.date_to.split('T')[0]   : null;
-            const ev = (b.booking_date || b.event_date || '').split('T')[0];
+            const dt = b.date_to ? b.date_to.split('T')[0] : null;
+            const ev = rawDate.split('T')[0];
+        
             if (df && dt && df !== dt) return fmtD(df) + ' – ' + fmtD(dt);
-            return ev ? fmtD(ev) : '—';
+            return ev ? fmtD(ev) : 'TBC';
         }
 
         // ---- BOOKING DETAIL MODAL ----
