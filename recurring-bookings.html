@@ -1442,7 +1442,7 @@ async function mpCancelSeries(ruleId, customerName) {
         const performed_by = (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })();
         const res = await fetch(REC_CANCEL_SERIES_URL, {
             method: 'POST',
-            headers: {},
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ series_id: ruleId, rule_id: ruleId, tenant_id: parseInt(_TID()), performed_by })
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
