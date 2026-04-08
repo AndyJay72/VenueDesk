@@ -1056,6 +1056,9 @@ function mpFmtDate(s){ return s ? new Date(s.split('T')[0]+'T00:00:00').toLocale
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 /* ─── Load all recurring series ─────────────────── */
+// Global map: ruleId → series API object (used by session view to derive block payment status)
+const _seriesMap = {};
+
 async function mpLoadSeries() {
     const grid = document.getElementById('mp-series-grid');
     grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:8px;display:block;"></i>Loading series…</div>';
@@ -1069,6 +1072,9 @@ async function mpLoadSeries() {
             grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-calendar-xmark" style="font-size:1.8rem;margin-bottom:8px;display:block;color:var(--text-muted);"></i>No active recurring series found.</div>';
             return;
         }
+
+        // Index series by ruleId so mpToggleSessions can look up period payment status
+        series.forEach(s => { if (s.rule_id) _seriesMap[s.rule_id] = s; });
 
         // Render cards immediately — don't wait for bookings fetch
         grid.innerHTML = series.map(s => mpRenderCard(s)).join('');
@@ -1125,26 +1131,32 @@ function mpRenderCard(s) {
     const progressPct    = total > 0 ? Math.min(100, Math.round((confirmed / total) * 100)) : 0;
     const progressFull   = progressPct === 100;
 
-    // Payment status
-    const now       = new Date();
-    const isOverdue = pStat === 'pending' && s.due_date && new Date(s.due_date) < now;
-    const canPay    = isActive && pStat === 'pending' && amtDue > 0;
-    const hasFuture = pending + confirmed > 0;
+    // Payment status — use current billing-period status where available (API now returns
+    // period_status from recurring_payment_schedule for the active period). Fall back to
+    // the overall series balance_due flag for series without a schedule entry.
+    const now          = new Date();
+    const periodStat   = (s.period_status  || '').toLowerCase();   // current schedule-row status
+    const effectiveStat= periodStat || pStat;                      // prefer period, fall back to overall
+    const isOverdue    = effectiveStat === 'pending'
+                         && s.due_date && new Date(s.due_date) < now;
+    const isPeriodPaid = effectiveStat === 'paid' || effectiveStat === 'completed';
+    const canPay       = isActive && !isPeriodPaid && amtDue > 0;
+    const hasFuture    = pending + confirmed > 0;
 
-    const badgeClass = !isActive    ? 'mp-badge-inactive'
-                     : pStat==='paid'? 'mp-badge-paid'
-                     : isOverdue    ? 'mp-badge-overdue'
+    const badgeClass = !isActive     ? 'mp-badge-inactive'
+                     : isPeriodPaid  ? 'mp-badge-paid'
+                     : isOverdue     ? 'mp-badge-overdue'
                      : 'mp-badge-pending';
-    const badgeLabel = !isActive    ? '<i class="fa-solid fa-ban"></i> Inactive'
-                     : pStat==='paid'? '<i class="fa-solid fa-check"></i> Paid'
-                     : isOverdue    ? '<i class="fa-solid fa-exclamation"></i> Overdue'
+    const badgeLabel = !isActive     ? '<i class="fa-solid fa-ban"></i> Inactive'
+                     : isPeriodPaid  ? '<i class="fa-solid fa-check"></i> Paid'
+                     : isOverdue     ? '<i class="fa-solid fa-exclamation"></i> Overdue'
                      : '<i class="fa-solid fa-hourglass-half"></i> Due';
 
     // Card left-border state class
-    const cardStateClass = !isActive ? 'is-inactive'
-                         : pStat==='paid' ? 'is-paid'
-                         : isOverdue      ? 'is-overdue'
-                         : canPay         ? 'has-balance'
+    const cardStateClass = !isActive    ? 'is-inactive'
+                         : isPeriodPaid ? 'is-paid'
+                         : isOverdue    ? 'is-overdue'
+                         : canPay       ? 'has-balance'
                          : '';
 
     // Avatar initials
@@ -1221,11 +1233,11 @@ function mpRenderCard(s) {
                     ${ratePS > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Per Session</div><div class="mp-fin-val">${mpFmt(ratePS)}</div></div>` : ''}
                     <div class="mp-fin-item">
                         <div class="mp-fin-lbl">Outstanding</div>
-                        <div class="mp-fin-val ${isOverdue?'overdue':canPay?'highlight':amtDue<=0?'paid':''}">${amtDue > 0 ? mpFmt(amtDue) : '<span style="color:#34d399;font-size:.85rem;">✓ Clear</span>'}</div>
+                        <div class="mp-fin-val ${isOverdue?'overdue':canPay?'highlight':isPeriodPaid?'paid':''}">${amtDue > 0 ? mpFmt(amtDue) : '<span style="color:#34d399;font-size:.85rem;">✓ Clear</span>'}</div>
                     </div>
                     <div class="mp-fin-item">
                         <div class="mp-fin-lbl">Status</div>
-                        <div class="mp-fin-val" style="font-size:.82rem;">${isOverdue ? '<span style="color:#f87171">Overdue</span>' : pStat==='paid' ? '<span style="color:#34d399">Paid up</span>' : canPay ? '<span style="color:#fbbf24">Unpaid</span>' : '<span style="color:#94a3b8;">—</span>'}</div>
+                        <div class="mp-fin-val" style="font-size:.82rem;">${isOverdue ? '<span style="color:#f87171">Overdue</span>' : isPeriodPaid ? '<span style="color:#34d399">Paid up</span>' : canPay ? '<span style="color:#fbbf24">Unpaid</span>' : '<span style="color:#94a3b8;">—</span>'}</div>
                     </div>
                 </div>
                 ${outstandingStrip}
@@ -1286,12 +1298,29 @@ function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
     const cancelled = sessions.filter(r => (r.status||'') === 'cancelled');
 
     // Helper: payment badge
+    // ⚠ Recurring child sessions always have balance_due=0 (trigger enforced — parent owns the debt).
+    //   Inferring "Paid" from balance_due=0 would make every child session look paid.
+    //   Instead: use payment_status from the DB, or the series-level period_status.
+    const seriesData = _seriesMap[ruleId] || {};
+    const seriesPeriodStat = (seriesData.period_status || seriesData.payment_status || '').toLowerCase();
+
     function payBadge(r, isPast) {
         const ps    = (r.payment_status || '').toLowerCase();
         const bal   = parseFloat(r.balance_due || 0);
         const total = parseFloat(r.total_amount || 0);
-        const isPaid = ps === 'paid' || (total > 0 && bal <= 0) || (total === 0 && ps !== '');
-        const isPartial = !isPaid && bal > 0 && total > 0 && bal < total;
+        const isRecurSess = !!(r.recurring_series_id || r.recurring_rule_id || r.is_recurring);
+        let isPaid, isPartial;
+        if (isRecurSess) {
+            // For recurring child sessions: do NOT use balance_due (always 0).
+            // Trust the explicit payment_status field; if absent, fall back to the
+            // series's current period status so the view reflects reality.
+            isPaid    = ps === 'paid' || ps === 'completed'
+                     || (ps === '' && (seriesPeriodStat === 'paid' || seriesPeriodStat === 'completed'));
+            isPartial = false;
+        } else {
+            isPaid    = ps === 'paid' || (total > 0 && bal <= 0) || (total === 0 && ps !== '');
+            isPartial = !isPaid && bal > 0 && total > 0 && bal < total;
+        }
         if (isPaid)    return `<span class="mp-sess-badge mp-pay-paid"><i class="fa-solid fa-check"></i> Paid</span>`;
         if (isPartial) return `<span class="mp-sess-badge mp-pay-partial"><i class="fa-solid fa-circle-half-stroke"></i> £${bal.toFixed(2)} due</span>`;
         if (isPast)    return `<span class="mp-sess-badge mp-pay-overdue"><i class="fa-solid fa-exclamation"></i> Overdue</span>`;
@@ -1300,16 +1329,27 @@ function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
 
     let rows = '';
 
+    // Derive how many billing blocks are paid from the series's balance_due and agreed_price.
+    // This is the most reliable signal: if £480 total and £240 balance_due → 1 of 2 blocks paid.
+    const seriesAgreed  = parseFloat(seriesData.agreed_price || seriesData.monthly_fee || 0);
+    const seriesBalance = parseFloat(seriesData.balance_due  || 0);
+    const totalBlocks   = blocks.length || 1;
+    const seriesTotalPaid = Math.max(0, seriesAgreed - seriesBalance);
+    const cycleValue    = sessionRate > 0 ? sessionRate * (parseInt(sessPerCycle) || 4) : 0;
+    // How many complete cycles have been fully paid?
+    const paidCycleCount= (cycleValue > 0 && seriesTotalPaid > 0)
+                         ? Math.floor(seriesTotalPaid / cycleValue)
+                         : 0;
+    // Is the CURRENT period (latest block) paid per the schedule row?
+    const currentPeriodPaid = seriesPeriodStat === 'paid' || seriesPeriodStat === 'completed';
+
     blocks.forEach((blk, bi) => {
-        // Determine block payment state: all paid, partial, or unpaid
-        const paidCount = blk.filter(r => {
-            const ps = (r.payment_status||'').toLowerCase();
-            const bal= parseFloat(r.balance_due||0);
-            const tot= parseFloat(r.total_amount||0);
-            return ps==='paid' || (tot>0 && bal<=0);
-        }).length;
-        const blockAllPaid = paidCount === blk.length;
-        const blockPartial = paidCount > 0 && paidCount < blk.length;
+        // Determine block payment state using schedule data, not child balance_due.
+        // Blocks are ordered oldest-first. Paid cycles fill from the front.
+        const blockIsPastCycle = bi < paidCycleCount;
+        const blockIsCurrent   = bi === totalBlocks - 1;  // last block = current period
+        const blockAllPaid = blockIsPastCycle || (blockIsCurrent && currentPeriodPaid);
+        const blockPartial = false;  // partial tracking comes from individual session statuses
         const blockCycleCost = sessionRate > 0 ? sessionRate * blk.length : 0;
 
         const blkBg    = blockAllPaid ? 'rgba(16,185,129,.06)'
