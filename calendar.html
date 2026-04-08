@@ -1149,7 +1149,7 @@
             </div>
             <div id="qb-clash-detail" style="color:#cbd5e1;font-size:0.87rem;line-height:1.7;margin-bottom:1.25rem;background:rgba(0,0,0,0.25);border-radius:8px;padding:1rem"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-                <button onclick="qbCloseClashModal()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-family:inherit;font-size:0.87rem">Cancel — Go back</button>
+                <button id="qb-clash-cancel-btn" onclick="qbCloseClashModal()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#94a3b8;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-family:inherit;font-size:0.87rem">Cancel — Go back</button>
                 <button id="qb-clash-proceed-btn" onclick="qbProceedWithSafeDates()" style="background:#f59e0b;border:none;color:#0f172a;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:0.87rem">Proceed with available sessions</button>
             </div>
         </div>
@@ -1403,7 +1403,7 @@
         }
         function qbTogglePriceOverride(){const on=document.getElementById('qb-overrideToggle').checked;document.getElementById('qb-overrideRow').style.display=on?'block':'none';if(!on)qbCalculateCost();}
         function qbApplyOverride(){const v=parseFloat(document.getElementById('qb-overrideAmount').value)||0;qbTotalAmount=v;qbDepositAmount=Math.round(v*QBR_DEPOSIT_PCT)/100;if(qbIsRecurring)qbCyclePrice=v;document.getElementById('qb-totalDisplay').textContent=fmt(v);document.getElementById('qb-depositLabel').textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(qbDepositAmount)}`;document.getElementById('qb-payAmount').value=qbIsRecurring?v.toFixed(2):qbDepositAmount.toFixed(2);}
-        function qbIsDateBlocked(dateStr){const d=new Date(dateStr+'T00:00:00');return allBlockedRules.some(r=>{if(r.block_type==='oneoff'&&r.block_date===dateStr)return true;if(r.block_type==='recurring'&&r.day_of_week!==undefined&&d.getDay()===parseInt(r.day_of_week))return true;if(r.block_type==='range'&&r.date_from&&r.date_to)return dateStr>=r.date_from.split('T')[0]&&dateStr<=r.date_to.split('T')[0];return false;});}
+        function qbIsDateBlocked(dateStr){const d=new Date(dateStr+'T00:00:00');return allBlockedRules.some(r=>{if(r.block_type==='oneoff'&&(r.block_date||'').split('T')[0]===dateStr)return true;if((r.block_type==='recurring'||r.block_type==='recurring-weekday')&&r.day_of_week!==undefined&&d.getDay()===parseInt(r.day_of_week))return true;if(r.block_type==='range'&&r.date_from&&r.date_to)return dateStr>=(r.date_from||'').split('T')[0]&&dateStr<=(r.date_to||'').split('T')[0];return false;});}
         function qbSetButtons(enabled){['qb-btn-deposit','qb-btn-full'].forEach(id=>document.getElementById(id).disabled=!enabled);if(qbIsRecurring)qbUpdateRecurringButtons();}
         function qbCheckAvailability(){
             clearTimeout(_qbAvailTimeout);
@@ -1690,8 +1690,25 @@
                 const rj=await res.json().catch(()=>({}));
                 if(!res.ok||rj.success===false) throw new Error(rj.message||('HTTP '+res.status));
                 closeQbModal();
-                showToast('Recurring series created — '+(rj.booking_count||payload.total_sessions||'')+' sessions booked.','success');
-                setTimeout(()=>location.reload(),1500);
+                // If the backend detected a clash and trimmed the series, show the clash modal
+                // with full details so the user knows what happened BEFORE the page reloads.
+                if(rj.partial_booking && rj.first_conflict_date){
+                    const fmtD=d=>{const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});};
+                    let detail='<p style="margin:0 0 8px"><strong style="color:#fbbf24">Series created but cut short.</strong></p>';
+                    detail+='<p style="margin:0 0 8px">'+fmtD(rj.first_conflict_date)+' was already booked — sessions from that date onwards were skipped.</p>';
+                    detail+='<p style="margin:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)"><strong style="color:#34d399">'+(rj.booking_count||'?')+' session(s) booked</strong> out of the '+payload.total_sessions+' requested.</p>';
+                    document.getElementById('qb-clash-detail').innerHTML=detail;
+                    // Replace Proceed button with an OK / close button
+                    const proceedBtn=document.getElementById('qb-clash-proceed-btn');
+                    if(proceedBtn){proceedBtn.textContent='OK — reload';proceedBtn.onclick=()=>{document.getElementById('qb-recurringClashModal').style.display='none';location.reload();};}
+                    // Hide cancel button — booking already made
+                    const cancelBtn=document.getElementById('qb-clash-cancel-btn');
+                    if(cancelBtn) cancelBtn.style.display='none';
+                    document.getElementById('qb-recurringClashModal').style.display='flex';
+                } else {
+                    showToast('Recurring series created — '+(rj.booking_count||payload.total_sessions||'')+' sessions booked.','success');
+                    setTimeout(()=>location.reload(),1500);
+                }
             }catch(err){
                 showToast('Could not create series: '+err.message,'error');
             }finally{
@@ -1736,6 +1753,31 @@
 
             // ── Step 2: Pre-flight clash check ────────────────────────────────
             let clashedDates = [];
+            if(!roomId){
+                // Room not resolved to an ID yet — skip DB clash check, rely on backend guard
+                allBtns.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+                qbUpdateRecurringButtons();
+                showToast('Please select a valid room before booking.','error');
+                return;
+            }
+            // Compute broadest time window across all selected recurring day specs.
+            // Using min(startTime) and max(endTime) ensures we catch conflicts
+            // on every day even when per-day times differ.
+            let preflightStart = startT || '09:00';
+            let preflightEnd   = endT   || '17:00';
+            if(qbRecSelectedDays.length > 0){
+                const allStarts = qbRecSelectedDays.map(d=>d.startTime||startT||'09:00').filter(Boolean).sort();
+                const allEnds   = qbRecSelectedDays.map(d=>d.endTime  ||endT  ||'17:00').filter(Boolean).sort();
+                if(allStarts.length) preflightStart = allStarts[0];                    // earliest
+                if(allEnds.length)   preflightEnd   = allEnds[allEnds.length-1];       // latest
+            }
+            // Also pull times from qbRecurrenceDates (each session may have its own time)
+            if(qbRecurrenceDates.length > 0){
+                const rStarts = qbRecurrenceDates.map(d=>d.startTime).filter(Boolean).sort();
+                const rEnds   = qbRecurrenceDates.map(d=>d.endTime).filter(Boolean).sort();
+                if(rStarts.length && rStarts[0] < preflightStart) preflightStart = rStarts[0];
+                if(rEnds.length   && rEnds[rEnds.length-1] > preflightEnd) preflightEnd = rEnds[rEnds.length-1];
+            }
             try{
                 const cr = await fetch(CHECK_RECURRING_CLASHES_API,{
                     method:'POST', headers:{},
@@ -1743,8 +1785,8 @@
                         dates: nonBlockedDates.join(','),
                         room_id: roomId,
                         tenant_id: parseInt(_CAL_TID()),
-                        start_time: startT,
-                        end_time: endT
+                        start_time: preflightStart,
+                        end_time: preflightEnd
                     })
                 });
                 const cj = await cr.json().catch(()=>({}));
@@ -1837,7 +1879,14 @@
                         + `</p>`;
 
                 document.getElementById('qb-clash-detail').innerHTML = detail;
-                document.getElementById('qb-clash-proceed-btn').textContent = `Proceed with ${safeDates.length} session(s)`;
+                // Reset buttons to pre-booking defaults (may have been mutated by post-booking display)
+                const _proceedBtn = document.getElementById('qb-clash-proceed-btn');
+                if(_proceedBtn){
+                    _proceedBtn.textContent = `Proceed with ${safeDates.length} session(s)`;
+                    _proceedBtn.onclick = qbProceedWithSafeDates;
+                }
+                const _cancelBtn = document.getElementById('qb-clash-cancel-btn');
+                if(_cancelBtn){ _cancelBtn.style.display = ''; _cancelBtn.onclick = qbCloseClashModal; }
                 document.getElementById('qb-recurringClashModal').style.display='flex';
                 // Buttons stay disabled until modal is resolved
                 return;
