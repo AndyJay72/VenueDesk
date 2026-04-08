@@ -913,7 +913,71 @@
     body.light-mode .mp-pay-box { background: #ffffff; border-color: rgba(0,0,0,0.12); color: #0f172a; }
     body.light-mode .mp-pay-box h3 { color: #0f172a; }
     body.light-mode .mp-pay-input { background: #ffffff; border-color: rgba(0,0,0,0.15); color: #0f172a; }
-    
+
+    /* ── Search bar ─────────────────────────────── */
+    .mp-search-bar {
+        display: flex; align-items: center; gap: 8px;
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(148,163,184,.18);
+        border-radius: 10px; padding: 7px 14px;
+        margin-bottom: .75rem;
+        transition: border-color .2s;
+    }
+    .mp-search-bar:focus-within { border-color: rgba(99,102,241,.45); }
+    .mp-search-bar > i { color: var(--text-muted); font-size: .85rem; flex-shrink: 0; }
+    .mp-search-bar input {
+        flex: 1; background: none; border: none; outline: none;
+        color: var(--text-main); font-size: .88rem; font-family: inherit;
+    }
+    .mp-search-bar input::placeholder { color: var(--text-muted); }
+    #mp-search-clear {
+        background: none; border: none; cursor: pointer;
+        color: var(--text-muted); padding: 0 2px; font-size: .82rem;
+        display: none; border-radius: 4px; transition: color .15s;
+    }
+    #mp-search-clear:hover { color: var(--text-main); }
+    #mp-search-clear.visible { display: block; }
+
+    /* ── Pagination bar ──────────────────────────── */
+    .mp-pager {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-top: .9rem; gap: 8px; flex-wrap: wrap; min-height: 34px;
+    }
+    .mp-pager-info { font-size: .78rem; color: var(--text-muted); }
+    .mp-pager-btns { display: flex; gap: 5px; }
+    .mp-pager-btn {
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(148,163,184,.15);
+        color: var(--text-main); border-radius: 8px;
+        padding: 5px 12px; font-size: .8rem; cursor: pointer;
+        font-family: inherit; transition: background .15s, border-color .15s;
+        min-width: 34px; text-align: center;
+    }
+    .mp-pager-btn:hover:not(:disabled) {
+        background: rgba(99,102,241,.18);
+        border-color: rgba(99,102,241,.3); color: #a5b4fc;
+    }
+    .mp-pager-btn.active {
+        background: rgba(99,102,241,.28);
+        border-color: rgba(99,102,241,.5); color: #c7d2fe; font-weight: 700;
+    }
+    .mp-pager-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* light-mode overrides */
+    body.light-mode .mp-search-bar {
+        background: #f8fafc; border-color: rgba(0,0,0,0.12);
+    }
+    body.light-mode .mp-search-bar input { color: #0f172a; }
+    body.light-mode .mp-pager-btn {
+        background: #f1f5f9; border-color: rgba(0,0,0,0.12); color: #334155;
+    }
+    body.light-mode .mp-pager-btn:hover:not(:disabled) {
+        background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.3); color: #4338ca;
+    }
+    body.light-mode .mp-pager-btn.active {
+        background: rgba(99,102,241,.18); border-color: rgba(99,102,241,.4); color: #4338ca;
+    }
+
 </style>
 </head>
 <body>
@@ -972,9 +1036,15 @@
                 </div>
                 <button onclick="mpLoadSeries()" style="padding:7px 15px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
             </div>
+            <div class="mp-search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="mp-search-input" placeholder="Search by name, room, reference…" oninput="mpOnSearch(this.value)" autocomplete="off">
+                <button id="mp-search-clear" onclick="mpClearSearch()" title="Clear search"><i class="fa-solid fa-xmark"></i></button>
+            </div>
             <div id="mp-series-grid" class="mp-series-grid">
                 <div class="mp-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:8px;display:block;"></i>Loading series…</div>
             </div>
+            <div id="mp-pager" class="mp-pager"></div>
         </div>
     </div><!-- #view-manage -->
 
@@ -1048,8 +1118,12 @@ const REC_ALL_BKG_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bo
 const REC_CANCEL_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
 const REC_CANCEL_SERIES_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-recurring-series';
 
-let _mpPayData = {};
-let _allSessions = [];
+let _mpPayData    = {};
+let _allSessions  = [];
+let _mpAllSeries  = [];   // full unfiltered list from API
+let _mpPage       = 1;    // current page (1-based)
+const _mpPageSize = 5;    // records per page
+let _mpSearchTerm = '';   // active search string (lowercase)
 
 function mpFmt(v){ return '£' + (parseFloat(v)||0).toFixed(2); }
 function mpFmtDate(s){ return s ? new Date(s.split('T')[0]+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—'; }
@@ -1070,14 +1144,17 @@ async function mpLoadSeries() {
 
         if (!series.length) {
             grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-calendar-xmark" style="font-size:1.8rem;margin-bottom:8px;display:block;color:var(--text-muted);"></i>No active recurring series found.</div>';
+            document.getElementById('mp-pager').innerHTML = '';
             return;
         }
 
         // Index series by ruleId so mpToggleSessions can look up period payment status
         series.forEach(s => { if (s.rule_id) _seriesMap[s.rule_id] = s; });
 
-        // Render cards immediately — don't wait for bookings fetch
-        grid.innerHTML = series.map(s => mpRenderCard(s)).join('');
+        // Store full list and render first page
+        _mpAllSeries = series;
+        _mpPage = 1;
+        mpRenderGrid();
 
         // Load bookings separately in background — failure won't affect series display
         fetch(REC_ALL_BKG_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() })
@@ -1092,6 +1169,96 @@ async function mpLoadSeries() {
     } catch(e) {
         grid.innerHTML = '<div class="mp-empty" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation" style="display:block;font-size:1.4rem;margin-bottom:8px;"></i>Error loading series: ' + e.message + '</div>';
     }
+}
+
+/* ─── Filter + paginate + render grid ───────────── */
+function mpRenderGrid() {
+    const grid = document.getElementById('mp-series-grid');
+
+    // Filter by search term across key fields
+    const filtered = _mpSearchTerm
+        ? _mpAllSeries.filter(s => {
+            const hay = [
+                s.customer_name, s.customer_email, s.customer_phone,
+                s.room_name, s.series_reference, s.series_name, s.notes
+            ].join(' ').toLowerCase();
+            return hay.includes(_mpSearchTerm);
+        })
+        : _mpAllSeries;
+
+    // Clamp page to valid range
+    const totalPages = Math.max(1, Math.ceil(filtered.length / _mpPageSize));
+    if (_mpPage > totalPages) _mpPage = totalPages;
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-magnifying-glass" style="font-size:1.4rem;margin-bottom:8px;display:block;color:var(--text-muted);"></i>No series match your search.</div>';
+        document.getElementById('mp-pager').innerHTML = '';
+        return;
+    }
+
+    const start     = (_mpPage - 1) * _mpPageSize;
+    const pageItems = filtered.slice(start, start + _mpPageSize);
+
+    grid.innerHTML = pageItems.map(s => mpRenderCard(s)).join('');
+    mpRenderPager(_mpPage, totalPages, filtered.length);
+}
+
+/* ─── Render pagination bar ─────────────────────── */
+function mpRenderPager(page, totalPages, total) {
+    const pager = document.getElementById('mp-pager');
+    if (totalPages <= 1) {
+        const start = (_mpPage - 1) * _mpPageSize + 1;
+        const end   = Math.min(_mpPage * _mpPageSize, total);
+        pager.innerHTML = `<span class="mp-pager-info">Showing ${start}–${end} of ${total}</span>`;
+        return;
+    }
+
+    const start = (_mpPage - 1) * _mpPageSize + 1;
+    const end   = Math.min(page * _mpPageSize, total);
+
+    // Build page number buttons (show up to 5 around current page)
+    let pageNums = '';
+    const maxBtns = 5;
+    let btnStart  = Math.max(1, page - Math.floor(maxBtns / 2));
+    let btnEnd    = Math.min(totalPages, btnStart + maxBtns - 1);
+    if (btnEnd - btnStart < maxBtns - 1) btnStart = Math.max(1, btnEnd - maxBtns + 1);
+
+    for (let p = btnStart; p <= btnEnd; p++) {
+        pageNums += `<button class="mp-pager-btn${p === page ? ' active' : ''}" onclick="mpGoPage(${p})">${p}</button>`;
+    }
+
+    pager.innerHTML = `
+        <span class="mp-pager-info">Showing ${start}–${end} of ${total}</span>
+        <div class="mp-pager-btns">
+            <button class="mp-pager-btn" onclick="mpGoPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            ${pageNums}
+            <button class="mp-pager-btn" onclick="mpGoPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>`;
+}
+
+function mpGoPage(p) {
+    _mpPage = p;
+    mpRenderGrid();
+    // Scroll the grid into view smoothly
+    document.getElementById('mp-series-grid').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function mpOnSearch(val) {
+    _mpSearchTerm = val.trim().toLowerCase();
+    _mpPage = 1;
+    mpRenderGrid();
+    const clearBtn = document.getElementById('mp-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('visible', val.length > 0);
+}
+
+function mpClearSearch() {
+    const inp = document.getElementById('mp-search-input');
+    if (inp) inp.value = '';
+    mpOnSearch('');
 }
 
 /* ─── Render a single series card ───────────────── */
