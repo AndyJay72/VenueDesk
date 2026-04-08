@@ -644,7 +644,7 @@
         <div class="table-wrap">
             <div class="table-inner">
                 <table>
-                    <thead><tr><th>Date &amp; Time</th><th>Customer</th><th>Room</th><th>Type</th><th>Details</th><th>Amount</th><th>Ref / Subject</th></tr></thead>
+                    <thead><tr><th>Date &amp; Time</th><th>Customer</th><th>Room</th><th>Type</th><th>Details</th><th>Amount</th><th>Series / Ref</th></tr></thead>
                     <tbody id="log-tbody"><tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr></tbody>
                 </table>
             </div>
@@ -734,14 +734,29 @@
                 const cfg=getTypeCfg(t.type);
                 const dateStr=t.ts?(()=>{try{return new Date(t.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return t.ts;}})():'—';
                 const amountCell=t.amount?`<span style="font-weight:700;color:var(--success)">${fmt(t.amount)}</span>`:'<span style="color:var(--text-muted)">—</span>';
+                // Customer cell — show name, email, phone
+                const custCell = `<div style="font-weight:600">${t.customer_name||'—'}</div>`
+                    + (t.customer_email ? `<div style="font-size:0.73rem;color:var(--text-muted)">${t.customer_email}</div>` : '')
+                    + (t.customer_phone ? `<div style="font-size:0.72rem;color:#64748b"><i class="fa-solid fa-phone" style="margin-right:3px;font-size:.6rem"></i>${t.customer_phone}</div>` : '');
+                // Ref / Series column — for recurring events, show the series_reference prominently
+                const isRecurEvent = t.type === 'recurring' || t.type === 'series_created';
+                let refCell;
+                if (isRecurEvent && t.series_reference) {
+                    refCell = `<div style="display:flex;flex-direction:column;gap:3px;">
+                        <span style="font-family:monospace;font-size:0.72rem;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;padding:2px 7px;border-radius:5px;white-space:nowrap;" title="Series reference">${t.series_reference}</span>`
+                        + (t.recurring_rule_id ? `<span style="font-family:monospace;font-size:0.67rem;color:#64748b;" title="Recurring Rule ID">${String(t.recurring_rule_id).slice(0,8)}…</span>` : '')
+                        + `</div>`;
+                } else {
+                    refCell = `<span style="font-family:monospace;font-size:0.78rem;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;" title="${t.ref||''}">${t.ref||'—'}</span>`;
+                }
                 return `<tr>
                     <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">${dateStr}</td>
-                    <td><div style="font-weight:600">${t.customer_name||'—'}</div><div style="font-size:0.75rem;color:var(--text-muted)">${t.customer_email||''}</div></td>
+                    <td>${custCell}</td>
                     <td style="font-size:0.85rem">${t.room_name||'—'}</td>
                     <td><span class="type-pill ${cfg.cls}"><i class="fa-solid ${cfg.icon}" style="margin-right:4px"></i>${cfg.label}</span></td>
                     <td style="font-size:0.83rem;color:var(--text-muted)">${t.details||'—'}</td>
                     <td>${amountCell}</td>
-                    <td style="font-family:monospace;font-size:0.78rem;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.ref||''}">${t.ref||'—'}</td>
+                    <td>${refCell}</td>
                 </tr>`;
             }).join('');
             document.getElementById('pg-info').innerText=`Page ${page} of ${totalPages} (${filtered.length} records)`;
@@ -804,13 +819,26 @@
                             let evDetails;
                             if (evType === 'recurring') {
                                 const notes = i.notes || '';
-                                const sessM = notes.match(/(\d+)\s+sessions in series/);
-                                const freqM = (i.subject||'').replace('Recurring booking created: ','').trim();
+                                // Extract series_reference (RB-XXXX) from notes if not on row directly
+                                const seriesM = notes.match(/Series:\s*(RB-\d+)/i) || (i.subject||'').match(/(RB-\d+)/);
+                                const sessM   = notes.match(/(\d+)\s+sessions/i);
+                                const freqM   = (i.subject||'').replace(/Recurring (booking|contract) created:\s*/i,'').replace(/(RB-\d+)/,'').trim();
                                 evDetails = [freqM||'Recurring', sessM?sessM[1]+' sessions':'', i.staff_member?'by '+i.staff_member:''].filter(Boolean).join(' \u00b7 ');
+                                // Enrich with series_reference and recurring_rule_id for the ref column
+                                const seriesRef = i.series_reference || (seriesM && seriesM[1]) || '';
+                                events.push({
+                                    type:evType, ts:i.timestamp||i.created_at,
+                                    customer_name:i.customer_name, customer_email:i.customer_email||i.email,
+                                    customer_phone:i.customer_phone||i.phone||'',
+                                    room_name:i.room_name, details:evDetails, amount:null,
+                                    ref:i.subject||i.notes||'',
+                                    series_reference:seriesRef,
+                                    recurring_rule_id:i.recurring_rule_id||i.booking_id||''
+                                });
                             } else {
                                 evDetails = `${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`;
+                                events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,customer_phone:i.customer_phone||i.phone||'',room_name:i.room_name,details:evDetails,amount:null,ref:i.subject||i.notes||''});
                             }
-                            events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,room_name:i.room_name,details:evDetails,amount:null,ref:i.subject||i.notes||''});
                         });
                     }catch(e){}
                 }
