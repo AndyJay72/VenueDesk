@@ -678,17 +678,25 @@
         function logout(){if(confirm("Log out?")){sessionStorage.removeItem('vp_token');window.location.href='login.html';}}
 
         const TYPE_CONFIG = {
-            payment:          { cls:'type-payment',          label:'Payment',          icon:'fa-credit-card' },
-            deposit:          { cls:'type-deposit',          label:'Deposit',          icon:'fa-coins' },
-            refund:           { cls:'type-refund',           label:'Refund',           icon:'fa-rotate-left' },
-            booking:          { cls:'type-booking',          label:'Booking',          icon:'fa-calendar-check' },
-            recurring:        { cls:'type-recurring',        label:'Recurring',        icon:'fa-repeat' },
-            enquiry:          { cls:'type-enquiry',          label:'Enquiry',          icon:'fa-inbox' },
-            interaction:      { cls:'type-interaction',      label:'Interaction',      icon:'fa-comments' },
-            email:            { cls:'type-email',            label:'Email',            icon:'fa-envelope' },
-            membership:       { cls:'type-membership',       label:'Membership',       icon:'fa-id-card' },
-            series_created:   { cls:'type-recurring',        label:'Series Created',   icon:'fa-file-contract' },
-            invoice_generated:{ cls:'type-deposit',          label:'Invoice Generated',icon:'fa-file-invoice-dollar' },
+            payment:            { cls:'type-payment',          label:'Payment',           icon:'fa-credit-card' },
+            deposit:            { cls:'type-deposit',          label:'Deposit',           icon:'fa-coins' },
+            refund:             { cls:'type-refund',           label:'Refund',            icon:'fa-rotate-left' },
+            booking:            { cls:'type-booking',          label:'Booking',           icon:'fa-calendar-check' },
+            recurring:          { cls:'type-recurring',        label:'Recurring',         icon:'fa-repeat' },
+            // recurring_payment and series_payment are both classified as recurring
+            recurring_payment:  { cls:'type-recurring',        label:'Recurring Payment', icon:'fa-repeat' },
+            series_payment:     { cls:'type-recurring',        label:'Series Payment',    icon:'fa-repeat' },
+            enquiry:            { cls:'type-enquiry',          label:'Enquiry',           icon:'fa-inbox' },
+            interaction:        { cls:'type-interaction',      label:'Interaction',       icon:'fa-comments' },
+            email:              { cls:'type-email',            label:'Email',             icon:'fa-envelope' },
+            membership:         { cls:'type-membership',       label:'Membership',        icon:'fa-id-card' },
+            series_created:     { cls:'type-recurring',        label:'Series Created',    icon:'fa-file-contract' },
+            invoice_generated:  { cls:'type-deposit',          label:'Invoice Generated', icon:'fa-file-invoice-dollar' },
+            // interaction_type values written by the new DB: Log * Interaction nodes
+            booking_confirmed:  { cls:'type-booking',          label:'Booking Confirmed', icon:'fa-calendar-check' },
+            booking_cancelled:  { cls:'type-refund',           label:'Booking Cancelled', icon:'fa-calendar-xmark' },
+            payment_received:   { cls:'type-payment',          label:'Payment Received',  icon:'fa-credit-card' },
+            customer_updated:   { cls:'type-interaction',      label:'Customer Updated',  icon:'fa-user-pen' },
         };
         function getTypeCfg(t) { return TYPE_CONFIG[t] || {cls:'type-other',label:t||'Other',icon:'fa-circle'}; }
 
@@ -805,8 +813,30 @@
                             let type='payment';
                             if(/deposit/.test(raw))type='deposit';
                             else if(/refund/.test(raw))type='refund';
-                            else if(/recurring_payment/.test(raw))type='payment';
-                            events.push({type,ts:p.payment_created_at||p.created_at||p.payment_date,customer_name:p.customer_name,customer_email:p.customer_email||p.email,room_name:p.room_name,details:(p.payment_method||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'—',amount:p.amount,method:p.payment_method,ref:p.reference||p.reference_number||p.deposit_reference||''});
+                            // recurring_payment and series_payment both map to the 'recurring' type
+                            // so they receive the type-recurring badge (indigo) instead of the
+                            // generic payment badge.
+                            else if(/recurring_payment|series_payment/.test(raw))type='recurring';
+                            const isRecurPmt = type === 'recurring';
+                            const seriesRef  = p.series_reference || '';
+                            const detailsStr = isRecurPmt && seriesRef
+                                ? (p.payment_method||'cash').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())
+                                  + ' · ' + seriesRef
+                                : (p.payment_method||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'—';
+                            events.push({
+                                type,
+                                ts:              p.payment_created_at||p.created_at||p.payment_date,
+                                customer_name:   p.customer_name,
+                                customer_email:  p.customer_email||p.email,
+                                room_name:       p.room_name,
+                                details:         detailsStr,
+                                amount:          p.amount,
+                                method:          p.payment_method,
+                                ref:             p.reference||p.reference_number||p.deposit_reference||'',
+                                // Pass series_reference through so the ref column renders it
+                                series_reference: seriesRef,
+                                recurring_rule_id: p.recurring_rule_id||''
+                            });
                         });
                     }catch(e){}
                 }
@@ -815,16 +845,26 @@
                         const ij=await intR.value.json();const ia=ij.data||(Array.isArray(ij)?ij:[]);
                         ia.forEach(i=>{
                             const itype=(i.interaction_type||'').toLowerCase();
-                            const evType=/recurring/i.test(itype)?'recurring':/membership/i.test(itype)?'membership':/email/i.test(itype)?'email':'interaction';
+                            // Map interaction_type to display type — prefer specific named types so
+                            // TYPE_CONFIG can assign the right badge colour/icon
+                            const evType = /recurring/i.test(itype)   ? 'recurring'
+                                         : /membership/i.test(itype)  ? 'membership'
+                                         : /email/i.test(itype)       ? 'email'
+                                         : itype === 'booking_confirmed' ? 'booking_confirmed'
+                                         : itype === 'booking_cancelled' ? 'booking_cancelled'
+                                         : itype === 'payment_received'  ? 'payment_received'
+                                         : itype === 'customer_updated'  ? 'customer_updated'
+                                         : 'interaction';
                             let evDetails;
                             if (evType === 'recurring') {
                                 const notes = i.notes || '';
-                                // Extract series_reference (RB-XXXX) from notes if not on row directly
-                                const seriesM = notes.match(/Series:\s*(RB-\d+)/i) || (i.subject||'').match(/(RB-\d+)/);
+                                // Extract series_reference (RB-XXXX) from notes or subject
+                                const seriesM = notes.match(/Series:\s*(RB-\d+)/i)
+                                             || (i.subject||'').match(/(RB-\d+)/)
+                                             || notes.match(/·\s*(RB-\d+)/i);
                                 const sessM   = notes.match(/(\d+)\s+sessions/i);
                                 const freqM   = (i.subject||'').replace(/Recurring (booking|contract) created:\s*/i,'').replace(/(RB-\d+)/,'').trim();
                                 evDetails = [freqM||'Recurring', sessM?sessM[1]+' sessions':'', i.staff_member?'by '+i.staff_member:''].filter(Boolean).join(' \u00b7 ');
-                                // Enrich with series_reference and recurring_rule_id for the ref column
                                 const seriesRef = i.series_reference || (seriesM && seriesM[1]) || '';
                                 events.push({
                                     type:evType, ts:i.timestamp||i.created_at,
@@ -836,8 +876,19 @@
                                     recurring_rule_id:i.recurring_rule_id||i.booking_id||''
                                 });
                             } else {
-                                evDetails = `${i.interaction_type||'Interaction'}${i.staff_member?' \u00b7 '+i.staff_member:''}`;
-                                events.push({type:evType,ts:i.timestamp||i.created_at,customer_name:i.customer_name,customer_email:i.customer_email||i.email,customer_phone:i.customer_phone||i.phone||'',room_name:i.room_name,details:evDetails,amount:null,ref:i.subject||i.notes||''});
+                                // Use subject as the human-readable detail (set by our new log nodes).
+                                // Fall back to notes, then to a formatted interaction_type label.
+                                const itypeLabel = itype.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                                evDetails = i.subject
+                                    || i.notes
+                                    || `${itypeLabel}${i.staff_member?' \u00b7 '+i.staff_member:''}`;
+                                events.push({
+                                    type:evType, ts:i.timestamp||i.created_at,
+                                    customer_name:i.customer_name, customer_email:i.customer_email||i.email,
+                                    customer_phone:i.customer_phone||i.phone||'',
+                                    room_name:i.room_name, details:evDetails, amount:null,
+                                    ref:i.subject||i.notes||''
+                                });
                             }
                         });
                     }catch(e){}
