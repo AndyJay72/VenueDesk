@@ -1874,10 +1874,16 @@
                     icon = 'fa-calendar-check';
                     break;
                 default: {
-                    // Deduplicate: a booking may appear in both outstanding and upcoming
+                    // Deduplicate: a booking may appear in both outstanding and upcoming.
+                    // Recurring items must use series_reference as their unique key so that
+                    // different contracts for the same customer are never merged, and a
+                    // recurring row is never collapsed against a single-booking row.
                     const seenIds = new Set();
                     items = [...allRequests, ...allOutstandingPayments, ...allUpcomingEvents].filter(item => {
-                        const key = item.id || item.booking_id || (item.customer_name + item.booking_date);
+                        const key = item.series_reference          // recurring contract — always unique
+                                 || item.id
+                                 || item.booking_id
+                                 || (item.customer_name + '|' + (item.booking_date || item.date_from || ''));
                         if (key && seenIds.has(key)) return false;
                         if (key) seenIds.add(key);
                         return true;
@@ -1930,9 +1936,13 @@
             // Determine item type
             const isRequest = item.status === 'pending' || item.status === 'contacted';
             const isRecurring = item.booking_type === 'recurring';
-            
-            // Ensure balance is treated as a number
-            const balance = parseFloat(item.balance_due || item.cycle_price || item.amount_due || 0);
+
+            // For recurring contracts the endpoint stores the total owed in amount_due
+            // (or balance_due); individual session rows carry balance_due = 0.  Prefer
+            // amount_due for recurring so a zero balance_due never hides the real debt.
+            const balance = isRecurring
+                ? parseFloat(item.amount_due || item.balance_due || item.cycle_price || 0)
+                : parseFloat(item.balance_due || item.amount_due || 0);
             const isOutstanding = balance > 0;
             const isUpcoming = (item.booking_date || item.date_from) && !isOutstanding && !isRequest;
 
@@ -1991,6 +2001,7 @@
                         </div>
                         <div class="b-details">
                             <h4>${name}</h4>
+                            ${isRecurring && item.series_reference ? `<div style="margin-top:2px;margin-bottom:1px"><span style="font-family:monospace;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.35);color:#a78bfa;padding:1px 8px;border-radius:4px;white-space:nowrap;">${item.series_reference}</span></div>` : ''}
                             <div class="b-meta">${metaHtml}</div>
                         </div>
                     </div>
@@ -3465,27 +3476,63 @@
 
             let items = allOutstandingPayments || [];
 
-            // Deduplicate by customer: one row per customer, keeping nearest upcoming booking.
-            // This prevents repeat-booking customers (with many future sessions) appearing multiple times.
-            // accounts.html shows the full per-booking breakdown.
+            // Deduplicate outstanding items with type-aware logic:
+            //
+            // • RECURRING items — grouped by series_reference (never by customer_id).
+            //   Each distinct contract for a customer must appear as its own row.
+            //   Multiple API rows for the same series (e.g. one per unpaid session) are
+            //   collapsed into one row with the balance_due summed.
+            //   Recurring items are NEVER merged against single bookings.
+            //
+            // • SINGLE bookings — deduplicated by customer_id, keeping the nearest
+            //   upcoming date (same behaviour as before, prevents noise from customers
+            //   with many future sessions). accounts.html shows the full breakdown.
             (function() {
-                const seen = new Map();
+                const seenSingle   = new Map();  // customer_id → nearest single booking
+                const seenSeries   = new Map();  // series_reference → accumulated series row
+
                 items.forEach(function(b) {
-                    const key = b.customer_id || b.full_name || b.customer_name || '';
-                    if (!key) return;
-                    const existingDate = seen.has(key)
-                        ? new Date(seen.get(key).date_from || seen.get(key).booking_date || 0)
-                        : null;
-                    const thisDate = new Date(b.date_from || b.booking_date || 0);
-                    if (!seen.has(key) || thisDate < existingDate) {
-                        seen.set(key, b);
+                    if (b.booking_type === 'recurring') {
+                        // Use series_reference (or rule_id as fallback) as the unique key.
+                        // Never let two different contracts collapse onto the same entry.
+                        const key = b.series_reference
+                                 || b.recurring_rule_id
+                                 || b.id
+                                 || (b.customer_id + '_recur_' + (b.series_reference || Math.random()));
+                        if (!seenSeries.has(key)) {
+                            seenSeries.set(key, Object.assign({}, b));
+                        } else {
+                            // Same series appearing more than once — accumulate the balance
+                            const existing = seenSeries.get(key);
+                            const combined = parseFloat(existing.balance_due || existing.amount_due || 0)
+                                           + parseFloat(b.balance_due || b.amount_due || 0);
+                            existing.balance_due = combined.toFixed(2);
+                            existing.amount_due  = combined.toFixed(2);
+                        }
+                    } else {
+                        // Single booking — keep one row per customer (nearest upcoming date)
+                        const key = b.customer_id || b.full_name || b.customer_name || '';
+                        if (!key) return;
+                        const existingDate = seenSingle.has(key)
+                            ? new Date(seenSingle.get(key).date_from || seenSingle.get(key).booking_date || 0)
+                            : null;
+                        const thisDate = new Date(b.date_from || b.booking_date || 0);
+                        if (!seenSingle.has(key) || thisDate < existingDate) {
+                            seenSingle.set(key, b);
+                        }
                     }
                 });
-                items = Array.from(seen.values());
-                // Re-sort by nearest date after dedup
-                items.sort(function(a, b) {
-                    return new Date(a.date_from || a.booking_date || 0) - new Date(b.date_from || b.booking_date || 0);
+
+                // Sort each group independently then merge: recurring contracts first,
+                // then single bookings ordered by nearest date.
+                const recurItems  = Array.from(seenSeries.values()).sort(function(a, b) {
+                    return (a.series_reference || '').localeCompare(b.series_reference || '');
                 });
+                const singleItems = Array.from(seenSingle.values()).sort(function(a, b) {
+                    return new Date(a.date_from || a.booking_date || 0)
+                         - new Date(b.date_from || b.booking_date || 0);
+                });
+                items = [...recurItems, ...singleItems];
             })();
 
             if (outSearchTerm) {
