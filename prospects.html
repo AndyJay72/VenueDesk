@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VenueDesk — Hot Prospects</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script>
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:   #0f172a;
+            --bg-card:   rgba(30, 41, 59, 0.7);
+            --bg-card2:  #1e293b;
+            --border:    rgba(255,255,255,.08);
+            --primary:   #6366f1;
+            --primary-h: #4f46e5;
+            --success:   #10b981;
+            --warning:   #f59e0b;
+            --danger:    #ef4444;
+            --info:      #3b82f6;
+            --orange:    #f97316;
+            --orange-h:  #fb923c;
+            --text-main: #f8fafc;
+            --text-muted:#94a3b8;
+            --radius:    14px;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; }
+
+        /* ── SIDEBAR ─────────────────────────────────────── */
+        .sidebar { width: 240px; min-height: 100vh; background: var(--bg-card2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; flex-shrink: 0; }
+        .sidebar-brand { padding: 1.25rem 1.25rem 1rem; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+        .brand-logo { width: 36px; height: 36px; background: var(--orange); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: white; flex-shrink: 0; }
+        .brand-name { font-size: 1.1rem; font-weight: 800; }
+        .brand-name span { color: var(--primary); }
+        .brand-sub { font-size: .65rem; color: var(--text-muted); font-weight: 500; }
+        .sidebar-nav { padding: 1rem .75rem; flex: 1; }
+        .nav-section { font-size: .65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; padding: .5rem .75rem .35rem; margin-top: .5rem; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: .65rem .75rem; color: var(--text-muted); text-decoration: none; border-radius: 9px; margin-bottom: 3px; transition: all .2s; font-weight: 500; font-size: .88rem; }
+        .nav-link i { width: 18px; text-align: center; }
+        .nav-link:hover { background: rgba(99,102,241,.12); color: var(--primary); }
+        .nav-link.active { background: rgba(249,115,22,.12); color: var(--orange-h); }
+        .nav-link .badge-count { margin-left: auto; background: var(--orange); color: white; font-size: .62rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+        .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); }
+        .sidebar-user { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .75rem; }
+        .user-name { font-size: .82rem; font-weight: 600; }
+        .user-role { font-size: .7rem; color: var(--text-muted); }
+
+        /* ── MAIN ─────────────────────────────────────────── */
+        .main { margin-left: 240px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+        .topbar { position: sticky; top: 0; z-index: 40; background: rgba(15,23,42,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: .75rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .topbar-title { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .topbar-title i { color: var(--orange-h); }
+        .topbar-right { display: flex; align-items: center; gap: .65rem; }
+        .icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,.2); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .82rem; transition: .2s; text-decoration: none; }
+        .icon-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .content { padding: 1.75rem; flex: 1; }
+
+        /* ── STATS ─────────────────────────────────────────── */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; }
+        .stat-label { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 700; line-height: 1; }
+        .stat-sub { font-size: .72rem; color: var(--text-muted); margin-top: .3rem; }
+
+        /* ── TABLE CARD ────────────────────────────────────── */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+        .card-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+        .card-title { font-size: .88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .card-title i { color: var(--orange-h); }
+        .card-actions { display: flex; gap: .5rem; }
+
+        table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+        thead th { padding: .65rem 1rem; text-align: left; font-size: .68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        tbody td { padding: .75rem 1rem; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: rgba(255,255,255,.025); }
+
+        /* Score bar */
+        .score-wrap { display: flex; align-items: center; gap: 8px; }
+        .score-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: .8rem; }
+        .score-track { width: 52px; height: 5px; background: rgba(255,255,255,.1); border-radius: 999px; overflow: hidden; }
+        .score-fill { height: 100%; border-radius: 999px; }
+
+        /* Hot Prospect badge */
+        .badge-hot { display: inline-flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 700; padding: .3rem .75rem; border-radius: 999px; background: rgba(249,115,22,.2); color: #fb923c; white-space: nowrap; }
+        .badge-hot::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+        /* Promote button */
+        .btn-promote { display: inline-flex; align-items: center; gap: 6px; padding: .45rem 1rem; border-radius: 8px; border: none; background: linear-gradient(135deg, #f97316, #fb923c); color: white; font-size: .78rem; font-weight: 700; cursor: pointer; transition: .2s; white-space: nowrap; }
+        .btn-promote:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        .btn-sm { display: inline-flex; align-items: center; gap: 6px; padding: .35rem .75rem; border-radius: 7px; border: 1px solid var(--border); background: rgba(0,0,0,.25); color: var(--text-muted); font-size: .75rem; font-weight: 600; cursor: pointer; transition: .2s; }
+        .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+
+        .btn-refresh { display: inline-flex; align-items: center; gap: 6px; padding: .45rem .9rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,.25); color: var(--text-muted); font-size: .78rem; font-weight: 600; cursor: pointer; transition: .2s; }
+        .btn-refresh:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+        .empty-state i { font-size: 2.5rem; margin-bottom: .75rem; display: block; opacity: .25; }
+        .empty-state p { font-size: .88rem; }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
+        .toast { display: flex; align-items: center; gap: 10px; padding: .75rem 1rem; border-radius: 10px; font-size: .82rem; font-weight: 600; animation: slideIn .25s ease; min-width: 240px; max-width: 380px; }
+        .toast.success { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.35); color: #34d399; }
+        .toast.error   { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.35);  color: #f87171; }
+        .toast.info    { background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.35); color: #a5b4fc; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Venue name cell */
+        .venue-cell { display: flex; flex-direction: column; gap: 2px; }
+        .venue-name { font-weight: 700; color: var(--text-main); font-size: .85rem; }
+        .venue-url  { font-size: .72rem; color: var(--text-muted); }
+        .venue-url a { color: var(--primary); text-decoration: none; }
+        .venue-url a:hover { text-decoration: underline; }
+
+        /* Contact cell */
+        .contact-cell { display: flex; flex-direction: column; gap: 2px; }
+        .contact-name { font-weight: 600; font-size: .83rem; }
+        .contact-email { font-size: .72rem; color: var(--text-muted); }
+
+        /* Loading shimmer */
+        @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+        .loading-row td { height: 48px; }
+        .shimmer { height: 12px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-logo"><i class="fa-solid fa-fire"></i></div>
+        <div>
+            <div class="brand-name">Venue<span>Desk</span></div>
+            <div class="brand-sub">Hot Prospects</div>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Lead Gen</div>
+        <a href="leadgen-dashboard.html" class="nav-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+        <a href="leadgen-dashboard.html" class="nav-link" onclick="event.preventDefault();window.location.href='leadgen-dashboard.html'"><i class="fa-solid fa-envelope"></i> Email Queue</a>
+        <a href="leadgen-dashboard.html" class="nav-link"><i class="fa-solid fa-clock-rotate-left"></i> Activity Log</a>
+        <div class="nav-section">Pipeline</div>
+        <a href="prospects.html" class="nav-link active"><i class="fa-solid fa-fire" style="color:#fb923c;"></i> Hot Prospects <span class="badge-count" id="sidebarCount">0</span></a>
+        <a href="onboarding.html" class="nav-link"><i class="fa-solid fa-rocket"></i> Onboarding</a>
+        <div class="nav-section">Settings</div>
+        <a href="#" class="nav-link"><i class="fa-solid fa-robot"></i> AI Config</a>
+        <a href="#" class="nav-link"><i class="fa-solid fa-gear"></i> Workflow</a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="user-avatar" id="userAvatarSidebar">?</div>
+            <div><div class="user-name" id="userNameSidebar">—</div><div class="user-role">VenueDesk</div></div>
+        </div>
+    </div>
+</aside>
+
+<!-- ── MAIN ─────────────────────────────────────────────────────────── -->
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-title">
+            <i class="fa-solid fa-fire"></i>
+            Hot Prospects
+            <span style="font-size:.7rem;font-weight:600;background:rgba(249,115,22,.15);color:#fb923c;padding:3px 10px;border-radius:999px;border:1px solid rgba(249,115,22,.3);" id="topbarCount">0 leads</span>
+        </div>
+        <div class="topbar-right">
+            <button class="btn-refresh" onclick="loadProspects()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+            <a href="leadgen-dashboard.html" class="icon-btn" title="Back to Lead Dashboard"><i class="fa-solid fa-arrow-left"></i></a>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label"><i class="fa-solid fa-fire" style="color:#fb923c;margin-right:4px;"></i> Hot Prospects</div>
+                <div class="stat-value" id="statTotal" style="color:#fb923c;">—</div>
+                <div class="stat-sub">Awaiting onboarding</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fa-solid fa-star" style="color:#f59e0b;margin-right:4px;"></i> Avg AI Score</div>
+                <div class="stat-value" id="statAvgScore" style="color:#f59e0b;">—</div>
+                <div class="stat-sub">Out of 10</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fa-solid fa-envelope" style="color:#3b82f6;margin-right:4px;"></i> Have Email</div>
+                <div class="stat-value" id="statHaveEmail" style="color:#60a5fa;">—</div>
+                <div class="stat-sub">Contactable</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fa-solid fa-rocket" style="color:#10b981;margin-right:4px;"></i> Ready to Onboard</div>
+                <div class="stat-value" id="statReady" style="color:#34d399;">—</div>
+                <div class="stat-sub">Score ≥ 7</div>
+            </div>
+        </div>
+
+        <!-- Prospects Table -->
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">
+                    <i class="fa-solid fa-table-list"></i>
+                    Qualified Hot Prospects
+                </div>
+                <div class="card-actions">
+                    <span style="font-size:.75rem;color:var(--text-muted);">Click <strong style="color:#fb923c;">Promote to Onboarding</strong> to begin a venue's account setup</span>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="prospectsTable">
+                    <thead>
+                        <tr>
+                            <th>Venue</th>
+                            <th>Type</th>
+                            <th>Contact</th>
+                            <th>Phone</th>
+                            <th>Score</th>
+                            <th>Added</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prospectsBody">
+                        <tr class="loading-row">
+                            <td><div class="shimmer" style="width:140px;"></div></td>
+                            <td><div class="shimmer" style="width:80px;"></div></td>
+                            <td><div class="shimmer" style="width:110px;"></div></td>
+                            <td><div class="shimmer" style="width:90px;"></div></td>
+                            <td><div class="shimmer" style="width:60px;"></div></td>
+                            <td><div class="shimmer" style="width:70px;"></div></td>
+                            <td><div class="shimmer" style="width:160px;"></div></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    const BASE_API = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+
+    // ── Auth helpers ──────────────────────────────────
+    function getAuthHeaders() { return {}; }
+    function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+
+    // ── Sidebar user ──────────────────────────────────
+    (function initUser() {
+        const name = sessionStorage.getItem('vp_user_name') || 'Admin';
+        const initials = name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0,2) || 'A';
+        document.getElementById('userAvatarSidebar').textContent = initials;
+        document.getElementById('userNameSidebar').textContent   = name;
+    })();
+
+    // ── Data store ────────────────────────────────────
+    let prospects = [];
+
+    // ── Load ──────────────────────────────────────────
+    async function loadProspects() {
+        document.getElementById('prospectsBody').innerHTML = `
+            <tr class="loading-row">
+                <td><div class="shimmer" style="width:140px;"></div></td>
+                <td><div class="shimmer" style="width:80px;"></div></td>
+                <td><div class="shimmer" style="width:110px;"></div></td>
+                <td><div class="shimmer" style="width:90px;"></div></td>
+                <td><div class="shimmer" style="width:60px;"></div></td>
+                <td><div class="shimmer" style="width:70px;"></div></td>
+                <td><div class="shimmer" style="width:160px;"></div></td>
+            </tr>`;
+        try {
+            const res = await fetch(BASE_API + '/prospects-get', { headers: getAuthHeaders() });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            prospects = Array.isArray(data) ? data : (data.data || []);
+            renderProspects();
+            renderStats();
+        } catch(e) {
+            document.getElementById('prospectsBody').innerHTML = `
+                <tr><td colspan="7" class="empty-state">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <p>Failed to load prospects: ${esc(e.message)}</p>
+                </td></tr>`;
+            showToast('Error loading prospects: ' + e.message, 'error');
+        }
+    }
+
+    // ── Render stats ──────────────────────────────────
+    function renderStats() {
+        const total     = prospects.length;
+        const scores    = prospects.map(p => parseInt(p.ai_score) || 0).filter(s => s > 0);
+        const avgScore  = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
+        const haveEmail = prospects.filter(p => p.email && p.email.trim()).length;
+        const ready     = prospects.filter(p => (parseInt(p.ai_score) || 0) >= 7).length;
+
+        document.getElementById('statTotal').textContent     = total;
+        document.getElementById('statAvgScore').textContent  = avgScore;
+        document.getElementById('statHaveEmail').textContent = haveEmail;
+        document.getElementById('statReady').textContent     = ready;
+
+        document.getElementById('topbarCount').textContent = total + (total === 1 ? ' lead' : ' leads');
+        document.getElementById('sidebarCount').textContent = total;
+    }
+
+    // ── Render table ──────────────────────────────────
+    function renderProspects() {
+        const tbody = document.getElementById('prospectsBody');
+        if (!prospects.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="7">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-fire-flame-simple"></i>
+                        <p style="font-weight:700;margin-bottom:.35rem;">No hot prospects yet</p>
+                        <p>Mark leads as <strong style="color:#fb923c;">🔥 Hot Prospect</strong> from the Lead Dashboard to see them here.</p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        const typeLabels = {
+            village_hall:'Village Hall', sports_club:'Sports Club',
+            event_venue:'Event Venue', hotel:'Hotel',
+            community_centre:'Community Centre', 'Village Hall':'Village Hall',
+            'Sports Club':'Sports Club', 'Event Venue':'Event Venue',
+            'Hotel':'Hotel', 'Community Centre':'Community Centre'
+        };
+
+        tbody.innerHTML = prospects.map(p => {
+            const score     = parseInt(p.ai_score) || 0;
+            const scoreColor = score >= 8 ? '#10b981' : score >= 6 ? '#f59e0b' : '#ef4444';
+            const added     = p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'2-digit'}) : '—';
+            const typeLabel = typeLabels[p.venue_type] || p.venue_type || '—';
+            const prefillUrl = 'onboarding.html' +
+                '?vname='   + encodeURIComponent(p.venue_name   || '') +
+                '&contact=' + encodeURIComponent(p.contact_name || '') +
+                '&pid='     + encodeURIComponent(p.id);
+
+            return `<tr>
+                <td>
+                    <div class="venue-cell">
+                        <span class="venue-name">${esc(p.venue_name || '—')}</span>
+                        ${p.website_url ? `<span class="venue-url"><a href="${esc(p.website_url)}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:.6rem;"></i> ${esc(p.website_url.replace(/^https?:\/\//,'').split('/')[0])}</a></span>` : ''}
+                    </div>
+                </td>
+                <td style="color:var(--text-muted);font-size:.78rem;">${esc(typeLabel)}</td>
+                <td>
+                    <div class="contact-cell">
+                        ${p.contact_name ? `<span class="contact-name">${esc(p.contact_name)}</span>` : '<span style="color:var(--text-muted);font-size:.78rem;">—</span>'}
+                        ${p.email        ? `<span class="contact-email">${esc(p.email)}</span>` : ''}
+                    </div>
+                </td>
+                <td style="font-size:.8rem;color:var(--text-muted);">${esc(p.phone || '—')}</td>
+                <td>
+                    ${score > 0 ? `
+                    <div class="score-wrap">
+                        <span class="score-num" style="color:${scoreColor}">${score}</span>
+                        <div class="score-track"><div class="score-fill" style="width:${score*10}%;background:${scoreColor};"></div></div>
+                    </div>` : `<span style="color:var(--text-muted);font-size:.78rem;">—</span>`}
+                </td>
+                <td style="font-size:.75rem;color:var(--text-muted);">${added}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+                        <button class="btn-promote" onclick="promoteToOnboarding('${esc(p.id)}','${esc(prefillUrl)}')">
+                            <i class="fa-solid fa-rocket"></i> Promote to Onboarding
+                        </button>
+                        <button class="btn-sm" title="Back to Lead Dashboard" onclick="window.location.href='leadgen-dashboard.html'">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Promote ───────────────────────────────────────
+    function promoteToOnboarding(id, url) {
+        window.location.href = url;
+    }
+
+    // ── Toast ─────────────────────────────────────────
+    function showToast(msg, type = 'info') {
+        const tc = document.getElementById('toastContainer');
+        const el = document.createElement('div');
+        el.className = 'toast ' + type;
+        const icon = type === 'success' ? 'circle-check' : type === 'error' ? 'circle-exclamation' : 'circle-info';
+        el.innerHTML = `<i class="fa-solid fa-${icon}"></i><span>${msg}</span>`;
+        tc.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+    }
+
+    // ── Escape ────────────────────────────────────────
+    function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    // ── Boot ──────────────────────────────────────────
+    loadProspects();
+</script>
+</body>
+</html>
