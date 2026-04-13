@@ -773,6 +773,17 @@ body.sidebar-collapsed .nav-link:hover::after {
         <div class="ob-card-title">
           <i class="fa-solid fa-building-circle-plus"></i> Onboard New Venue
         </div>
+
+        <!-- Hot Prospect Banner — shown only when redirected from prospects.html -->
+        <div id="prospectBanner" style="display:none;align-items:center;gap:10px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35);border-radius:10px;padding:.65rem 1rem;margin-bottom:1rem;">
+          <i class="fa-solid fa-fire" style="color:#fb923c;font-size:1rem;"></i>
+          <div style="flex:1;font-size:.83rem;">
+            <span style="font-weight:700;color:#fb923c;">Converting Hot Prospect:</span>
+            <span class="prospect-name" style="color:#eef2ff;margin-left:6px;"></span>
+          </div>
+          <span style="font-size:.72rem;color:rgba(251,146,60,.7);">Fields pre-filled from lead record</span>
+        </div>
+
         <div class="row2">
           <div class="input-group">
             <label>Tenant / Venue ID</label>
@@ -1022,6 +1033,7 @@ async function loadVenues() {
     renderVenues();
     renderStats();
     suggestNextId();
+    applyPrefill();
   } catch(e) {
     document.getElementById('venuesTable').innerHTML =
       '<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:2rem">Failed to load venues</td></tr>';
@@ -1078,6 +1090,29 @@ function renderVenues() {
     </tr>`).join('');
 }
 
+// ─── Prospect Prefill (from prospects.html redirect) ─
+let _prospectId = null;
+
+function applyPrefill() {
+  const p = new URLSearchParams(window.location.search);
+  const vname   = p.get('vname');
+  const contact = p.get('contact');
+  const pid     = p.get('pid');
+  if (!vname && !pid) return;
+
+  if (pid)     { _prospectId = pid; }
+  if (vname)   { document.getElementById('fVenueName').value = decodeURIComponent(vname); autoSlug(); }
+  if (contact) { document.getElementById('fFullName').value  = decodeURIComponent(contact); }
+
+  if (pid) {
+    const banner = document.getElementById('prospectBanner');
+    if (banner) {
+      banner.style.display = 'flex';
+      banner.querySelector('.prospect-name').textContent = vname ? decodeURIComponent(vname) : 'Lead #' + pid;
+    }
+  }
+}
+
 // ─── Add venue ────────────────────────────────────────
 function suggestNextId() {
   const ids = venues.map(v => v.tenant_id).filter(Boolean);
@@ -1094,12 +1129,13 @@ function autoSlug() {
 async function addVenue() {
   const btn = document.getElementById('addVenueBtn');
   const payload = {
-    tenant_id:  parseInt(document.getElementById('fTenantId').value, 10),
-    venue_name: document.getElementById('fVenueName').value.trim(),
-    slug:       document.getElementById('fSlug').value.trim(),
-    username:   document.getElementById('fUsername').value.trim(),
-    full_name:  document.getElementById('fFullName').value.trim(),
-    password:   document.getElementById('fPassword').value,
+    tenant_id:   parseInt(document.getElementById('fTenantId').value, 10),
+    venue_name:  document.getElementById('fVenueName').value.trim(),
+    slug:        document.getElementById('fSlug').value.trim(),
+    username:    document.getElementById('fUsername').value.trim(),
+    full_name:   document.getElementById('fFullName').value.trim(),
+    password:    document.getElementById('fPassword').value,
+    prospect_id: _prospectId || undefined,
   };
   if (!payload.tenant_id || payload.tenant_id < 1000) { showToast('Tenant ID must be ≥ 1000', 'error'); return; }
   if (!payload.venue_name) { showToast('Venue name is required', 'error'); return; }
