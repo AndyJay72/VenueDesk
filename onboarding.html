@@ -1097,6 +1097,7 @@ function applyPrefill() {
   const p = new URLSearchParams(window.location.search);
   const vname   = p.get('vname');
   const contact = p.get('contact');
+  const email   = p.get('email');
   const pid     = p.get('pid');
   if (!vname && !pid) return;
 
@@ -1108,7 +1109,20 @@ function applyPrefill() {
     const banner = document.getElementById('prospectBanner');
     if (banner) {
       banner.style.display = 'flex';
-      banner.querySelector('.prospect-name').textContent = vname ? decodeURIComponent(vname) : 'Lead #' + pid;
+      const vDecoded = vname ? decodeURIComponent(vname) : ('Lead #' + pid);
+      banner.querySelector('.prospect-name').textContent = vDecoded;
+      // Show email sub-line if present
+      const eDecoded = email ? decodeURIComponent(email) : null;
+      let emailEl = banner.querySelector('.prospect-email');
+      if (eDecoded) {
+        if (!emailEl) {
+          emailEl = document.createElement('span');
+          emailEl.className = 'prospect-email';
+          emailEl.style.cssText = 'font-size:.75rem;color:#94a3b8;margin-left:6px;';
+          banner.appendChild(emailEl);
+        }
+        emailEl.textContent = '— ' + eDecoded;
+      }
     }
   }
 }
@@ -1424,3 +1438,4 @@ body { background-color:var(--bg-dark) !important; }
 </style>
 </body>
 </html>
+
