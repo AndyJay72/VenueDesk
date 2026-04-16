@@ -15,7 +15,7 @@
     <script>
         (function () {
             const _t = sessionStorage.getItem('vp_token');
-            if (\!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
             try {
                 const _p = JSON.parse(atob(_t.split('.')[1]));
                 if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; }
@@ -669,9 +669,9 @@
 
         /* ── FINTECH ATMOSPHERIC OVERRIDE ── */
         .sidebar {
-            background: rgba(4, 9, 22, 0.98) \!important;
-            backdrop-filter: blur(20px) \!important;
-            -webkit-backdrop-filter: blur(20px) \!important;
+            background: rgba(4, 9, 22, 0.98) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
         }
         .stat-card {
             backdrop-filter: blur(16px);
@@ -706,7 +706,7 @@
             background: rgba(13, 21, 46, 0.55);
         }
         tbody tr:hover td {
-            background: rgba(99,102,241,.06) \!important;
+            background: rgba(99,102,241,.06) !important;
         }
     </style>
 </head>
@@ -861,7 +861,7 @@
             renderShimmer();
             try {
                 const res = await fetch(targetUrl, { headers: getAuthHeaders() });
-                if (\!res.ok) throw new Error('HTTP ' + res.status);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
                 allProspects = Array.isArray(data) ? data : (data.data || data || []);
                 console.log('[loadProspects] raw:', JSON.stringify(data).slice(0, 200), '| count:', allProspects.length);
@@ -905,7 +905,7 @@
                 : allProspects.filter(p => p.status === activeFilter);
 
             const tbody = document.getElementById('prospectsBody');
-            if (\!rows.length) {
+            if (!rows.length) {
                 tbody.innerHTML = `
                 <tr><td colspan="7">
                     <div class="empty-state">
