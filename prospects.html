@@ -1,341 +1,912 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VenueDesk — Hot Prospects</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script>
-        (function() {
+        (function () {
             const _t = sessionStorage.getItem('vp_token');
             if (\!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
             try {
                 const _p = JSON.parse(atob(_t.split('.')[1]));
                 if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; }
-            } catch(e) {}
+            } catch (e) { }
         })();
     </script>
     <style>
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg-dark:   #0f172a;
-            --bg-card:   rgba(30, 41, 59, 0.7);
-            --bg-card2:  #1e293b;
-            --border:    rgba(255,255,255,.08);
-            --primary:   #6366f1;
-            --primary-h: #4f46e5;
-            --success:   #10b981;
-            --warning:   #f59e0b;
-            --danger:    #ef4444;
-            --info:      #3b82f6;
-            --orange:    #f97316;
-            --orange-h:  #fb923c;
-            --text-main: #f8fafc;
-            --text-muted:#94a3b8;
-            --radius:    14px;
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        html { scroll-behavior: smooth; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; }
+
+        :root {
+            --bg-dark:       #06101f;
+            --bg-card:       rgba(13, 21, 46, 0.80);
+            --bg-card2:      rgba(4, 9, 22, 0.98);
+            --border:        rgba(99, 120, 186, 0.14);
+            --border-accent: rgba(99, 120, 186, 0.34);
+            --primary:       #6366f1;
+            --primary-h:     #4f46e5;
+            --success:       #10b981;
+            --warning:       #f59e0b;
+            --danger:        #ef4444;
+            --info:          #3b82f6;
+            --orange:        #f97316;
+            --orange-h:      #fb923c;
+            --text-main:     #eef2ff;
+            --text-muted:    #8b9cc8;
+            --radius:        14px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            background-image:
+                radial-gradient(ellipse 90% 55% at 18% -10%, rgba(99,102,241,0.17) 0%, transparent 54%),
+                radial-gradient(ellipse 70% 50% at 83% 110%, rgba(6,182,212,0.10) 0%, transparent 52%),
+                radial-gradient(ellipse 60% 70% at 50%  50%, rgba(10,16,40,0.65) 0%, transparent 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+        }
 
         /* SIDEBAR */
-        .sidebar { width: 240px; min-height: 100vh; background: var(--bg-card2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; flex-shrink: 0; }
-        .sidebar-brand { padding: 1.25rem 1.25rem 1rem; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
-        .brand-logo { width: 36px; height: 36px; background: var(--orange); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: white; flex-shrink: 0; }
-        .brand-name { font-size: 1.1rem; font-weight: 800; }
-        .brand-name span { color: var(--primary); }
-        .brand-sub { font-size: .65rem; color: var(--text-muted); font-weight: 500; }
-        .sidebar-nav { padding: 1rem .75rem; flex: 1; }
-        .nav-section { font-size: .65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; padding: .5rem .75rem .35rem; margin-top: .5rem; }
-        .nav-link { display: flex; align-items: center; gap: 12px; padding: .65rem .75rem; color: var(--text-muted); text-decoration: none; border-radius: 9px; margin-bottom: 3px; transition: all .2s; font-weight: 500; font-size: .88rem; }
-        .nav-link i { width: 18px; text-align: center; }
-        .nav-link:hover { background: rgba(99,102,241,.12); color: var(--primary); }
-        .nav-link.active { background: rgba(249,115,22,.12); color: var(--orange-h); }
-        .nav-link .badge-count { margin-left: auto; background: var(--orange); color: white; font-size: .62rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-        .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); }
-        .sidebar-user { display: flex; align-items: center; gap: 10px; }
-        .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .75rem; }
-        .user-name { font-size: .82rem; font-weight: 600; }
-        .user-role { font-size: .7rem; color: var(--text-muted); }
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--bg-card2);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand {
+            padding: 1.25rem 1.25rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            background: var(--orange);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .brand-name {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .brand-name span {
+            color: var(--primary);
+        }
+
+        .brand-sub {
+            font-size: .65rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            padding: 1rem .75rem;
+            flex: 1;
+        }
+
+        .nav-section {
+            font-size: .65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            padding: .5rem .75rem .35rem;
+            margin-top: .5rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: .65rem .75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 9px;
+            margin-bottom: 3px;
+            transition: all .2s;
+            font-weight: 500;
+            font-size: .88rem;
+        }
+
+        .nav-link i {
+            width: 18px;
+            text-align: center;
+        }
+
+        .nav-link:hover {
+            background: rgba(99, 102, 241, .12);
+            color: var(--primary);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.09) 100%);
+            color: #a5b4fc;
+            border-left: 3px solid var(--primary);
+            padding-left: calc(.75rem - 3px);
+        }
+
+        .nav-link .badge-count {
+            margin-left: auto;
+            background: var(--orange);
+            color: white;
+            font-size: .62rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: .75rem;
+        }
+
+        .user-name {
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: .7rem;
+            color: var(--text-muted);
+        }
 
         /* MAIN */
-        .main { margin-left: 240px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
-        .topbar { position: sticky; top: 0; z-index: 40; background: rgba(15,23,42,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: .75rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-        .topbar-title { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .topbar-title i { color: var(--orange-h); }
-        .topbar-right { display: flex; align-items: center; gap: .65rem; }
-        .icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,.2); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .82rem; transition: .2s; text-decoration: none; }
-        .icon-btn:hover { border-color: var(--primary); color: var(--primary); }
-        .content { padding: 1.75rem; flex: 1; }
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background: rgba(15, 23, 42, .92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: .75rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .topbar-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topbar-title i {
+            color: var(--orange-h);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+        }
+
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, .2);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .82rem;
+            transition: .2s;
+            text-decoration: none;
+        }
+
+        .icon-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .content {
+            padding: 1.75rem;
+            flex: 1;
+        }
 
         /* STATS */
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; }
-        .stat-label { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
-        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 700; line-height: 1; }
-        .stat-sub { font-size: .72rem; color: var(--text-muted); margin-top: .3rem; }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem 1.25rem;
+        }
+
+        .stat-label {
+            font-size: .7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: .5rem;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-sub {
+            font-size: .72rem;
+            color: var(--text-muted);
+            margin-top: .3rem;
+        }
 
         /* TABLE */
-        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-        .card-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; }
-        .card-title { font-size: .88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        .card-title i { color: var(--orange-h); }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+        .card:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,120,186,0.22);
+        }
 
-        table { width: 100%; border-collapse: collapse; font-size: .83rem; }
-        thead th { padding: .65rem 1rem; text-align: left; font-size: .68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-        tbody td { padding: .75rem 1rem; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover td { background: rgba(255,255,255,.025); }
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
 
-        .venue-cell { display: flex; flex-direction: column; gap: 2px; }
-        .venue-name { font-weight: 700; color: var(--text-main); font-size: .85rem; }
-        .venue-url  { font-size: .7rem; }
-        .venue-url a { color: var(--primary); text-decoration: none; }
-        .venue-url a:hover { text-decoration: underline; }
-        .contact-cell { font-size: .82rem; font-weight: 600; }
-        .email-cell { font-size: .78rem; }
-        .email-cell a { color: var(--primary); text-decoration: none; }
-        .email-cell a:hover { text-decoration: underline; }
+        .card-title {
+            font-size: .88rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-        .score-wrap { display: flex; align-items: center; gap: 8px; }
-        .score-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: .82rem; min-width: 14px; }
-        .score-track { width: 52px; height: 5px; background: rgba(255,255,255,.1); border-radius: 999px; overflow: hidden; }
-        .score-fill { height: 100%; border-radius: 999px; }
+        .card-title i {
+            color: var(--orange-h);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .83rem;
+        }
+
+        thead th {
+            padding: .65rem 1rem;
+            text-align: left;
+            font-size: .68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: .75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover td {
+            background: rgba(255, 255, 255, .025);
+        }
+
+        .venue-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .venue-name {
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: .85rem;
+        }
+
+        .venue-url {
+            font-size: .7rem;
+        }
+
+        .venue-url a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .venue-url a:hover {
+            text-decoration: underline;
+        }
+
+        .contact-cell {
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .email-cell {
+            font-size: .78rem;
+        }
+
+        .email-cell a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .email-cell a:hover {
+            text-decoration: underline;
+        }
+
+        .score-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .score-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: .82rem;
+            min-width: 14px;
+        }
+
+        .score-track {
+            width: 52px;
+            height: 5px;
+            background: rgba(255, 255, 255, .1);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 999px;
+        }
 
         /* Status badges */
-        .badge { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 700; padding: .28rem .7rem; border-radius: 999px; white-space: nowrap; }
-        .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-        .badge-ready      { background: rgba(16,185,129,.15);  color: #34d399; border: 1px solid rgba(16,185,129,.25); }
-        .badge-processing { background: rgba(245,158,11,.15);  color: #fbbf24; border: 1px solid rgba(245,158,11,.25); }
-        .badge-converted  { background: rgba(99,102,241,.15);  color: #a5b4fc; border: 1px solid rgba(99,102,241,.25); }
-        .badge-default    { background: rgba(148,163,184,.1);  color: var(--text-muted); border: 1px solid var(--border); }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: .68rem;
+            font-weight: 700;
+            padding: .28rem .7rem;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .badge::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: currentColor;
+            flex-shrink: 0;
+        }
+
+        .badge-ready {
+            background: rgba(16, 185, 129, .15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, .25);
+        }
+
+        .badge-processing {
+            background: rgba(245, 158, 11, .15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, .25);
+        }
+
+        .badge-converted {
+            background: rgba(99, 102, 241, .15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, .25);
+        }
+
+        .badge-default {
+            background: rgba(148, 163, 184, .1);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
 
         /* CTA */
-        .btn-onboard { display: inline-flex; align-items: center; gap: 6px; padding: .45rem 1rem; border-radius: 8px; border: none; background: linear-gradient(135deg, #f97316, #fb923c); color: white; font-size: .78rem; font-weight: 700; cursor: pointer; transition: .2s; white-space: nowrap; }
-        .btn-onboard:hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(249,115,22,.35); }
-        .btn-onboard:disabled { background: rgba(255,255,255,.08); color: var(--text-muted); cursor: default; transform: none; box-shadow: none; filter: none; }
-        .btn-refresh { display: inline-flex; align-items: center; gap: 6px; padding: .45rem .9rem; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,.25); color: var(--text-muted); font-size: .78rem; font-weight: 600; cursor: pointer; transition: .2s; }
-        .btn-refresh:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-onboard {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: .45rem 1rem;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            font-size: .78rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-onboard:hover {
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px rgba(99,102,241,.45);
+        }
+
+        .btn-onboard:disabled {
+            background: rgba(255, 255, 255, .08);
+            color: var(--text-muted);
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+            filter: none;
+        }
+
+        .btn-refresh {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: .45rem .9rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, .25);
+            color: var(--text-muted);
+            font-size: .78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .btn-refresh:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
 
         /* Filter */
-        .filter-bar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-        .filter-btn { padding: .28rem .7rem; border-radius: 7px; border: 1px solid var(--border); background: rgba(0,0,0,.2); color: var(--text-muted); font-size: .73rem; font-weight: 600; cursor: pointer; transition: .2s; }
-        .filter-btn.active { border-color: var(--orange); color: var(--orange-h); background: rgba(249,115,22,.1); }
-        .filter-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: .28rem .7rem;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: rgba(0, 0, 0, .2);
+            color: var(--text-muted);
+            font-size: .73rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .filter-btn.active {
+            border-color: var(--orange);
+            color: var(--orange-h);
+            background: rgba(249, 115, 22, .1);
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
 
         /* Empty/loading */
-        .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
-        .empty-state i { font-size: 2.5rem; margin-bottom: .75rem; display: block; opacity: .2; }
-        .empty-state p { font-size: .88rem; }
-        @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-        .shimmer { height: 12px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: .75rem;
+            display: block;
+            opacity: .2;
+        }
+
+        .empty-state p {
+            font-size: .88rem;
+        }
+
+        @keyframes shimmer {
+            from {
+                background-position: -200% 0;
+            }
+
+            to {
+                background-position: 200% 0;
+            }
+        }
+
+        .shimmer {
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, .04) 25%, rgba(255, 255, 255, .08) 50%, rgba(255, 255, 255, .04) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+        }
 
         /* Toast */
-        .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
-        .toast { display: flex; align-items: center; gap: 10px; padding: .75rem 1rem; border-radius: 10px; font-size: .82rem; font-weight: 600; animation: slideIn .25s ease; min-width: 240px; max-width: 380px; }
-        .toast.success { background: rgba(16,185,129,.15);  border: 1px solid rgba(16,185,129,.35);  color: #34d399; }
-        .toast.error   { background: rgba(239,68,68,.15);   border: 1px solid rgba(239,68,68,.35);   color: #f87171; }
-        .toast.info    { background: rgba(99,102,241,.15);  border: 1px solid rgba(99,102,241,.35);  color: #a5b4fc; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: .75rem 1rem;
+            border-radius: 10px;
+            font-size: .82rem;
+            font-weight: 600;
+            animation: slideIn .25s ease;
+            min-width: 240px;
+            max-width: 380px;
+        }
+
+        .toast.success {
+            background: rgba(16, 185, 129, .15);
+            border: 1px solid rgba(16, 185, 129, .35);
+            color: #34d399;
+        }
+
+        .toast.error {
+            background: rgba(239, 68, 68, .15);
+            border: 1px solid rgba(239, 68, 68, .35);
+            color: #f87171;
+        }
+
+        .toast.info {
+            background: rgba(99, 102, 241, .15);
+            border: 1px solid rgba(99, 102, 241, .35);
+            color: #a5b4fc;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── FINTECH ATMOSPHERIC OVERRIDE ── */
+        .sidebar {
+            background: rgba(4, 9, 22, 0.98) \!important;
+            backdrop-filter: blur(20px) \!important;
+            -webkit-backdrop-filter: blur(20px) \!important;
+        }
+        .stat-card {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-accent);
+            box-shadow: 0 16px 44px rgba(0,0,0,0.5);
+        }
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── FADE-UP ANIMATION ── */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .content > * { animation: fadeUp 0.38s ease both; }
+        .content > *:nth-child(1) { animation-delay: .05s; }
+        .content > *:nth-child(2) { animation-delay: .12s; }
+        tbody tr { animation: fadeUp 0.3s ease both; }
+        tbody tr:nth-child(1)  { animation-delay: .06s; }
+        tbody tr:nth-child(2)  { animation-delay: .10s; }
+        tbody tr:nth-child(3)  { animation-delay: .14s; }
+        tbody tr:nth-child(4)  { animation-delay: .18s; }
+        tbody tr:nth-child(5)  { animation-delay: .22s; }
+        tbody tr:nth-child(6)  { animation-delay: .26s; }
+        tbody tr:nth-child(n+7) { animation-delay: .30s; }
+
+        /* ── TABLE FINTECH ── */
+        thead th {
+            background: rgba(13, 21, 46, 0.55);
+        }
+        tbody tr:hover td {
+            background: rgba(99,102,241,.06) \!important;
+        }
     </style>
 </head>
+
 <body>
 
-<aside class="sidebar">
-    <div class="sidebar-brand">
-        <div class="brand-logo"><i class="fa-solid fa-fire"></i></div>
-        <div>
-            <div class="brand-name">Venue<span>Desk</span></div>
-            <div class="brand-sub">Hot Prospects</div>
-        </div>
-    </div>
-    <nav class="sidebar-nav">
-        <div class="nav-section">Lead Gen</div>
-        <a href="leadgen-dashboard.html" class="nav-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-        <a href="leadgen-dashboard.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Email Queue</a>
-        <a href="leadgen-dashboard.html" class="nav-link"><i class="fa-solid fa-clock-rotate-left"></i> Activity Log</a>
-        <div class="nav-section">Pipeline</div>
-        <a href="prospects.html" class="nav-link active">
-            <i class="fa-solid fa-fire" style="color:#fb923c;"></i>
-            Hot Prospects
-            <span class="badge-count" id="sidebarCount">—</span>
-        </a>
-        <a href="onboarding.html" class="nav-link"><i class="fa-solid fa-rocket"></i> Onboarding</a>
-        <div class="nav-section">Settings</div>
-        <a href="#" class="nav-link"><i class="fa-solid fa-robot"></i> AI Config</a>
-        <a href="#" class="nav-link"><i class="fa-solid fa-gear"></i> Workflow</a>
-    </nav>
-    <div class="sidebar-footer">
-        <div class="sidebar-user">
-            <div class="user-avatar" id="userAvatarSidebar">?</div>
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo"><i class="fa-solid fa-fire"></i></div>
             <div>
-                <div class="user-name" id="userNameSidebar">—</div>
-                <div class="user-role">VenueDesk</div>
+                <div class="brand-name">Venue<span>Desk</span></div>
+                <div class="brand-sub">VenueDesk Admin</div>
             </div>
         </div>
-    </div>
-</aside>
-
-<div class="main">
-    <div class="topbar">
-        <div class="topbar-title">
-            <i class="fa-solid fa-fire"></i>
-            Hot Prospects
-            <span style="font-size:.7rem;font-weight:600;background:rgba(249,115,22,.15);color:#fb923c;padding:3px 10px;border-radius:999px;border:1px solid rgba(249,115,22,.3);" id="topbarCount">loading…</span>
-        </div>
-        <div class="topbar-right">
-            <button class="btn-refresh" onclick="loadProspects()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-            <a href="leadgen-dashboard.html" class="icon-btn" title="Lead Dashboard"><i class="fa-solid fa-arrow-left"></i></a>
-        </div>
-    </div>
-
-    <div class="content">
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-label"><i class="fa-solid fa-fire" style="color:#fb923c;margin-right:4px;"></i> Total Prospects</div>
-                <div class="stat-value" id="statTotal" style="color:#fb923c;">—</div>
-                <div class="stat-sub">In pipeline</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label"><i class="fa-solid fa-circle-check" style="color:#10b981;margin-right:4px;"></i> Ready to Onboard</div>
-                <div class="stat-value" id="statReady" style="color:#34d399;">—</div>
-                <div class="stat-sub">Status: ready</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label"><i class="fa-solid fa-star" style="color:#f59e0b;margin-right:4px;"></i> Avg AI Score</div>
-                <div class="stat-value" id="statAvgScore" style="color:#fbbf24;">—</div>
-                <div class="stat-sub">Out of 10</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label"><i class="fa-solid fa-envelope" style="color:#3b82f6;margin-right:4px;"></i> Have Email</div>
-                <div class="stat-value" id="statHaveEmail" style="color:#60a5fa;">—</div>
-                <div class="stat-sub">Contactable</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-head">
-                <div class="card-title">
-                    <i class="fa-solid fa-table-list"></i>
-                    Qualified Hot Prospects
-                </div>
-                <div class="filter-bar">
-                    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-                    <button class="filter-btn" onclick="setFilter('ready_for_onboarding',this)">
-                        <i class="fa-solid fa-circle-check" style="font-size:.65rem;margin-right:3px;"></i>Ready
-                    </button>
-                    <button class="filter-btn" onclick="setFilter('processing',this)">
-                        <i class="fa-solid fa-spinner" style="font-size:.65rem;margin-right:3px;"></i>Processing
-                    </button>
+        <nav class="sidebar-nav">
+                    <a href="leadgen-dashboard.html" class="nav-link" data-label="Lead Gen"><i class="fa-solid fa-bullseye"></i><span class="nav-label"> Lead Gen</span></a>
+                    <a href="prospects.html" class="nav-link active" data-label="Prospects"><i class="fa-solid fa-fire" style="color:#fb923c;"></i><span class="nav-label"> Prospects</span> <span class="badge-count" id="sidebarCount">—</span></a>
+                    <a href="onboarding.html" class="nav-link" data-label="Onboarding"><i class="fa-solid fa-rocket"></i><span class="nav-label"> Onboarding</span></a>
+                </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="user-avatar" id="userAvatarSidebar">?</div>
+                <div>
+                    <div class="user-name" id="userNameSidebar">—</div>
+                    <div class="user-role">Admin Suite</div>
                 </div>
             </div>
-            <div style="overflow-x:auto;">
-                <table id="prospectsTable">
-                    <thead>
-                        <tr>
-                            <th>Venue</th>
-                            <th>Contact</th>
-                            <th>Email</th>
-                            <th>AI Score</th>
-                            <th>Status</th>
-                            <th>Added</th>
-                            <th style="text-align:right;padding-right:1.25rem;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="prospectsBody"></tbody>
-                </table>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="topbar">
+            <div class="topbar-title">
+                <i class="fa-solid fa-fire"></i>
+                Hot Prospects
+                <span
+                    style="font-size:.7rem;font-weight:600;background:rgba(249,115,22,.15);color:#fb923c;padding:3px 10px;border-radius:999px;border:1px solid rgba(249,115,22,.3);"
+                    id="topbarCount">loading…</span>
+            </div>
+            <div class="topbar-right">
+                <button class="btn-refresh" onclick="loadProspects()"><i class="fa-solid fa-rotate-right"></i>
+                    Refresh</button>
+                <a href="leadgen-dashboard.html" class="icon-btn" title="Lead Dashboard"><i
+                        class="fa-solid fa-arrow-left"></i></a>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label"><i class="fa-solid fa-fire" style="color:#fb923c;margin-right:4px;"></i>
+                        Total Prospects</div>
+                    <div class="stat-value" id="statTotal" style="color:#fb923c;">—</div>
+                    <div class="stat-sub">In pipeline</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><i class="fa-solid fa-circle-check"
+                            style="color:#10b981;margin-right:4px;"></i> Ready to Onboard</div>
+                    <div class="stat-value" id="statReady" style="color:#34d399;">—</div>
+                    <div class="stat-sub">Status: ready</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><i class="fa-solid fa-star" style="color:#f59e0b;margin-right:4px;"></i> Avg
+                        AI Score</div>
+                    <div class="stat-value" id="statAvgScore" style="color:#fbbf24;">—</div>
+                    <div class="stat-sub">Out of 10</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><i class="fa-solid fa-envelope" style="color:#3b82f6;margin-right:4px;"></i>
+                        Have Email</div>
+                    <div class="stat-value" id="statHaveEmail" style="color:#60a5fa;">—</div>
+                    <div class="stat-sub">Contactable</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div class="card-title">
+                        <i class="fa-solid fa-table-list"></i>
+                        Qualified Hot Prospects
+                    </div>
+                    <div class="filter-bar">
+                        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+                        <button class="filter-btn" onclick="setFilter('ready_for_onboarding',this)">
+                            <i class="fa-solid fa-circle-check" style="font-size:.65rem;margin-right:3px;"></i>Ready
+                        </button>
+                        <button class="filter-btn" onclick="setFilter('processing',this)">
+                            <i class="fa-solid fa-spinner" style="font-size:.65rem;margin-right:3px;"></i>Processing
+                        </button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table id="prospectsTable">
+                        <thead>
+                            <tr>
+                                <th>Venue</th>
+                                <th>Contact</th>
+                                <th>Email</th>
+                                <th>AI Score</th>
+                                <th>Status</th>
+                                <th>Added</th>
+                                <th style="text-align:right;padding-right:1.25rem;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prospectsBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer"></div>
 
-<script>
-    const BASE_API = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+    <script>
+        const BASE_API = 'https://n8n.srv1090894.hstgr.cloud/webhook';
 
-    function getAuthHeaders() { return {}; }
+        function getAuthHeaders() { return {}; }
 
-    (function initUser() {
-        const name = sessionStorage.getItem('vp_user_name') || 'Admin';
-        const initials = name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || 'A';
-        document.getElementById('userAvatarSidebar').textContent = initials;
-        document.getElementById('userNameSidebar').textContent   = name;
-    })();
+        (function initUser() {
+            const name = sessionStorage.getItem('vp_user_name') || 'Admin';
+            const initials = name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || 'A';
+            document.getElementById('userAvatarSidebar').textContent = initials;
+            document.getElementById('userNameSidebar').textContent = name;
+        })();
 
-    let allProspects = [];
-    let activeFilter = 'all';
+        let allProspects = [];
+        let activeFilter = 'all';
 
-    const STATUS_CFG = {
-        ready_for_onboarding: { label: 'Ready to Onboard', cls: 'badge-ready'      },
-        processing:           { label: 'Processing',        cls: 'badge-processing' },
-        converted:            { label: 'Converted',         cls: 'badge-converted'  },
-    };
+        const STATUS_CFG = {
+            ready_for_onboarding: { label: 'Ready to Onboard', cls: 'badge-ready' },
+            processing: { label: 'Processing', cls: 'badge-processing' },
+            converted: { label: 'Converted', cls: 'badge-converted' },
+        };
 
-    function statusBadge(s) {
-        const c = STATUS_CFG[s];
-        return c
-            ? `<span class="badge ${c.cls}">${c.label}</span>`
-            : `<span class="badge badge-default">${esc(s || 'Unknown')}</span>`;
-    }
+        function statusBadge(s) {
+            const c = STATUS_CFG[s];
+            return c
+                ? `<span class="badge ${c.cls}">${c.label}</span>`
+                : `<span class="badge badge-default">${esc(s || 'Unknown')}</span>`;
+        }
 
-    function setFilter(val, btn) {
-        activeFilter = val;
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderTable();
-    }
-
-    async function loadProspects() {
-        renderShimmer();
-        try {
-            const res = await fetch(BASE_API + '/prospects-get', { headers: getAuthHeaders() });
-            if (\!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            allProspects = Array.isArray(data) ? data : (data.data || data || []);
-            console.log("[loadProspects] raw:", JSON.stringify(data).slice(0,200), "| count:", allProspects.length);
-            renderStats();
+        function setFilter(val, btn) {
+            activeFilter = val;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
             renderTable();
-        } catch (e) {
-            document.getElementById('prospectsBody').innerHTML = `
+        }
+
+        async function loadProspects() {
+            const targetUrl = 'https://n8n.srv1090894.hstgr.cloud/webhook/prospects-get';
+            console.log('[loadProspects] fetching:', targetUrl);
+            renderShimmer();
+            try {
+                const res = await fetch(targetUrl, { headers: getAuthHeaders() });
+                if (\!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                allProspects = Array.isArray(data) ? data : (data.data || data || []);
+                console.log('[loadProspects] raw:', JSON.stringify(data).slice(0, 200), '| count:', allProspects.length);
+                renderStats();
+                renderTable();
+            } catch (e) {
+                console.error('[loadProspects] FAILED url:', targetUrl, '| error:', e.message);
+                document.getElementById('prospectsBody').innerHTML = `
                 <tr><td colspan="7">
                     <div class="empty-state">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <p style="font-weight:700;margin-bottom:.35rem;">Failed to load prospects</p>
                         <p>${esc(e.message)}</p>
+                        <p style="font-size:.7rem;margin-top:.5rem;opacity:.6;">URL: ${targetUrl}</p>
                     </div>
                 </td></tr>`;
-            showToast('Error: ' + e.message, 'error');
+                showToast('Error: ' + e.message, 'error');
+            }
         }
-    }
 
-    function renderStats() {
-        const total  = allProspects.length;
-        const ready  = allProspects.filter(p => p.status === 'ready_for_onboarding').length;
-        const scores = allProspects.map(p => parseInt(p.ai_score) || 0).filter(s => s > 0);
-        const avg    = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
-        const emails = allProspects.filter(p => p.email && p.email.trim()).length;
+        function renderStats() {
+            const total = allProspects.length;
+            const ready = allProspects.filter(p => p.status === 'ready_for_onboarding').length;
+            const scores = allProspects.map(p => parseInt(p.ai_score) || 0).filter(s => s > 0);
+            const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
+            const emails = allProspects.filter(p => p.email && p.email.trim()).length;
 
-        document.getElementById('statTotal').textContent     = total;
-        document.getElementById('statReady').textContent     = ready;
-        document.getElementById('statAvgScore').textContent  = avg;
-        document.getElementById('statHaveEmail').textContent = emails;
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statReady').textContent = ready;
+            document.getElementById('statAvgScore').textContent = avg;
+            document.getElementById('statHaveEmail').textContent = emails;
 
-        const label = total === 1 ? '1 prospect' : total + ' prospects';
-        document.getElementById('topbarCount').textContent  = label;
-        document.getElementById('sidebarCount').textContent = total;
-    }
+            const label = total === 1 ? '1 prospect' : total + ' prospects';
+            document.getElementById('topbarCount').textContent = label;
+            document.getElementById('sidebarCount').textContent = total;
+        }
 
-    function renderTable() {
-        const rows = activeFilter === 'all'
-            ? allProspects
-            : allProspects.filter(p => p.status === activeFilter);
+        function renderTable() {
+            const rows = activeFilter === 'all'
+                ? allProspects
+                : allProspects.filter(p => p.status === activeFilter);
 
-        const tbody = document.getElementById('prospectsBody');
-        if (\!rows.length) {
-            tbody.innerHTML = `
+            const tbody = document.getElementById('prospectsBody');
+            if (\!rows.length) {
+                tbody.innerHTML = `
                 <tr><td colspan="7">
                     <div class="empty-state">
                         <i class="fa-solid fa-fire-flame-simple"></i>
@@ -343,27 +914,27 @@
                         <p>Mark leads as <strong style="color:#fb923c;">Hot Prospect</strong> from the Lead Dashboard to populate this pipeline.</p>
                     </div>
                 </td></tr>`;
-            return;
-        }
+                return;
+            }
 
-        tbody.innerHTML = rows.map(p => {
-            const score      = parseInt(p.ai_score) || 0;
-            const scoreColor = score >= 8 ? '#10b981' : score >= 6 ? '#f59e0b' : '#ef4444';
-            const added      = p.created_at
-                ? new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
-                : '—';
-            const domain     = p.website_url ? p.website_url.replace(/^https?:\/\//, '').split('/')[0] : null;
+            tbody.innerHTML = rows.map(p => {
+                const score = parseInt(p.ai_score) || 0;
+                const scoreColor = score >= 8 ? '#10b981' : score >= 6 ? '#f59e0b' : '#ef4444';
+                const added = p.created_at
+                    ? new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                    : '—';
+                const domain = p.website_url ? p.website_url.replace(/^https?:\/\//, '').split('/')[0] : null;
 
-            // pid = lead_id (UUID) — used by Onboarding Manager to mark leads.status = 'converted'
-            const prefillUrl = 'onboarding.html'
-                + '?vname='   + encodeURIComponent(p.venue_name   || '')
-                + '&contact=' + encodeURIComponent(p.contact_name || '')
-                + '&email='   + encodeURIComponent(p.email        || '')
-                + '&pid='     + encodeURIComponent(p.lead_id      || '');
+                // pid = lead_id (UUID) — used by Onboarding Manager to mark leads.status = 'converted'
+                const prefillUrl = 'onboarding.html'
+                    + '?vname=' + encodeURIComponent(p.venue_name || '')
+                    + '&contact=' + encodeURIComponent(p.contact_name || '')
+                    + '&email=' + encodeURIComponent(p.email || '')
+                    + '&pid=' + encodeURIComponent(p.lead_id || '');
 
-            const isConverted = p.status === 'converted';
+                const isConverted = p.status === 'converted';
 
-            return `<tr>
+                return `<tr>
                 <td>
                     <div class="venue-cell">
                         <span class="venue-name">${esc(p.venue_name || '—')}</span>
@@ -380,7 +951,7 @@
                     ${score > 0
                         ? `<div class="score-wrap">
                                <span class="score-num" style="color:${scoreColor}">${score}</span>
-                               <div class="score-track"><div class="score-fill" style="width:${score*10}%;background:${scoreColor};"></div></div>
+                               <div class="score-track"><div class="score-fill" style="width:${score * 10}%;background:${scoreColor};"></div></div>
                            </div>`
                         : `<span style="color:var(--text-muted);font-size:.78rem;">—</span>`}
                 </td>
@@ -393,11 +964,11 @@
                     </button>
                 </td>
             </tr>`;
-        }).join('');
-    }
+            }).join('');
+        }
 
-    function renderShimmer() {
-        document.getElementById('prospectsBody').innerHTML = Array(4).fill(0).map(() => `
+        function renderShimmer() {
+            document.getElementById('prospectsBody').innerHTML = Array(4).fill(0).map(() => `
             <tr>
                 <td><div class="shimmer" style="width:140px;"></div></td>
                 <td><div class="shimmer" style="width:100px;"></div></td>
@@ -407,25 +978,26 @@
                 <td><div class="shimmer" style="width:55px;"></div></td>
                 <td style="text-align:right;"><div class="shimmer" style="width:130px;margin-left:auto;"></div></td>
             </tr>`).join('');
-    }
+        }
 
-    function startOnboarding(url) { window.location.href = url; }
+        function startOnboarding(url) { window.location.href = url; }
 
-    function showToast(msg, type = 'info') {
-        const tc = document.getElementById('toastContainer');
-        const el = document.createElement('div');
-        el.className = 'toast ' + type;
-        const icon = type === 'success' ? 'circle-check' : type === 'error' ? 'circle-exclamation' : 'circle-info';
-        el.innerHTML = `<i class="fa-solid fa-${icon}"></i><span>${msg}</span>`;
-        tc.appendChild(el);
-        setTimeout(() => el.remove(), 4500);
-    }
+        function showToast(msg, type = 'info') {
+            const tc = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = 'toast ' + type;
+            const icon = type === 'success' ? 'circle-check' : type === 'error' ? 'circle-exclamation' : 'circle-info';
+            el.innerHTML = `<i class="fa-solid fa-${icon}"></i><span>${msg}</span>`;
+            tc.appendChild(el);
+            setTimeout(() => el.remove(), 4500);
+        }
 
-    function esc(s) {
-        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
+        function esc(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
-    loadProspects();
-</script>
+        loadProspects();
+    </script>
 </body>
+
 </html>
