@@ -458,15 +458,27 @@
 
                 const data = await res.json();
 
+                if (!res.ok) {
+                    // Explicit HTTP error — show server message if available
+                    err.innerText = (res.status === 401)
+                        ? 'Invalid credentials. Please try again.'
+                        : (data.error || data.message || 'Login failed. Please try again.');
+                    err.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = 'Sign In';
+                    return;
+                }
+
                 if (data.token) {
-                    // SUCCESS: read tenant context from server response
-                    const tenantId  = data.user?.tenant_id || '';
-                    const venueName = data.user?.venue_name || data.user?.name || '';
+                    // SUCCESS: persist identity context for all dashboard pages
+                    const tenantId = data.user?.tenant_id || '';
+                    const userName = data.user?.full_name || data.user?.name || '';
                     sessionStorage.setItem('vp_token',      data.token);
                     sessionStorage.setItem('vp_user',       JSON.stringify(data.user));
                     sessionStorage.setItem('vp_tenant_id',  tenantId);
-                    sessionStorage.setItem('vp_venue_id',   tenantId);   // tenant_id === venue_id
-                    sessionStorage.setItem('vp_venue_name', venueName);
+                    sessionStorage.setItem('vp_venue_id',   tenantId);
+                    sessionStorage.setItem('vp_user_name',  userName);   // used by staff_member on interactions
+                    sessionStorage.setItem('vp_venue_name', userName);   // display name in sidebar
                     const _ret = new URLSearchParams(window.location.search).get('return');
                     window.location.href = (_ret && /^[a-zA-Z0-9_-]+\.html$/.test(_ret)) ? _ret : 'index.html';
                 } else {
@@ -474,10 +486,10 @@
                 }
             } catch (e) {
                 console.error(e);
-                err.innerText = "Invalid Username or Password";
+                err.innerText = 'Unable to connect. Please check your connection and try again.';
                 err.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = "Sign In";
+                btn.innerText = 'Sign In';
             }
         }
     </script>
