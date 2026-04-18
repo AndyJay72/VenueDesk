@@ -3392,6 +3392,7 @@
                 event_type:  getVal('m-event'),
                 notes:       getVal('m-notes'),
                 tenant_id:   parseInt(_TID()),
+                jwt:         sessionStorage.getItem('vp_token') || '',
             };
             const btnContainer = document.getElementById('modal-buttons');
             btnContainer.innerHTML = '<span style="color:var(--text-muted);font-size:0.9rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Saving...</span>';
