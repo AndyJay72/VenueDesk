@@ -1289,7 +1289,6 @@
             <a href="calendar.html" class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>   
             <a href="bookings.html" class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
-            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
             <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
             <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
 
@@ -2153,7 +2152,7 @@
             const refreshIcon = document.getElementById('refresh-icon');
             refreshIcon.classList.add('fa-spin');
             try {
-                const response = await fetch(DASHBOARD_WEBHOOK_URL + tidParam(), { headers: getAuthHeaders() });
+                const response = await fetch(DASHBOARD_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 if (!response.ok) throw new Error(`Request failed`);
                 const json = await response.json();
                 const data = json.data || json;
@@ -2255,7 +2254,7 @@
                 const response = await fetch(UPDATE_STATUS_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ id: id, staff_name: STAFF_NAME, status: 'contacted', tenant_id: parseInt(_TID()) })
+                    body: JSON.stringify({ customer_id: id, status: 'contacted', jwt: sessionStorage.getItem('vp_token') || '' })
                 });
 
                 if (response.ok) {
@@ -2287,7 +2286,7 @@
 
         async function fetchMonthlyRevenue(month, year) {
             try {
-                const r = await fetch(`${MONTHLY_REVENUE_URL}?month=${month}&year=${year}` + tidParam('&'), { headers: getAuthHeaders() });
+                const r = await fetch(MONTHLY_REVENUE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '', month, year }) });
                 if (!r.ok) throw new Error();
                 const d = await r.json();
                 document.getElementById('val-revenue').innerText = formatCurrency(d.total_revenue || 0);
@@ -2559,7 +2558,7 @@
                 const r = await fetch(CANCEL_PENDING_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ customer_id: id, tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0') })
+                    body: JSON.stringify({ customer_id: id, jwt: sessionStorage.getItem('vp_token') || '' })
                 });
                 if (!r.ok) throw new Error();
                 showToast(`${name}'s request cancelled`);
@@ -2574,7 +2573,7 @@
                 const r = await fetch(CANCEL_PENDING_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ customer_id: id, tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0'), force_remove: true })
+                    body: JSON.stringify({ customer_id: id, jwt: sessionStorage.getItem('vp_token') || '' })
                 });
                 if (!r.ok) throw new Error();
                 showToast(`${name} removed from pending requests`);
@@ -2620,7 +2619,7 @@
         // after migration because all child recurring sessions now have balance_due = 0.
         async function loadOutstandingPayments() {
             try {
-                const res  = await fetch(OUTSTANDING_BOOKINGS_URL + tidParam(), { headers: getAuthHeaders() });
+                const res  = await fetch(OUTSTANDING_BOOKINGS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const json = await res.json();
                 allOutstandingPayments = json.data || (Array.isArray(json) ? json : []);
@@ -2632,7 +2631,7 @@
 
         async function loadAllBookings() {
             try {
-                const res  = await fetch(ALL_BOOKINGS_URL + tidParam(), { headers: getAuthHeaders() });
+                const res  = await fetch(ALL_BOOKINGS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 const json = await res.json();
                 const rawData = json.data || (Array.isArray(json) ? json : []);
                 const raw = groupBookings(rawData);
@@ -2979,7 +2978,7 @@
             const tbody   = document.getElementById('modal-bh-tbody');
             loading.style.display = 'block'; stats.style.display = 'none'; tableW.style.display = 'none'; empty.style.display = 'none';
             try {
-                const res  = await fetch(BOOKINGS_API_URL + tidParam(), { headers: getAuthHeaders() });
+                const res  = await fetch(BOOKINGS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 const json = await res.json();
                 const all  = json.data || (Array.isArray(json) ? json : []);
                 // Filter by customer_id (precise) with email as fallback for older data
@@ -3216,7 +3215,7 @@
             const tbody = document.getElementById('cust-tbody');
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr>';
             try {
-                const res = await fetch(CUSTOMERS_API + tidParam(), { headers: getAuthHeaders() });
+                const res = await fetch(CUSTOMERS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 const json = await res.json();
                 allCustomersData = json.data || (Array.isArray(json) ? json : []);
                 custLoaded = true;
@@ -3604,8 +3603,8 @@
             const list = document.getElementById('act-feed-list');
             try {
                 const [dashR, txR, intR, billingR] = await Promise.allSettled([
-                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard' + tidParam(),          {headers:getAuthHeaders()}),
-                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data' + tidParam(),            {headers:getAuthHeaders()}),
+                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard',  {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
+                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data',    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions' + tidParam(),    {headers:getAuthHeaders()}),
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-payments' + tidParam(), {headers:getAuthHeaders()}),
                 ]);
