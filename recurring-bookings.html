@@ -992,14 +992,14 @@
     </div>
     <nav>
         <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
-        <a href="calendar.html" class="nav-link" data-label="Calendar"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
-        <a href="bookings.html" class="nav-link" data-label="Bookings"><i class="fa-solid fa-calendar-days"></i><span class="nav-label"> Bookings</span></a>
+        <a href="calendar.html" class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+        <a href="bookings.html" class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
         <a href="recurring-bookings.html" class="nav-link active" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
-        <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-users"></i><span class="nav-label"> Accounts</span></a>
-        <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-scroll"></i><span class="nav-label"> Audit Log</span></a>
+        <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+        <a href="audit-log.html" class="nav-link" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+        <a href="users.html" class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
         <a href="admin-config.html" class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
-        <a href="users.html" class="nav-link" data-label="Users"><i class="fa-solid fa-user-gear"></i><span class="nav-label"> Users</span></a>
-        <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
+        <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
     </nav>
 </aside>
 
@@ -1157,7 +1157,7 @@ async function mpLoadSeries() {
         mpRenderGrid();
 
         // Load bookings separately in background — failure won't affect series display
-        fetch(REC_ALL_BKG_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() })
+        fetch(REC_ALL_BKG_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) })
             .then(r => r.json())
             .then(bkgJson => {
                 const allBkg = bkgJson.data || (Array.isArray(bkgJson) ? bkgJson : []);
@@ -1687,6 +1687,34 @@ async function mpSubmitPayment() {
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         showToast('Payment recorded — ' + mpFmt(amount) + ' via ' + method, 'success');
+
+        // ── Optimistic local update ───────────────────────────────────────────
+        // Immediately reflect the new balance in _seriesMap and _allSessions so
+        // the UI is correct even before the reload API call completes.
+        const ruleId = _mpPayData.ruleId;
+        if (ruleId && _seriesMap[ruleId]) {
+            const s = _seriesMap[ruleId];
+            s.balance_due = Math.max(0, parseFloat(s.balance_due || 0) - amount);
+            // Derive how many sessions this payment covers and mark them paid
+            const sessionPrice = _mpPayData.sessionPrice || 0;
+            const sessionsToPay = (sessionPrice > 0 && amount > 0)
+                ? Math.floor(amount / sessionPrice) : 0;
+            if (sessionsToPay > 0) {
+                // Mark oldest unpaid sessions in _allSessions as fully paid
+                const unpaid = _allSessions
+                    .filter(b => (b.recurring_rule_id === ruleId || b.recurring_series_id === ruleId)
+                               && parseFloat(b.balance_due || 0) > 0)
+                    .sort((a, b) => new Date(a.booking_date || a.date_from || 0)
+                                  - new Date(b.booking_date || b.date_from || 0));
+                unpaid.slice(0, sessionsToPay).forEach(b => {
+                    b.balance_due = 0;
+                    b.deposit_paid = b.total_amount;
+                    b.status = 'fully_paid';
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         mpClosePayModal();
         await mpLoadSeries();
     } catch(e) {
