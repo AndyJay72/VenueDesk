@@ -591,12 +591,13 @@
         <div class="brand"><span><i class="fa-solid fa-layer-group"></i><span class="brand-text">VenueDesk</span></span><div style="display:flex;align-items:center;gap:2px;"><button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button><button class="close-sidebar" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button></div></div>
         <nav>
             <a href="index.html" class="nav-link" data-label="Dashboard"><i class="fa-solid fa-chart-pie"></i><span class="nav-label"> Dashboard</span></a>
-            <a href="audit-log.html" class="nav-link active" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
-            <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
-
-            <a href="manual-booking.html" class="nav-link" data-label="Walk-In Booking"><i class="fa-solid fa-person-walking-arrow-right"></i><span class="nav-label"> Walk-In Booking</span></a>
+            <a href="calendar.html" class="nav-link" data-label="Make Booking"><i class="fa-solid fa-calendar-alt"></i><span class="nav-label"> Calendar</span></a>
+            <a href="bookings.html" class="nav-link" data-label="Booking Stats"><i class="fa-solid fa-chart-line"></i><span class="nav-label"> Booking Stats</span></a>
             <a href="recurring-bookings.html" class="nav-link" data-label="Recurring"><i class="fa-solid fa-repeat"></i><span class="nav-label"> Recurring</span></a>
-            <a href="repeat-clients.html" class="nav-link" data-label="Repeat Clients"><i class="fa-solid fa-users-between-lines"></i><span class="nav-label"> Repeat Clients</span></a>
+            <a href="accounts.html" class="nav-link" data-label="Accounts"><i class="fa-solid fa-file-invoice-dollar"></i><span class="nav-label"> Accounts</span></a>
+            <a href="audit-log.html" class="nav-link active" data-label="Audit Log"><i class="fa-solid fa-clock-rotate-left"></i><span class="nav-label"> Audit Log</span></a>
+            <a href="users.html" class="nav-link" data-label="Users"><i class="fa-solid fa-user-shield"></i><span class="nav-label"> Users</span></a>
+            <a href="admin-config.html" class="nav-link" data-label="Config"><i class="fa-solid fa-sliders"></i><span class="nav-label"> Config</span></a>
             <a href="#" onclick="logout()" class="nav-link" style="margin-top:auto;color:#ef4444;border-top:1px solid rgba(255,255,255,0.05)" data-label="Logout"><i class="fa-solid fa-right-from-bracket"></i><span class="nav-label"> Logout</span></a>
         </nav>
     </aside>
@@ -792,9 +793,9 @@
             document.getElementById('log-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr>';
             try{
                 const [txR,intR,dashR,ledgerR]=await Promise.allSettled([
-                    fetch(PAYMENTS_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
+                    fetch(PAYMENTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
                     fetch(INTERACTIONS_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
-                    fetch(DASHBOARD_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
+                    fetch(DASHBOARD_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
                     fetch(LEDGER_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
                 ]);
                 const events=[];
