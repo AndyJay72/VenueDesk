@@ -1546,7 +1546,7 @@
             av.className='qb-avail-box qb-avail-checking';document.getElementById('qb-availText').textContent='Checking availability…';qbSetButtons(false);
             _qbAvailTimeout=setTimeout(async()=>{
                 try{
-                    const res=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT})});
+                    const res=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT,tenant_id:parseInt(_CAL_TID())})});
                     const json=await res.json();
                     const ok=json.available===true||json.available==='true'||json.status==='available';
                     const av2=document.getElementById('qb-availStatus');
@@ -1581,7 +1581,7 @@
             const paymentType=type==='full'?'full':type==='deposit'?'deposit':'none';
             const status=type==='pending'?'pending':'booked';
             if(type!=='pending'){
-                try{const cr=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT})});const cj=await cr.json();const avail=cj.available===true||cj.available==='true'||cj.status==='available';if(!avail){qbShowConflictModal();return;}}catch(e){}
+                try{const cr=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT,tenant_id:parseInt(_CAL_TID())})});const cj=await cr.json();const avail=cj.available===true||cj.available==='true'||cj.status==='available';if(!avail){qbShowConflictModal();return;}}catch(e){}
             }
             const daySchedule=qbGetDayTimesPayload();
             const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload(),day_schedule:daySchedule};
@@ -1806,7 +1806,7 @@
 
         async function qbDoSubmitRecurring(payload, btns){
             try{
-                const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{},body:JSON.stringify(payload)});
+                const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
                 const rj=await res.json().catch(()=>({}));
                 if(!res.ok||rj.success===false) throw new Error(rj.message||('HTTP '+res.status));
                 closeQbModal();
@@ -1969,7 +1969,8 @@
                 interaction_type:'RECURRING_CONTRACT_CREATED',
                 contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/week at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
-                tenant_id:parseInt(_CAL_TID()),status:status
+                tenant_id:parseInt(_CAL_TID()),status:status,
+                jwt:sessionStorage.getItem('vp_token')||''
             };
 
             // ── Step 5: If conflicts exist, show confirmation modal ────────────
@@ -3029,4 +3030,3 @@
     </style>
 </body>
 </html>
-
