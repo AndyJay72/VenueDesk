@@ -1199,7 +1199,7 @@
         const API_URL='https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const BLOCKED_API='https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
         const ROOMS_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-rooms';
-        const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/walk-in-booking';
+        const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/make-booking';
         const RECURRING_CAL_API='https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-from-calendar';
         const CHECK_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
         const CHECK_RECURRING_CLASHES_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-recurring-clashes';
@@ -1547,9 +1547,11 @@
             _qbAvailTimeout=setTimeout(async()=>{
                 try{
                     const res=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT,tenant_id:parseInt(_CAL_TID())})});
+                    const av2=document.getElementById('qb-availStatus');
+                    if(res.status===409){av2.className='qb-avail-box qb-avail-unavailable';document.getElementById('qb-availText').textContent='This time slot conflicts with an existing booking.';qbSetButtons(false);return;}
+                    if(!res.ok&&res.status!==200){throw new Error('HTTP '+res.status);}
                     const json=await res.json();
                     const ok=json.available===true||json.available==='true'||json.status==='available';
-                    const av2=document.getElementById('qb-availStatus');
                     if(ok){av2.className='qb-avail-box qb-avail-available';document.getElementById('qb-availText').textContent='Available!';qbSetButtons(true);}
                     else{av2.className='qb-avail-box qb-avail-unavailable';document.getElementById('qb-availText').textContent=json.message||'Not available for selected date/time.';qbSetButtons(false);}
                 }catch(e){const av2=document.getElementById('qb-availStatus');av2.className='qb-avail-box qb-avail-idle';document.getElementById('qb-availText').textContent='Could not check — please verify manually.';}
@@ -1581,13 +1583,14 @@
             const paymentType=type==='full'?'full':type==='deposit'?'deposit':'none';
             const status=type==='pending'?'pending':'booked';
             if(type!=='pending'){
-                try{const cr=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT,tenant_id:parseInt(_CAL_TID())})});const cj=await cr.json();const avail=cj.available===true||cj.available==='true'||cj.status==='available';if(!avail){qbShowConflictModal();return;}}catch(e){}
+                try{const cr=await fetch(CHECK_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({roomName,eventDate:from,timeFrom:startT,timeTo:endT,tenant_id:parseInt(_CAL_TID())})});if(cr.status===409){qbShowConflictModal();return;}if(cr.ok||cr.status===200){const cj=await cr.json();const avail=cj.available===true||cj.available==='true'||cj.status==='available';if(!avail){qbShowConflictModal();return;}}}catch(e){}
             }
             const daySchedule=qbGetDayTimesPayload();
-            const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload(),day_schedule:daySchedule};
+            const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload(),day_schedule:daySchedule,jwt:sessionStorage.getItem('vp_token')||''};
             ['qb-btn-deposit','qb-btn-full','qb-btn-pending'].forEach(id=>document.getElementById(id).disabled=true);
             try{
                 const res=await fetch(BOOKING_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                if(res.status===409)throw new Error('This slot conflicts with an existing booking. Please choose a different time.');
                 if(!res.ok)throw new Error('HTTP '+res.status);
                 const rj=await res.json().catch(()=>({}));
                 if(rj.success===false)throw new Error(rj.message||'Booking failed');
