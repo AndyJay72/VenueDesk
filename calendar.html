@@ -1456,12 +1456,15 @@
         /* ── Venue Operating Hours & Slot Helpers ──────────────────────────
            All time arithmetic is in "minutes since midnight".
            VENUE_OPEN / VENUE_CLOSE define the bookable window.
-           BUFFER_MINS is the mandatory turnaround gap between sessions.
+           BUFFER_MINS controls client-side gap logic (_isDayFull, _findNextSlot,
+           pendingConflict). Set to 0 to match check-availability (direct overlap,
+           no buffer). The 60-min turnaround is enforced at booking submission by
+           the server-side clash-guard only.
            MIN_SLOT_MINS is the shortest booking that counts as "available".
         ──────────────────────────────────────────────────────────────── */
         const VENUE_OPEN_MINS  = 8  * 60;  // 08:00
         const VENUE_CLOSE_MINS = 22 * 60;  // 22:00
-        const BUFFER_MINS      = 60;
+        const BUFFER_MINS      = 0;         // display layer only — buffer enforced at submission
         const MIN_SLOT_MINS    = 60;
 
         function _toMins(hhmm){
