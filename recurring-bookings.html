@@ -1298,12 +1298,22 @@ function mpRenderCard(s) {
     const progressPct    = total > 0 ? Math.min(100, Math.round((confirmed / total) * 100)) : 0;
     const progressFull   = progressPct === 100;
 
-    // Payment status — use current billing-period status where available (API now returns
-    // period_status from recurring_payment_schedule for the active period). Fall back to
-    // the overall series balance_due flag for series without a schedule entry.
+    // Payment status — schedule-first, legacy-fallback.
+    //
+    // Phase 3 rows in recurring_payment_schedule carry both schedule_id and period_status.
+    // When these fields are present we trust the schedule exclusively — it reflects the
+    // current billing-period state (paid/pending/overdue) and is the canonical source of
+    // truth for the tiered lifecycle.
+    //
+    // Legacy series (inserted via insert-payment-schedule or pre-Phase-3 manual bookings)
+    // lack schedule_id / period_status, so we fall back to the overall pStat derived from
+    // the series balance_due flag.  The two paths are intentionally mutually exclusive:
+    // a series that has been seeded into the schedule will ALWAYS have schedule_id set.
     const now          = new Date();
-    const periodStat   = (s.period_status  || '').toLowerCase();   // current schedule-row status
-    const effectiveStat= periodStat || pStat;                      // prefer period, fall back to overall
+    const hasSchedule  = !!(s.schedule_id && s.period_status);                 // phase3 row present
+    const periodStat   = hasSchedule ? (s.period_status || '').toLowerCase()   // trust schedule
+                                     : '';                                      // legacy: no schedule data
+    const effectiveStat= periodStat || pStat;                                  // prefer schedule, fall back to overall
     const isOverdue    = effectiveStat === 'pending'
                          && s.due_date && new Date(s.due_date) < now;
     const isPeriodPaid = effectiveStat === 'paid' || effectiveStat === 'completed';
