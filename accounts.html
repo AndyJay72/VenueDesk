@@ -965,14 +965,17 @@
                 return;
             }
 
-            // Separate recurring vs single payments
+            // Separate recurring vs single payments.
+            // payment_type = 'recurring' (db-api v2) or 'recurring_payment' (legacy n8n).
             const recurring = transactions.filter(t => {
                 const pType = (t.payment_type || '').toLowerCase();
-                return pType === 'recurring_payment' || (!t.booking_id && t.series_reference) || t.is_recurring;
+                return pType === 'recurring_payment' || pType === 'recurring'
+                    || (!t.booking_id && t.series_reference) || t.is_recurring;
             });
             const singles = transactions.filter(t => {
                 const pType = (t.payment_type || '').toLowerCase();
-                return pType !== 'recurring_payment' && !(!t.booking_id && t.series_reference) && !t.is_recurring;
+                return pType !== 'recurring_payment' && pType !== 'recurring'
+                    && !(!t.booking_id && t.series_reference) && !t.is_recurring;
             });
 
             // Deduplicate singles
