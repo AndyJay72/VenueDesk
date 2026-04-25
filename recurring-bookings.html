@@ -1116,7 +1116,7 @@ const REC_MANAGE_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-re
 const REC_PAYMENT_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/record-recurring-payment';
 const REC_ALL_BKG_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
 const REC_CANCEL_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
-const REC_CANCEL_SERIES_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-recurring-series';
+const REC_CANCEL_SERIES_URL   = 'https://api.venuedesk.co.uk/recurring/cancel-series';
 const REC_SCHEDULE_STATUS_URL = 'https://api.venuedesk.co.uk/recurring/schedule-status';
 
 let _mpPayData    = {};
@@ -1625,18 +1625,33 @@ async function mpCancelSession(bookingId, customerName, dateStr) {
 
 /* ─── Cancel entire series ──────────────────────── */
 async function mpCancelSeries(ruleId, customerName) {
-    if (!confirm(`Cancel the ENTIRE recurring series for ${customerName}?\n\nAll upcoming sessions will be cancelled. Past sessions are unaffected.`)) return;
+    if (!confirm(`Cancel the ENTIRE recurring series for ${customerName}?\n\nAll upcoming sessions will be cancelled. Past sessions are unaffected.\n\nA refund calculation will be shown after confirmation.`)) return;
     try {
         const performed_by = (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })();
+        // Pattern 4 — JWT body-tunnel: browser POST cannot send Authorization header (CORS).
+        // The db-api auth middleware accepts jwt from request.body as a fallback.
         const res = await fetch(REC_CANCEL_SERIES_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ series_id: ruleId, rule_id: ruleId, tenant_id: parseInt(_TID()), performed_by })
+            body: JSON.stringify({
+                series_id:    ruleId,
+                performed_by,
+                jwt:          sessionStorage.getItem('vp_token') || ''
+            })
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const result = await res.json();
-        if (result.status === 'error') throw new Error(result.message || 'Cancel failed');
-        showToast(`Series cancelled — ${result.sessions_cancelled || 0} upcoming sessions removed`, 'success');
+        if (!result.success) throw new Error(result.message || 'Cancel failed');
+
+        const d = result.data || {};
+        const refund    = parseFloat(d.refund_amount  || 0).toFixed(2);
+        const totalPaid = parseFloat(d.total_paid     || 0).toFixed(2);
+        const cancelled = d.cancelled_bookings || 0;
+
+        const refundMsg = parseFloat(refund) > 0
+            ? ` — refund due: £${refund} (of £${totalPaid} paid)`
+            : ' — no refund due';
+        showToast(`Series cancelled. ${cancelled} upcoming session${cancelled !== 1 ? 's' : ''} removed${refundMsg}.`, 'success');
         await mpLoadSeries();
     } catch(e) { showToast('Cancel failed: ' + e.message, 'error'); }
 }
