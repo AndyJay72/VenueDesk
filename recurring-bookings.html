@@ -1116,7 +1116,8 @@ const REC_MANAGE_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-re
 const REC_PAYMENT_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/record-recurring-payment';
 const REC_ALL_BKG_URL       = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
 const REC_CANCEL_URL        = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
-const REC_CANCEL_SERIES_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-recurring-series';
+const REC_CANCEL_SERIES_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-recurring-series';
+const REC_SCHEDULE_STATUS_URL = 'https://api.venuedesk.co.uk/recurring/schedule-status';
 
 let _mpPayData    = {};
 let _allSessions  = [];
@@ -1443,7 +1444,7 @@ function mpRenderCard(s) {
 }
 
 /* ─── Toggle session list for a series ──────────── */
-function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
+async function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
     const wrap = document.getElementById('mp-sess-' + safeId);
     const btn  = document.getElementById('mp-sess-btn-' + safeId);
     if (wrap.classList.contains('open')) {
@@ -1456,6 +1457,21 @@ function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
 
     const blockSize  = parseInt(sessPerCycle) || 4;
     const sessionRate= parseFloat(sessPrice)  || 0;
+
+    // Fetch per-cycle payment status from db-api schedule-status endpoint.
+    // scheduleMap[cycleNumber] = 'paid' | 'pending' | 'overdue' | 'cancelled'
+    // Falls back to empty map silently — block status degrades to 'Unpaid' rather than crash.
+    let scheduleMap = {};
+    try {
+        const schedUrl = `${REC_SCHEDULE_STATUS_URL}?series_id=${encodeURIComponent(ruleId)}&tenant_id=${encodeURIComponent(_TID())}`;
+        const schedRes = await fetch(schedUrl);
+        if (schedRes.ok) {
+            const schedJson = await schedRes.json();
+            (schedJson.data || []).forEach(row => {
+                if (row.cycle_number != null) scheduleMap[row.cycle_number] = (row.status || '').toLowerCase();
+            });
+        }
+    } catch (_) { /* non-fatal: scheduleMap stays empty; blocks degrade to Unpaid */ }
 
     // Match on recurring_rule_id OR recurring_series_id (same UUID post-migration)
     const inner = wrap.querySelector('.mp-sess-inner') || wrap;
@@ -1506,26 +1522,21 @@ function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
 
     let rows = '';
 
-    // Derive how many billing blocks are paid from the series's balance_due and agreed_price.
-    // This is the most reliable signal: if £480 total and £240 balance_due → 1 of 2 blocks paid.
-    const seriesAgreed  = parseFloat(seriesData.agreed_price || seriesData.monthly_fee || 0);
-    const seriesBalance = parseFloat(seriesData.balance_due  || 0);
-    const totalBlocks   = blocks.length || 1;
-    const seriesTotalPaid = Math.max(0, seriesAgreed - seriesBalance);
-    const cycleValue    = sessionRate > 0 ? sessionRate * (parseInt(sessPerCycle) || 4) : 0;
-    // How many complete cycles have been fully paid?
-    const paidCycleCount= (cycleValue > 0 && seriesTotalPaid > 0)
-                         ? Math.floor(seriesTotalPaid / cycleValue)
-                         : 0;
-    // Is the CURRENT period (latest block) paid per the schedule row?
+    // Block payment status — sourced from scheduleMap (cycle_number → status) fetched above.
+    // cycle_number is 1-indexed; block index bi is 0-indexed → cycle = bi + 1.
+    // If scheduleMap has no entry for a cycle (pre-004 schema or legacy series), fall back
+    // to the series-level period_status for the current block only; all others default Unpaid.
+    const hasScheduleData   = Object.keys(scheduleMap).length > 0;
     const currentPeriodPaid = seriesPeriodStat === 'paid' || seriesPeriodStat === 'completed';
+    const totalBlocks       = blocks.length || 1;
 
     blocks.forEach((blk, bi) => {
-        // Determine block payment state using schedule data, not child balance_due.
-        // Blocks are ordered oldest-first. Paid cycles fill from the front.
-        const blockIsPastCycle = bi < paidCycleCount;
-        const blockIsCurrent   = bi === totalBlocks - 1;  // last block = current period
-        const blockAllPaid = blockIsPastCycle || (blockIsCurrent && currentPeriodPaid);
+        // Authoritative: look up this block's cycle in the payment_schedule table.
+        // Fallback (legacy series without schedule rows): use series period_status for last block only.
+        const cycleStatus  = scheduleMap[bi + 1];
+        const blockAllPaid = cycleStatus
+            ? cycleStatus === 'paid'
+            : (!hasScheduleData && bi === totalBlocks - 1 && currentPeriodPaid);
         const blockPartial = false;  // partial tracking comes from individual session statuses
         const blockCycleCost = sessionRate > 0 ? sessionRate * blk.length : 0;
 
