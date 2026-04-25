@@ -1,0 +1,450 @@
+{
+  "name": "VenuePro — Create Recurring From Calendar (Phase 2 — db-api)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "crfc2-webhook-001",
+      "name": "Webhook: Create Recurring From Calendar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-recurring-from-calendar",
+        "responseMode": "responseNode",
+        "authentication": "none",
+        "options": {}
+      },
+      "webhookId": "crc-webhook-uuid-0001"
+    },
+    {
+      "id": "crfc2-jwt-001",
+      "name": "Code: Normalise JWT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "// Pattern 4 — JWT body-tunnel (CLAUDE.md §Pattern 4)\n// Browser CORS blocks Authorization headers on cross-origin requests.\n// Frontend embeds raw JWT in body.jwt; n8n normalises to Bearer format for db-api calls.\nconst item    = $input.first().json;\nconst headers = item.headers || {};\n\n// Normalise body: n8n stores text/plain requests as a raw string (or as\n// numbered-char keys when the body is very large). Parse both cases so\n// body.jwt is accessible regardless of the request Content-Type.\nlet body = item.body || {};\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch(e) { body = {}; }\n} else if (typeof body === 'object' && body !== null\n           && Object.keys(body).length > 0\n           && Object.keys(body).every(k => !isNaN(k))) {\n  // Numbered-char-key encoding — reconstruct and parse\n  try { body = JSON.parse(Object.values(body).join('')); } catch(e) { body = {}; }\n}\n\nconst rawToken = headers.authorization\n              || headers.Authorization\n              || body.jwt\n              || '';\nconst auth = rawToken.startsWith('Bearer ')\n  ? rawToken\n  : (rawToken ? 'Bearer ' + rawToken : '');\nreturn [{ json: { ...item, _auth: auth } }];"
+      }
+    },
+    {
+      "id": "crc-parse-001",
+      "name": "Parse: Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "jsCode": "// Parse incoming payload (handles chunked or direct JSON)\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = 'Parsing failed: ' + e.message;\n}\n\nconst monthlyFee = parseFloat(\n  finalResult.monthly_fee ||\n  finalResult.agreed_price ||\n  finalResult.monthly_rate ||\n  '0'\n) || 0;\n\nconst output = {\n  ...finalResult,\n  tenant_id:         parseInt(finalResult.tenant_id || 1001),\n  day_of_week:       parseInt(finalResult.day_of_week ?? -1),\n  payment_amount:    parseFloat(finalResult.payment_amount || '0') || 0,\n  rate_per_session:  parseFloat(finalResult.rate_per_session || '0') || 0,\n  monthly_fee:       monthlyFee,\n  agreed_price:      monthlyFee,\n  total_cycles:      parseInt(finalResult.total_cycles || '0') || 0,\n  remaining_cycles:  parseInt(finalResult.remaining_cycles || finalResult.total_cycles || '0') || 0,\n  billing_day:       parseInt(finalResult.billing_day || '1') || 1,\n  billing_type:      finalResult.billing_type || 'monthly',\n  interaction_type:  finalResult.interaction_type || 'RECURRING_CONTRACT_CREATED',\n  contract_notes:    finalResult.contract_notes || '',\n  status:            finalResult.status || 'confirmed',\n  booking_source:    finalResult.booking_source || 'calendar_recurring',\n  _debug_parsed:     true\n};\n\nreturn [{ json: output }];"
+      }
+    },
+    {
+      "id": "crfc2-upsert-cust-001",
+      "name": "HTTP: POST /recurring/upsert-customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/upsert-customer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_name:  ($('Parse: Input').first().json.customer_name  || '').trim(),\n  customer_email: ($('Parse: Input').first().json.customer_email || '').trim().toLowerCase(),\n  customer_phone: ($('Parse: Input').first().json.customer_phone || '').trim()\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "crc-gen-dates-001",
+      "name": "Code: Generate Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0],
+      "parameters": {
+        "jsCode": "const wb = $('Parse: Input').first().json;\n\nconst specificDates = (wb.specific_dates || '').trim();\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst billingType    = (wb.billing_type || 'monthly').toLowerCase();\nconst paymentTiming  = wb.payment_timing || 'in_advance';\n\nif (!specificDates) {\n  return [{ json: { error: 'Missing specific_dates', date_count: 0, dates: '', payment_timing: paymentTiming } }];\n}\n\nconst dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n\nconst firstDate = dates[0] || '';\nconst lastDate  = dates[dates.length - 1] || '';\n\nlet firstPeriodEnd = '';\nif (firstDate) {\n  const d = new Date(firstDate + 'T12:00:00');\n  d.setDate(d.getDate() + 27);\n  firstPeriodEnd = d.getFullYear() + '-'\n    + String(d.getMonth() + 1).padStart(2, '0') + '-'\n    + String(d.getDate()).padStart(2, '0');\n}\n\nconst cyclePrice = parseFloat(wb.monthly_fee || wb.agreed_price || '0') || ratePerSession * 4;\n\nreturn [{ json: {\n  dates:          dates.join(','),\n  date_count:     dates.length,\n  payment_timing: paymentTiming,\n  billing_type:   billingType,\n  first_period_start: firstDate,\n  first_period_end:   firstPeriodEnd,\n  first_month_amount: cyclePrice.toFixed(2),\n  monthly_periods_csv:  firstDate,\n  monthly_ends_csv:     firstPeriodEnd,\n  monthly_amounts_csv:  cyclePrice.toFixed(2),\n  monthly_sessions_csv: String(dates.length),\n  monthly_count:        1,\n  period_start:         firstDate,\n  period_end:           firstPeriodEnd\n} }];"
+      }
+    },
+    {
+      "id": "crfc2-validate-001",
+      "name": "Code: Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "parameters": {
+        "jsCode": "// Phase 2: customer data comes from HTTP response, not Postgres node\nconst wb         = $('Parse: Input').first().json;\nconst upsertResp = $('HTTP: POST /recurring/upsert-customer').first().json;\nconst dateGen    = $('Code: Generate Dates').first().json;\n\n// fullResponse:true wraps as { statusCode, headers, body }.\n// body may be a parsed object or a JSON string — normalise both.\nlet upsertBody = upsertResp.body;\nif (typeof upsertBody === 'string') {\n  try { upsertBody = JSON.parse(upsertBody); } catch(e) { upsertBody = {}; }\n}\nconst httpStatus = upsertResp.statusCode;\nif (httpStatus && httpStatus !== 200 && httpStatus !== 201) {\n  throw new Error(`upsert-customer HTTP ${httpStatus}: ${JSON.stringify(upsertBody)}`);\n}\n\n// Defensive fallback: body.data → body → root (guards against minor API shape changes)\nconst customerRow = upsertBody?.data || upsertBody || {};\nconst customer_id = customerRow?.customer_id || customerRow?.id;\n\nconst room_id   = wb?.room_id;\nconst tenant_id = wb?.tenant_id;\n\nif (!customer_id) {\n  throw new Error(`upsert-customer did not return a customer_id. HTTP ${httpStatus}, body: ${JSON.stringify(upsertBody)}`);\n}\nif (!room_id || !tenant_id) {\n  throw new Error(`Validation Error: Missing room_id or tenant_id. Room: ${room_id}, Tenant: ${tenant_id}`);\n}\nif (!dateGen.dates || dateGen.date_count === 0) {\n  throw new Error('Validation Error: No dates found in specific_dates.');\n}\n\n// Compute paid_sessions_count — how many leading sessions are covered by the upfront payment.\n// Floor division: payment_amount / rate_per_session, clamped to [0, date_count].\nconst paymentAmount  = parseFloat(wb.payment_amount || '0') || 0;\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst paymentType    = (wb.payment_type || 'none').toLowerCase();\nconst paid_sessions_count = (paymentType !== 'none' && paymentAmount > 0 && ratePerSession > 0)\n  ? Math.min(dateGen.date_count, Math.floor(paymentAmount / ratePerSession))\n  : 0;\n\nreturn [{\n  json: {\n    customer_id,\n    room_id,\n    tenant_id,\n    dates: dateGen.dates,\n    date_count: dateGen.date_count,\n    first_month_amount: dateGen.first_month_amount,\n    customer_name:       customerRow.full_name || wb.customer_name,\n    customer_email:      customerRow.email     || wb.customer_email || '',\n    paid_sessions_count\n  }\n}];"
+      }
+    },
+    {
+      "id": "crfc2-check-clashes-001",
+      "name": "HTTP: GET /bookings/check-clashes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 0],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/bookings/check-clashes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "room_id",
+              "value": "={{ $('Code: Validate').first().json.room_id }}"
+            },
+            {
+              "name": "dates",
+              "value": "={{ $('Code: Validate').first().json.dates }}"
+            },
+            {
+              "name": "start_time",
+              "value": "={{ $('Parse: Input').first().json.start_time || '09:00' }}"
+            },
+            {
+              "name": "end_time",
+              "value": "={{ $('Parse: Input').first().json.end_time || '23:59' }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "crfc2-filter-001",
+      "name": "Code: Filter Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 0],
+      "parameters": {
+        "jsCode": "// Phase 2: clashed_dates comes from HTTP response body\nconst validate = $('Code: Validate').first().json;\nconst allDates  = (validate.dates || '').split(',').filter(Boolean).sort();\nconst httpResp  = $input.first().json;\nconst clashData = httpResp.body?.data || httpResp;\nconst clashed   = new Set((clashData.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count: allDates.length,\n    has_conflict: false,\n    blocked: false,\n    warning: null\n  }}];\n}\n\nconst sortedClashed = [...clashed].sort();\nconst firstConflict = sortedClashed[0];\nconst safeDates     = allDates.filter(d => d < firstConflict);\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});\n};\n\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates: '',\n    dates_count: 0,\n    has_conflict: true,\n    blocked: true,\n    first_conflict_date: firstConflict,\n    warning: 'The first session date (' + fmtDate(firstConflict) + ') is already booked for this room at this time. Please choose a different start date or room.'\n  }}];\n}\n\nreturn [{ json: {\n  filtered_dates: safeDates.join(','),\n  dates_count: safeDates.length,\n  has_conflict: true,\n  blocked: false,\n  first_conflict_date: firstConflict,\n  clashed_count: clashed.size,\n  warning: 'Recurring series created for ' + safeDates.length + ' session(s) up to ' + fmtDate(safeDates[safeDates.length-1]) + '. Bookings stop before ' + fmtDate(firstConflict) + ' — that date is already taken by an existing booking.'\n}}];"
+      }
+    },
+    {
+      "id": "crfc2-if-avail-001",
+      "name": "IF: Room Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1760, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "avail-cond-crfc2-001",
+              "leftValue": "={{ $('Code: Filter Dates').first().json.blocked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "crfc2-create-series-cal-001",
+      "name": "HTTP: POST /recurring/create-series-calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/create-series-calendar",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_id:    $('Code: Validate').first().json.customer_id,\n  room_id:        $('Code: Validate').first().json.room_id,\n  series_name:    $('Parse: Input').first().json.series_name\n                    || ($('Code: Validate').first().json.customer_name + ' Block'),\n  cycle_amount:   parseFloat($('Parse: Input').first().json.monthly_fee\n                    || $('Parse: Input').first().json.agreed_price\n                    || $('Parse: Input').first().json.monthly_rate\n                    || $('Parse: Input').first().json.rate_per_session\n                    || '0') || 0,\n  payment_amount: parseFloat($('Parse: Input').first().json.payment_amount || '0') || 0,\n  start_time:     $('Parse: Input').first().json.start_time   || '',\n  end_time:       $('Parse: Input').first().json.end_time     || '',\n  frequency:      $('Parse: Input').first().json.frequency    || 'weekly',\n  end_date:       $('Parse: Input').first().json.end_date     || '',\n  day_of_week:    parseInt($('Parse: Input').first().json.day_of_week ?? '1'),\n  payment_timing: $('Parse: Input').first().json.payment_timing || 'in_advance',\n  billing_type:   $('Parse: Input').first().json.billing_type\n                    || $('Parse: Input').first().json.billing_frequency\n                    || 'monthly',\n  notes:          $('Parse: Input').first().json.notes || ''\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "crfc2-insert-bookings-001",
+      "name": "HTTP: POST /recurring/insert-bookings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/insert-bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_id:         $('Code: Validate').first().json.customer_id,\n  room_id:             $('Code: Validate').first().json.room_id,\n  dates_csv:           $('Code: Filter Dates').first().json.filtered_dates || '',\n  start_time:          $('Parse: Input').first().json.start_time || '',\n  end_time:            $('Parse: Input').first().json.end_time   || '',\n  rate_per_session:    parseFloat($('Parse: Input').first().json.rate_per_session || '0') || 0,\n  rule_id:             null,\n  series_id:           $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_id || null,\n  series_label:        $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_name || 'Recurring',\n  status:              $('Parse: Input').first().json.status || 'confirmed',\n  paid_sessions_count: $('Code: Validate').first().json.paid_sessions_count || 0\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "crfc2-record-payment-001",
+      "name": "HTTP: POST /recurring/record-payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, -160],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/record-payment",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_id:      $('Code: Validate').first().json.customer_id,\n  payment_amount:   parseFloat($('Parse: Input').first().json.payment_amount || '0') || 0,\n  payment_type:     $('Parse: Input').first().json.payment_type   || 'none',\n  payment_method:   $('Parse: Input').first().json.payment_method || 'cash',\n  series_reference: $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_reference || '',\n  series_id:        $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_id || null,\n  cycle_number:     1,\n  period_start:     $('Code: Generate Dates').first().json.first_period_start || '',\n  period_end:       $('Code: Generate Dates').first().json.first_period_end   || '',\n  cycle_amount:     parseFloat($('Code: Generate Dates').first().json.first_month_amount || '0') || 0,\n  billing_type:     $('Parse: Input').first().json.billing_type || $('Parse: Input').first().json.billing_frequency || 'monthly',\n  total_sessions:   parseInt($('Code: Filter Dates').first().json.dates_count || '0') || 0\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "crfc2-log-interaction-001",
+      "name": "HTTP: POST /recurring/log-interaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, -320],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/log-interaction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Code: Normalise JWT').first().json._auth }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_id:      $('Code: Validate').first().json.customer_id,\n  series_reference: $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_reference || '',\n  room_name:        $('Parse: Input').first().json.room_name   || '',\n  frequency:        $('Parse: Input').first().json.frequency   || 'weekly',\n  date_count:       parseInt($('Code: Generate Dates').first().json.date_count || '0') || 0,\n  performed_by:     $('Parse: Input').first().json.performed_by     || 'Staff',\n  interaction_type: $('Parse: Input').first().json.interaction_type || 'RECURRING_CONTRACT_CREATED',\n  contract_notes:   $('Parse: Input').first().json.contract_notes   || ''\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "crfc2-respond-created-001",
+      "name": "Respond: Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2640, -160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  status: 'created',\n  series_id:           $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_id   || null,\n  series_name:         $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_name || null,\n  series_reference:    $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_reference || null,\n  customer_id:         $('Code: Validate').first().json.customer_id,\n  customer_name:       $('Code: Validate').first().json.customer_name,\n  booking_count:       $('Code: Filter Dates').first().json.dates_count,\n  paid_sessions:       $('HTTP: POST /recurring/insert-bookings').first().json.body?.paid_sessions || 0,\n  unpaid_sessions:     $('HTTP: POST /recurring/insert-bookings').first().json.body?.unpaid_sessions || 0,\n  cycle_amount:        $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.cycle_amount   || null,\n  balance_due_initial: $('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.balance_due   || null,\n  frequency:           $('Parse: Input').first().json.frequency     || null,\n  booking_source:      $('Parse: Input').first().json.booking_source || 'calendar_recurring',\n  partial_booking:     $('Code: Filter Dates').first().json.has_conflict || false,\n  warning:             $('Code: Filter Dates').first().json.warning || null,\n  first_conflict_date: $('Code: Filter Dates').first().json.first_conflict_date || null\n}) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "crfc2-email-confirm-001",
+      "name": "Email: Send Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2860, -160],
+      "parameters": {
+        "sendTo": "={{ $('Code: Validate').first().json.customer_email || '' }}",
+        "subject": "={{ 'Your recurring booking is confirmed — ' + ($('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_name || 'Recurring Series') }}",
+        "emailFormat": "text",
+        "message": "={{ 'Dear ' + ($('Code: Validate').first().json.customer_name || 'Customer') + ',\\n\\nYour recurring series for ' + ($('Parse: Input').first().json.room_name || 'the room') + ' has been created.\\n\\nTotal sessions: ' + ($('Code: Filter Dates').first().json.dates_count || 0) + '\\nInitial payment of £' + ($('Parse: Input').first().json.payment_amount || 0) + ' received.' + ($('HTTP: POST /recurring/create-series-calendar').first().json.body?.data?.series_reference ? '\\nSeries reference: ' + $('HTTP: POST /recurring/create-series-calendar').first().json.body.data.series_reference : '') + '\\n\\nThank you for your booking.\\n\\nVenueDesk' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "smtp-account",
+          "name": "SMTP Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "crfc2-respond-blocked-001",
+      "name": "Respond: Not Available",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1980, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, status: 'unavailable', message: $('Code: Filter Dates').first().json.warning || 'Room not available for the requested dates.' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Create Recurring From Calendar": {
+      "main": [[{ "node": "Code: Normalise JWT", "type": "main", "index": 0 }]]
+    },
+    "Code: Normalise JWT": {
+      "main": [[{ "node": "Parse: Input", "type": "main", "index": 0 }]]
+    },
+    "Parse: Input": {
+      "main": [[{ "node": "HTTP: POST /recurring/upsert-customer", "type": "main", "index": 0 }]]
+    },
+    "HTTP: POST /recurring/upsert-customer": {
+      "main": [[{ "node": "Code: Generate Dates", "type": "main", "index": 0 }]]
+    },
+    "Code: Generate Dates": {
+      "main": [[{ "node": "Code: Validate", "type": "main", "index": 0 }]]
+    },
+    "Code: Validate": {
+      "main": [[{ "node": "HTTP: GET /bookings/check-clashes", "type": "main", "index": 0 }]]
+    },
+    "HTTP: GET /bookings/check-clashes": {
+      "main": [[{ "node": "Code: Filter Dates", "type": "main", "index": 0 }]]
+    },
+    "Code: Filter Dates": {
+      "main": [[{ "node": "IF: Room Available?", "type": "main", "index": 0 }]]
+    },
+    "IF: Room Available?": {
+      "main": [
+        [{ "node": "HTTP: POST /recurring/create-series-calendar", "type": "main", "index": 0 }],
+        [{ "node": "Respond: Not Available", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: POST /recurring/create-series-calendar": {
+      "main": [[{ "node": "HTTP: POST /recurring/insert-bookings", "type": "main", "index": 0 }]]
+    },
+    "HTTP: POST /recurring/insert-bookings": {
+      "main": [[
+        { "node": "HTTP: POST /recurring/record-payment",  "type": "main", "index": 0 },
+        { "node": "HTTP: POST /recurring/log-interaction", "type": "main", "index": 0 }
+      ]]
+    },
+    "HTTP: POST /recurring/record-payment": {
+      "main": [[
+        { "node": "Respond: Created",           "type": "main", "index": 0 },
+        { "node": "Email: Send Confirmation",   "type": "main", "index": 0 }
+      ]]
+    },
+    "HTTP: POST /recurring/log-interaction": {
+      "main": []
+    },
+    "Email: Send Confirmation": {
+      "main": []
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  }
+}
