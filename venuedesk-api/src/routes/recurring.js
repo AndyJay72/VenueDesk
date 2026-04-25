@@ -847,29 +847,37 @@ async function recurringRoutes(fastify) {
 
       const payment = rows[0] || null;
 
-      // Link payment to recurring_series via UUID — non-fatal (column may not exist on older schemas)
+      // Link payment to recurring_series via UUID — non-fatal, wrapped in SAVEPOINT
+      // so a missing column cannot abort the outer transaction (25P02 prevention).
       if (payment && series_id) {
+        await client.query('SAVEPOINT sp_link_series');
         await client.query(
           `UPDATE bookings.payments
            SET recurring_series_id = $1::uuid
            WHERE id = $2::uuid`,
           [series_id, payment.id]
-        ).catch(() => { /* non-fatal: recurring_series_id column may not exist yet */ });
+        ).catch(async () => {
+          await client.query('ROLLBACK TO SAVEPOINT sp_link_series').catch(() => {});
+        });
+        await client.query('RELEASE SAVEPOINT sp_link_series').catch(() => {});
       }
 
-      // Audit trail — non-fatal (bookings.audit_logs may not exist on all deployments).
+      // Audit trail — non-fatal, wrapped in SAVEPOINT so a missing table cannot
+      // abort the outer transaction (25P02 prevention).
       // Pattern 3: structured label built in JS to avoid $N type conflicts.
-      // action: 'payment_received' — consistent with the payment chaser's terminology.
-      // details: human-readable string for the ledger strip on the dashboard.
       if (payment) {
         const seriesRef    = series_reference || payment.series_reference || 'N/A';
         const auditDetails = `Paid Block ${effectiveCycleNum} for Series ${seriesRef}`;
+        await client.query('SAVEPOINT sp_audit');
         await client.query(
           `INSERT INTO bookings.audit_logs
              (tenant_id, entity_type, entity_id, action, actor, details, created_at)
            VALUES ($1::integer, 'payment', $2, 'payment_received', 'VenueDesk API', $3, NOW())`,
           [tenantId, payment.id, auditDetails]
-        ).catch(() => { /* non-fatal: audit_logs table may not exist yet */ });
+        ).catch(async () => {
+          await client.query('ROLLBACK TO SAVEPOINT sp_audit').catch(() => {});
+        });
+        await client.query('RELEASE SAVEPOINT sp_audit').catch(() => {});
       }
 
       // ── Phase 3: seed lifecycle schedule rows atomically ──────────────────
@@ -908,10 +916,10 @@ async function recurringRoutes(fastify) {
               'paid', 'phase3', 'in_advance')
            ON CONFLICT (recurring_series_id, cycle_number)
              WHERE recurring_series_id IS NOT NULL AND cycle_number IS NOT NULL
-           DO NOTHING`,
+           DO UPDATE SET status = 'paid', updated_at = NOW()`,
           [tenantId, series_id, customer_id, period_start, c1PeriodEnd, cycleAmt]
         ).then(r => { scheduleCount += r.rowCount; })
-         .catch(() => { /* non-fatal: 004 migration may not have run yet */ });
+         .catch(() => { /* non-fatal: partial index may not exist yet */ });
 
         // Cycle 2 — pending (next billing period)
         await client.query(
@@ -928,7 +936,7 @@ async function recurringRoutes(fastify) {
            DO NOTHING`,
           [tenantId, series_id, customer_id, c2Start, c2End, cycleAmt]
         ).then(r => { scheduleCount += r.rowCount; })
-         .catch(() => { /* non-fatal: 004 migration may not have run yet */ });
+         .catch(() => { /* non-fatal: partial index may not exist yet */ });
 
       } else if (series_id && effectiveCycleNum > 1 && payment) {
         // ── Phase 3: advance an existing recurring series (cycle N → paid, seed cycle N+1) ──
@@ -1370,12 +1378,16 @@ async function recurringRoutes(fastify) {
       // 6. Audit log — Pattern 3: label built in JS
       const seriesRef    = series.series_reference || series_id;
       const auditDetails = `Series ${seriesRef} cancelled by ${performed_by}. Refund due: £${refundAmount.toFixed(2)} (paid £${totalPaid.toFixed(2)}, delivered £${valueDelivered.toFixed(2)})`;
+      await client.query('SAVEPOINT sp_cancel_audit');
       await client.query(
         `INSERT INTO bookings.audit_logs
            (tenant_id, entity_type, entity_id, action, actor, details, created_at)
          VALUES ($1::integer, 'recurring_series', $2, 'series_cancelled', 'VenueDesk API', $3, NOW())`,
         [tenantId, series_id, auditDetails]
-      ).catch(() => { /* non-fatal: audit_logs table may not exist yet */ });
+      ).catch(async () => {
+        await client.query('ROLLBACK TO SAVEPOINT sp_cancel_audit').catch(() => {});
+      });
+      await client.query('RELEASE SAVEPOINT sp_cancel_audit').catch(() => {});
 
       await logger.info(
         'RecurringRoute',
