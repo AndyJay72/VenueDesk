@@ -1736,6 +1736,7 @@
         const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
         const PAY_BALANCE_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
+        const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
 
         function getAuthHeaders() {
             // No custom headers — avoid CORS preflight failures.
@@ -2614,15 +2615,52 @@
         }
 
         // Dedicated outstanding payments loader — calls the get-outstanding-bookings endpoint which
-        // returns BOTH single bookings (balance_due > 0) AND recurring series (from recurring_series table).
-        // This replaces the old approach of filtering confirmed_bookings.balance_due > 0, which broke
-        // after migration because all child recurring sessions now have balance_due = 0.
+        // Returns BOTH single bookings (balance_due > 0) AND recurring series debt.
+        // Source 1: n8n get-outstanding-bookings webhook (legacy confirmed_bookings + recurring_series table).
+        // Source 2: db-api /recurring/next-due — phase3 recurring_payment_schedule pending/overdue rows.
+        // Results are merged; renderOutstandingPanel deduplicates by series_reference for recurring items.
         async function loadOutstandingPayments() {
             try {
+                // --- Source 1: n8n outstanding bookings (legacy path) ---
                 const res  = await fetch(OUTSTANDING_BOOKINGS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '' }) });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const json = await res.json();
-                allOutstandingPayments = json.data || (Array.isArray(json) ? json : []);
+                const legacyItems = json.data || (Array.isArray(json) ? json : []);
+
+                // --- Source 2: db-api phase3 recurring schedule (next-due per series) ---
+                let phase3Items = [];
+                try {
+                    const tid     = _TID();
+                    const ndRes   = await fetch(`${RECURRING_NEXT_DUE_URL}?tenant_id=${encodeURIComponent(tid)}`);
+                    if (ndRes.ok) {
+                        const ndJson  = await ndRes.json();
+                        // Transform schedule rows into the shape renderCard / renderOutstandingPanel expects.
+                        phase3Items = (ndJson.data || []).map(row => ({
+                            booking_type:    'recurring',
+                            id:              row.schedule_id,
+                            customer_id:     row.series_id,      // used as dedup key fallback
+                            full_name:       row.customer_name,
+                            customer_name:   row.customer_name,
+                            customer_email:  row.customer_email,
+                            series_reference: row.series_reference,
+                            amount_due:      row.amount_due,
+                            balance_due:     row.amount_due,
+                            date_from:       row.due_date || row.period_start,
+                            booking_date:    row.due_date || row.period_start,
+                            status:          row.status,          // 'pending' | 'overdue'
+                            series_id:       row.series_id,
+                            cycle_number:    row.cycle_number,
+                            // phase3 flag — lets renderCard know this is a schedule-driven item
+                            phase3_recurring: true,
+                        }));
+                    }
+                } catch(ndErr) {
+                    console.warn('loadOutstandingPayments: next-due fetch failed (non-fatal)', ndErr);
+                }
+
+                // Merge: legacy items first, phase3 items appended.
+                // renderOutstandingPanel's dedup logic collapses same series_reference — safe to merge.
+                allOutstandingPayments = [...legacyItems, ...phase3Items];
                 renderOutstandingPanel();
             } catch(e) {
                 console.error('loadOutstandingPayments error:', e);
@@ -3676,3 +3714,4 @@
 </script>
 </body>
 </html>
+
