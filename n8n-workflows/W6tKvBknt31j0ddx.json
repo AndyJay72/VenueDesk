@@ -1,0 +1,674 @@
+{
+  "updatedAt": "2026-03-15T20:38:54.910Z",
+  "createdAt": "2026-02-20T01:29:09.441Z",
+  "id": "W6tKvBknt31j0ddx",
+  "name": "VenuePro - Cancellation Manager (Sync Fix)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-booking-gcal",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "51f6959c-3f75-4a52-9a63-31387143700a",
+      "name": "Webhook: Cancel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        0
+      ],
+      "webhookId": "cancel-booking-gcal"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/bookings/{{ $json.body?.booking_id || $json.booking_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-booking-001",
+      "name": "DB: Get Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -352,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "01",
+              "leftValue": "={{ $json.google_event_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "32432c46-4c2f-4827-949e-81a5d41f261f",
+      "name": "If: Has Calendar Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "primary"
+        },
+        "eventId": "={{ $json.google_event_id }}",
+        "options": {}
+      },
+      "id": "11da7165-13e6-4420-95ce-75c270be9573",
+      "name": "GCal: Delete Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        96,
+        -112
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "MyyrI6Fw9UrSLNaT",
+          "name": "Google Calendar account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/cancel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ booking_id: $('DB: Get Details').first().json.data?.id, cancelled_by: $('Webhook: Cancel Booking').first().json.body?.cancelled_by || 'Admin', reason: $('Webhook: Cancel Booking').first().json.body?.reason || '', refund_amount: $('Webhook: Cancel Booking').first().json.body?.refund_amount || 0, refund_type: $('Webhook: Cancel Booking').first().json.body?.refund_type || 'none', jwt: ($('Webhook: Cancel Booking').first().json.body?.jwt || '') }) }}"
+      },
+      "id": "http-cancel-booking-001",
+      "name": "DB: Set Booking Cancelled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        368,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $('DB: Get Details').first().json.email }}",
+        "subject": "Booking Cancelled - Refund Processed",
+        "html": "=<p>Dear {{ $('DB: Get Details').first().json.full_name }},</p><p>We are writing to confirm that your booking for the <strong>{{ $('DB: Get Details').first().json.room_name }}</strong> has been successfully cancelled.</p><p>A refund of <strong>£{{ (($('DB: Get Details').first().json.total_amount - $('DB: Get Details').first().json.balance_due)).toFixed(2) }}</strong> has been processed to your original payment method. Please allow 5–10 business days for it to appear on your statement.</p><p>If you have any questions, please do not hesitate to contact us at bookings@in2netaisolutions.cloud.</p><p>Best regards,<br>The VenuePro Team</p>",
+        "options": {}
+      },
+      "id": "050cb46a-3157-4570-82d1-649487aa620a",
+      "name": "Email: Cancellation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1024,
+        0
+      ],
+      "webhookId": "b47a9b4e-57c5-4a63-a430-c31fb826cf6c",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\", \"message\": \"Booking cancelled.\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "979453c1-761d-4665-bc3f-0cb77b8aff08",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Cancel": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Details": {
+      "main": [
+        [
+          {
+            "node": "If: Has Calendar Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If: Has Calendar Event?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "DB: Set Booking Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GCal: Delete Event": {
+      "main": [
+        []
+      ]
+    },
+    "DB: Set Booking Cancelled": {
+      "main": [
+        []
+      ]
+    },
+    "Email: Cancellation": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+  "activeVersionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+  "versionCounter": 18,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-20T01:29:09.441Z",
+      "createdAt": "2026-02-20T01:29:09.441Z",
+      "role": "workflow:owner",
+      "workflowId": "W6tKvBknt31j0ddx",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-13T18:28:08.221Z",
+    "createdAt": "2026-03-13T18:28:08.221Z",
+    "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+    "workflowId": "W6tKvBknt31j0ddx",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "cancel-booking-gcal",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "51f6959c-3f75-4a52-9a63-31387143700a",
+        "name": "Webhook: Cancel",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -560,
+          0
+        ],
+        "webhookId": "cancel-booking-gcal"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT cb.id, cb.customer_id, cb.google_event_id, cb.deposit_paid,\n       cb.total_amount, cb.balance_due, cb.tenant_id,\n       c.email, c.full_name, r.name AS room_name\nFROM bookings.confirmed_bookings cb\nJOIN bookings.customers c ON cb.customer_id = c.id\nJOIN bookings.rooms r ON cb.room_id = r.id\nWHERE cb.id = $1;",
+          "options": {
+            "queryReplacement": "={{ [$json.body.booking_id] }}"
+          }
+        },
+        "id": "1887b250-70f8-4835-9d7c-656c7e7fc6a2",
+        "name": "DB: Get Details",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -352,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "01",
+                "leftValue": "={{ $json.google_event_id }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "isNotEmpty"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "32432c46-4c2f-4827-949e-81a5d41f261f",
+        "name": "If: Has Calendar Event?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          -128,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "delete",
+          "calendar": {
+            "__rl": true,
+            "mode": "list",
+            "value": "primary"
+          },
+          "eventId": "={{ $json.google_event_id }}",
+          "options": {}
+        },
+        "id": "11da7165-13e6-4420-95ce-75c270be9573",
+        "name": "GCal: Delete Event",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1,
+        "position": [
+          96,
+          -112
+        ],
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "MyyrI6Fw9UrSLNaT",
+            "name": "Google Calendar account 2"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE bookings.confirmed_bookings SET status = 'cancelled' WHERE id = $1 AND tenant_id = $2;",
+          "options": {
+            "queryReplacement": "={{ [$('DB: Get Details').first().json.id, $('DB: Get Details').first().json.tenant_id] }}"
+          }
+        },
+        "id": "1a2fcce3-5880-4225-9a17-102a2e23d50b",
+        "name": "DB: Set Booking Cancelled",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          368,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE bookings.customers SET status = 'cancelled' WHERE id = $1 AND tenant_id = $2;",
+          "options": {
+            "queryReplacement": "={{ [$('DB: Get Details').first().json.customer_id, $('DB: Get Details').first().json.tenant_id] }}"
+          }
+        },
+        "id": "64b0309e-0338-47c4-9d46-233da17159a4",
+        "name": "DB: Update Customer Status",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          576,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "schema": {
+            "value": "bookings",
+            "mode": "list"
+          },
+          "table": {
+            "value": "payments",
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "customer_id": "={{ $('DB: Get Details').first().json.customer_id }}",
+              "booking_id": "={{ $('DB: Get Details').first().json.id }}",
+              "payment_type": "refund",
+              "amount": "={{ -1 * ($('DB: Get Details').first().json.total_amount - $('DB: Get Details').first().json.balance_due) }}",
+              "payment_method": "system_refund",
+              "status": "refunded",
+              "notes": "Booking Cancelled"
+            }
+          },
+          "options": {}
+        },
+        "id": "5344e512-438b-4827-b302-8984f39fad69",
+        "name": "DB: Record Refund",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          800,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fromEmail": "bookings@in2netaisolutions.cloud",
+          "toEmail": "={{ $('DB: Get Details').first().json.email }}",
+          "subject": "Booking Cancelled - Refund Processed",
+          "html": "=<p>Dear {{ $('DB: Get Details').first().json.full_name }},</p><p>We are writing to confirm that your booking for the <strong>{{ $('DB: Get Details').first().json.room_name }}</strong> has been successfully cancelled.</p><p>A refund of <strong>£{{ (($('DB: Get Details').first().json.total_amount - $('DB: Get Details').first().json.balance_due)).toFixed(2) }}</strong> has been processed to your original payment method. Please allow 5–10 business days for it to appear on your statement.</p><p>If you have any questions, please do not hesitate to contact us at bookings@in2netaisolutions.cloud.</p><p>Best regards,<br>The VenuePro Team</p>",
+          "options": {}
+        },
+        "id": "050cb46a-3157-4570-82d1-649487aa620a",
+        "name": "Email: Cancellation",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1024,
+          0
+        ],
+        "webhookId": "b47a9b4e-57c5-4a63-a430-c31fb826cf6c",
+        "credentials": {
+          "smtp": {
+            "id": "oWx6QKxXljDdeSDP",
+            "name": "SMTP account"
+          }
+        },
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"status\": \"success\", \"message\": \"Booking cancelled.\"}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "979453c1-761d-4665-bc3f-0cb77b8aff08",
+        "name": "Respond",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1248,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook: Cancel": {
+        "main": [
+          [
+            {
+              "node": "DB: Get Details",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Get Details": {
+        "main": [
+          [
+            {
+              "node": "If: Has Calendar Event?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If: Has Calendar Event?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "DB: Set Booking Cancelled",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "GCal: Delete Event": {
+        "main": [
+          []
+        ]
+      },
+      "DB: Set Booking Cancelled": {
+        "main": [
+          [
+            {
+              "node": "DB: Update Customer Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Update Customer Status": {
+        "main": [
+          [
+            {
+              "node": "DB: Record Refund",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Record Refund": {
+        "main": [
+          [
+            {
+              "node": "Email: Cancellation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Email: Cancellation": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-15T20:38:54.939Z",
+        "id": 1375,
+        "workflowId": "W6tKvBknt31j0ddx",
+        "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:38:54.947Z",
+        "id": 1376,
+        "workflowId": "W6tKvBknt31j0ddx",
+        "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:28:08.251Z",
+        "id": 1296,
+        "workflowId": "W6tKvBknt31j0ddx",
+        "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:28:08.279Z",
+        "id": 1297,
+        "workflowId": "W6tKvBknt31j0ddx",
+        "versionId": "032adf30-221e-4572-a83c-9c343e6f2d27",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

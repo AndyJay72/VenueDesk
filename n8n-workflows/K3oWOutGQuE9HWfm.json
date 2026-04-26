@@ -1,0 +1,752 @@
+{
+  "updatedAt": "2026-03-15T20:39:28.571Z",
+  "createdAt": "2026-02-20T01:30:20.023Z",
+  "id": "K3oWOutGQuE9HWfm",
+  "name": "VenuePro - Main System Workflow (Fixed)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "d057a40e-fb3e-402a-8ed7-fe16bce70feb",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "10f529e5-3fcf-4eb5-8fa6-3c3c77ab3a38",
+      "name": "Webhook: Customer Request1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d057a40e-fb3e-402a-8ed7-fe16bce70feb"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $json.full_name, email: $json.email, phone: $json.phone, event_type: $json.event_type, event_date: $json.event_date, guests_count: $json.guests_count, notes: $json.notes, jwt: ($json.jwt || \"\") }) }}"
+      },
+      "id": "http-upsert-customer-001",
+      "name": "DB: Create Customer1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/config/rooms",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-find-room-001",
+      "name": "DB: Find Room1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/create-request",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('DB: Create Customer1').first().json.data?.id, room_id: $('Code: Find Room').first().json.id, event_date: $('Code: Extract Data').first().json.event_date, date_from: $('Code: Extract Data').first().json.date_from || null, date_to: $('Code: Extract Data').first().json.date_to || null, start_time: $('Code: Extract Data').first().json.time_from, end_time: $('Code: Extract Data').first().json.time_to, guest_count: $('Code: Extract Data').first().json.guest_count || 0, estimated_cost: $('Code: Extract Data').first().json.estimated_cost || 0, jwt: '' }) }}"
+      },
+      "id": "http-create-request-001",
+      "name": "DB: Create Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $('Code: Extract Data').first().json.email }}",
+        "subject": "We received your enquiry",
+        "html": "=<p>Hi {{ $('Code: Extract Data').first().json.full_name }},</p>\n<p>\nThank you for your enquiry regarding a \n{{ $('Code: Extract Data').first().json.event_type }} at VenuePro.\n</p>\n\n<p>We have received your request with the following details:</p>\n\n\nDate: {{ $('Code: Extract Data').first().json.event_date }}<br>\nGuests: {{ $('Code: Extract Data').first().json.guests_count }}<br>\nTime: {{ $('Code: Extract Data').first().json.time_from }} to {{ $('Code: Extract Data').first().json.time_to }}\n\n<p>\nOur team will now review availability and will contact you shortly to confirm the details.\n\nBest regards,<br>\nThe VenuePro Team\n</p>",
+        "options": {
+          "replyTo": "bookings@in2netaisolutions.cloud"
+        }
+      },
+      "id": "d738281d-0821-46ec-90a7-d6051058e65f",
+      "name": "Email: Ack1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1104,
+        0
+      ],
+      "webhookId": "51324653-75e4-4b88-a8ab-7a3c8b497f1e",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Form Data\nconst body = $input.first().json.body || $input.first().json;\n\nconst services = Array.isArray(body.services) ? body.services : [];\nconst rooms    = Array.isArray(body.rooms) ? body.rooms : [];\n\n// Calculate estimated cost: sum (room.day_rate * hours) + sum service subtotals\nconst timeFrom = body.timeFrom || '';\nconst timeTo   = body.timeTo   || '';\nlet hours = 0;\nif (timeFrom && timeTo) {\n  const [fh, fm] = timeFrom.split(':').map(Number);\n  const [th, tm] = timeTo.split(':').map(Number);\n  hours = Math.max(0, (th * 60 + tm - fh * 60 - fm) / 60);\n}\nconst roomCost     = rooms.reduce((s, r) => s + (parseFloat(r.day_rate || 0) * hours), 0);\nconst servicesCost = services.reduce((s, sv) => s + (parseFloat(sv.subtotal || sv.price || 0)), 0);\nconst estimatedCost = Math.round((roomCost + servicesCost) * 100) / 100;\n\n// Encode services & rooms into notes as a recoverable metadata block\nconst meta = JSON.stringify({ services, rooms, hours });\nconst rawNotes = body.notes || '';\nconst notes = rawNotes + (rawNotes ? '\\n' : '') + '##ENQUIRY_META##' + meta;\n\nreturn {\n  json: {\n    tenant_id: (body.tenant_id !== undefined && body.tenant_id !== null && body.tenant_id !== '') ? parseInt(body.tenant_id, 10) : null,\n    full_name: body.name,\n    email: body.email,\n    phone: body.contact,\n    event_type: body.eventType,\n    event_date: body.eventDate,\n    guests_count: body.numPeople || body.guest_count,\n    date_from: body.dateFrom || body.date_from || body.eventDate,\n    date_to: body.dateTo || body.date_to || body.dateFrom || body.eventDate,\n    guest_count: body.numPeople || body.guest_count,\n    time_from: body.timeFrom,\n    time_to: body.timeTo,\n    room_name: body.roomName,\n    notes: notes,\n    estimated_cost: estimatedCost,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "085f7c8d-ba5b-4a22-a164-69ca4b92ff9f",
+      "name": "Code: Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\", \"message\": \"Your enquiry has been received. We will be in touch shortly.\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "2fc54f82-a269-4fbe-b4fd-a1290fe617ff",
+      "name": "Respond: Enquiry OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1328,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find room_id matching the room_name from the enquiry form\nconst rooms = $json.data || [];\nconst roomName = $('Code: Extract Data').first().json.room_name || '';\nconst matched = rooms.find(r => r.name.toLowerCase() === roomName.toLowerCase());\nif (!matched) throw new Error('Room not found: ' + roomName);\nreturn { json: { id: matched.id, name: matched.name } };"
+      },
+      "id": "code-find-room-001",
+      "name": "Code: Find Room",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        932,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Customer Request1": {
+      "main": [
+        [
+          {
+            "node": "Code: Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Customer1": {
+      "main": [
+        [
+          {
+            "node": "DB: Find Room1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Find Room1": {
+      "main": [
+        [
+          {
+            "node": "Code: Find Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Request1": {
+      "main": [
+        [
+          {
+            "node": "Respond: Enquiry OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Ack1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Extract Data": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Customer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Find Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+  "activeVersionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+  "versionCounter": 36,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-20T01:30:20.023Z",
+      "createdAt": "2026-02-20T01:30:20.023Z",
+      "role": "workflow:owner",
+      "workflowId": "K3oWOutGQuE9HWfm",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-15T04:19:57.213Z",
+    "createdAt": "2026-03-15T04:19:57.213Z",
+    "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+    "workflowId": "K3oWOutGQuE9HWfm",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "d057a40e-fb3e-402a-8ed7-fe16bce70feb",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "10f529e5-3fcf-4eb5-8fa6-3c3c77ab3a38",
+        "name": "Webhook: Customer Request1",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "webhookId": "d057a40e-fb3e-402a-8ed7-fe16bce70feb"
+      },
+      {
+        "parameters": {
+          "schema": {
+            "value": "bookings",
+            "mode": "list"
+          },
+          "table": {
+            "value": "customers",
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "full_name": "={{ $json.full_name }}",
+              "email": "={{ $json.email }}",
+              "phone": "={{ $json.phone }}",
+              "event_date": "={{ $json.event_date }}",
+              "event_type": "={{ $json.event_type }}",
+              "guests_count": "={{ $json.guests_count }}",
+              "status": "pending",
+              "notes": "={{ $json.notes }}",
+              "tenant_id": "={{ $json.tenant_id }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "id",
+                "displayName": "id",
+                "required": false,
+                "defaultMatch": true,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "full_name",
+                "displayName": "full_name",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "email",
+                "displayName": "email",
+                "required": true,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "phone",
+                "displayName": "phone",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "company",
+                "displayName": "company",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "event_date",
+                "displayName": "event_date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "event_type",
+                "displayName": "event_type",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "guests_count",
+                "displayName": "guests_count",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "requirements",
+                "displayName": "requirements",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "first_contact_date",
+                "displayName": "first_contact_date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "assigned_to",
+                "displayName": "assigned_to",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "notes",
+                "displayName": "notes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "updated_at",
+                "displayName": "updated_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "dateTime",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "24d59015-4929-44be-8d44-be4787fc8e8c",
+        "name": "DB: Create Customer1",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          448,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT id FROM bookings.rooms WHERE name ILIKE $1 AND tenant_id = $2::integer LIMIT 1;",
+          "options": {
+            "queryReplacement": "={{ [$('Code: Extract Data').first().json.room_name, $('Code: Extract Data').first().json.tenant_id] }}"
+          }
+        },
+        "id": "d4139633-dc30-48f5-8160-153514e37292",
+        "name": "DB: Find Room1",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          672,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.booking_requests\n  (customer_id, room_id, requested_date, date_from, date_to,\n   start_time, end_time, guest_count, status, estimated_cost, tenant_id)\nVALUES (\n  $1::uuid, $2::uuid, $3::date,\n  COALESCE($4::date, $3::date),\n  COALESCE($5::date, $4::date, $3::date),\n  $6::time, $7::time,\n  $8::integer,\n  'pending_review',\n  $9::numeric,\n  $10::integer\n)\nRETURNING id;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('DB: Create Customer1').first().json.id,\n  $json.id,\n  $('Code: Extract Data').first().json.event_date,\n  $('Code: Extract Data').first().json.date_from || null,\n  $('Code: Extract Data').first().json.date_to   || null,\n  $('Code: Extract Data').first().json.time_from,\n  $('Code: Extract Data').first().json.time_to,\n  parseInt($('Code: Extract Data').first().json.guest_count || 0),\n  parseFloat($('Code: Extract Data').first().json.estimated_cost || 0),\n  $('Code: Extract Data').first().json.tenant_id\n] }}"
+          }
+        },
+        "id": "e6afe083-d7fb-40cb-ab1b-b8fdb667c0c2",
+        "name": "DB: Create Request1",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          880,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fromEmail": "bookings@in2netaisolutions.cloud",
+          "toEmail": "={{ $('Code: Extract Data').first().json.email }}",
+          "subject": "We received your enquiry",
+          "html": "=<p>Hi {{ $('Code: Extract Data').first().json.full_name }},</p>\n<p>\nThank you for your enquiry regarding a \n{{ $('Code: Extract Data').first().json.event_type }} at VenuePro.\n</p>\n\n<p>We have received your request with the following details:</p>\n\n\nDate: {{ $('Code: Extract Data').first().json.event_date }}<br>\nGuests: {{ $('Code: Extract Data').first().json.guests_count }}<br>\nTime: {{ $('Code: Extract Data').first().json.time_from }} to {{ $('Code: Extract Data').first().json.time_to }}\n\n<p>\nOur team will now review availability and will contact you shortly to confirm the details.\n\nBest regards,<br>\nThe VenuePro Team\n</p>",
+          "options": {
+            "replyTo": "bookings@in2netaisolutions.cloud"
+          }
+        },
+        "id": "d738281d-0821-46ec-90a7-d6051058e65f",
+        "name": "Email: Ack1",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          1104,
+          0
+        ],
+        "webhookId": "51324653-75e4-4b88-a8ab-7a3c8b497f1e",
+        "credentials": {
+          "smtp": {
+            "id": "oWx6QKxXljDdeSDP",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Extract Form Data\nconst body = $input.first().json.body || $input.first().json;\n\nconst services = Array.isArray(body.services) ? body.services : [];\nconst rooms    = Array.isArray(body.rooms) ? body.rooms : [];\n\n// Calculate estimated cost: sum (room.day_rate * hours) + sum service subtotals\nconst timeFrom = body.timeFrom || '';\nconst timeTo   = body.timeTo   || '';\nlet hours = 0;\nif (timeFrom && timeTo) {\n  const [fh, fm] = timeFrom.split(':').map(Number);\n  const [th, tm] = timeTo.split(':').map(Number);\n  hours = Math.max(0, (th * 60 + tm - fh * 60 - fm) / 60);\n}\nconst roomCost     = rooms.reduce((s, r) => s + (parseFloat(r.day_rate || 0) * hours), 0);\nconst servicesCost = services.reduce((s, sv) => s + (parseFloat(sv.subtotal || sv.price || 0)), 0);\nconst estimatedCost = Math.round((roomCost + servicesCost) * 100) / 100;\n\n// Encode services & rooms into notes as a recoverable metadata block\nconst meta = JSON.stringify({ services, rooms, hours });\nconst rawNotes = body.notes || '';\nconst notes = rawNotes + (rawNotes ? '\\n' : '') + '##ENQUIRY_META##' + meta;\n\nreturn {\n  json: {\n    tenant_id: (body.tenant_id !== undefined && body.tenant_id !== null && body.tenant_id !== '') ? parseInt(body.tenant_id, 10) : null,\n    full_name: body.name,\n    email: body.email,\n    phone: body.contact,\n    event_type: body.eventType,\n    event_date: body.eventDate,\n    guests_count: body.numPeople || body.guest_count,\n    date_from: body.dateFrom || body.date_from || body.eventDate,\n    date_to: body.dateTo || body.date_to || body.dateFrom || body.eventDate,\n    guest_count: body.numPeople || body.guest_count,\n    time_from: body.timeFrom,\n    time_to: body.timeTo,\n    room_name: body.roomName,\n    notes: notes,\n    estimated_cost: estimatedCost,\n    timestamp: new Date().toISOString()\n  }\n};"
+        },
+        "id": "085f7c8d-ba5b-4a22-a164-69ca4b92ff9f",
+        "name": "Code: Extract Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          224,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"status\": \"success\", \"message\": \"Your enquiry has been received. We will be in touch shortly.\"}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "2fc54f82-a269-4fbe-b4fd-a1290fe617ff",
+        "name": "Respond: Enquiry OK",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1328,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook: Customer Request1": {
+        "main": [
+          [
+            {
+              "node": "Code: Extract Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Create Customer1": {
+        "main": [
+          [
+            {
+              "node": "DB: Find Room1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Find Room1": {
+        "main": [
+          [
+            {
+              "node": "DB: Create Request1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Create Request1": {
+        "main": [
+          [
+            {
+              "node": "Respond: Enquiry OK",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Email: Ack1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code: Extract Data": {
+        "main": [
+          [
+            {
+              "node": "DB: Create Customer1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-15T20:39:28.593Z",
+        "id": 1391,
+        "workflowId": "K3oWOutGQuE9HWfm",
+        "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:39:28.602Z",
+        "id": 1392,
+        "workflowId": "K3oWOutGQuE9HWfm",
+        "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T04:19:57.235Z",
+        "id": 1359,
+        "workflowId": "K3oWOutGQuE9HWfm",
+        "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T04:19:57.246Z",
+        "id": 1360,
+        "workflowId": "K3oWOutGQuE9HWfm",
+        "versionId": "999ae90f-c61a-4587-a2c7-08efa9311ee3",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

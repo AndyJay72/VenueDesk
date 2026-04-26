@@ -1,0 +1,726 @@
+{
+  "updatedAt": "2026-03-15T20:38:43.763Z",
+  "createdAt": "2026-03-01T12:26:41.788Z",
+  "id": "3JqHCjua5lKZGpeB",
+  "name": "Blocked Dates API",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "blocked-dates",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "1bb6d683-f48d-4de8-b70c-098329d95b1d",
+      "name": "Webhook GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "customer-interactions-get",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blocked-dates",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "66142566-25b7-4d32-b05b-ee2c766d68ac",
+      "name": "Webhook POST",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "customer-interactions",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "blocked-dates",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "44096d57-c7d7-40dd-aee7-9b691504138b",
+      "name": "Webhook DELETE",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        600
+      ],
+      "webhookId": "customer-interactions",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/blocked-dates",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-blocked-001",
+      "name": "GET All",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/blocked-dates/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || $json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: ($json.body?.jwt || $json.jwt || \"\") })) }}"
+      },
+      "id": "http-insert-blocked-001",
+      "name": "INSERT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        350,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/blocked-dates/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || $json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $json.body?.id || $json.query?.id, jwt: ($json.body?.jwt || $json.jwt || \"\") }) }}"
+      },
+      "id": "http-delete-blocked-001",
+      "name": "DELETE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        350,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: $input.all().map(item => item.json) }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "0bd3b9ae-8406-48d7-826e-86f29d5e217f",
+      "name": "Resp GET",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        750,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: $input.first().json }) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "260eec57-07a6-4863-b1fa-687052cf3ffc",
+      "name": "Resp POST",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, deleted: $input.first().json.id }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "01836965-3164-42c2-834b-a7a95f901f04",
+      "name": "Resp DELETE",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook GET": {
+      "main": [
+        []
+      ]
+    },
+    "GET All": {
+      "main": [
+        [
+          {
+            "node": "Resp GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST": {
+      "main": [
+        [
+          {
+            "node": "INSERT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT": {
+      "main": [
+        [
+          {
+            "node": "Resp POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook DELETE": {
+      "main": [
+        [
+          {
+            "node": "DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DELETE": {
+      "main": [
+        [
+          {
+            "node": "Resp DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+  "activeVersionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+  "versionCounter": 27,
+  "triggerCount": 3,
+  "shared": [
+    {
+      "updatedAt": "2026-03-01T12:26:41.788Z",
+      "createdAt": "2026-03-01T12:26:41.788Z",
+      "role": "workflow:owner",
+      "workflowId": "3JqHCjua5lKZGpeB",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-13T15:01:26.764Z",
+    "createdAt": "2026-03-13T15:01:26.764Z",
+    "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+    "workflowId": "3JqHCjua5lKZGpeB",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "blocked-dates",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "1bb6d683-f48d-4de8-b70c-098329d95b1d",
+        "name": "Webhook GET",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "webhookId": "customer-interactions-get",
+        "credentials": {}
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "blocked-dates",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "66142566-25b7-4d32-b05b-ee2c766d68ac",
+        "name": "Webhook POST",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          300
+        ],
+        "webhookId": "customer-interactions",
+        "credentials": {}
+      },
+      {
+        "parameters": {
+          "httpMethod": "DELETE",
+          "path": "blocked-dates",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "44096d57-c7d7-40dd-aee7-9b691504138b",
+        "name": "Webhook DELETE",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          600
+        ],
+        "webhookId": "customer-interactions",
+        "credentials": {}
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "CREATE TABLE IF NOT EXISTS bookings.blocked_dates (id SERIAL PRIMARY KEY, block_type VARCHAR(20) NOT NULL, day_of_week INT, block_date DATE, date_from DATE, date_to DATE, label VARCHAR(255), created_by VARCHAR(255), created_at TIMESTAMP DEFAULT NOW())",
+          "options": {}
+        },
+        "id": "56181d60-5c64-4d56-a031-99be5e10e581",
+        "name": "Create Table",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          250,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT * FROM bookings.blocked_dates WHERE tenant_id = $1::integer ORDER BY block_type, day_of_week NULLS LAST, block_date NULLS LAST, date_from NULLS LAST",
+          "options": {
+            "queryReplacement": "={{ [parseInt($json.headers?.['x-tenant-id'] || $json.query?.tenant_id || '0')] }}"
+          }
+        },
+        "id": "94d00d3c-a4b3-4fef-a355-6373a43a7380",
+        "name": "GET All",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          500,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.blocked_dates (block_type, day_of_week, block_date, date_from, date_to, label, created_by, tenant_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+          "options": {
+            "queryReplacement": "={{ [$json.body.block_type, ($json.body.day_of_week !== undefined ? $json.body.day_of_week : null), $json.body.block_date || null, $json.body.date_from || null, $json.body.date_to || null, $json.body.label || '', $json.body.created_by || 'staff', parseInt($json.headers?.['x-tenant-id'] || $json.query?.tenant_id || '0')] }}"
+          }
+        },
+        "id": "f8a2dd7f-6a8d-4883-9b46-78924ea7161e",
+        "name": "INSERT",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          350,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "DELETE FROM bookings.blocked_dates WHERE id = $1 RETURNING id",
+          "options": {
+            "queryReplacement": "={{ [$json.body.id || $json.query.id] }}"
+          }
+        },
+        "id": "25d2a3b6-bb2c-427e-8f0a-e9c63e257a84",
+        "name": "DELETE",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          350,
+          600
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "XHopEzNBCVGCXpXV",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: true, data: $input.all().map(item => item.json) }) }}",
+          "options": {
+            "responseCode": 200,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "0bd3b9ae-8406-48d7-826e-86f29d5e217f",
+        "name": "Resp GET",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          750,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: true, data: $input.first().json }) }}",
+          "options": {
+            "responseCode": 201,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "260eec57-07a6-4863-b1fa-687052cf3ffc",
+        "name": "Resp POST",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          600,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: true, deleted: $input.first().json.id }) }}",
+          "options": {
+            "responseCode": 200,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "01836965-3164-42c2-834b-a7a95f901f04",
+        "name": "Resp DELETE",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          600,
+          600
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook GET": {
+        "main": [
+          [
+            {
+              "node": "Create Table",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Table": {
+        "main": [
+          [
+            {
+              "node": "GET All",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "GET All": {
+        "main": [
+          [
+            {
+              "node": "Resp GET",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook POST": {
+        "main": [
+          [
+            {
+              "node": "INSERT",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "INSERT": {
+        "main": [
+          [
+            {
+              "node": "Resp POST",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook DELETE": {
+        "main": [
+          [
+            {
+              "node": "DELETE",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DELETE": {
+        "main": [
+          [
+            {
+              "node": "Resp DELETE",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-15T20:38:43.784Z",
+        "id": 1369,
+        "workflowId": "3JqHCjua5lKZGpeB",
+        "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:38:43.798Z",
+        "id": 1370,
+        "workflowId": "3JqHCjua5lKZGpeB",
+        "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T15:01:26.810Z",
+        "id": 1060,
+        "workflowId": "3JqHCjua5lKZGpeB",
+        "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T15:01:26.837Z",
+        "id": 1061,
+        "workflowId": "3JqHCjua5lKZGpeB",
+        "versionId": "238e9510-fe1c-43f4-a9b1-637f2146d5f2",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "name": "VenuePro - Staff Login (Native Crypto)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "login",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b9433e23-1143-4d57-80fa-48d47487f6f6",
+      "name": "Webhook: Login",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1392,
+        -80
+      ],
+      "webhookId": "login"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.success }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "d1d719cb-f7c6-45e7-a647-c68e73e0cf3d",
+      "name": "If: User Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "useJson": true,
+        "claimsJson": "={\n  \"id\":        \"{{ $json.data.id }}\",\n  \"username\":  \"{{ $json.data.username }}\",\n  \"role\":      \"{{ $json.data.role }}\",\n  \"full_name\": \"{{ $json.data.full_name }}\",\n  \"tenant_id\": {{ $json.data.tenant_id }}\n}",
+        "options": {
+          "algorithm": "HS256"
+        }
+      },
+      "id": "e93ac5ac-d6f9-4a4d-9d49-944caa6790a0",
+      "name": "JWT: Sign",
+      "type": "n8n-nodes-base.jwt",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        -192
+      ],
+      "credentials": {
+        "jwtAuth": {
+          "id": "rQG1DoPYqJEBiJoy",
+          "name": "JWT Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token: $('JWT: Sign').first().json.token, user: { name: $('HTTP: POST /auth/login').first().json.data?.full_name, role: $('HTTP: POST /auth/login').first().json.data?.role, tenant_id: $('HTTP: POST /auth/login').first().json.data?.tenant_id } }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "5a136159-26f1-408f-9dd7-6c7ba5552346",
+      "name": "Respond: Token",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -288,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"Invalid Credentials\"}",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "9bccecbb-6b8e-4a4f-a63f-4bf56e554fd7",
+      "name": "Respond: 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -512,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/auth/login",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ username: $json.body?.username || $json.username, password: $json.body?.password || $json.password }) }}",
+        "sendHeaders": false
+      },
+      "id": "http-auth-login-001",
+      "name": "HTTP: POST /auth/login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -1112,
+        -80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Login": {
+      "main": [
+        [
+          {
+            "node": "HTTP: POST /auth/login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If: User Found?": {
+      "main": [
+        [
+          {
+            "node": "JWT: Sign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JWT: Sign": {
+      "main": [
+        [
+          {
+            "node": "Respond: Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: POST /auth/login": {
+      "main": [
+        [
+          {
+            "node": "If: User Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "4d2ec3c6-b734-4dc5-b775-8cba0ba3d430",
+  "meta": {
+    "instanceId": "1f9758702e94fbfb23055101a09859cd23b07ac6b02ca3c74c37a1a7a28d1b03"
+  },
+  "id": "yLDOG0x4TKV3hOnG",
+  "tags": []
+}

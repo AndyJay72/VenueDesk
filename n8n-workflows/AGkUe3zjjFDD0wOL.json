@@ -1,0 +1,388 @@
+{
+  "name": "VenuePro - Cancel Booking (Policy + Refund)",
+  "nodes": [
+    {
+      "id": "0a7726d4-305c-4a53-a2de-10efcef8f0b9",
+      "name": "Webhook: Cancel Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1536,
+        240
+      ],
+      "webhookId": "cancel-booking-v1",
+      "parameters": {
+        "path": "cancel-booking-v1",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "279823f3-a98e-4ed7-89fe-56909c74c061",
+      "name": "Extract & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1328,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst booking_id      = body.booking_id || '';\nconst tenant_id       = parseInt(body.tenant_id || $input.first().json.headers?.['x-tenant-id'] || '0');\nconst cancelled_by    = body.cancelled_by || 'staff';\nconst reason          = body.cancellation_reason || body.reason || '';\nconst refund_override = body.refund_amount != null ? parseFloat(body.refund_amount) : null;\n\nif (!booking_id) throw new Error('booking_id is required');\nif (!tenant_id)  throw new Error('tenant_id is required');\n\n// Generate unique cancellation reference\nconst ref = 'CANC-' + Math.floor(100000 + Math.random() * 900000);\n\nreturn [{ json: { booking_id, tenant_id, cancelled_by, reason, refund_override, cancellation_ref: ref } }];"
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/bookings/{{ $json.booking_id || $json.body?.booking_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-booking-002",
+      "name": "DB: Get Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -1104,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/config/settings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-settings-001",
+      "name": "DB: Get Cancel Policy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -880,
+        240
+      ]
+    },
+    {
+      "id": "58603964-9526-46a3-8319-60d60df17a39",
+      "name": "Code: Calculate Refund",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const input     = $('Extract & Validate').first().json;\nconst booking   = $('DB: Get Booking').first().json;\nconst policyRows= $input.all().map(r => r.json);\n\nif (!booking || !booking.id) throw new Error('Booking not found or wrong tenant');\n\n// Parse policy (use defaults if not set)\nconst getSetting = (key, def) => {\n  const r = policyRows.find(p => p.key === key);\n  return r ? (parseFloat(r.value) || def) : def;\n};\nconst fullDays = getSetting('cancel_full_refund_days',    14);\nconst partDays = getSetting('cancel_partial_refund_days',  7);\nconst partPct  = getSetting('cancel_partial_refund_pct',  50);\n\n// Days until booking\nconst bookingDate = new Date((booking.date_from || booking.booking_date).split('T')[0] + 'T00:00:00');\nconst today       = new Date(); today.setHours(0,0,0,0);\nconst daysUntil   = Math.round((bookingDate - today) / 86400000);\n\n// Deposit is always forfeit — refund is calculated only on the balance paid above deposit\nconst depositPaid  = parseFloat(booking.deposit_paid  || 0);\nconst totalPaid    = parseFloat(booking.total_amount  || 0) - parseFloat(booking.balance_due || 0);\nconst refundableAmt = Math.max(0, totalPaid - depositPaid); // balance paid above deposit\nconst totalAmt     = parseFloat(booking.total_amount  || 0);\nlet refundType, refundAmount;\n\nif (input.refund_override !== null) {\n  // Manual override — staff can specify exact refund (still capped at refundableAmt)\n  refundAmount = Math.min(Math.max(0, input.refund_override), refundableAmt);\n  refundType   = refundAmount >= refundableAmt && refundableAmt > 0 ? 'full' : refundAmount > 0 ? 'partial' : 'none';\n} else if (daysUntil >= fullDays) {\n  // Full refund of balance — deposit still kept\n  refundType   = 'full';\n  refundAmount = refundableAmt;\n} else if (daysUntil >= partDays) {\n  // Partial refund of balance only — deposit still kept\n  refundType   = 'partial';\n  refundAmount = parseFloat((refundableAmt * partPct / 100).toFixed(2));\n} else {\n  // Within no-refund window — deposit AND any balance paid are forfeit\n  refundType   = 'none';\n  refundAmount = 0;\n}\n\nreturn [{ json: {\n  ...input,\n  booking,\n  daysUntil,\n  refundType,\n  refundAmount,\n  depositPaid,\n  totalPaid,\n  refundableAmt,\n  totalAmt,\n  policyApplied: { fullDays, partDays, partPct }\n}}];"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/cancel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ booking_id: $json.booking.id || $json.booking_id, cancelled_by: $json.cancelled_by, reason: $json.reason, refund_amount: $json.refundAmount || 0, refund_type: $json.refundType || 'none', jwt: ($json.jwt || '') }) }}"
+      },
+      "id": "http-cancel-002",
+      "name": "DB: Cancel Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -448,
+        240
+      ]
+    },
+    {
+      "id": "260109d9-0972-4a65-815e-fe7064705953",
+      "name": "IF: Refund Due?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        16,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Code: Calculate Refund').first().json.refundAmount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "11752d1e-7177-4c5e-9aa3-04ae1f77f2ff",
+      "name": "Email: Cancellation (Refund)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        60
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $('Code: Calculate Refund').first().json.booking.customer_email }}",
+        "subject": "={{ 'Booking Cancelled – Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
+        "html": "=<p>Dear {{ $('Code: Calculate Refund').first().json.booking.customer_name }},</p>\n<p>We are writing to confirm that your booking at <strong>{{ $('Code: Calculate Refund').first().json.booking.room_name }}</strong>\non <strong>{{ $('Code: Calculate Refund').first().json.booking.date_from || $('Code: Calculate Refund').first().json.booking.booking_date }}</strong> has been cancelled.</p>\n<p>In line with our cancellation policy, a <strong>{{ $('Code: Calculate Refund').first().json.refundType === 'full' ? 'full' : 'partial' }} refund</strong>\nof <strong>£{{ parseFloat($('Code: Calculate Refund').first().json.refundAmount).toFixed(2) }}</strong> has been processed to your original payment method.\nPlease allow 5–10 business days for the funds to appear on your statement.</p>\n{{ $('Code: Calculate Refund').first().json.reason ? '<p>Reason for cancellation: ' + $('Code: Calculate Refund').first().json.reason + '</p>' : '' }}\n<p>Your cancellation reference is: <strong>{{ $('Code: Calculate Refund').first().json.cancellation_ref }}</strong></p>\n<p>If you have any questions, please contact us at bookings@in2netaisolutions.cloud.</p>\n<p>Best regards,<br>The VenuePro Team</p>",
+        "options": {}
+      }
+    },
+    {
+      "id": "ba5566cf-a02d-4d16-a243-49713d410e9c",
+      "name": "Email: Cancellation (No Refund)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        480
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $('Code: Calculate Refund').first().json.booking.customer_email }}",
+        "subject": "={{ 'Booking Cancelled – Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
+        "html": "=<p>Dear {{ $('Code: Calculate Refund').first().json.booking.customer_name }},</p>\n<p>We are writing to confirm that your booking at <strong>{{ $('Code: Calculate Refund').first().json.booking.room_name }}</strong>\non <strong>{{ $('Code: Calculate Refund').first().json.booking.date_from || $('Code: Calculate Refund').first().json.booking.booking_date }}</strong> has been cancelled.</p>\n<p>Unfortunately, as your cancellation falls within the no-refund period of our cancellation policy,\nno refund is applicable on this occasion.</p>\n{{ $('Code: Calculate Refund').first().json.reason ? '<p>Reason for cancellation: ' + $('Code: Calculate Refund').first().json.reason + '</p>' : '' }}\n<p>Your cancellation reference is: <strong>{{ $('Code: Calculate Refund').first().json.cancellation_ref }}</strong></p>\n<p>If you believe this has been applied in error or have any questions, please contact us at bookings@in2netaisolutions.cloud.</p>\n<p>Best regards,<br>The VenuePro Team</p>",
+        "options": {}
+      }
+    },
+    {
+      "id": "ab655f83-bee3-42c1-97d1-78791e0ef6c6",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        456,
+        60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: $('Code: Calculate Refund').first().json.refundType, refund_amount: $('Code: Calculate Refund').first().json.refundAmount, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, message: 'Booking cancelled successfully' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "bbe01353-9a3d-45ad-8c12-eea0bfb8b572",
+      "name": "Respond: No Refund",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        224,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: 'none', refund_amount: 0, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, message: 'Booking cancelled — no refund applicable per policy' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Cancel Booking": {
+      "main": [
+        [
+          {
+            "node": "Extract & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Validate": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Cancel Policy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Cancel Policy": {
+      "main": [
+        [
+          {
+            "node": "Code: Calculate Refund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Calculate Refund": {
+      "main": [
+        [
+          {
+            "node": "DB: Cancel Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Cancel Booking": {
+      "main": [
+        []
+      ]
+    },
+    "IF: Refund Due?": {
+      "main": [
+        [
+          {
+            "node": "Email: Cancellation (Refund)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email: Cancellation (No Refund)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Cancellation (Refund)": {
+      "main": [
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Cancellation (No Refund)": {
+      "main": [
+        [
+          {
+            "node": "Respond: No Refund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2ca3bcd2-f061-4812-95ff-b28824a80ce7",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "TA1o6pw2vV6wgJxJ",
+  "tags": []
+}
