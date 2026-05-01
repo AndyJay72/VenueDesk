@@ -2816,7 +2816,8 @@
                         amount:            amount,
                         payment_method:    method,
                         deposit_reference: _payBooking.deposit_reference || null,
-                        tenant_id:         parseInt(_TID())
+                        tenant_id:         parseInt(_TID()),
+                        jwt:               sessionStorage.getItem('vp_token') || ''
                     })
                 });
                 const result = await res.json();
@@ -3714,4 +3715,5 @@
 </script>
 </body>
 </html>
+
 
