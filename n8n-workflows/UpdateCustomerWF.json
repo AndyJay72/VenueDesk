@@ -1,0 +1,110 @@
+{
+  "name": "VenuePro - Update Customer (db-api)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-customer",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-upd-cust-01",
+      "name": "Webhook: Update Customer",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "update-customer"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------------------------------------------------------------\n// UpdateCustomerWF - Prepare Request\n//\n// Design intent (CLAUDE.md Phase 2 + §3.4):\n//   - db-api is the single authoritative auth boundary.\n//     This node does NOT enforce JWT presence; it proxies whatever the\n//     caller sent. db-api (@fastify/jwt) returns a clean 401 on invalid\n//     or missing tokens, so there's no value in throwing here too.\n//   - tenant_id is NEVER read from body — db-api derives it from the JWT.\n//   - UUID shape-check only; db-api's ajv schema is the authority.\n//\n// Why we do NOT default a placeholder token (e.g. \"Bearer TEST_MODE\"):\n//   - db-api will reject any unsigned string → same 401, one hop later.\n//   - A hard-coded token literal in production JSON looks like a\n//     backdoor in code review and becomes one the day someone adds a\n//     matching short-circuit to the API.\n// ---------------------------------------------------------------\nconst input   = $input.first().json || {};\nconst body    = input.body    || {};\nconst headers = input.headers || {};\n\nconst customerId = body.customer_id;\nif (!customerId) {\n  throw new Error('customer_id is required');\n}\nconst UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(customerId)) {\n  throw new Error('customer_id must be a valid UUID');\n}\n\n// JWT body-tunnel: frontend cannot send Authorization header (CORS preflight\n// restriction), so it embeds the raw token in body.jwt instead.\n// Priority: header (direct API calls / Postman) → body.jwt (browser frontend).\nconst rawToken = headers.authorization || headers.Authorization || body.jwt || '';\nconst auth = rawToken.startsWith('Bearer ') ? rawToken : (rawToken ? 'Bearer ' + rawToken : '');\n\n// Whitelisted payload. db-api uses COALESCE(NULLIF($n,''), col) so empty\n// strings mean \"leave column unchanged\" (see CLAUDE.md Step 2.4).\nreturn [{\n  json: {\n    authorization: auth,\n    payload: {\n      customer_id: customerId,\n      full_name:   body.full_name  ?? '',\n      email:       body.email      ?? '',\n      phone:       body.phone      ?? '',\n      event_type:  body.event_type ?? '',\n      notes:       body.notes      ?? ''\n    }\n  }\n}];"
+      },
+      "id": "prep-upd-cust-01",
+      "name": "Prepare Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Im44bi1zZXJ2aWNlIiwidXNlcl9pZCI6Im44bi1zZXJ2aWNlIiwicm9sZSI6InNlcnZpY2UiLCJ0ZW5hbnRfaWQiOjEwMDEsImlhdCI6MTc3NzMwNjg1OX0.1N_PzNC8Zvve_0IzZg0h4i_cSSRyVMiqKXGx9jgJ7Xc" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "http-upd-cust-01",
+      "name": "HTTP: POST /customers/update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: ($json.statusCode >= 200 && $json.statusCode < 300) ? 'success' : 'error', data: $json.body }) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 200 }}",
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin",  "value": "*" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
+              { "name": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" }
+            ]
+          }
+        }
+      },
+      "id": "re-upd-cust-01",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [320, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Update Customer": {
+      "main": [[{ "node": "Prepare Request", "type": "main", "index": 0 }]]
+    },
+    "Prepare Request": {
+      "main": [[{ "node": "HTTP: POST /customers/update", "type": "main", "index": 0 }]]
+    },
+    "HTTP: POST /customers/update": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "update-customer-wf-v2-dbapi",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "UpdateCustomerWF01",
+  "tags": [
+    { "name": "db-api" },
+    { "name": "phase-2" },
+    { "name": "customers" }
+  ]
+}
