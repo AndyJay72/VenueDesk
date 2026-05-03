@@ -35,8 +35,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        0
+        -400,
+        200
       ]
     },
     {
@@ -48,7 +48,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + ($json.jwt || '') }}"
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Im44bi1zZXJ2aWNlIiwidXNlcl9pZCI6Im44bi1zZXJ2aWNlIiwicm9sZSI6InNlcnZpY2UiLCJ0ZW5hbnRfaWQiOjEwMDEsImlhdCI6MTc3NzMwNjg1OX0.1N_PzNC8Zvve_0IzZg0h4i_cSSRyVMiqKXGx9jgJ7Xc"
             },
             {
               "name": "Content-Type",
@@ -68,7 +68,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ booking_id: $json.booking_id, amount: $json.amount, payment_method: $json.payment_method, payment_type: $json.payment_type || 'payment', reference: $json.reference || '', jwt: $json.jwt || '' }) }}"
+        "jsonBody": "={{ JSON.stringify({ booking_id: $json.booking_id, customer_id: $json.customer_id, amount: $json.amount, payment_method: $json.payment_method, payment_type: $json.payment_type, reference: $json.reference, transaction_date: $json.transaction_date, jwt: $json.jwt }) }}"
       },
       "id": "http-record-payment-001",
       "name": "DB: Record Payment",
@@ -76,8 +76,8 @@
       "typeVersion": 4.2,
       "continueOnFail": true,
       "position": [
-        448,
-        0
+        120,
+        200
       ]
     },
     {
@@ -224,6 +224,19 @@
         },
         "options": {}
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prep Payment — explicit type coercion before db-api call\n// Guards against UUID-as-Object errors and loose numeric types from\n// bookings.html / dashboard.html webhook payloads.\nconst src = $input.first().json;\n\nconst booking_id    = String(src.booking_id   || '').trim();\nconst customer_id   = String(src.customer_id  || '').trim();\nconst amount        = parseFloat(src.amount   || 0);\nconst payment_method = String(src.payment_method || src.method || 'cash').trim();\nconst payment_type  = String(src.payment_type || 'balance').trim();\nconst reference     = String(src.reference    || '').trim();\nconst jwt           = String(src.jwt          || '').trim();\nconst tenant_id     = parseInt(src.tenant_id  || 1001);\nconst transaction_date = src.transaction_date\n  ? new Date(src.transaction_date).toISOString()\n  : new Date().toISOString();\n\nif (!booking_id)  throw new Error('Prep Payment: booking_id missing or empty');\nif (!customer_id) throw new Error('Prep Payment: customer_id missing or empty');\nif (isNaN(amount) || amount <= 0) throw new Error('Prep Payment: amount must be a positive number');\n\nreturn [{\n  json: {\n    booking_id,\n    customer_id,\n    amount,\n    payment_method,\n    payment_type,\n    reference,\n    jwt,\n    tenant_id,\n    transaction_date\n  }\n}];"
+      },
+      "id": "prep-payment-01",
+      "name": "Prep Payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        200
+      ]
     }
   ],
   "connections": {
@@ -242,7 +255,7 @@
       "main": [
         [
           {
-            "node": "DB: Record Payment",
+            "node": "Prep Payment",
             "type": "main",
             "index": 0
           }
@@ -312,6 +325,17 @@
     "If Fully Paid?": {
       "main": [
         []
+      ]
+    },
+    "Prep Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Record Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
