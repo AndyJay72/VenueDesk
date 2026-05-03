@@ -3440,7 +3440,11 @@
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const result = await res.json().catch(() => ({}));
+                if (!res.ok || result.status !== 'success') {
+                    const msg = result?.data?.message || result?.message || ('HTTP ' + res.status);
+                    throw new Error(msg);
+                }
                 // Update display
                 document.getElementById('m-name').innerText  = payload.full_name  || '—';
                 document.getElementById('m-email').innerText = payload.email      || '—';
@@ -3715,5 +3719,4 @@
 </script>
 </body>
 </html>
-
 
