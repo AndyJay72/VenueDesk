@@ -2368,7 +2368,7 @@
                     const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total,balance_due:balance,tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
                     if(!r1.ok)throw new Error('Confirm failed: HTTP '+r1.status);
                     if(deposit>0){
-                        const r2=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:p.customer_id,amount:deposit,payment_method:method,payment_type:deposit>=total?'full':'deposit',tenant_id:parseInt(_CAL_TID())})});
+                        const r2=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:p.customer_id,amount:deposit,payment_method:method,payment_type:deposit>=total?'full':'deposit',balance_due:total,tenant_id:parseInt(_CAL_TID()),jwt:sessionStorage.getItem('vp_token')||''})});
                         if(!r2.ok)throw new Error('Payment record failed: HTTP '+r2.status);
                     }
                 }
@@ -2483,7 +2483,7 @@
             const btn=document.querySelector('.e-pay-submit');
             btn.disabled=true;
             try{
-                const res=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:currentModalProps.customer_id,amount,payment_method:method,payment_type:'balance',balance_due:balance,tenant_id:parseInt(_CAL_TID())})});
+                const res=await fetch(CAL_PAY_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,customer_id:currentModalProps.customer_id,amount,payment_method:method,payment_type:'balance',balance_due:balance,tenant_id:parseInt(_CAL_TID()),jwt:sessionStorage.getItem('vp_token')||''})});
                 if(res.ok){showToast('Payment recorded!','success');closeModal();setTimeout(()=>location.reload(),1500);}
                 else showToast('Error recording payment — try the Bookings page','error');
             }catch(e){showToast('Error: '+e.message,'error');}
