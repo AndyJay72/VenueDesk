@@ -28,15 +28,20 @@ const jwt       = require('@fastify/jwt');
 const { runMigrations }     = require('./db/migrate');
 const errorHandler          = require('./middleware/errorHandler');
 
-const authRoutes       = require('./routes/auth');
-const dashboardRoutes  = require('./routes/dashboard');
-const accountsRoutes   = require('./routes/accounts');
-const paymentsRoutes   = require('./routes/payments');
-const configRoutes     = require('./routes/config');
-const leadsRoutes      = require('./routes/leads');
-const adminRoutes      = require('./routes/admin');
-const onboardingRoutes = require('./routes/onboarding');
-const stripeRoutes     = require('./routes/stripe');   // ← Phase 2 Stripe integration
+const authRoutes         = require('./routes/auth');
+const dashboardRoutes    = require('./routes/dashboard');
+const accountsRoutes     = require('./routes/accounts');
+const paymentsRoutes     = require('./routes/payments');
+const configRoutes       = require('./routes/config');
+const leadsRoutes        = require('./routes/leads');
+const adminRoutes        = require('./routes/admin');
+const onboardingRoutes   = require('./routes/onboarding');
+const stripeRoutes       = require('./routes/stripe');        // ← Phase 2 Stripe integration
+const bookingsRoutes     = require('./routes/bookings');      // ← Booking lifecycle
+const recurringRoutes    = require('./routes/recurring');     // ← Recurring schedules + payments
+const customersRoutes    = require('./routes/customers');     // ← CRM customer management
+const usersRoutes        = require('./routes/users');         // ← Staff user management
+const blockedDatesRoutes = require('./routes/blocked-dates'); // ← Blocked date rules
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -103,8 +108,13 @@ fastify.register(paymentsRoutes,   { prefix: '/payments'   });
 fastify.register(configRoutes,     { prefix: '/config'     });
 fastify.register(leadsRoutes,      { prefix: '/leads'      });
 fastify.register(adminRoutes,      { prefix: '/admin'      });
-fastify.register(onboardingRoutes, { prefix: '/onboarding' });
-fastify.register(stripeRoutes,     { prefix: '/stripe'     }); // ← Stripe integration
+fastify.register(onboardingRoutes,   { prefix: '/onboarding'    });
+fastify.register(stripeRoutes,       { prefix: '/stripe'        }); // ← Stripe integration
+fastify.register(bookingsRoutes,     { prefix: '/bookings'      }); // ← Booking lifecycle
+fastify.register(recurringRoutes,    { prefix: '/recurring'     }); // ← Recurring schedules
+fastify.register(customersRoutes,    { prefix: '/customers'     }); // ← CRM customers
+fastify.register(usersRoutes,        { prefix: '/users'         }); // ← Staff users
+fastify.register(blockedDatesRoutes, { prefix: '/blocked-dates' }); // ← Blocked date rules
 
 // ── Health check ──────────────────────────────────────────────────────────────
 fastify.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }));
