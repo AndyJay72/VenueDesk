@@ -1,0 +1,69 @@
+{
+  "name": "VenueDesk — Recurring Payment Override",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "override-recurring-payment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-rpo-001",
+      "name": "Webhook: Override Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "override-recurring-payment",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/payment-override",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ schedule_id: $('Webhook: Override Payment').first().json.body?.schedule_id || '', override_by: $('Webhook: Override Payment').first().json.body?.override_by || '', override_note: $('Webhook: Override Payment').first().json.body?.override_note || '', customer_id: $('Webhook: Override Payment').first().json.body?.customer_id || null, period_start: $('Webhook: Override Payment').first().json.body?.period_start || '', period_end: $('Webhook: Override Payment').first().json.body?.period_end || '', jwt: $('Webhook: Override Payment').first().json.body?.jwt || '' }) }}",
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-rpo-001",
+      "name": "API: Override Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-rpo-001",
+      "name": "Respond: Override OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Override Payment": { "main": [[{ "node": "API: Override Payment", "type": "main", "index": 0 }]] },
+    "API: Override Payment":     { "main": [[{ "node": "Respond: Override OK",  "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "rpo-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "RecurringPaymentOverride",
+  "tags": []
+}

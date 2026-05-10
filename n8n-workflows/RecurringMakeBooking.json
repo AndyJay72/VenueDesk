@@ -1,0 +1,473 @@
+{
+  "name": "VenueDesk - Recurring Make Booking",
+  "active": true,
+  "nodes": [
+    {
+      "id": "rmb-webhook-001",
+      "name": "Webhook: Receive Recurring Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        4112,
+        -32
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recurring-make-booking",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "recurring-make-booking",
+      "credentials": {}
+    },
+    {
+      "id": "rmb-logic-003",
+      "name": "Code: Logic + Ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        -32
+      ],
+      "parameters": {
+        "jsCode": "// 1. GET INPUTS\nconst webhookItem = $('Webhook: Receive Recurring Booking').first().json;\nconst input = webhookItem.body || webhookItem;\nconst room = $input.first().json;\n\n// 2. VALIDATION\nif (!room || !room.id) throw new Error(\"Room not found for id: \" + (input.room_id || 'unknown'));\nif (!input.customer_id) throw new Error(\"Customer ID missing.\");\nif (!input.booking_date) throw new Error(\"booking_date missing from request.\");\n\n// 3. TRUST FRONTEND-CALCULATED AMOUNTS\nconst total_amount = parseFloat(input.total_amount) || 0;\nif (isNaN(total_amount) || total_amount < 0) {\n  throw new Error(\"Invalid total_amount received: \" + input.total_amount);\n}\n\n// Pending bookings have payment_type='none' and payment_amount=0\nconst isPending = input.status === 'pending' || input.payment_type === 'none';\nconst pType = isPending ? 'none' : (input.payment_type === 'full' || input.payment_type === 'full_payment') ? 'full' : 'deposit';\nlet payment_amount = parseFloat(input.payment_amount) || 0;\nif (!isPending) {\n  if (isNaN(payment_amount) || payment_amount <= 0) {\n    throw new Error(\"Invalid payment_amount received: \" + input.payment_amount);\n  }\n}\nif (pType === 'full') payment_amount = total_amount;\nif (isPending) payment_amount = 0;\n\nconst balance = total_amount - payment_amount;\nconst status = isPending ? 'pending' : (balance <= 0.01 ? 'fully_paid' : 'deposit_paid');\n\n// 4. GENERATE REFS\nconst txnRef = 'TXN-REC-' + Math.floor(100000 + Math.random() * 900000);\nconst startDateTime = input.booking_date + 'T' + input.start_time + ':00';\nconst endDateTime   = input.booking_date + 'T' + input.end_time   + ':00';\n\nreturn {\n  json: {\n    ...input,\n    room_id:            room.id,\n    total_amount:       parseFloat(total_amount.toFixed(2)),\n    payment_amount:     parseFloat(payment_amount.toFixed(2)),\n    balance_due:        parseFloat(balance.toFixed(2)),\n    booking_status:     status,\n    payment_type_clean: pType,\n    payment_date:       new Date().toISOString(),\n    customer_id:        input.customer_id.toString(),\n    txn_reference:      txnRef,\n    request_id:         (input.request_id && input.request_id !== \"\") ? input.request_id : null,\n    google_start:       startDateTime,\n    google_end:         endDateTime,\n    is_recurring:       input.is_recurring === true || input.is_recurring === 'true' || false,\n    recurring_rule_id:  input.recurring_rule_id || null,\n    series_label:       input.series_label || 'Recurring'\n  }\n};"
+      }
+    },
+    {
+      "id": "rmb-ifallow-005",
+      "name": "IF: Allow Booking?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        5008,
+        -32
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ parseInt($json.clashes) }}",
+              "operation": "equal"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "rmb-blocked-respond-006",
+      "name": "Respond: Booking Blocked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        5200,
+        176
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"error\", \"available\": false, \"message\": \"This time slot conflicts with an existing booking including the turnaround buffer. Please choose a different time.\"}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "rmb-respond-010",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        5904,
+        -32
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\", \"message\": \"Booking secured.\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "rmb-email-011",
+      "name": "Email: Send",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        5904,
+        176
+      ],
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $('Code: Logic + Ref').first().json.customer_email }}",
+        "subject": "Recurring Booking Confirmation",
+        "html": "={{ \n\"Dear \" + $('Code: Logic + Ref').first().json.customer_name + \",\\n\\n\" +\n\"Thank you for your payment of \u00a3\" + $('Code: Logic + Ref').first().json.payment_amount + \".\\n\" +\n\"Transaction Reference: \" + $('Code: Logic + Ref').first().json.txn_reference + \"\\n\\n\" +\n\"Your recurring booking for the \" + $('Code: Logic + Ref').first().json.room_name + \" is confirmed.\\n\\n\" +\n\"Session Details:\\n\" +\n\"Date: \" + $('Code: Logic + Ref').first().json.booking_date + \"\\n\" +\n\"Time: \" + $('Code: Logic + Ref').first().json.start_time + \" - \" + $('Code: Logic + Ref').first().json.end_time + \"\\n\\n\" +\n\"Remaining Balance: \u00a3\" + $('Code: Logic + Ref').first().json.balance_due + \"\\n\\n\" +\n\"We look forward to hosting you!\\n\\n\" +\n\"Best regards,\\n\" +\n\"The VenueDesk Team\" \n}}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/get-room",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ room_id: $('Webhook: Receive Recurring Booking').first().json.body?.room_id, jwt: $(\"Webhook: Receive Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rmb-http-room",
+      "name": "HTTP: Get Room",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rmb-flat-room",
+      "name": "DB: Get Room",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        -400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/clash-guard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ room_id: $('Webhook: Receive Recurring Booking').first().json.body?.room_id, booking_date: $('Webhook: Receive Recurring Booking').first().json.body?.booking_date, start_time: $('Webhook: Receive Recurring Booking').first().json.body?.start_time, end_time: $('Webhook: Receive Recurring Booking').first().json.body?.end_time, jwt: $(\"Webhook: Receive Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rmb-http-clash",
+      "name": "HTTP: Clash Guard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rmb-flat-clash",
+      "name": "DB: Clash Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/make-booking",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id:        $json.customer_id, room_id:             $json.room_id, booking_date:        $json.booking_date, date_from:           $json.date_from || $json.booking_date, date_to:             $json.date_to   || $json.booking_date, start_time:          $json.start_time, end_time:            $json.end_time, total_amount:        $json.total_amount, payment_amount:      $json.payment_amount, balance_due:         $json.balance_due, booking_status:      $json.booking_status, payment_type_clean:  $json.payment_type_clean, payment_method:      $json.payment_method || 'cash', payment_date:        $json.payment_date, txn_reference:       $json.txn_reference, request_id:          $json.request_id || null, guest_count:         $json.guest_count || null, jwt: $('Webhook: Receive Recurring Booking').first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rmb-http-book",
+      "name": "HTTP: Make Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rmb-flat-book",
+      "name": "DB: Create Booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rmb-pass-pay",
+      "name": "DB: Record Payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rmb-pass-close",
+      "name": "DB: Close Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1200,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Receive Recurring Booking": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Room": {
+      "main": [
+        [
+          {
+            "node": "Code: Logic + Ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Logic + Ref": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Clash Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Clash Guard": {
+      "main": [
+        [
+          {
+            "node": "DB: Clash Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Clash Guard": {
+      "main": [
+        [
+          {
+            "node": "IF: Allow Booking?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Allow Booking?": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Make Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Booking Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Make Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Record Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Record Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Close Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Close Request": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rmb-v1-2026-03-30",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "RecurringMakeBooking",
+  "tags": []
+}

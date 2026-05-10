@@ -1,0 +1,577 @@
+{
+  "name": "VenueDesk - Make Booking (Platinum Fix)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "make-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5165af74-08fc-4cf9-990e-b17cb69646c7",
+      "name": "Webhook: Receive Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        -352
+      ],
+      "webhookId": "make-booking"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/get-room",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Receive Booking').first().json.body?.jwt || $('Webhook: Receive Booking').first().json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ room_id: $json.body?.room_id || $json.room_id, jwt: ($json.body?.jwt || $json.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "11f4c1c5-d671-4c87-b448-f310e4f9b9da",
+      "name": "DB: Get Room",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2080,
+        -352
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Receive Booking').first().json.body?.jwt || $('Webhook: Receive Booking').first().json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { full_name: $('Webhook: Receive Booking').first().json.body?.customer_name || $('Webhook: Receive Booking').first().json.customer_name || '', email: $('Webhook: Receive Booking').first().json.body?.customer_email || $('Webhook: Receive Booking').first().json.customer_email || '', phone: $('Webhook: Receive Booking').first().json.body?.customer_phone || $('Webhook: Receive Booking').first().json.customer_phone || '', event_type: $('Webhook: Receive Booking').first().json.body?.event_type || $('Webhook: Receive Booking').first().json.event_type || '', source: 'walk_in', jwt: $('Webhook: Receive Booking').first().json.body?.jwt || $('Webhook: Receive Booking').first().json.jwt || '' } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "cf204f76-d627-4ebf-a072-5617caa85fe0",
+      "name": "DB: Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1824,
+        -352
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. GET INPUTS\nconst webhookItem = $('Webhook: Receive Booking').first().json;\nconst input = webhookItem.body || webhookItem;\nconst room = $('DB: Get Room').first().json;\nconst customerData = $input.first().json;\n\n// 2. VALIDATION\nif (!room || !room.data?.id) throw new Error(\"Room not found for id: \" + (input.room_id || 'unknown'));\nconst customerId = customerData.data?.id;\nif (!customerId) throw new Error(\"Customer could not be resolved: \" + (customerData.message || JSON.stringify(customerData)));\nif (!input.booking_date) throw new Error(\"booking_date missing from request.\");\n\n// 3. TRUST FRONTEND-CALCULATED AMOUNTS\nconst total_amount = parseFloat(input.total_amount) || 0;\nif (isNaN(total_amount) || total_amount < 0) {\n  throw new Error(\"Invalid total_amount received: \" + input.total_amount);\n}\n\nconst isPending = input.status === 'pending' || input.payment_type === 'none';\nconst pType = isPending ? 'none' : (input.payment_type === 'full' || input.payment_type === 'full_payment') ? 'full' : 'deposit';\nlet payment_amount = parseFloat(input.payment_amount) || 0;\nif (!isPending) {\n  if (isNaN(payment_amount) || payment_amount <= 0) {\n    throw new Error(\"Invalid payment_amount received: \" + input.payment_amount);\n  }\n}\nif (pType === 'full') payment_amount = total_amount;\nif (isPending) payment_amount = 0;\n\nconst balance = total_amount - payment_amount;\nconst status = isPending ? 'pending' : (balance <= 0.01 ? 'fully_paid' : 'deposit_paid');\n\n// 4. GENERATE REFS\nconst txnRef = 'TXN-' + Math.floor(100000 + Math.random() * 900000);\nconst startDateTime = input.booking_date + 'T' + input.start_time + ':00';\nconst endDateTime   = input.booking_date + 'T' + input.end_time   + ':00';\n\nreturn {\n  json: {\n    ...input,\n    customer_id:        customerId,\n    room_id:            room.data?.id,\n    total_amount:       parseFloat(total_amount.toFixed(2)),\n    payment_amount:     parseFloat(payment_amount.toFixed(2)),\n    balance_due:        parseFloat(balance.toFixed(2)),\n    booking_status:     status,\n    payment_type_clean: pType,\n    payment_date:       new Date().toISOString(),\n    txn_reference:      txnRef,\n    request_id:         (input.request_id && input.request_id !== \"\") ? input.request_id : null,\n    google_start:       startDateTime,\n    google_end:         endDateTime\n  }\n};"
+      },
+      "id": "aa7dfbe9-544b-4321-939e-9a52a96f03a5",
+      "name": "Code: Logic + Ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1552,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/make-booking",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Code: Logic + Ref').first().json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $('Code: Logic + Ref').first().json, { jwt: $('Code: Logic + Ref').first().json.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "9a6b1215-e79d-4434-8686-fc1ba5f077dd",
+      "name": "DB: Create Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -704,
+        -368
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/payments/record",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Code: Logic + Ref').first().json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { booking_id: $('DB: Create Booking').first().json?.data?.id || null, amount: $('Code: Logic + Ref').first().json.payment_amount, payment_method: $('Code: Logic + Ref').first().json.payment_method || 'cash', payment_type: $('Code: Logic + Ref').first().json.payment_type_clean || 'deposit', reference: $('Code: Logic + Ref').first().json.txn_reference || '', notes: '', jwt: $('Code: Logic + Ref').first().json.jwt || '' } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "785625f3-1f31-4df5-9701-5917063b50be",
+      "name": "DB: Record Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -464,
+        -368
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "202413a4-4bd0-4c9c-bbf9-3bd4ed3946e8",
+      "name": "DB: Close Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $('Code: Logic + Ref').first().json.customer_email }}",
+        "subject": "Booking Confirmation",
+        "html": "={{ \n\"Dear \" + $('Code: Logic + Ref').first().json.customer_name + \",\\n\\n\" +\n\"Thank you for your payment of £\" + $('Code: Logic + Ref').first().json.payment_amount + \".\\n\" +\n\"Transaction Reference: \" + $('Code: Logic + Ref').first().json.txn_reference + \"\\n\\n\" +\n\"Your booking for the \" + $('Code: Logic + Ref').first().json.room_name + \" is successfully confirmed.\\n\\n\" +\n\"Event Details:\\n\" +\n\"Date: \" + $('Code: Logic + Ref').first().json.booking_date + \"\\n\" +\n\"Time: \" + $('Code: Logic + Ref').first().json.start_time + \" - \" + $('Code: Logic + Ref').first().json.end_time + \"\\n\\n\" +\n\"Remaining Balance: £\" + $('Code: Logic + Ref').first().json.balance_due + \"\\n\\n\" +\n\"We look forward to hosting your event!\\n\\n\" +\n\"Best regards,\\n\" +\n\"The VenueDesk Team\" \n}}",
+        "options": {}
+      },
+      "id": "a7d588fb-20d8-43b8-884d-4f93ffe025d9",
+      "name": "Email: Send",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        -176
+      ],
+      "webhookId": "9be1c576-68e1-4c4c-a79d-0ab4fb81fea0",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $('DB: Create Booking').first().json?.success === true, status: $('DB: Create Booking').first().json?.success === true ? 'success' : 'error', message: $('DB: Create Booking').first().json?.success === true ? 'Booking secured.' : ('Booking failed: ' + ($('DB: Create Booking').first().json?.message || JSON.stringify($('DB: Create Booking').first().json))) }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f5716dbd-aebe-4d5e-9957-649dd7225472",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/clash-guard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Code: Logic + Ref').first().json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $json, { jwt: ($json.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "2e81962e-8c9a-46d5-9809-244e5b5c51c1",
+      "name": "DB: Clash Guard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1280,
+        -352
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "allow-booking-cond-001",
+              "leftValue": "={{ parseInt($json.data?.clashes) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "51ab4afb-e3de-4135-bb02-05f74739557f",
+      "name": "IF: Allow Booking?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"error\", \"available\": false, \"message\": \"This time slot conflicts with an existing booking including the turnaround buffer. Please choose a different time.\"}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ad048ba1-5ef9-4d40-878b-1797ffc9d25b",
+      "name": "Respond: Booking Blocked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f1bd3947-d9a3-4a40-a190-10a5657c2593",
+      "name": "Webhook: Check Availability",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        464
+      ],
+      "webhookId": "check-availability"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/check-availability",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || $json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({}, $json.body || $json, { jwt: ($json.body?.jwt || $json.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "b4929318-5756-4bec-8db9-860da7e4bda4",
+      "name": "DB: Check Clashes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        464
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ available: $json.available, clash_count: parseInt($json.clash_count), buffer_minutes: parseInt($json.buffer_minutes) }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "79bc4b51-75e3-425f-9fcf-61d61f87a2a8",
+      "name": "Respond: Availability",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        464
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Receive Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Logic + Ref": {
+      "main": [
+        [
+          {
+            "node": "DB: Clash Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Record Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Record Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Close Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Close Request": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Clash Guard": {
+      "main": [
+        [
+          {
+            "node": "IF: Allow Booking?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Allow Booking?": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Booking Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Check Availability": {
+      "main": [
+        [
+          {
+            "node": "DB: Check Clashes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Check Clashes": {
+      "main": [
+        [
+          {
+            "node": "Respond: Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "Code: Logic + Ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d3dcec6d-4a9c-4420-b38c-c0b73d92d4f8",
+  "meta": {
+    "instanceId": "1f9758702e94fbfb23055101a09859cd23b07ac6b02ca3c74c37a1a7a28d1b03"
+  },
+  "id": "YNAKVHKzwmDm6qzb",
+  "tags": []
+}

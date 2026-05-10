@@ -1,0 +1,440 @@
+{
+  "name": "VenueDesk - Create Recurring Booking (Fixed)",
+  "nodes": [
+    {
+      "id": "6cf3676c-3137-4d86-b2f2-c6201fc3c719",
+      "name": "Webhook: Create Recurring Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -1296
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-recurring-booking-legacy-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "create-recurring-booking-legacy-v1"
+    },
+    {
+      "id": "1b4b33e8-b8f1-465c-8cc1-ab3f13a3b447",
+      "name": "Debug: Check Input Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -1296
+      ],
+      "parameters": {
+        "jsCode": "// 1. Get raw input\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = \"Parsing failed: \" + e.message;\n}\n\nconst output = {\n  ...finalResult,\n  tenant_id: parseInt(finalResult.tenant_id || 1001),\n  day_of_week: parseInt(finalResult.day_of_week ?? -1),\n  total_months: parseInt(finalResult.total_months || finalResult.number_of_months || '12'),\n  monthly_amount: parseFloat(finalResult.monthly_amount || finalResult.rate_per_month || '0'),\n  payment_day: parseInt(finalResult.payment_day || '20'),\n  _debug_parsed: true\n};\n\nconsole.log('Parsed data:', output);\n\nreturn [{ json: output }];"
+      }
+    },
+    {
+      "id": "750c472c-e6b8-4b7d-90d4-9dbf11c0954b",
+      "name": "Code: Generate Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -1296
+      ],
+      "parameters": {
+        "jsCode": "const inputData = $('Debug: Check Input Data').first().json;\nconst wb = inputData || {};\n\nconsole.log('Received for Date Gen:', wb);\n\nconst specificDates = (wb.specific_dates || '').trim();\nconst frequency = wb.frequency || 'weekly';\nconst startDateStr = wb.start_date || '';\nconst endDateStr = wb.end_date || '';\nconst dayOfWeek = parseInt(wb.day_of_week ?? '-1');\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst totalMonths = parseInt(wb.total_months || '12');\nconst monthlyAmount = parseFloat(wb.monthly_amount || '0') || 0;\n\nif (!startDateStr && !specificDates) {\n  return [{ json: { error: \"Missing start_date or specific_dates\", date_count: 0, dates: \"\" } }];\n}\n\nlet dates = [];\n\nif (specificDates) {\n  dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n} else {\n  const startDate = new Date(startDateStr + 'T00:00:00Z');\n  // Calculate end date based on total months if no explicit end date\n  const maxDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : new Date(new Date(startDate).setMonth(startDate.getMonth() + totalMonths));\n  \n  const dow = dayOfWeek >= 0 ? dayOfWeek : startDate.getUTCDay();\n  const daysToAdd = (dow - startDate.getUTCDay() + 7) % 7;\n  \n  const cursor = new Date(startDate);\n  cursor.setUTCDate(cursor.getUTCDate() + daysToAdd);\n\n  while (cursor <= maxDate && dates.length < 365) {\n    dates.push(cursor.toISOString().slice(0, 10));\n    if (frequency === 'monthly') cursor.setUTCMonth(cursor.getUTCMonth() + 1);\n    else if (frequency === 'fortnightly') cursor.setUTCDate(cursor.getUTCDate() + 14);\n    else cursor.setUTCDate(cursor.getUTCDate() + 7);\n  }\n}\n\nconst firstDate = dates[0] ? new Date(dates[0] + 'T00:00:00Z') : null;\nconst periodStart = firstDate ? new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth(), 1)) : null;\nconst periodEnd = firstDate ? new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() + 1, 0)) : null;\n\nconst firstMonthDates = dates.filter(d => {\n  const dt = new Date(d + 'T00:00:00Z');\n  return dt >= periodStart && dt <= periodEnd;\n});\n\n// Calculate monthly payment amount - use provided monthly_amount or calculate from sessions\nlet firstMonthAmount = monthlyAmount;\nif (firstMonthAmount <= 0) {\n  // Fallback to rate per session calculation\n  firstMonthAmount = firstMonthDates.length * ratePerSession;\n}\n\nreturn [{ json: {\n  dates: dates.join(','),\n  date_count: dates.length,\n  period_start: periodStart ? periodStart.toISOString().slice(0, 10) : '',\n  period_end: periodEnd ? periodEnd.toISOString().slice(0, 10) : '',\n  first_month_sessions: firstMonthDates.length,\n  first_month_amount: firstMonthAmount.toFixed(2),\n  first_date: dates[0] || '',\n  total_months: totalMonths,\n  monthly_amount: monthlyAmount > 0 ? monthlyAmount : firstMonthAmount\n} }];"
+      }
+    },
+    {
+      "id": "f54dff9f-64a5-4618-a45a-b8a42c8beae9",
+      "name": "Code: Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2032,
+        -1296
+      ],
+      "parameters": {
+        "jsCode": "const wb = $('Debug: Check Input Data').first().json;\nconst customerRow = $('DB: Upsert Customer').first().json;\nconst dateGen = $('Code: Generate Dates').first().json;\n\nconst customer_id = customerRow?.customer_id;\nconst room_id = wb?.room_id;\nconst tenant_id = wb?.tenant_id;\n\nconsole.log(\"Validation Check:\", { customer_id, room_id, tenant_id, date_count: dateGen.date_count });\n\nif (!customer_id) {\n  throw new Error(\"Validation Error: The database did not return a customer_id. Check 'DB: Upsert Customer' output.\");\n}\n\nif (!room_id || !tenant_id) {\n  throw new Error(`Validation Error: Missing Webhook data. Room: ${room_id}, Tenant: ${tenant_id}`);\n}\n\nif (!dateGen.dates || dateGen.date_count === 0) {\n  throw new Error(\"Validation Error: No dates were generated for this booking.\");\n}\n\nreturn [{\n  json: {\n    customer_id,\n    room_id,\n    tenant_id,\n    dates: dateGen.dates,\n    date_count: dateGen.date_count,\n    first_month_amount: dateGen.first_month_amount,\n    monthly_amount: dateGen.monthly_amount,\n    total_months: dateGen.total_months,\n    first_date: dateGen.first_date,\n    customer_name: customerRow.full_name || wb.customer_name,\n    customer_email: customerRow.email || wb.customer_email\n  }\n}];"
+      }
+    },
+    {
+      "id": "16497f64-1194-471d-89e7-7d611ebe4016",
+      "name": "Respond: Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3040,
+        -1296
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  status: 'created',\n  rule_id: $('DB: Insert Rule').first().json.rule_id,\n  customer_id: $('Code: Validate').first().json.customer_id,\n  customer_name: $('Code: Validate').first().json.customer_name,\n  booking_count: $('Code: Generate Dates').first().json.date_count,\n  total_months: $('Code: Validate').first().json.total_months,\n  monthly_amount: $('Code: Validate').first().json.monthly_amount,\n  payment_schedule_count: $('DB: Insert Payment Schedule').all().length,\n  first_payment_status: 'paid',\n  next_payment_due: ($('DB: Insert Payment Schedule').all()[1] || {}).json?.due_date || 'N/A',\n  payment_schedule: $('DB: Insert Payment Schedule').all().map(p => ({\n    month: p.json.month_index,\n    due_date: p.json.due_date,\n    status: p.json.status\n  }))\n}) }}",
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/upsert-customer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_name:  $('Debug: Check Input Data').first().json?.customer_name || '', customer_email: $('Debug: Check Input Data').first().json?.customer_email || '', customer_phone: $('Debug: Check Input Data').first().json?.customer_phone || '', jwt: $(\"Webhook: Create Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbwf-http-cust",
+      "name": "HTTP: Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbwf-flat-cust",
+      "name": "DB: Upsert Customer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/create-rule",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id:     $('Code: Validate').first().json.customer_id, room_id:         $('Code: Validate').first().json.room_id, day_of_week:     $('Debug: Check Input Data').first().json?.day_of_week, start_time:      $('Code: Validate').first().json.start_time, end_time:        $('Code: Validate').first().json.end_time, rate_per_session:$('Code: Validate').first().json.rate_per_session, frequency:       $('Code: Validate').first().json.frequency, end_date:        $('Code: Validate').first().json.end_date || null, total_months:    $('Code: Validate').first().json.total_months || null, monthly_amount:  $('Code: Validate').first().json.monthly_amount || null, payment_day:     $('Code: Validate').first().json.payment_day || null, jwt: $(\"Webhook: Create Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbwf-http-rule",
+      "name": "HTTP: Insert Rule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbwf-flat-rule",
+      "name": "DB: Insert Rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/insert-bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id:     $('Code: Validate').first().json.room_id, rule_id:     $('DB: Insert Rule').first().json.rule_id, dates:       $('Code: Generate Dates').first().json.dates || '', start_time:  $('Code: Validate').first().json.start_time, end_time:    $('Code: Validate').first().json.end_time, rate_per_session: $('Code: Validate').first().json.rate_per_session, jwt: $(\"Webhook: Create Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbwf-http-books",
+      "name": "HTTP: Insert Bookings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbwf-flat-books",
+      "name": "DB: Insert Bookings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/insert-payment-schedule",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id:  $('Code: Validate').first().json.customer_id, rule_id:      $('DB: Insert Rule').first().json.rule_id, first_date:   $('Code: Generate Dates').first().json.first_date, billing_type: $('Code: Validate').first().json.billing_type || 'monthly', total_months: $('Code: Validate').first().json.total_months || 1, monthly_amount:$('Code: Validate').first().json.monthly_amount || $('Code: Validate').first().json.rate_per_session, payment_day:  $('Code: Validate').first().json.payment_day || 1, jwt: $(\"Webhook: Create Recurring Booking\").first().json.body?.jwt || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbwf-http-sched",
+      "name": "HTTP: Insert Payment Schedule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbwf-flat-sched",
+      "name": "DB: Insert Payment Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Create Recurring Booking": {
+      "main": [
+        [
+          {
+            "node": "Debug: Check Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug: Check Input Data": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "Code: Generate Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Generate Dates": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Insert Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Insert Rule": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Rule": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Insert Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Insert Bookings": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Bookings": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Insert Payment Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Insert Payment Schedule": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Payment Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Payment Schedule": {
+      "main": [
+        [
+          {
+            "node": "Respond: Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  }
+}

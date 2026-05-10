@@ -1,0 +1,457 @@
+{
+  "name": "VenueDesk \u2014 Billing Cycle Daily Trigger",
+  "active": true,
+  "nodes": [
+    {
+      "id": "bct-001",
+      "name": "Schedule: Daily at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -720,
+        160
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bct-003",
+      "name": "IF: Any Due Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-rows",
+              "leftValue": "={{ $json.schedule_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bct-006",
+      "name": "Code: Format Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || !items[0].json.schedule_id) return [];\n\nconst src = $('DB: Find Due Billing Cycles').item.json;\nconst opItem = $('DB: Create Outstanding Payment').item.json;\nconst dueFormatted = opItem.due_date\n    ? new Date(opItem.due_date + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })\n    : '\u2014';\nconst freq = (src.frequency || 'recurring').charAt(0).toUpperCase() + (src.frequency || 'recurring').slice(1);\nconst cycleNum = src.total_cycles && src.remaining_cycles ? (src.total_cycles - src.remaining_cycles + 1) : null;\nconst cycleStr = cycleNum && src.total_cycles ? ` (Cycle ${cycleNum} of ${src.total_cycles})` : '';\nconst seriesStr = src.series_reference ? ` \u00b7 ${src.series_reference}` : '';\nconst subject = `Recurring booking payment due${seriesStr} \u2014 \u00a3${parseFloat(src.amount_due).toFixed(2)}`;\nconst body = `<p>Dear ${src.customer_name || 'Valued Customer'},</p>\n<p>This is a friendly reminder that your ${freq} booking payment is due${cycleStr}:</p>\n<table style=\"border-collapse:collapse;font-family:sans-serif;font-size:14px\">\n  ${src.series_reference ? `<tr><td style=\"padding:4px 12px 4px 0;color:#64748b\">Series ref:</td><td style=\"padding:4px 0\"><strong>${src.series_reference}</strong></td></tr>` : ''}\n  <tr><td style=\"padding:4px 12px 4px 0;color:#64748b\">Room:</td><td style=\"padding:4px 0\"><strong>${src.room_name || '\u2014'}</strong></td></tr>\n  <tr><td style=\"padding:4px 12px 4px 0;color:#64748b\">Amount due:</td><td style=\"padding:4px 0\"><strong>\u00a3${parseFloat(src.amount_due).toFixed(2)}</strong></td></tr>\n  <tr><td style=\"padding:4px 12px 4px 0;color:#64748b\">Due by:</td><td style=\"padding:4px 0\">${dueFormatted}</td></tr>\n  <tr><td style=\"padding:4px 12px 4px 0;color:#64748b\">Remaining payments:</td><td style=\"padding:4px 0\">${src.remaining_cycles || '\u2014'}</td></tr>\n</table>\n<p>Please contact us to arrange payment before the due date to keep your recurring booking active.</p>\n<p>Thank you,<br>The VenueDesk Team</p>`;\n\nreturn [{ json: {\n    customer_email: src.customer_email,\n    customer_name: src.customer_name,\n    customer_id: src.customer_id,\n    tenant_id: src.tenant_id,\n    recurring_rule_id: src.recurring_rule_id,\n    amount_due: src.amount_due,\n    due_date: opItem.due_date || '',\n    period_start: opItem.period_start || '',\n    email_subject: subject,\n    email_html: body\n} }];"
+      }
+    },
+    {
+      "id": "bct-007",
+      "name": "Email: Payment Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "={{ $json.email_subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.email_html }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "bct-010",
+      "name": "No Billing Due Today",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        0,
+        320
+      ],
+      "alwaysOutputData": true,
+      "parameters": {}
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/due-billing-cycles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "bct-http-due",
+      "name": "HTTP: Get Due Billing Cycles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : [resp]);\nif (!rows.length) return [];\nreturn rows.map(row => ({ json: row }));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-flat-due",
+      "name": "DB: Find Due Billing Cycles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/create-billing-record",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ schedule_id:       $json.schedule_id, recurring_rule_id: $json.recurring_rule_id, customer_id:       $json.customer_id, period_end:        $json.period_end, amount_due:        $json.amount_due, billing_day:       $json.billing_day, total_cycles:      $json.total_cycles || null, cycle_number:      $json.total_cycles && $json.remaining_cycles   ? ($json.total_cycles - $json.remaining_cycles + 1) : null }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "bct-http-brec",
+      "name": "HTTP: Create Billing Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-flat-op",
+      "name": "DB: Create Outstanding Payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-flat-dec",
+      "name": "DB: Decrement Remaining Cycles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/mark-billing-email-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ recurring_rule_id: $('DB: Find Due Billing Cycles').item.json.recurring_rule_id, period_start:      $('DB: Create Outstanding Payment').item.json.period_start || $('DB: Find Due Billing Cycles').item.json.period_end, customer_id:       $('DB: Find Due Billing Cycles').item.json.customer_id, customer_email:    $('DB: Find Due Billing Cycles').item.json.customer_email || '', amount_due:        $('DB: Find Due Billing Cycles').item.json.amount_due, due_date:          $('DB: Create Outstanding Payment').item.json.due_date || '', email_subject:     'Payment reminder: ' + ($('DB: Find Due Billing Cycles').item.json.series_reference || 'recurring booking') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "bct-http-email",
+      "name": "HTTP: Mark Email Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-flat-ms",
+      "name": "DB: Mark Email Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-flat-log",
+      "name": "DB: Log Reminder Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "bct-pass-nbt",
+      "name": "DB: Log No Billing Today",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule: Daily at 08:00": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Due Billing Cycles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Due Billing Cycles": {
+      "main": [
+        [
+          {
+            "node": "DB: Find Due Billing Cycles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Find Due Billing Cycles": {
+      "main": [
+        [
+          {
+            "node": "IF: Any Due Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Any Due Today?": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Create Billing Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Billing Due Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Create Billing Record": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Outstanding Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Outstanding Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Decrement Remaining Cycles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Decrement Remaining Cycles": {
+      "main": [
+        [
+          {
+            "node": "Code: Format Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Format Email": {
+      "main": [
+        [
+          {
+            "node": "Email: Payment Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Payment Reminder": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Mark Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Mark Email Sent": {
+      "main": [
+        [
+          {
+            "node": "DB: Mark Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Mark Email Sent": {
+      "main": [
+        [
+          {
+            "node": "DB: Log Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Billing Due Today": {
+      "main": [
+        [
+          {
+            "node": "DB: Log No Billing Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "VenueDesk - Get Recurring Bookings",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-recurring-bookings",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-grb-001",
+      "name": "Webhook: Get Recurring Bookings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "get-recurring-bookings",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/series",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Webhook: Get Recurring Bookings').first().json.headers?.authorization?.replace(/^Bearer\\s+/i,'') || $('Webhook: Get Recurring Bookings').first().json.query?.jwt || '') }}" }
+          ]
+        },
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-grb-001",
+      "name": "API: Get Recurring Series",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ data: $json.data || [] }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-grb-001",
+      "name": "Respond: Series",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Get Recurring Bookings": { "main": [[{ "node": "API: Get Recurring Series", "type": "main", "index": 0 }]] },
+    "API: Get Recurring Series":       { "main": [[{ "node": "Respond: Series",          "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "grb-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "GetRecurringBookings",
+  "tags": []
+}

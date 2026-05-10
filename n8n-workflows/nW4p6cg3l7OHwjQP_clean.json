@@ -1,0 +1,285 @@
+{
+  "id": "nW4p6cg3l7OHwjQP",
+  "name": "Customer Interactions API",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-interactions",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "1305dd2c-5bde-43ae-8238-c9ab0a875e49",
+      "name": "Webhook - POST Interaction",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "customer-interactions",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "customer-interactions",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "057c6960-cf1a-46fa-917f-549511ad2c89",
+      "name": "Webhook - GET Interactions",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        500
+      ],
+      "webhookId": "customer-interactions-get",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/log-interaction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || $json.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: ($json.body?.jwt || $json.jwt || \"\") })) }}"
+      },
+      "id": "http-log-interaction-001",
+      "name": "PG - Insert Interaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.venuedesk.co.uk/customers/interactions?tenant_id={{ $json.query?.tenant_id || '' }}&customer_id={{ $json.query?.customer_id || '' }}&email={{ $json.query?.email || '' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-interactions-001",
+      "name": "PG - Get Interactions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        460,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: { success: true, message: 'Interaction logged successfully', data: rows[0] || {} } }];"
+      },
+      "id": "code-agg-post",
+      "name": "Code - Agg POST",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items.map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nreturn [{ json: { success: true, data: rows } }];"
+      },
+      "id": "code-agg-get",
+      "name": "Code - Agg GET",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "eb32009c-38e1-4e47-bedc-e8066355980b",
+      "name": "Response - Success POST",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f6703e31-2b6e-4381-8ecc-ca477c931c34",
+      "name": "Response - Success GET",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        860,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - POST Interaction": {
+      "main": [
+        [
+          {
+            "node": "PG - Insert Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - GET Interactions": {
+      "main": [
+        [
+          {
+            "node": "PG - Get Interactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - Insert Interaction": {
+      "main": [
+        [
+          {
+            "node": "Code - Agg POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG - Get Interactions": {
+      "main": [
+        [
+          {
+            "node": "Code - Agg GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Agg POST": {
+      "main": [
+        [
+          {
+            "node": "Response - Success POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Agg GET": {
+      "main": [
+        [
+          {
+            "node": "Response - Success GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "3ebd77f1-60da-46c9-912f-cd6e11461ce6",
+  "tags": []
+}

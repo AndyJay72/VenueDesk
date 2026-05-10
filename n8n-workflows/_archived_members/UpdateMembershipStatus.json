@@ -1,0 +1,93 @@
+{
+  "name": "VenueDesk - Update Membership Status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-membership-status",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ums-001",
+      "name": "Webhook: Update Membership Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 0],
+      "webhookId": "update-membership-status",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.memberships\nSET\n  status     = $1,\n  updated_at = NOW()\nWHERE id = $2::uuid\n  AND tenant_id = $3\nRETURNING id AS membership_id, status, customer_id, updated_at::text;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Update Membership Status').first().json.body?.status || '',\n  $('Webhook: Update Membership Status').first().json.body?.membership_id || '',\n  parseInt($('Webhook: Update Membership Status').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "ums-002",
+      "name": "DB: Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-560, 0],
+      "continueOnFail": false,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.customer_interactions\n  (customer_id, customer_name, customer_email, customer_phone,\n   booking_id, booking_date, room_name,\n   subject, interaction_type, notes, timestamp, staff_member, tenant_id)\nVALUES\n  ($1::uuid, $2, $3, '',\n   NULL, NULL, NULL,\n   'Membership status changed to: ' || $4,\n   'membership',\n   'Membership ID: ' || $5 || ' — status set to ' || $4,\n   NOW(), $6, $7)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('DB: Update Status').first().json.customer_id || '',\n  $('Webhook: Update Membership Status').first().json.body?.customer_name || '',\n  $('Webhook: Update Membership Status').first().json.body?.customer_email || '',\n  $('DB: Update Status').first().json.status || '',\n  $('DB: Update Status').first().json.membership_id || '',\n  $('Webhook: Update Membership Status').first().json.body?.performed_by || 'Staff',\n  parseInt($('Webhook: Update Membership Status').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "ums-003",
+      "name": "DB: Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-320, 0],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', membership_id: $('DB: Update Status').first().json.membership_id, new_status: $('DB: Update Status').first().json.status }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "ums-004",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-80, 0]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Update Membership Status": { "main": [[{"node": "DB: Update Status", "type": "main", "index": 0}]] },
+    "DB: Update Status":                 { "main": [[{"node": "DB: Log Audit",     "type": "main", "index": 0}]] },
+    "DB: Log Audit":                     { "main": [[{"node": "Respond: OK",       "type": "main", "index": 0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "aa100002-0002-0002-0002-000000000003",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "UpdateMembershipStatus01",
+  "tags": []
+}

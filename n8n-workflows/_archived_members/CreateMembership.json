@@ -1,0 +1,207 @@
+{
+  "name": "VenueDesk - Create Membership",
+  "nodes": [
+    {
+      "id": "cm-001",
+      "name": "Webhook: Create Membership",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1600, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-membership",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {}
+    },
+    {
+      "id": "cm-002",
+      "name": "DB: Insert Membership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1360, 0],
+      "continueOnFail": false,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.memberships\n  (tenant_id, customer_id, plan_name, policy_template,\n   monthly_rate, status, start_date, notice_period_days, notes)\nVALUES\n  ($1, $2::uuid, $3, COALESCE(NULLIF($4,''),'B'),\n   NULLIF($5,'')::numeric, 'active', $6::date,\n   COALESCE(NULLIF($7,''),'30')::int,\n   NULLIF($8,''))\nRETURNING id AS membership_id, plan_name, customer_id, tenant_id, start_date::text, policy_template;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Create Membership').first().json.body?.tenant_id || '0'),\n  $('Webhook: Create Membership').first().json.body?.customer_id,\n  $('Webhook: Create Membership').first().json.body?.plan_name,\n  $('Webhook: Create Membership').first().json.body?.policy_template || 'B',\n  String($('Webhook: Create Membership').first().json.body?.monthly_rate || ''),\n  $('Webhook: Create Membership').first().json.body?.start_date,\n  String($('Webhook: Create Membership').first().json.body?.notice_period_days || '30'),\n  $('Webhook: Create Membership').first().json.body?.notes || ''\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-003",
+      "name": "DB: Insert Recurring Rule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1120, 0],
+      "continueOnFail": false,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.recurring_rules\n  (tenant_id, membership_id, room_id, day_of_week,\n   start_time, end_time, rate_per_session, active)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4::int,\n   $5::time, $6::time,\n   NULLIF($7,'')::numeric,\n   TRUE)\nRETURNING id AS rule_id, room_id::text, day_of_week, start_time::text, end_time::text;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Create Membership').first().json.body?.tenant_id || '0'),\n  $('DB: Insert Membership').first().json.membership_id,\n  $('Webhook: Create Membership').first().json.body?.room_id,\n  parseInt($('Webhook: Create Membership').first().json.body?.day_of_week ?? '1'),\n  $('Webhook: Create Membership').first().json.body?.start_time,\n  $('Webhook: Create Membership').first().json.body?.end_time,\n  String($('Webhook: Create Membership').first().json.body?.rate_per_session || '')\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-003b",
+      "name": "DB: Set Rule Frequency",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-880, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.recurring_rules\nSET\n  frequency = COALESCE(NULLIF($1,''), 'weekly'),\n  end_date  = NULLIF($2,'')::date\nWHERE id = $3::uuid;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Create Membership').first().json.body?.frequency || 'weekly',\n  $('Webhook: Create Membership').first().json.body?.rule_end_date || '',\n  $('DB: Insert Recurring Rule').first().json.rule_id || ''\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-003c",
+      "name": "Code: Generate Booking Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-640, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "jsCode": "const wb = $('Webhook: Create Membership').first().json.body || {};\nconst dayOfWeek  = parseInt(wb.day_of_week ?? '1');\nconst frequency  = wb.frequency || 'weekly';\nconst startDateStr = wb.start_date || '';\nconst ruleEndStr   = wb.rule_end_date || '';\n\nif (!startDateStr) return [{ json: { dates: '' } }];\n\n// Generate up to 3 months ahead\nconst startDate = new Date(startDateStr + 'T00:00:00Z');\nconst cutoffDate = new Date(startDate);\ncutoffDate.setUTCMonth(cutoffDate.getUTCMonth() + 3);\n\n// Optional rule end-date ceiling\nif (ruleEndStr) {\n  const ruleEnd = new Date(ruleEndStr + 'T00:00:00Z');\n  if (ruleEnd < cutoffDate) cutoffDate.setTime(ruleEnd.getTime());\n}\n\n// First occurrence of dayOfWeek on or after startDate\nconst daysToAdd = (dayOfWeek - startDate.getUTCDay() + 7) % 7;\nconst cursor = new Date(startDate);\ncursor.setUTCDate(cursor.getUTCDate() + daysToAdd);\n\nconst dates = [];\nwhile (cursor <= cutoffDate && dates.length < 52) {\n  dates.push(cursor.toISOString().slice(0, 10));\n  if (frequency === 'fortnightly') {\n    cursor.setUTCDate(cursor.getUTCDate() + 14);\n  } else if (frequency === 'monthly') {\n    cursor.setUTCMonth(cursor.getUTCMonth() + 1);\n  } else {\n    cursor.setUTCDate(cursor.getUTCDate() + 7);\n  }\n}\n\nreturn [{ json: { dates: dates.join(',') } }];"
+      }
+    },
+    {
+      "id": "cm-003d",
+      "name": "DB: Create Bookings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-400, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.confirmed_bookings\n  (tenant_id, customer_id, room_id,\n   booking_date, date_from, date_to,\n   start_time, end_time,\n   total_amount, deposit_paid, balance_due,\n   status, is_recurring, recurring_rule_id, membership_id, updated_at)\nSELECT\n  $1, $2::uuid, $3::uuid,\n  d::date, d::date, d::date,\n  $5::time, $6::time,\n  COALESCE(NULLIF($7,'')::numeric, 0),\n  0,\n  COALESCE(NULLIF($7,'')::numeric, 0),\n  'confirmed', TRUE, $8::uuid, $9::uuid, NOW()\nFROM unnest(string_to_array($4, ',')) AS t(d)\nWHERE $4 <> ''\n  AND NOT EXISTS (\n    SELECT 1 FROM bookings.confirmed_bookings cb\n    WHERE cb.room_id = $3::uuid\n      AND cb.booking_date = d::date\n      AND cb.tenant_id = $1\n      AND cb.status NOT IN ('cancelled')\n      AND NOT (cb.end_time <= $5::time OR cb.start_time >= $6::time)\n  )\nRETURNING booking_date::text, id;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Create Membership').first().json.body?.tenant_id || '0'),\n  $('Webhook: Create Membership').first().json.body?.customer_id || '',\n  $('Webhook: Create Membership').first().json.body?.room_id || '',\n  $('Code: Generate Booking Dates').first().json.dates || '',\n  $('Webhook: Create Membership').first().json.body?.start_time || '',\n  $('Webhook: Create Membership').first().json.body?.end_time || '',\n  String($('Webhook: Create Membership').first().json.body?.rate_per_session || ''),\n  $('DB: Insert Recurring Rule').first().json.rule_id || '',\n  $('DB: Insert Membership').first().json.membership_id || ''\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-004",
+      "name": "DB: Fetch Policy Text",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-160, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT base_terms, COALESCE(extra_clauses, '') AS extra_clauses\nFROM bookings.membership_policy_templates\nWHERE tenant_id = $1 AND code = $2\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Create Membership').first().json.body?.tenant_id || '0'),\n  $('DB: Insert Membership').first().json.policy_template || 'B'\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-005",
+      "name": "Code: Build Welcome Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [80, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "jsCode": "const wb  = $('Webhook: Create Membership').first().json.body || {};\nconst mem = $('DB: Insert Membership').first().json;\nconst pol = $input.first().json || {};\n\nconst name      = wb.customer_name || 'Member';\nconst email     = wb.customer_email || '';\nconst plan      = mem.plan_name || wb.plan_name || 'Membership';\nconst startDate = mem.start_date || wb.start_date || '';\nconst rate      = parseFloat(wb.monthly_rate || '0').toFixed(2);\nconst freq      = wb.frequency || 'weekly';\nconst base      = pol.base_terms    || 'Standard venue terms and conditions apply.';\nconst extra     = pol.extra_clauses || '';\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; }\n    .header { background: #2c3e50; color: white; padding: 24px; text-align: center; }\n    .header h1 { margin: 0; font-size: 22px; }\n    .body { padding: 24px; }\n    .highlight { background: #f0f4f8; border-left: 4px solid #3498db; padding: 12px 16px; margin: 16px 0; }\n    .tc { background: #fafafa; border: 1px solid #e0e0e0; padding: 16px; font-size: 13px; color: #555; margin-top: 16px; }\n    .footer { background: #f5f5f5; padding: 16px; text-align: center; font-size: 12px; color: #999; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>Welcome to the Community!</h1>\n    <p style=\"margin:8px 0 0;\">Your membership is now active</p>\n  </div>\n  <div class=\"body\">\n    <p>Hi ${name},</p>\n    <p>We\\'re delighted to welcome you as a member. Your <strong>${plan}</strong> membership has been set up and is active from <strong>${startDate}</strong>.</p>\n    <div class=\"highlight\">\n      <strong>Monthly Rate:</strong> &pound;${rate}<br>\n      <strong>Start Date:</strong> ${startDate}<br>\n      <strong>Session Frequency:</strong> ${freq.charAt(0).toUpperCase()+freq.slice(1)}\n    </div>\n    <p>Your recurring booking slot has been reserved. You will receive a monthly invoice for your sessions.</p>\n    <div class=\"tc\">\n      <strong>Terms &amp; Conditions</strong><br><br>\n      ${base}${extra ? '<br><br>' + extra : ''}\n    </div>\n    <p style=\"margin-top:24px;\">If you have any questions, please don\\'t hesitate to get in touch.</p>\n    <p>Warm regards,<br>The Venue Team</p>\n  </div>\n  <div class=\"footer\">\n    This email was sent to ${email}. Please do not reply directly to this email.\n  </div>\n</body>\n</html>`;\n\nreturn [{ json: { to: email, subject: `Welcome — ${plan} Membership`, html, customer_name: name, customer_email: email } }];"
+      }
+    },
+    {
+      "id": "cm-006",
+      "name": "Email: Send Welcome",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [320, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": { "id": "oWx6QKxXljDdeSDP", "name": "SMTP account" }
+      }
+    },
+    {
+      "id": "cm-007",
+      "name": "DB: Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [560, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.customer_interactions\n  (customer_id, customer_name, customer_email, customer_phone,\n   booking_id, booking_date, room_name,\n   subject, interaction_type, notes, timestamp, staff_member, tenant_id)\nVALUES\n  ($1::uuid, $2, $3, '',\n   NULL, NULL, NULL,\n   'Membership created: ' || $4,\n   'membership',\n   'Plan: ' || $4 || ', Rate: £' || $5 || '/mo, Start: ' || $6,\n   NOW(), $7, $8)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Create Membership').first().json.body?.customer_id || '',\n  $('Webhook: Create Membership').first().json.body?.customer_name || '',\n  $('Webhook: Create Membership').first().json.body?.customer_email || '',\n  $('DB: Insert Membership').first().json.plan_name || '',\n  String($('Webhook: Create Membership').first().json.body?.monthly_rate || '0'),\n  $('DB: Insert Membership').first().json.start_date || '',\n  $('Webhook: Create Membership').first().json.body?.performed_by || 'Staff',\n  parseInt($('Webhook: Create Membership').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "cm-008",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  status: 'ok',\n  message: 'Membership created',\n  membership_id: $('DB: Insert Membership').first().json.membership_id,\n  rule_id: $('DB: Insert Recurring Rule').first().json.rule_id,\n  plan_name: $('DB: Insert Membership').first().json.plan_name\n}) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Create Membership":  { "main": [[{ "node": "DB: Insert Membership",    "type": "main", "index": 0 }]] },
+    "DB: Insert Membership":       { "main": [[{ "node": "DB: Insert Recurring Rule", "type": "main", "index": 0 }]] },
+    "DB: Insert Recurring Rule":   { "main": [[{ "node": "DB: Set Rule Frequency",   "type": "main", "index": 0 }]] },
+    "DB: Set Rule Frequency":      { "main": [[{ "node": "Code: Generate Booking Dates", "type": "main", "index": 0 }]] },
+    "Code: Generate Booking Dates":{ "main": [[{ "node": "DB: Create Bookings",          "type": "main", "index": 0 }]] },
+    "DB: Create Bookings":         { "main": [[{ "node": "DB: Fetch Policy Text",        "type": "main", "index": 0 }]] },
+    "DB: Fetch Policy Text":       { "main": [[{ "node": "Code: Build Welcome Email",    "type": "main", "index": 0 }]] },
+    "Code: Build Welcome Email":   { "main": [[{ "node": "Email: Send Welcome",      "type": "main", "index": 0 }]] },
+    "Email: Send Welcome":         { "main": [[{ "node": "DB: Log Audit",            "type": "main", "index": 0 }]] },
+    "DB: Log Audit":               { "main": [[{ "node": "Respond: Success",         "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true,
+  "versionId": "cm-0001-0002-0003-0004-000000000002",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "CreateMembership001",
+  "tags": []
+}

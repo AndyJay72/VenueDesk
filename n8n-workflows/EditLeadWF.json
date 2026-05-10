@@ -1,0 +1,77 @@
+{
+  "name": "VenueDesk — API: Edit Lead",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "edit-lead",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-edit-lead-01",
+      "name": "Webhook: Edit Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "edit-lead",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET\n  venue_name   = COALESCE(NULLIF($2, ''), venue_name),\n  venue_type   = COALESCE(NULLIF($3, ''), venue_type),\n  contact_name = COALESCE(NULLIF($4, ''), contact_name),\n  email        = COALESCE(NULLIF($5, ''), email),\n  phone        = COALESCE(NULLIF($6, ''), phone),\n  website_url  = COALESCE(NULLIF($7, ''), website_url),\n  notes        = COALESCE($8, notes)\nWHERE id = $1::uuid\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Edit Lead').first().json.body.id,\n  $('Webhook: Edit Lead').first().json.body.venue_name   || '',\n  $('Webhook: Edit Lead').first().json.body.venue_type   || '',\n  $('Webhook: Edit Lead').first().json.body.contact_name || '',\n  $('Webhook: Edit Lead').first().json.body.email        || '',\n  $('Webhook: Edit Lead').first().json.body.phone        || '',\n  $('Webhook: Edit Lead').first().json.body.website_url  || '',\n  ($('Webhook: Edit Lead').first().json.body.notes !== undefined\n    ? $('Webhook: Edit Lead').first().json.body.notes\n    : null)\n] }}"
+        }
+      },
+      "id": "db-edit-lead-01",
+      "name": "DB: Update Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-160, 200],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, lead: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-edit-lead-01",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Edit Lead": {
+      "main": [[{ "node": "DB: Update Lead", "type": "main", "index": 0 }]]
+    },
+    "DB: Update Lead": {
+      "main": [[{ "node": "Respond: OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "ed1t-1ead-0001-0000-000000000001",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "EditLeadWF01",
+  "tags": []
+}

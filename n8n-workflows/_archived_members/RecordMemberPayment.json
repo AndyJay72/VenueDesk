@@ -1,0 +1,137 @@
+{
+  "name": "VenueDesk - Record Member Payment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "record-member-payment",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "rmp-001",
+      "name": "Webhook: Record Member Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1000, 0],
+      "webhookId": "record-member-payment",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.membership_invoices\nSET\n  amount_paid = LEAST(total_amount, amount_paid + $1::numeric),\n  status      = CASE\n                  WHEN (amount_paid + $1::numeric) >= total_amount THEN 'paid'\n                  WHEN (amount_paid + $1::numeric) > 0             THEN 'partial'\n                  ELSE status\n                END,\n  paid_at     = CASE\n                  WHEN (amount_paid + $1::numeric) >= total_amount THEN NOW()\n                  ELSE paid_at\n                END,\n  updated_at  = NOW()\nWHERE id = $2::uuid\n  AND tenant_id = $3\nRETURNING\n  id AS invoice_id,\n  invoice_month::text,\n  total_amount,\n  amount_paid,\n  balance_due,\n  status,\n  customer_id,\n  membership_id;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseFloat($('Webhook: Record Member Payment').first().json.body?.amount || '0'),\n  $('Webhook: Record Member Payment').first().json.body?.invoice_id || '',\n  parseInt($('Webhook: Record Member Payment').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "rmp-002",
+      "name": "DB: Update Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-760, 0],
+      "continueOnFail": false,
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.payments\n  (tenant_id, booking_id, customer_id,\n   payment_date, payment_type, payment_method,\n   amount, status, reference_number)\nVALUES\n  ($1, NULL, $2::uuid,\n   NOW()::date, 'membership', $3,\n   $4::numeric, 'completed', '7-' || COALESCE(NULLIF($5,''), gen_random_uuid()::text))\nRETURNING id AS payment_id, reference_number, amount, payment_method, payment_date::text;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Record Member Payment').first().json.body?.tenant_id || '0'),\n  $('DB: Update Invoice').first().json.customer_id || '',\n  $('Webhook: Record Member Payment').first().json.body?.payment_method || 'cash',\n  parseFloat($('Webhook: Record Member Payment').first().json.body?.amount || '0'),\n  $('Webhook: Record Member Payment').first().json.body?.reference || ''\n] }}"
+        }
+      },
+      "id": "rmp-003",
+      "name": "DB: Insert Payment Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-520, 0],
+      "continueOnFail": false,
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wb  = $('Webhook: Record Member Payment').first().json.body || {};\nconst inv = $('DB: Update Invoice').first().json;\nconst pmt = $('DB: Insert Payment Record').first().json;\n\nconst name    = wb.customer_name || 'Member';\nconst email   = wb.customer_email || '';\nconst month   = inv.invoice_month || '';\nconst total   = parseFloat(inv.total_amount || 0).toFixed(2);\nconst paid    = parseFloat(inv.amount_paid  || 0).toFixed(2);\nconst balance = parseFloat(inv.balance_due  || 0).toFixed(2);\nconst ref     = pmt.reference_number || '7-';\nconst method  = wb.payment_method || 'N/A';\nconst amount  = parseFloat(wb.amount || 0).toFixed(2);\nconst status  = inv.status || 'partial';\n\nconst statusColour = status === 'paid' ? '#27ae60' : '#e67e22';\nconst statusLabel  = status === 'paid' ? 'PAID IN FULL' : 'PARTIAL PAYMENT';\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; }\n    .header { background: #2c3e50; color: white; padding: 24px; text-align: center; }\n    .header h1 { margin: 0; font-size: 20px; }\n    .body { padding: 24px; }\n    .invoice-box { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin: 16px 0; }\n    .invoice-row { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #eee; }\n    .invoice-row:last-child { border-bottom: none; }\n    .invoice-row.total { background: #f8f9fa; font-weight: bold; }\n    .status-badge { display: inline-block; background: ${statusColour}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }\n    .footer { background: #f5f5f5; padding: 16px; text-align: center; font-size: 12px; color: #999; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>Payment Receipt</h1>\n    <p style=\"margin:8px 0 0;\">Reference: ${ref}</p>\n  </div>\n  <div class=\"body\">\n    <p>Hi ${name},</p>\n    <p>Thank you — we've received your payment. Here is your receipt for the period <strong>${month}</strong>.</p>\n    <p><span class=\"status-badge\">${statusLabel}</span></p>\n    <div class=\"invoice-box\">\n      <div class=\"invoice-row\"><span>Invoice Period</span><span>${month}</span></div>\n      <div class=\"invoice-row\"><span>Payment Method</span><span>${method}</span></div>\n      <div class=\"invoice-row\"><span>Amount Paid (this transaction)</span><span>&pound;${amount}</span></div>\n      <div class=\"invoice-row\"><span>Total Invoice Amount</span><span>&pound;${total}</span></div>\n      <div class=\"invoice-row\"><span>Total Paid to Date</span><span>&pound;${paid}</span></div>\n      <div class=\"invoice-row total\"><span>Remaining Balance</span><span>&pound;${balance}</span></div>\n    </div>\n    <p>Please retain this email as your receipt. Reference number: <strong>${ref}</strong></p>\n    <p>Warm regards,<br>The Venue Team</p>\n  </div>\n  <div class=\"footer\">\n    This receipt was sent to ${email}. Please do not reply directly to this email.\n  </div>\n</body>\n</html>`;\n\nreturn [{ json: { to: email, subject: `Payment Receipt — ${month} (${ref})`, html } }];"
+      },
+      "id": "rmp-004",
+      "name": "Code: Build Invoice Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-280, 0]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "rmp-005",
+      "name": "Email: Send Invoice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [-40, 0],
+      "continueOnFail": true,
+      "credentials": {
+        "smtp": { "id": "oWx6QKxXljDdeSDP", "name": "SMTP account" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.customer_interactions\n  (customer_id, customer_name, customer_email, customer_phone,\n   booking_id, booking_date, room_name,\n   subject, interaction_type, notes, timestamp, staff_member, tenant_id)\nVALUES\n  ($1::uuid, $2, $3, '',\n   NULL, NULL, NULL,\n   'Membership payment recorded',\n   'membership',\n   'Invoice: ' || $4 || ', Paid: £' || $5 || ', Ref: ' || $6 || ', Status: ' || $7,\n   NOW(), $8, $9)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('DB: Update Invoice').first().json.customer_id || '',\n  $('Webhook: Record Member Payment').first().json.body?.customer_name || '',\n  $('Webhook: Record Member Payment').first().json.body?.customer_email || '',\n  $('DB: Update Invoice').first().json.invoice_month || '',\n  String($('Webhook: Record Member Payment').first().json.body?.amount || '0'),\n  $('DB: Insert Payment Record').first().json.reference_number || '',\n  $('DB: Update Invoice').first().json.status || '',\n  $('Webhook: Record Member Payment').first().json.body?.performed_by || 'Staff',\n  parseInt($('Webhook: Record Member Payment').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "rmp-006",
+      "name": "DB: Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [200, 0],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  status: 'ok',\n  invoice: $('DB: Update Invoice').first().json,\n  payment: $('DB: Insert Payment Record').first().json\n}) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "rmp-007",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 0]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Record Member Payment": { "main": [[{"node": "DB: Update Invoice",       "type": "main", "index": 0}]] },
+    "DB: Update Invoice":             { "main": [[{"node": "DB: Insert Payment Record", "type": "main", "index": 0}]] },
+    "DB: Insert Payment Record":      { "main": [[{"node": "Code: Build Invoice Email", "type": "main", "index": 0}]] },
+    "Code: Build Invoice Email":      { "main": [[{"node": "Email: Send Invoice",       "type": "main", "index": 0}]] },
+    "Email: Send Invoice":            { "main": [[{"node": "DB: Log Audit",             "type": "main", "index": 0}]] },
+    "DB: Log Audit":                  { "main": [[{"node": "Respond: OK",               "type": "main", "index": 0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "aa100005-0005-0005-0005-000000000006",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "RecordMemberPayment01",
+  "tags": []
+}

@@ -1,0 +1,363 @@
+{
+  "name": "VenueDesk - Pending Lifecycle (Scheduler)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "c47e1d52-2465-475b-bf09-e197a2f190f6",
+      "name": "Schedule: 08:00 Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "469f5471-67f4-4039-b14f-adf02d8026f0",
+      "name": "Split: Warning Batch",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        192,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Your venue enquiry expires in {{ 7 - $json.days_pending }} day(s) \u2014 VenueDesk",
+        "options": {
+          "allowUnauthorizedCerts": false
+        },
+        "message": "Dear {{ $json.full_name }},\n\nThis is a reminder that your venue enquiry with us is due to expire in {{ 7 - $json.days_pending }} day(s).\n\nIf you would still like to proceed with a booking, please contact us as soon as possible so we can hold your preferred date.\n\nIf you no longer wish to proceed, no action is needed \u2014 your enquiry will be automatically closed after 7 days.\n\nThank you,\nThe VenueDesk Team"
+      },
+      "id": "56854170-32c0-48f4-9d6e-5149562f0036",
+      "name": "Email: Day 4 Warning",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        0
+      ],
+      "webhookId": "dd67b9fd-c63e-4c14-bca9-5430321c5331",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/customers/pending-warnings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "xkkg-http-warn",
+      "name": "HTTP: Get Pending Warnings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : [resp]);\nif (!rows.length) return [];\nreturn rows.map(row => ({ json: row }));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "xkkg-flat-warn",
+      "name": "DB: Get Warning Due",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/mark-warning-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $json.id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "xkkg-http-mws",
+      "name": "HTTP: Mark Warning Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "xkkg-flat-mws",
+      "name": "DB: Mark Warning Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/purge-expired",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "xkkg-http-purge",
+      "name": "HTTP: Purge Expired",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "xkkg-flat-del-rq",
+      "name": "DB: Delete Booking Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "xkkg-flat-del-cu",
+      "name": "DB: Delete Customer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        700
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule: 08:00 Daily": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Pending Warnings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP: Purge Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Pending Warnings": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Warning Due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Warning Due": {
+      "main": [
+        [
+          {
+            "node": "Split: Warning Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split: Warning Batch": {
+      "main": [
+        [
+          {
+            "node": "Email: Day 4 Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Day 4 Warning": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Mark Warning Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Mark Warning Sent": {
+      "main": [
+        [
+          {
+            "node": "DB: Mark Warning Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Mark Warning Sent": {
+      "main": [
+        [
+          {
+            "node": "Split: Warning Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Purge Expired": {
+      "main": [
+        [
+          {
+            "node": "DB: Delete Booking Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Delete Booking Requests": {
+      "main": [
+        [
+          {
+            "node": "DB: Delete Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "418678e6-124e-4f6d-9ee8-aa648d49b6ef",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "XKKG5SZ75bHg35Zt",
+  "tags": []
+}

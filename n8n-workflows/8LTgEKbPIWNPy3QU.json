@@ -1,0 +1,370 @@
+{
+  "updatedAt": "2026-03-15T20:38:51.026Z",
+  "createdAt": "2026-02-26T15:09:55.080Z",
+  "id": "8LTgEKbPIWNPy3QU",
+  "name": "Create Customer Record",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-customer-record",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6c88b43e-70e3-47b8-8240-9dcfd98949ba",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "5cc0a0ce-72d9-4cc6-8ba0-e64065b4fa32",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst full_name = (body.full_name || '').trim();\nconst email     = (body.email    || '').trim().toLowerCase();\nconst phone     = (body.phone    || '').trim();\n\nif (!full_name) throw new Error('full_name is required');\n\nconst tenant_id = parseInt(body.tenant_id) || 0;\nreturn [{ json: { full_name, email, phone, tenant_id } }];\n"
+      },
+      "id": "9466da75-3a19-487b-8dab-39f23d496aa6",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').first().json.body?.full_name || '', email: $('Webhook').first().json.body?.email || '', phone: $('Webhook').first().json.body?.phone || '', event_type: $('Webhook').first().json.body?.event_type || '', event_date: $('Webhook').first().json.body?.event_date || '', guests_count: $('Webhook').first().json.body?.guests_count || 0, notes: $('Webhook').first().json.body?.notes || '', jwt: $('Webhook').first().json.body?.jwt || '' }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "api-ccr-001",
+      "name": "API: Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\n\nif (!row || !row.customer_id) {\n  throw new Error('INSERT did not return a customer_id — check your table schema');\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: row.customer_id,\n  full_name:   row.full_name,\n  email:       row.email\n}}];\n"
+      },
+      "id": "0e6b9b3d-7c50-4b83-b8cd-981a0e664dd1",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a71bb1c8-710e-4518-a106-8eecbdc435d5",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "API: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "ccr-v2-2026-04-27",
+  "activeVersionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+  "versionCounter": 44,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-26T15:09:55.080Z",
+      "createdAt": "2026-02-26T15:09:55.080Z",
+      "role": "workflow:owner",
+      "workflowId": "8LTgEKbPIWNPy3QU",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-13T18:18:04.315Z",
+    "createdAt": "2026-03-13T18:18:04.315Z",
+    "versionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+    "workflowId": "8LTgEKbPIWNPy3QU",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "create-customer-record",
+          "authentication": "none",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "6c88b43e-70e3-47b8-8240-9dcfd98949ba",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          240,
+          300
+        ],
+        "webhookId": "5cc0a0ce-72d9-4cc6-8ba0-e64065b4fa32",
+        "credentials": {}
+      },
+      {
+        "parameters": {
+          "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst full_name = (body.full_name || '').trim();\nconst email     = (body.email    || '').trim().toLowerCase();\nconst phone     = (body.phone    || '').trim();\n\nif (!full_name) throw new Error('full_name is required');\n\nconst tenant_id = parseInt(body.tenant_id) || 0;\nreturn [{ json: { full_name, email, phone, tenant_id } }];\n"
+        },
+        "id": "9466da75-3a19-487b-8dab-39f23d496aa6",
+        "name": "Validate Input",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          480,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.venuedesk.co.uk/customers/upsert",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').first().json.body?.full_name || '', email: $('Webhook').first().json.body?.email || '', phone: $('Webhook').first().json.body?.phone || '', event_type: $('Webhook').first().json.body?.event_type || '', event_date: $('Webhook').first().json.body?.event_date || '', guests_count: $('Webhook').first().json.body?.guests_count || 0, notes: $('Webhook').first().json.body?.notes || '', jwt: $('Webhook').first().json.body?.jwt || '' }) }}",
+          "options": {
+            "continueOnFail": true
+          }
+        },
+        "id": "api-ccr-001",
+        "name": "API: Upsert Customer",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          720,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const row = $input.first().json;\n\nif (!row || !row.customer_id) {\n  throw new Error('INSERT did not return a customer_id — check your table schema');\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: row.customer_id,\n  full_name:   row.full_name,\n  email:       row.email\n}}];\n"
+        },
+        "id": "0e6b9b3d-7c50-4b83-b8cd-981a0e664dd1",
+        "name": "Format Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          960,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json) }}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "a71bb1c8-710e-4518-a106-8eecbdc435d5",
+        "name": "Respond Success",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          1200,
+          300
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Validate Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Input": {
+        "main": [
+          [
+            {
+              "node": "API: Upsert Customer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "API: Upsert Customer": {
+        "main": [
+          [
+            {
+              "node": "Format Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Response": {
+        "main": [
+          [
+            {
+              "node": "Respond Success",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-15T20:38:51.087Z",
+        "id": 1373,
+        "workflowId": "8LTgEKbPIWNPy3QU",
+        "versionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:38:51.121Z",
+        "id": 1374,
+        "workflowId": "8LTgEKbPIWNPy3QU",
+        "versionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:18:04.348Z",
+        "id": 1288,
+        "workflowId": "8LTgEKbPIWNPy3QU",
+        "versionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:18:04.360Z",
+        "id": 1289,
+        "workflowId": "8LTgEKbPIWNPy3QU",
+        "versionId": "a7beca78-b947-49fd-bbda-4719982bce67",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

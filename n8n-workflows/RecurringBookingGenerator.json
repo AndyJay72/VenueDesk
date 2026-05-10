@@ -1,0 +1,458 @@
+{
+  "name": "VenueDesk - Monthly Recurring Booking Generator",
+  "nodes": [
+    {
+      "id": "6206cac6-d56e-4af4-bf2a-0bd6f26d3cd1",
+      "name": "Schedule: 1st of Month",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        144
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 1 * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8535ca01-5af6-47bc-8620-eedc1b7a47ae",
+      "name": "Code: Explode Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        144
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// For each active rule, generate all matching weekday dates in the target month.\nconst items = $input.all();\nconst today = new Date();\ntoday.setHours(0,0,0,0);\n\n// Target = next calendar month\nconst tY = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();\nconst tM = today.getMonth() === 11 ? 0 : today.getMonth() + 1;\nconst mStart = new Date(tY, tM, 1);\nconst mEnd   = new Date(tY, tM + 1, 0); // last day of target month\n\nconst out = [];\nfor (const item of items) {\n  const rule = item.json;\n  const dow  = parseInt(rule.day_of_week); // 0=Sun \u2026 6=Sat\n  let cur = new Date(mStart);\n  while (cur <= mEnd) {\n    if (cur.getDay() === dow) {\n      const ds = cur.toISOString().split('T')[0];\n      out.push({ json: {\n        ...rule,\n        booking_date: ds,\n        target_month: mStart.toISOString().split('T')[0]\n      }});\n    }\n    cur.setDate(cur.getDate() + 1);\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "cf9249a7-f42e-441d-aae8-e9b0a16ed36d",
+      "name": "IF: No Conflict",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        144
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.conflict_count }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "0"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "79e4d2f3-e8a3-41bd-bd1a-236d5f61e01a",
+      "name": "Email: Monthly Invoice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $('Code: Explode Dates').item.json.customer_email }}",
+        "subject": "={{ 'Monthly Membership Invoice \u2013 ' + new Date($('Code: Explode Dates').item.json.target_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}",
+        "emailFormat": "html",
+        "html": "=<p>Dear {{ $('Code: Explode Dates').item.json.customer_name }},</p>\n<p>Your membership invoice for <strong>{{ new Date($('Code: Explode Dates').item.json.target_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}</strong> is ready.</p>\n<table style=\"width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px\">\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Plan</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.plan_name }}</td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Room</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.room_name }}</td></tr>\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Amount Due</th><td style=\"padding:8px\"><strong>\u00a3{{ parseFloat($('DB: Upsert Monthly Invoice').item.json.total_amount).toFixed(2) }}</strong></td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Payment Due By</th><td style=\"padding:8px\">{{ $('DB: Upsert Monthly Invoice').item.json.due_date }}</td></tr>\n</table>\n<p style=\"font-size:13px;color:#555\">{{ $('DB: Get Policy Terms').item.json.base_terms }}</p>\n{{ $('DB: Get Policy Terms').item.json.extra_clauses ? '<p style=\"font-size:13px;border-left:3px solid #4f46e5;padding-left:10px\">'+$('DB: Get Policy Terms').item.json.extra_clauses+'</p>' : '' }}\n<p>Questions? Email <a href=\"mailto:bookings@venuedesk.co.uk\">bookings@venuedesk.co.uk</a></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "0a27d669-d44f-424b-bfc8-91aec4f3b1db",
+      "name": "Skip: Conflict Exists",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        288
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "skip-conflict-1",
+              "name": "status",
+              "value": "skipped",
+              "type": "string"
+            },
+            {
+              "id": "skip-conflict-2",
+              "name": "reason",
+              "value": "Room already booked for this date and time slot \u2014 no ghost booking created",
+              "type": "string"
+            },
+            {
+              "id": "skip-conflict-3",
+              "name": "booking_date",
+              "value": "={{ $('Code: Explode Dates').item.json.booking_date }}",
+              "type": "string"
+            },
+            {
+              "id": "skip-conflict-4",
+              "name": "room_name",
+              "value": "={{ $('Code: Explode Dates').item.json.room_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/active-membership-rules",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbg-http-rules",
+      "name": "HTTP: Get Active Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : []);\nif (!rows.length) return [];\nreturn rows.map(row => ({ json: row }));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbg-flat-rules",
+      "name": "DB: Get Active Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/clash-guard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ room_id:       $json.room_id, booking_date:  $json.booking_date, start_time:    $json.start_time, end_time:      $json.end_time }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbg-http-clash",
+      "name": "HTTP: Check Conflicts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbg-flat-clash",
+      "name": "DB: Check Conflicts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/insert-bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id:     $('Code: Explode Dates').item.json.customer_id, room_id:         $('Code: Explode Dates').item.json.room_id, rule_id:         $('Code: Explode Dates').item.json.rule_id, dates:           $('Code: Explode Dates').item.json.booking_date, start_time:      $('Code: Explode Dates').item.json.start_time, end_time:        $('Code: Explode Dates').item.json.end_time, rate_per_session:$('Code: Explode Dates').item.json.rate_per_session }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rbg-http-ghost",
+      "name": "HTTP: Insert Ghost Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbg-flat-ghost",
+      "name": "DB: Insert Ghost Booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $input.first().json }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbg-pass-inv",
+      "name": "DB: Upsert Monthly Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $input.first().json }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rbg-pass-pol",
+      "name": "DB: Get Policy Terms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1600,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule: 1st of Month": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Active Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Active Rules": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Active Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Active Rules": {
+      "main": [
+        [
+          {
+            "node": "Code: Explode Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Explode Dates": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Check Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Check Conflicts": {
+      "main": [
+        [
+          {
+            "node": "DB: Check Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Check Conflicts": {
+      "main": [
+        [
+          {
+            "node": "IF: No Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: No Conflict": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Insert Ghost Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: Conflict Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Insert Ghost Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Ghost Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Ghost Booking": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Monthly Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Monthly Invoice": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Policy Terms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Policy Terms": {
+      "main": [
+        [
+          {
+            "node": "Email: Monthly Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

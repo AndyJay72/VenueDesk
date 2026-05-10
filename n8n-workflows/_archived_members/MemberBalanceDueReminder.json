@@ -1,0 +1,137 @@
+{
+  "name": "VenueDesk - Member Balance Due Reminder",
+  "nodes": [
+    {
+      "id": "b2c3d4e5-0001-0001-0001-000000000001",
+      "name": "Schedule: Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "days", "triggerAtHour": 8, "triggerAtMinute": 0 }]
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0002-0002-0002-000000000002",
+      "name": "DB: Get Reminder Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT tenant_id, value::int AS reminder_days\nFROM bookings.venue_config\nWHERE key = 'recurring_reminder_days';",
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0003-0003-0003-000000000003",
+      "name": "DB: Get Unpaid Invoices Due Soon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [440, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  mi.id          AS invoice_id,\n  mi.tenant_id,\n  mi.membership_id,\n  mi.invoice_month,\n  mi.total_amount,\n  mi.amount_paid,\n  mi.balance_due,\n  mi.due_date,\n  mi.status,\n  m.plan_name,\n  c.full_name    AS customer_name,\n  c.email        AS customer_email,\n  r.name         AS room_name,\n  rr.start_time::text AS start_time,\n  rr.end_time::text   AS end_time,\n  rr.day_of_week\nFROM bookings.membership_invoices mi\nJOIN bookings.memberships m       ON m.id  = mi.membership_id\nJOIN bookings.customers   c       ON c.id  = mi.customer_id\nJOIN bookings.recurring_rules rr  ON rr.membership_id = mi.membership_id AND rr.active = TRUE\nJOIN bookings.rooms r             ON r.id  = rr.room_id\nWHERE mi.status IN ('unpaid', 'partial')\n  AND mi.tenant_id = $1\n  AND mi.due_date <= (CURRENT_DATE + ($2 || ' days')::INTERVAL)\n  AND mi.due_date >= CURRENT_DATE\nORDER BY mi.due_date ASC;",
+        "options": {
+          "queryReplacement": "={{ [$json.tenant_id, $json.reminder_days] }}"
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0004-0004-0004-000000000004",
+      "name": "IF: Has Unpaid Invoices",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.customer_email }}",
+              "operator": { "type": "string", "operation": "isNotEmpty" },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0005-0005-0005-000000000005",
+      "name": "Email: Balance Due Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [880, -100],
+      "continueOnFail": true,
+      "parameters": {
+        "fromEmail": "bookings@in2netaisolutions.cloud",
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "={{ 'Payment Reminder – ' + $json.plan_name + ' – Due ' + $json.due_date }}",
+        "emailFormat": "html",
+        "html": "=<p>Dear {{ $json.customer_name }},</p>\n<p>This is a friendly reminder that your membership invoice is due for payment.</p>\n<table style=\"width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px\">\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Plan</th><td style=\"padding:8px\">{{ $json.plan_name }}</td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Room</th><td style=\"padding:8px\">{{ $json.room_name }}</td></tr>\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Invoice Month</th><td style=\"padding:8px\">{{ new Date($json.invoice_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}</td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Balance Due</th><td style=\"padding:8px\"><strong style=\"color:#dc2626\">£{{ parseFloat($json.balance_due).toFixed(2) }}</strong></td></tr>\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Due Date</th><td style=\"padding:8px\">{{ $json.due_date }}</td></tr>\n</table>\n<p>Please arrange payment at your earliest convenience to ensure your recurring slot is retained.</p>\n<p>If you have already made payment, please disregard this message — it may take 1–2 business days to reflect.</p>\n<p>Questions? Contact us at <a href=\"mailto:bookings@in2netaisolutions.cloud\">bookings@in2netaisolutions.cloud</a></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
+        "options": { "appendAttribution": false }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0006-0006-0006-000000000006",
+      "name": "DB: Mark Reminder Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1100, -100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.membership_invoices\nSET notes = COALESCE(notes,'') || ' [Reminder sent ' || NOW()::date || ']',\n    updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$('DB: Get Unpaid Invoices Due Soon').item.json.invoice_id] }}"
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0007-0007-0007-000000000007",
+      "name": "Skip: No Invoices Due",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 100],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "skip-noinv-1",
+              "name": "status",
+              "value": "skipped",
+              "type": "string"
+            },
+            {
+              "id": "skip-noinv-2",
+              "name": "reason",
+              "value": "No invoices due within reminder window — nothing to send",
+              "type": "string"
+            },
+            {
+              "id": "skip-noinv-3",
+              "name": "checked_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Schedule: Daily 08:00":          { "main": [[{ "node": "DB: Get Reminder Config",          "type": "main", "index": 0 }]] },
+    "DB: Get Reminder Config":         { "main": [[{ "node": "DB: Get Unpaid Invoices Due Soon", "type": "main", "index": 0 }]] },
+    "DB: Get Unpaid Invoices Due Soon":{ "main": [[{ "node": "IF: Has Unpaid Invoices",          "type": "main", "index": 0 }]] },
+    "IF: Has Unpaid Invoices":         { "main": [
+      [{ "node": "Email: Balance Due Reminder", "type": "main", "index": 0 }],
+      [{ "node": "Skip: No Invoices Due",       "type": "main", "index": 0 }]
+    ]},
+    "Email: Balance Due Reminder": { "main": [[{ "node": "DB: Mark Reminder Sent", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "aiBuilderAssisted": false }
+}

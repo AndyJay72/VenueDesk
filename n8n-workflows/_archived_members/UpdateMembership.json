@@ -1,0 +1,103 @@
+{
+  "name": "VenueDesk - Update Membership",
+  "nodes": [
+    {
+      "id": "um-001",
+      "name": "Webhook: Update Membership",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1000, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-membership",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "update-membership",
+      "credentials": {}
+    },
+    {
+      "id": "um-002",
+      "name": "DB: Update Membership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-760, 0],
+      "continueOnFail": false,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.memberships\nSET\n  plan_name          = COALESCE(NULLIF($1,''), plan_name),\n  monthly_rate       = CASE WHEN $2::text <> '' THEN $2::numeric ELSE monthly_rate END,\n  policy_template    = COALESCE(NULLIF($3,''), policy_template),\n  notice_period_days = CASE WHEN $4::text <> '' THEN $4::int ELSE notice_period_days END,\n  notes              = CASE WHEN $5::text IS NOT NULL THEN NULLIF($5,'') ELSE notes END,\n  updated_at         = NOW()\nWHERE id = $6::uuid\n  AND tenant_id = $7\nRETURNING id AS membership_id, plan_name, customer_id, policy_template, monthly_rate, notice_period_days, notes;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Update Membership').first().json.body?.plan_name || '',\n  String($('Webhook: Update Membership').first().json.body?.monthly_rate ?? ''),\n  $('Webhook: Update Membership').first().json.body?.policy_template || '',\n  String($('Webhook: Update Membership').first().json.body?.notice_period_days ?? ''),\n  $('Webhook: Update Membership').first().json.body?.notes ?? null,\n  $('Webhook: Update Membership').first().json.body?.membership_id || '',\n  parseInt($('Webhook: Update Membership').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "um-003",
+      "name": "DB: Update Customer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-520, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.customers\nSET\n  full_name  = COALESCE(NULLIF($1,''), full_name),\n  email      = COALESCE(NULLIF($2,''), email),\n  phone      = COALESCE(NULLIF($3,''), phone),\n  updated_at = NOW()\nWHERE id = $4::uuid\n  AND tenant_id = $5\nRETURNING id, full_name, email, phone;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Update Membership').first().json.body?.full_name || '',\n  $('Webhook: Update Membership').first().json.body?.email || '',\n  $('Webhook: Update Membership').first().json.body?.phone || '',\n  $('Webhook: Update Membership').first().json.body?.customer_id || '',\n  parseInt($('Webhook: Update Membership').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "um-004",
+      "name": "DB: Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-280, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.customer_interactions\n  (customer_id, customer_name, customer_email, customer_phone,\n   booking_id, booking_date, room_name,\n   subject, interaction_type, notes, timestamp, staff_member, tenant_id)\nVALUES\n  ($1::uuid, $2, $3, '',\n   NULL, NULL, NULL,\n   'Membership details updated',\n   'membership',\n   'Plan: ' || $4 || ', Rate: £' || COALESCE($5::text,'—') || '/mo',\n   NOW(), $6, $7)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('DB: Update Membership').first().json.customer_id || '',\n  $('Webhook: Update Membership').first().json.body?.full_name || '',\n  $('Webhook: Update Membership').first().json.body?.email || '',\n  $('DB: Update Membership').first().json.plan_name || '',\n  String($('DB: Update Membership').first().json.monthly_rate || ''),\n  $('Webhook: Update Membership').first().json.body?.performed_by || 'Staff',\n  parseInt($('Webhook: Update Membership').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "um-005",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-40, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', membership: $('DB: Update Membership').first().json, customer: $('DB: Update Customer').first().json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Update Membership": { "main": [[{ "node": "DB: Update Membership", "type": "main", "index": 0 }]] },
+    "DB: Update Membership":      { "main": [[{ "node": "DB: Update Customer",   "type": "main", "index": 0 }]] },
+    "DB: Update Customer":        { "main": [[{ "node": "DB: Log Audit",         "type": "main", "index": 0 }]] },
+    "DB: Log Audit":              { "main": [[{ "node": "Respond: OK",           "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true,
+  "versionId": "um-0001-0001-0001-0001-000000000001",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "UpdateMembership01",
+  "tags": []
+}

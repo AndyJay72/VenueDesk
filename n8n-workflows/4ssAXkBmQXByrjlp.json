@@ -1,0 +1,504 @@
+{
+  "updatedAt": "2026-03-15T20:38:46.376Z",
+  "createdAt": "2026-02-26T15:11:17.674Z",
+  "id": "4ssAXkBmQXByrjlp",
+  "name": "Walk-In Booking",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "walk-in-booking",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "wib-webhook-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "5cc0a0ce-72d9-4cc6-8ba0-e64065b4fa32",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst name  = (body.customer_name  || '').trim();\nconst email = (body.customer_email || '').trim().toLowerCase();\nconst phone = (body.customer_phone || '').trim();\nif (!name)  throw new Error('customer_name is required');\nif (!phone) throw new Error('customer_phone is required');\nreturn [{ json: {\n  customer_name:  name,\n  customer_email: email,\n  customer_phone: phone,\n  request_id:     body.request_id     || '',\n  room_id:        body.room_id        || '',\n  room_name:      body.room_name      || '',\n  booking_date:   body.booking_date   || '',\n  date_from:      body.date_from      || body.booking_date || '',\n  date_to:        body.date_to        || body.booking_date || '',\n  start_time:     body.start_time     || '',\n  end_time:       body.end_time       || '',\n  guest_count:    body.guest_count    || '',\n  event_type:     body.event_type     || '',\n  notes:          body.notes          || '',\n  total_amount:   body.total_amount   || 0,\n  payment_amount: body.payment_amount || 0,\n  payment_type:   body.payment_type   || 'deposit',\n  payment_method: body.payment_method || 'cash',\n  status:         body.status         || 'booked',\n  booking_source: 'walk_in',\n  tenant_id: parseInt(body.tenant_id || $input.first().json.headers?.['x-tenant-id'] || $input.first().json.query?.tenant_id || '0')\n}}];"
+      },
+      "id": "wib-extract-002",
+      "name": "Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').first().json.body?.full_name || '', email: $('Webhook').first().json.body?.email || '', phone: $('Webhook').first().json.body?.phone || '', event_type: $('Webhook').first().json.body?.event_type || '', notes: $('Webhook').first().json.body?.notes || '', jwt: $('Webhook').first().json.body?.jwt || '' }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "api-wib-001",
+      "name": "API: Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const upsertRow = $input.first().json;\nconst payload   = $('Extract Payload').first().json;\nconst isNew     = upsertRow.is_new === true || upsertRow.is_new === 'true';\nconst clean = {\n  customer_name:  payload.customer_name,\n  customer_email: payload.customer_email,\n  customer_phone: payload.customer_phone,\n  request_id:     (payload.request_id && payload.request_id !== '') ? payload.request_id : null,\n  room_id:        payload.room_id,\n  room_name:      payload.room_name,\n  booking_date:   payload.booking_date,\n  date_from:      payload.date_from,\n  date_to:        payload.date_to,\n  start_time:     payload.start_time,\n  end_time:       payload.end_time,\n  guest_count:    payload.guest_count,\n  event_type:     payload.event_type,\n  notes:          payload.notes,\n  total_amount:   payload.total_amount,\n  payment_amount: payload.payment_amount,\n  payment_type:   payload.payment_type,\n  payment_method: payload.payment_method,\n  booking_source: payload.booking_source,\n  status:         payload.status,\n  tenant_id:      payload.tenant_id,\n  customer_id:    upsertRow.customer_id,\n  is_new:         isNew\n};\nreturn [{ json: { ...clean, _body: JSON.stringify(clean) } }];"
+      },
+      "id": "wib-build-004",
+      "name": "Build Full Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.srv1090894.hstgr.cloud/webhook/make-booking",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json._body }}",
+        "options": {
+          "ignoreHttpStatusErrors": true
+        }
+      },
+      "id": "wib-makebooking-005",
+      "name": "Make Booking",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1120,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mbResult = $input.first().json;\nconst payload = $('Build Full Payload').first().json;\n// make-booking returns status:'success' on success, status:'error'/'blocked' on failure\nconst ok = mbResult.status === 'success' || mbResult.message === 'Booking secured.';\nreturn [{ json: {\n  success: ok,\n  message: ok ? (mbResult.message || 'Walk-in booking created') : (mbResult.message || 'Booking failed'),\n  customer_id: payload.customer_id,\n  is_new:      payload.is_new\n}}];"
+      },
+      "id": "wib-check-006",
+      "name": "Check Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "wib-respond-007",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        304
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payload": {
+      "main": [
+        [
+          {
+            "node": "API: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "Build Full Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Full Payload": {
+      "main": [
+        [
+          {
+            "node": "Make Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Booking": {
+      "main": [
+        [
+          {
+            "node": "Check Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Result": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "wib-v2-2026-04-27",
+  "activeVersionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+  "versionCounter": 93,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-26T15:11:17.674Z",
+      "createdAt": "2026-02-26T15:11:17.674Z",
+      "role": "workflow:owner",
+      "workflowId": "4ssAXkBmQXByrjlp",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-13T18:18:03.546Z",
+    "createdAt": "2026-03-13T18:18:03.546Z",
+    "versionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+    "workflowId": "4ssAXkBmQXByrjlp",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "walk-in-booking",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "wib-webhook-001",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          240,
+          304
+        ],
+        "webhookId": "5cc0a0ce-72d9-4cc6-8ba0-e64065b4fa32",
+        "credentials": {}
+      },
+      {
+        "parameters": {
+          "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst name  = (body.customer_name  || '').trim();\nconst email = (body.customer_email || '').trim().toLowerCase();\nconst phone = (body.customer_phone || '').trim();\nif (!name)  throw new Error('customer_name is required');\nif (!phone) throw new Error('customer_phone is required');\nreturn [{ json: {\n  customer_name:  name,\n  customer_email: email,\n  customer_phone: phone,\n  request_id:     body.request_id     || '',\n  room_id:        body.room_id        || '',\n  room_name:      body.room_name      || '',\n  booking_date:   body.booking_date   || '',\n  date_from:      body.date_from      || body.booking_date || '',\n  date_to:        body.date_to        || body.booking_date || '',\n  start_time:     body.start_time     || '',\n  end_time:       body.end_time       || '',\n  guest_count:    body.guest_count    || '',\n  event_type:     body.event_type     || '',\n  notes:          body.notes          || '',\n  total_amount:   body.total_amount   || 0,\n  payment_amount: body.payment_amount || 0,\n  payment_type:   body.payment_type   || 'deposit',\n  payment_method: body.payment_method || 'cash',\n  status:         body.status         || 'booked',\n  booking_source: 'walk_in',\n  tenant_id: parseInt(body.tenant_id || $input.first().json.headers?.['x-tenant-id'] || $input.first().json.query?.tenant_id || '0')\n}}];"
+        },
+        "id": "wib-extract-002",
+        "name": "Extract Payload",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          460,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.venuedesk.co.uk/customers/upsert",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook').first().json.body?.full_name || '', email: $('Webhook').first().json.body?.email || '', phone: $('Webhook').first().json.body?.phone || '', event_type: $('Webhook').first().json.body?.event_type || '', notes: $('Webhook').first().json.body?.notes || '', jwt: $('Webhook').first().json.body?.jwt || '' }) }}",
+          "options": {
+            "continueOnFail": true
+          }
+        },
+        "id": "api-wib-001",
+        "name": "API: Upsert Customer",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          680,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const upsertRow = $input.first().json;\nconst payload   = $('Extract Payload').first().json;\nconst isNew     = upsertRow.is_new === true || upsertRow.is_new === 'true';\nconst clean = {\n  customer_name:  payload.customer_name,\n  customer_email: payload.customer_email,\n  customer_phone: payload.customer_phone,\n  request_id:     (payload.request_id && payload.request_id !== '') ? payload.request_id : null,\n  room_id:        payload.room_id,\n  room_name:      payload.room_name,\n  booking_date:   payload.booking_date,\n  date_from:      payload.date_from,\n  date_to:        payload.date_to,\n  start_time:     payload.start_time,\n  end_time:       payload.end_time,\n  guest_count:    payload.guest_count,\n  event_type:     payload.event_type,\n  notes:          payload.notes,\n  total_amount:   payload.total_amount,\n  payment_amount: payload.payment_amount,\n  payment_type:   payload.payment_type,\n  payment_method: payload.payment_method,\n  booking_source: payload.booking_source,\n  status:         payload.status,\n  tenant_id:      payload.tenant_id,\n  customer_id:    upsertRow.customer_id,\n  is_new:         isNew\n};\nreturn [{ json: { ...clean, _body: JSON.stringify(clean) } }];"
+        },
+        "id": "wib-build-004",
+        "name": "Build Full Payload",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          900,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://n8n.srv1090894.hstgr.cloud/webhook/make-booking",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ $json._body }}",
+          "options": {
+            "ignoreHttpStatusErrors": true
+          }
+        },
+        "id": "wib-makebooking-005",
+        "name": "Make Booking",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          1120,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const mbResult = $input.first().json;\nconst payload = $('Build Full Payload').first().json;\n// make-booking returns status:'success' on success, status:'error'/'blocked' on failure\nconst ok = mbResult.status === 'success' || mbResult.message === 'Booking secured.';\nreturn [{ json: {\n  success: ok,\n  message: ok ? (mbResult.message || 'Walk-in booking created') : (mbResult.message || 'Booking failed'),\n  customer_id: payload.customer_id,\n  is_new:      payload.is_new\n}}];"
+        },
+        "id": "wib-check-006",
+        "name": "Check Result",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1340,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json) }}",
+          "options": {
+            "responseCode": 200,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Headers",
+                  "value": "Content-Type, Authorization"
+                }
+              ]
+            }
+          }
+        },
+        "id": "wib-respond-007",
+        "name": "Respond",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          1560,
+          304
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Extract Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Payload": {
+        "main": [
+          [
+            {
+              "node": "API: Upsert Customer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "API: Upsert Customer": {
+        "main": [
+          [
+            {
+              "node": "Build Full Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Full Payload": {
+        "main": [
+          [
+            {
+              "node": "Make Booking",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Make Booking": {
+        "main": [
+          [
+            {
+              "node": "Check Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Result": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-15T20:38:46.396Z",
+        "id": 1371,
+        "workflowId": "4ssAXkBmQXByrjlp",
+        "versionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:38:46.405Z",
+        "id": 1372,
+        "workflowId": "4ssAXkBmQXByrjlp",
+        "versionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:18:03.579Z",
+        "id": 1286,
+        "workflowId": "4ssAXkBmQXByrjlp",
+        "versionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-13T18:18:03.601Z",
+        "id": 1287,
+        "workflowId": "4ssAXkBmQXByrjlp",
+        "versionId": "4244a3f1-3255-4d42-a231-ff9b7549f55d",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

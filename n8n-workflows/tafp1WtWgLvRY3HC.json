@@ -1,0 +1,1473 @@
+{
+  "id": "tafp1WtWgLvRY3HC",
+  "name": "VenueDesk - Config Manager",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "connections": {
+    "Webhook: Get Rooms": {
+      "main": [
+        [
+          {
+            "node": "DB: List Rooms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: List Rooms": {
+      "main": [
+        [
+          {
+            "node": "Respond: Rooms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Create Room": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Room": {
+      "main": [
+        [
+          {
+            "node": "Respond: Room OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Update Room": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Update Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Update Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Update Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Update Room": {
+      "main": [
+        [
+          {
+            "node": "Respond: Room Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Delete Room": {
+      "main": [
+        [
+          {
+            "node": "DB: Soft Delete Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Soft Delete Room": {
+      "main": [
+        [
+          {
+            "node": "Respond: Room Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Event Types": {
+      "main": [
+        [
+          {
+            "node": "DB: List Event Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: List Event Types": {
+      "main": [
+        [
+          {
+            "node": "Respond: Event Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Create Event Type": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Event Type": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Event Type": {
+      "main": [
+        [
+          {
+            "node": "Respond: Event Type OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Update Event Type": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Update Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Update Type": {
+      "main": [
+        [
+          {
+            "node": "DB: Update Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Update Event Type": {
+      "main": [
+        [
+          {
+            "node": "Respond: Type Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Delete Event Type": {
+      "main": [
+        [
+          {
+            "node": "DB: Soft Delete Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Soft Delete Event Type": {
+      "main": [
+        [
+          {
+            "node": "Respond: Type Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Pricing": {
+      "main": [
+        [
+          {
+            "node": "DB: List Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: List Pricing": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Set Pricing": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Pricing": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Pricing": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Settings": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Settings": {
+      "main": [
+        [
+          {
+            "node": "Respond: Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Update Setting": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Setting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Setting": {
+      "main": [
+        [
+          {
+            "node": "Respond: Setting Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Delete Pricing": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate Delete Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate Delete Pricing": {
+      "main": [
+        [
+          {
+            "node": "DB: Delete Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Delete Pricing": {
+      "main": [
+        [
+          {
+            "node": "Respond: Pricing Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-rooms",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b7684877-3e4f-4718-bbd9-b06f7657d4b8",
+      "name": "Webhook: Get Rooms",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        4256
+      ],
+      "webhookId": "get-rooms"
+    },
+    {
+      "parameters": {
+        "url": "https://api.venuedesk.co.uk/config/rooms",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "tenant_id",
+              "value": "={{ $('Webhook: Get Rooms').first().json.query?.tenant_id || '1001' }}"
+            }
+          ]
+        }
+      },
+      "id": "069653b0-cf0d-4c0a-ad9f-99834f38013e",
+      "name": "DB: List Rooms",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        4256
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b5d13564-73cf-45eb-93b5-6691bc77bbf1",
+      "name": "Respond: Rooms",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        4256
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-room",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6abec7dc-9072-49d6-bcae-c1ad897aa005",
+      "name": "Webhook: Create Room",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        3952
+      ],
+      "webhookId": "create-room"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst auth = $input.first().json.headers?.authorization || '';\n\n// Role check — admin/manager only\n// Role verified via JWT token in Authorization header\n\nif (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {\n  throw new Error('Room name is required');\n}\n\nconst dayRate = parseFloat(body.day_rate);\nif (isNaN(dayRate) || dayRate < 0) {\n  throw new Error('day_rate must be a non-negative number');\n}\n\nconst halfRate = body.half_rate !== undefined && body.half_rate !== '' ? parseFloat(body.half_rate) : null;\nif (halfRate !== null && (isNaN(halfRate) || halfRate < 0)) {\n  throw new Error('half_rate must be a non-negative number if provided');\n}\n\nconst capacity = body.capacity && body.capacity !== '' ? parseInt(body.capacity, 10) : null;\n\nreturn {\n  json: {\n    name: body.name.trim(),\n    capacity: capacity,\n    day_rate: dayRate,\n    half_rate: halfRate,\n    description: body.description ? body.description.trim() : null,\n    tenant_id: parseInt($input.first().json.headers?.['x-tenant-id'] || $input.first().json.query?.tenant_id || '0')\n  }\n};"
+      },
+      "id": "90b83fbb-9393-43f0-a188-e7cb1b8d7b12",
+      "name": "Code: Validate Room",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        3952
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/rooms/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "948e60e4-7c56-44dd-aa8e-45bedb79713e",
+      "name": "DB: Insert Room",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        3952
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, room: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "d6524bc1-3f37-4394-b290-8acf40c31e83",
+      "name": "Respond: Room OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        3952
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-room",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "011afa05-3d2f-46c1-a402-85a24a116659",
+      "name": "Webhook: Update Room",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        3648
+      ],
+      "webhookId": "update-room"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// Role verified via JWT token in Authorization header\n\nif (!body.id) throw new Error('Room id is required');\nif (!body.name || body.name.trim() === '') throw new Error('Room name is required');\n\nconst dayRate = parseFloat(body.day_rate);\nif (isNaN(dayRate) || dayRate < 0) throw new Error('day_rate must be a non-negative number');\n\nconst halfRate = body.half_rate !== undefined && body.half_rate !== '' ? parseFloat(body.half_rate) : null;\nconst capacity = body.capacity && body.capacity !== '' ? parseInt(body.capacity, 10) : null;\n\nreturn {\n  json: {\n    id: body.id,\n    name: body.name.trim(),\n    capacity: capacity,\n    day_rate: dayRate,\n    half_rate: halfRate,\n    description: body.description ? body.description.trim() : null,\n    is_active: body.is_active !== false && body.is_active !== 'false'\n  }\n};"
+      },
+      "id": "b3570c51-b06a-4405-abdc-89b5f651fecd",
+      "name": "Code: Validate Update Room",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        3648
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/rooms/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "7b141aa9-a7b7-44ff-8ded-8e14b0c59224",
+      "name": "DB: Update Room",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        3648
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, room: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "45e14521-29b8-4e93-8e2e-b4c488a34634",
+      "name": "Respond: Room Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        3648
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-room",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "26a285d2-5fb6-4dc4-9714-47f103641c0e",
+      "name": "Webhook: Delete Room",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        3344
+      ],
+      "webhookId": "delete-room"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/rooms/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ room_id: $json.body?.room_id, jwt: $json.body?.jwt || \"\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "76d33144-511b-4d16-8842-dd49bd54627c",
+      "name": "DB: Soft Delete Room",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        3344
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"Room deactivated\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a1e8c538-de75-4adf-a1de-506ff90d8e1d",
+      "name": "Respond: Room Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        3344
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-event-types",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "49ca9def-7371-46d0-810e-52bd09d1c7b7",
+      "name": "Webhook: Get Event Types",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        4656
+      ],
+      "webhookId": "get-event-types"
+    },
+    {
+      "parameters": {
+        "url": "https://api.venuedesk.co.uk/config/event-types",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "5287aa5c-4438-482c-8e23-d7de7595d6e6",
+      "name": "DB: List Event Types",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        4656
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "277efdd5-a7ed-4018-8358-3d4116fb968f",
+      "name": "Respond: Event Types",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        4656
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-event-type",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "df9907fb-ce36-4d79-ab6c-0bee3c73ea35",
+      "name": "Webhook: Create Event Type",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        4944
+      ],
+      "webhookId": "create-event-type"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// Role verified via JWT token in Authorization header\nif (!body.name || body.name.trim() === '') {\n  throw new Error('Event type name is required');\n}\nreturn {\n  json: {\n    name: body.name.trim(),\n    description: body.description ? body.description.trim() : null,\n    tenant_id: parseInt($input.first().json.headers?.['x-tenant-id'] || $input.first().json.query?.tenant_id || '0')\n  }\n};"
+      },
+      "id": "3d88749a-2717-4036-8f59-a4bdc3285dcf",
+      "name": "Code: Validate Event Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        4944
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/event-types/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "b942f84d-d3ec-4e9c-8346-ed3d0f2c08fc",
+      "name": "DB: Insert Event Type",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        4944
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, eventType: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "346ee34f-2a45-4194-bfba-d37c7b40d403",
+      "name": "Respond: Event Type OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        4944
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-event-type",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "71785915-d236-4178-99a9-5ba210954bfe",
+      "name": "Webhook: Update Event Type",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        5248
+      ],
+      "webhookId": "update-event-type"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// Role verified via JWT token in Authorization header\nif (!body.id) throw new Error('Event type id is required');\nif (!body.name || body.name.trim() === '') throw new Error('Name is required');\nreturn {\n  json: {\n    id: body.id,\n    name: body.name.trim(),\n    description: body.description ? body.description.trim() : null,\n    is_active: body.is_active !== false && body.is_active !== 'false'\n  }\n};"
+      },
+      "id": "93ed8677-bc41-482c-885d-57338eb92419",
+      "name": "Code: Validate Update Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        5248
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/event-types/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "8e14d0c6-7829-4e12-90e0-09dff6f4487d",
+      "name": "DB: Update Event Type",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        5248
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, eventType: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "87f2dc31-68f1-4822-8f76-8589f9062654",
+      "name": "Respond: Type Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        5248
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-event-type",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "dda8d53c-0fbd-40b3-8ece-c8b1e983be5b",
+      "name": "Webhook: Delete Event Type",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        5552
+      ],
+      "webhookId": "delete-event-type"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/event-types/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event_type_id: $json.body?.event_type_id, jwt: $json.body?.jwt || \"\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "650de85b-0b9a-474d-9a16-1a04e75db9b6",
+      "name": "DB: Soft Delete Event Type",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        5552
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"Event type deactivated\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a725102f-0427-45f0-9d2b-638d9789849c",
+      "name": "Respond: Type Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        5552
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-pricing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b819c8db-6a75-46e1-af3c-7237f3df237d",
+      "name": "Webhook: Get Pricing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        5952
+      ],
+      "webhookId": "get-pricing"
+    },
+    {
+      "parameters": {
+        "url": "https://api.venuedesk.co.uk/config/pricing",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "tenant_id",
+              "value": "={{ $('Webhook: Get Pricing').first().json.query?.tenant_id || '1001' }}"
+            }
+          ]
+        }
+      },
+      "id": "fc75ce7a-3b27-4f20-9a13-ca6dd60f3903",
+      "name": "DB: List Pricing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        5952
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "89255a7d-b99b-4536-964d-03fa1c730537",
+      "name": "Respond: Pricing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        5952
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "set-pricing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "af993d92-a4f6-44b5-ad14-d3c8290ac61f",
+      "name": "Webhook: Set Pricing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        6256
+      ],
+      "webhookId": "set-pricing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// Role verified via JWT token in Authorization header\nif (!body.room_id) throw new Error('room_id is required');\nif (!body.event_type_id) throw new Error('event_type_id is required');\nconst dayRate = parseFloat(body.day_rate);\nif (isNaN(dayRate) || dayRate < 0) throw new Error('day_rate must be a non-negative number');\nreturn {\n  json: {\n    room_id: body.room_id,\n    event_type_id: body.event_type_id,\n    day_rate: dayRate,\n    tenant_id: parseInt($input.first().json.headers?.['x-tenant-id'] || $input.first().json.query?.tenant_id || '0')\n  }\n};"
+      },
+      "id": "24f2849d-7fe1-4210-bc9d-113b50c9f6c3",
+      "name": "Code: Validate Pricing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        6256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/pricing/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "b9bf2f07-49af-48b2-8ff1-dd1ecc23f3f2",
+      "name": "DB: Upsert Pricing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        6256
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, pricing: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "53b66201-ed7e-4a53-84d4-709e920cb12e",
+      "name": "Respond: Pricing OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        6256
+      ]
+    },
+    {
+      "parameters": {
+        "path": "get-settings",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2bee4ff7-0461-485e-99f2-8dd677f85cc9",
+      "name": "Webhook: Get Settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        7248
+      ],
+      "webhookId": "get-settings"
+    },
+    {
+      "parameters": {
+        "url": "https://api.venuedesk.co.uk/config/settings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "89f8a6fa-3ab6-49cf-b9c8-6f194655286f",
+      "name": "DB: Get Settings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        7248
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "32866e30-eaba-4791-90a9-4f1766afe726",
+      "name": "Respond: Settings",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        7248
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-setting",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6c4ddc32-8b74-4420-9638-86f70de722ab",
+      "name": "Webhook: Update Setting",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        7552
+      ],
+      "webhookId": "update-setting"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/settings/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ key: $json.body?.key, value: $json.body?.value, jwt: $json.body?.jwt || \"\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "223d6204-3859-4b50-a14b-7c28c97a92f7",
+      "name": "DB: Upsert Setting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        7552
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, setting: $json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "bccd8679-58d1-4eb7-8942-f85ad4365aa1",
+      "name": "Respond: Setting Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        7552
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-pricing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2d87c5f6-1449-4e40-8650-7e3a78009db7",
+      "name": "Webhook: Delete Pricing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        6544
+      ],
+      "webhookId": "del-pricing-vp-2026"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.room_id) throw new Error('room_id required');\nif (!body.event_type_id) throw new Error('event_type_id required');\nreturn { json: { room_id: body.room_id, event_type_id: body.event_type_id } };"
+      },
+      "id": "ca6c3bbf-0305-4c3c-9224-6b1899f91f60",
+      "name": "Code: Validate Delete Pricing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        6544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/pricing/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $json.body || $json, { jwt: $json.body?.jwt || $json.jwt || \"\" })) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "ed5a2b93-e3e1-437d-b1c0-19fbddce11f7",
+      "name": "DB: Delete Pricing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        6544
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true}",
+        "options": {}
+      },
+      "id": "0fab2947-e773-4dbc-9f16-42f3d8968bff",
+      "name": "Respond: Pricing Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        6544
+      ]
+    }
+  ]
+}

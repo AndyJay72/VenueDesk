@@ -1,0 +1,73 @@
+{
+  "name": "VenueDesk - Get Memberships",
+  "nodes": [
+    {
+      "id": "gm-0001-0001-0001-000000000001",
+      "name": "Webhook: Get Memberships",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-memberships",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {}
+    },
+    {
+      "id": "gm-0002-0002-0002-000000000002",
+      "name": "DB: Get Memberships",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-560, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  m.id                        AS membership_id,\n  m.plan_name,\n  m.policy_template,\n  m.monthly_rate,\n  m.status,\n  m.start_date::text          AS start_date,\n  m.end_date::text            AS end_date,\n  m.notice_period_days,\n  m.notes,\n  m.created_at,\n  rr.id                       AS rule_id,\n  rr.room_id,\n  r.name                      AS room_name,\n  rr.day_of_week,\n  rr.start_time::text         AS start_time,\n  rr.end_time::text           AS end_time,\n  rr.rate_per_session,\n  rr.active                   AS rule_active\nFROM bookings.memberships m\nLEFT JOIN bookings.recurring_rules rr\n  ON rr.membership_id = m.id AND rr.active = TRUE\nLEFT JOIN bookings.rooms r\n  ON r.id = rr.room_id\nWHERE m.tenant_id   = $1\n  AND m.customer_id = $2::uuid\n  AND m.status      = 'active'\nORDER BY m.created_at DESC, rr.day_of_week ASC;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Get Memberships').first().json.query?.tenant_id || '0'),\n  $('Webhook: Get Memberships').first().json.query?.customer_id || ''\n] }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "gm-0003-0003-0003-000000000003",
+      "name": "Code: Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-320, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: {\n  status: 'ok',\n  count: rows.length,\n  data: rows\n} }];"
+      }
+    },
+    {
+      "id": "gm-0004-0004-0004-000000000004",
+      "name": "Respond: Memberships",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-80, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Get Memberships": {
+      "main": [[{ "node": "DB: Get Memberships",   "type": "main", "index": 0 }]]
+    },
+    "DB: Get Memberships": {
+      "main": [[{ "node": "Code: Format Response", "type": "main", "index": 0 }]]
+    },
+    "Code: Format Response": {
+      "main": [[{ "node": "Respond: Memberships",  "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "availableInMCP": true },
+  "meta": { "templateCredsSetupCompleted": true }
+}

@@ -1,0 +1,304 @@
+{
+  "name": "VenueDesk - Record Recurring Payment",
+  "active": true,
+  "nodes": [
+    {
+      "id": "rrp-001",
+      "name": "Webhook: Record Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "record-recurring-payment",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "record-recurring-payment",
+      "credentials": {}
+    },
+    {
+      "id": "rrp-002",
+      "name": "Code: Validate & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const body = $('Webhook: Record Payment').first().json.body || $('Webhook: Record Payment').first().json;\n\n// Read directly from body\nlet ruleId        = (body.rule_id || '').trim();\nlet customerId    = (body.customer_id || '').trim();\nlet seriesRef     = (body.series_reference || '').trim();\nlet customerName  = '';\nlet customerEmail = '';\nlet customerPhone = '';\nlet roomName      = '';\n// Hoisted so they're accessible outside the try block\nlet dbRatePerSession   = 0;\nlet dbSessionsPerCycle = 0;\n\n// Enrich from DB lookup (always prefer DB data for customer details)\ntry {\n  const resolved = $('DB: Resolve Rule ID').first().json;\n  if (!ruleId      && resolved.rule_id)      ruleId      = resolved.rule_id;\n  if (!customerId  && resolved.customer_id)  customerId  = resolved.customer_id;\n  if (!seriesRef   && resolved.series_reference) seriesRef = resolved.series_reference;\n  customerName  = resolved.customer_name  || '';\n  customerEmail = resolved.customer_email || '';\n  customerPhone = resolved.customer_phone || '';\n  roomName      = resolved.room_name      || '';\n  dbRatePerSession   = parseFloat(resolved.rate_per_session   || '0') || 0;\n  dbSessionsPerCycle = parseInt(resolved.sessions_per_cycle   || '0') || 0;\n} catch(e) { /* lookup not available — continue */ }\n\nconst tenantId    = parseInt(body.tenant_id || '1001');\nconst amountPaid  = parseFloat(body.amount_paid || '0') || 0;\nconst method      = (body.payment_method || 'cash').toLowerCase();\nconst plan        = (body.payment_plan || 'per_session').toLowerCase();\nconst performedBy = (body.performed_by || 'Staff').trim();\nconst scheduleId  = (body.payment_schedule_id || body.schedule_id || '').trim();\n\nif (!ruleId && !scheduleId) throw new Error('rule_id or payment_schedule_id is required');\nif (!tenantId)              throw new Error('tenant_id is required');\n\nconst validPlans = ['in_advance','per_session','in_arrears','per_period'];\nconst safePlan = validPlans.includes(plan) ? plan : 'per_session';\n\n// Session-level distribution fields (use body values, fall back to DB-resolved values)\nconst sessionPrice    = parseFloat(body.session_price || '0') || dbRatePerSession || 0;\nconst sessionsPerCyc  = parseInt(body.sessions_per_cycle || '0') || dbSessionsPerCycle || 4;\nconst sessionsToPay   = (sessionPrice > 0 && amountPaid > 0)\n  ? Math.floor(amountPaid / sessionPrice)\n  : 0;\n\nreturn [{ json: {\n  rule_id:             ruleId,\n  tenant_id:           tenantId,\n  amount_paid:         amountPaid,\n  payment_method:      method,\n  payment_plan:        safePlan,\n  performed_by:        performedBy,\n  customer_id:         customerId,\n  customer_name:       customerName,\n  customer_email:      customerEmail,\n  customer_phone:      customerPhone,\n  room_name:           roomName,\n  series_reference:    seriesRef,\n  payment_schedule_id: scheduleId,\n  has_payment:         amountPaid > 0,\n  apply_to_sessions:   !!(body.apply_to_sessions),\n  session_price:       sessionPrice,\n  sessions_per_cycle:  sessionsPerCyc,\n  sessions_to_pay:     sessionsToPay\n} }];"
+      }
+    },
+    {
+      "id": "rrp-005",
+      "name": "Respond: Payment Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  status: 'ok',\n  payment_plan: $('Code: Validate & Prepare').first().json.payment_plan,\n  amount_recorded: $('Code: Validate & Prepare').first().json.amount_paid,\n  series_reference: $('Code: Validate & Prepare').first().json.series_reference || null,\n  period_updated: ($('DB: Mark Period Paid').all()[0] || {}).json?.period_start || null,\n  rows_updated: $('DB: Mark Period Paid').all().length\n}) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass-through: resolve happens inside POST /recurring/record-series-payment.\n// Expose webhook body fields so Code: Validate & Prepare can read them.\nconst wh = $('Webhook: Record Payment').first().json;\nconst body = wh.body || wh;\nreturn [{ json: {\n  rule_id:          body.rule_id || '',\n  series_id:        body.rule_id || '',\n  recurring_rule_id:body.rule_id || '',\n  customer_id:      body.customer_id || '',\n  series_reference: body.series_reference || '',\n  customer_name:    body.customer_name   || '',\n  customer_email:   body.customer_email  || '',\n  customer_phone:   body.customer_phone  || '',\n  room_name:        body.room_name       || '',\n  rate_per_session: body.session_price   || 0,\n  sessions_per_cycle: body.sessions_per_cycle || 4,\n  is_new_series:    true,\n} }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-pass-resolve",
+      "name": "DB: Resolve Rule ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/record-series-payment",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ rule_id:             $('Code: Validate & Prepare').first().json.rule_id, amount_paid:         $('Code: Validate & Prepare').first().json.amount_paid, payment_method:      $('Code: Validate & Prepare').first().json.payment_method, payment_plan:        $('Code: Validate & Prepare').first().json.payment_plan, performed_by:        $('Code: Validate & Prepare').first().json.performed_by, customer_id:         $('Code: Validate & Prepare').first().json.customer_id, customer_name:       $('Code: Validate & Prepare').first().json.customer_name, customer_email:      $('Code: Validate & Prepare').first().json.customer_email, customer_phone:      $('Code: Validate & Prepare').first().json.customer_phone, room_name:           $('Code: Validate & Prepare').first().json.room_name, series_reference:    $('Code: Validate & Prepare').first().json.series_reference, payment_schedule_id: $('Code: Validate & Prepare').first().json.payment_schedule_id, apply_to_sessions:   $('Code: Validate & Prepare').first().json.apply_to_sessions, sessions_to_pay:     $('Code: Validate & Prepare').first().json.sessions_to_pay, session_price:       $('Code: Validate & Prepare').first().json.session_price, jwt: $env.N8N_SERVICE_JWT }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rrp-http-pay",
+      "name": "HTTP: Record Series Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-flat-mark",
+      "name": "DB: Mark Period Paid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-pass-rec",
+      "name": "DB: Record Payment Entry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-pass-log",
+      "name": "DB: Log Payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-pass-audit",
+      "name": "DB: Write Audit Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rrp-pass-sess",
+      "name": "DB: Apply to Sessions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        2000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Record Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Resolve Rule ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Resolve Rule ID": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate & Prepare": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Record Series Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Record Series Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Mark Period Paid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Mark Period Paid": {
+      "main": [
+        [
+          {
+            "node": "DB: Record Payment Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Record Payment Entry": {
+      "main": [
+        [
+          {
+            "node": "DB: Log Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Log Payment": {
+      "main": [
+        [
+          {
+            "node": "DB: Write Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Write Audit Log": {
+      "main": [
+        [
+          {
+            "node": "DB: Apply to Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Apply to Sessions": {
+      "main": [
+        [
+          {
+            "node": "Respond: Payment Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rrp-v3-2026-04-03",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "RecordRecurringPayment",
+  "tags": []
+}

@@ -1,0 +1,75 @@
+{
+  "name": "VenueDesk - Cancel Recurring Series",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-recurring-series",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "crs-wh-001",
+      "name": "Webhook: Cancel Series",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-600, 200],
+      "webhookId": "cancel-recurring-series",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/cancel-series",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Series').first().json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ series_id: ($('Webhook: Cancel Series').first().json.body?.series_id || $('Webhook: Cancel Series').first().json.body?.rule_id || ''), performed_by: ($('Webhook: Cancel Series').first().json.body?.performed_by || 'Staff') }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "crs-http-001",
+      "name": "API: Cancel Series",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-360, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "crs-resp-001",
+      "name": "Respond: Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-120, 200]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Cancel Series": { "main": [[{"node":"API: Cancel Series", "type":"main","index":0}]] },
+    "API: Cancel Series":     { "main": [[{"node":"Respond: Result",    "type":"main","index":0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "crs-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "CancelRecurringSeries01",
+  "tags": []
+}

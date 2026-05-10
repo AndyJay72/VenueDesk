@@ -1,0 +1,233 @@
+{
+  "name": "VenueDesk - Recurring Payment Chaser",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "rpc-schedule-001",
+      "name": "Schedule: Daily 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [-600, -600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/process-overdue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CHASER_SERVICE_JWT }}"
+            },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rpc-process-overdue-001",
+      "name": "HTTP: POST /recurring/process-overdue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [-400, -600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/upcoming-reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CHASER_SERVICE_JWT }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "days_ahead", "value": "3" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rpc-get-reminders-001",
+      "name": "HTTP: GET /recurring/upcoming-reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [-200, -600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split the reminders array into individual items for per-item processing.\n// upcoming-reminders returns { success, data: [...], count: N }.\nconst result = $input.first().json;\nconst reminders = Array.isArray(result.data) ? result.data : [];\nif (!reminders.length) return [];\nreturn reminders.map(r => ({ json: r }));"
+      },
+      "id": "rpc-split-reminders-001",
+      "name": "Code: Split Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $items().length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "rpc-if-reminders-001",
+      "name": "IF: Has Reminders",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [200, -600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format reminder email for each customer\nconst item = $input.first().json;\n\nconst dueDate = item.due_date ? new Date(item.due_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'soon';\nconst amount  = parseFloat(item.monthly_amount_due || item.amount_due || 0).toFixed(2);\nconst freq    = (item.frequency || 'recurring').charAt(0).toUpperCase() + (item.frequency || 'recurring').slice(1);\nconst room    = item.room_name    || 'your room';\nconst ref     = item.series_reference || '';\nconst times   = item.start_time && item.end_time ? `${item.start_time} – ${item.end_time}` : '';\n\nconst termLabel = item.payment_timing === 'in_arrears'\n  ? 'This payment covers your recently completed sessions.'\n  : item.payment_timing === 'per_session'\n  ? 'This payment is due on the date of your next session.'\n  : 'This payment covers your upcoming sessions in advance.';\n\nconst subject = `Payment Reminder: £${amount} due ${dueDate} — ${room}`;\n\nconst htmlBody = `\n<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#1e293b\">\n  <h2 style=\"color:#6366f1;border-bottom:2px solid #6366f1;padding-bottom:10px\">Payment Reminder</h2>\n  <p>Dear <strong>${item.customer_name || 'Valued Customer'}</strong>,</p>\n  <p>This is a friendly reminder that a payment is due for your recurring booking at <strong>${room}</strong>.</p>\n  <table style=\"width:100%;border-collapse:collapse;margin:20px 0;background:#f8fafc;border-radius:8px\">\n    <tr><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\"><strong>Amount Due</strong></td><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#10b981;font-size:1.1em\"><strong>£${amount}</strong></td></tr>\n    <tr><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\"><strong>Due Date</strong></td><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\">${dueDate}</td></tr>\n    <tr><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\"><strong>Room</strong></td><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\">${room}</td></tr>\n    ${times ? `<tr><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\"><strong>Session Time</strong></td><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\">${times}</td></tr>` : ''}\n    <tr><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\"><strong>Frequency</strong></td><td style=\"padding:10px 14px;border-bottom:1px solid #e2e8f0\">${freq}</td></tr>\n    ${ref ? `<tr><td style=\"padding:10px 14px\"><strong>Reference</strong></td><td style=\"padding:10px 14px\">${ref}</td></tr>` : ''}\n  </table>\n  <p style=\"color:#64748b;font-size:0.9em\">${termLabel}</p>\n  <p>Please contact us if you have any questions about your payment.</p>\n  <p style=\"margin-top:30px;color:#94a3b8;font-size:0.8em\">VenueDesk — Automated Payment Reminder</p>\n</div>`;\n\nreturn [{ json: {\n  ...item,\n  email_subject: subject,\n  email_html: htmlBody,\n  email_to: item.customer_email\n} }];"
+      },
+      "id": "rpc-build-email-001",
+      "name": "Code: Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -600]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email_to }}",
+        "subject": "={{ $json.email_subject }}",
+        "emailType": "html",
+        "message": "={{ $json.email_html }}",
+        "options": {}
+      },
+      "id": "rpc-send-email-001",
+      "name": "Send: Reminder Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "continueOnFail": true,
+      "position": [600, -600],
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CREDENTIAL_ID",
+          "name": "VenueDesk SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/mark-reminder-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CHASER_SERVICE_JWT }}"
+            },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ schedule_id: $json.schedule_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "rpc-mark-sent-001",
+      "name": "HTTP: POST /recurring/mark-reminder-sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [800, -600]
+    }
+  ],
+  "connections": {
+    "Schedule: Daily 8am": {
+      "main": [
+        [{ "node": "HTTP: POST /recurring/process-overdue", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: POST /recurring/process-overdue": {
+      "main": [
+        [{ "node": "HTTP: GET /recurring/upcoming-reminders", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: GET /recurring/upcoming-reminders": {
+      "main": [
+        [{ "node": "Code: Split Reminders", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code: Split Reminders": {
+      "main": [
+        [{ "node": "IF: Has Reminders", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF: Has Reminders": {
+      "main": [
+        [{ "node": "Code: Build Email", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Code: Build Email": {
+      "main": [
+        [{ "node": "Send: Reminder Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send: Reminder Email": {
+      "main": [
+        [{ "node": "HTTP: POST /recurring/mark-reminder-sent", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  }
+}

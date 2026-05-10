@@ -1,0 +1,107 @@
+{
+  "name": "VenueDesk — Run Migration 008 (Subscription Ledger)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "mig008-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1440, 0],
+      "parameters": {}
+    },
+    {
+      "id": "mig008-002",
+      "name": "DB: Step 1 — add ledger columns to recurring_payment_schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1200, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_payment_schedule\n  ADD COLUMN IF NOT EXISTS total_cycles     INT,\n  ADD COLUMN IF NOT EXISTS remaining_cycles INT,\n  ADD COLUMN IF NOT EXISTS billing_day      INT CHECK (billing_day BETWEEN 1 AND 31),\n  ADD COLUMN IF NOT EXISTS upfront_paid     BOOLEAN NOT NULL DEFAULT false;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig008-003",
+      "name": "DB: Step 2 — create outstanding_payments table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-960, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS bookings.outstanding_payments (\n  id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),\n  tenant_id         INT           NOT NULL,\n  recurring_rule_id UUID          REFERENCES bookings.recurring_rules(id) ON DELETE CASCADE,\n  customer_id       UUID          REFERENCES bookings.customers(id),\n  period_start      DATE          NOT NULL,\n  amount_due        NUMERIC(10,2) NOT NULL DEFAULT 0,\n  due_date          DATE          NOT NULL,\n  status            TEXT          NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','cancelled')),\n  email_sent_at     TIMESTAMPTZ,\n  paid_at           TIMESTAMPTZ,\n  created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW(),\n  UNIQUE (recurring_rule_id, period_start)\n);",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig008-004",
+      "name": "DB: Step 3 — indexes on outstanding_payments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-720, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE INDEX IF NOT EXISTS idx_outstanding_payments_tenant  ON bookings.outstanding_payments(tenant_id);\nCREATE INDEX IF NOT EXISTS idx_outstanding_payments_rule    ON bookings.outstanding_payments(recurring_rule_id);\nCREATE INDEX IF NOT EXISTS idx_outstanding_payments_status  ON bookings.outstanding_payments(status);\nCREATE INDEX IF NOT EXISTS idx_outstanding_payments_due     ON bookings.outstanding_payments(due_date);\nCREATE INDEX IF NOT EXISTS idx_rps_billing_day              ON bookings.recurring_payment_schedule(billing_day);",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig008-005",
+      "name": "DB: Step 4 — add billing_day to recurring_rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-480, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules\n  ADD COLUMN IF NOT EXISTS billing_day    INT CHECK (billing_day BETWEEN 1 AND 31),\n  ADD COLUMN IF NOT EXISTS total_months   INT,\n  ADD COLUMN IF NOT EXISTS upfront_paid   BOOLEAN NOT NULL DEFAULT false;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig008-006",
+      "name": "Migration Complete",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-240, 0],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "DB: Step 1 — add ledger columns to recurring_payment_schedule", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 1 — add ledger columns to recurring_payment_schedule": {
+      "main": [[{ "node": "DB: Step 2 — create outstanding_payments table", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 2 — create outstanding_payments table": {
+      "main": [[{ "node": "DB: Step 3 — indexes on outstanding_payments", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 3 — indexes on outstanding_payments": {
+      "main": [[{ "node": "DB: Step 4 — add billing_day to recurring_rules", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 4 — add billing_day to recurring_rules": {
+      "main": [[{ "node": "Migration Complete", "type": "main", "index": 0 }]]
+    }
+  }
+}

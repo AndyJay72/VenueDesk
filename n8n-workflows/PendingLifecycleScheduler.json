@@ -1,0 +1,256 @@
+{
+  "name": "VenueDesk - Pending Lifecycle (Scheduler)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "b672980c-1333-4ac7-bf00-629291fa77f8",
+      "name": "Schedule: 08:00 Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/customers/pending-warnings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            }
+          ]
+        },
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "pls-http-001",
+      "name": "API: Get Warning Due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unwrap { success, data: [...] } from db-api response\nconst resp = $input.first().json;\nconst rows = Array.isArray(resp.data) ? resp.data : [];\nreturn rows.map(r => ({ json: r }));"
+      },
+      "id": "pls-code-001",
+      "name": "Code: Unwrap Warnings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1d8109d1-81cc-4fc3-81dd-e6b4a6167901",
+      "name": "Split: Warning Batch",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1488,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Your venue enquiry expires in {{ 7 - $json.days_pending }} day(s) \u2014 VenueDesk",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "08f84ed8-47a3-4cb2-8303-a6b909be2c69",
+      "name": "Email: Day 4 Warning",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1728,
+        272
+      ],
+      "webhookId": "dd67b9fd-c63e-4c14-bca9-5430321c5331",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/mark-warning-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Split: Warning Batch').item.json.id }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "pls-http-002",
+      "name": "API: Mark Warning Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1968,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/purge-expired",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "pls-http-003",
+      "name": "API: Purge Expired",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        672
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule: 08:00 Daily": {
+      "main": [
+        [
+          {
+            "node": "API: Get Warning Due",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "API: Purge Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Get Warning Due": {
+      "main": [
+        [
+          {
+            "node": "Code: Unwrap Warnings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Unwrap Warnings": {
+      "main": [
+        [
+          {
+            "node": "Split: Warning Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split: Warning Batch": {
+      "main": [
+        [
+          {
+            "node": "Email: Day 4 Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email: Day 4 Warning": {
+      "main": [
+        [
+          {
+            "node": "API: Mark Warning Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Mark Warning Sent": {
+      "main": [
+        [
+          {
+            "node": "Split: Warning Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "pls-v2-2026-04-27",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "B0Nuq8kTqfT4f0Sx",
+  "tags": []
+}

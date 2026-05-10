@@ -1,0 +1,273 @@
+{
+  "_meta": {
+    "description": "Phase 2 — n8n HTTP Request node configurations to replace Postgres nodes.",
+    "api_base": "https://api.venuedesk.co.uk",
+    "auth": "Authorization: Bearer {{$json.jwt}}",
+    "note": "tenant_id is NEVER in the body — it comes from the JWT. Replace all Postgres nodes with the matching HTTP node below."
+  },
+
+  "POST /customers/update": {
+    "replaces": ["UpdateCustomerWF → DB: Update Customer", "DB: Log Update Interaction"],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/customers/update",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" },
+            { "name": "Content-Type",  "value": "application/json"     }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "customer_id",      "value": "={{$json.customer_id}}"      },
+            { "name": "full_name",         "value": "={{$json.full_name}}"         },
+            { "name": "email",             "value": "={{$json.email}}"             },
+            { "name": "phone",             "value": "={{$json.phone}}"             },
+            { "name": "event_type",        "value": "={{$json.event_type}}"        },
+            { "name": "notes",             "value": "={{$json.notes}}"             },
+            { "name": "interaction_note",  "value": "={{$json.interaction_note}}"  }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["customer_id"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "POST /bookings/create": {
+    "replaces": [
+      "7ZXOI73BhHLXkyOc → DB: Create Booking From Request",
+      "DB: Set Booking Confirmed",
+      "DB: Record Deposit",
+      "DB: Close Request",
+      "DB: Log Confirm Interaction"
+    ],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/create",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" },
+            { "name": "Content-Type",  "value": "application/json"     }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "customer_id",        "value": "={{$json.customer_id}}"        },
+            { "name": "room_id",            "value": "={{$json.room_id}}"            },
+            { "name": "booking_date",       "value": "={{$json.booking_date}}"       },
+            { "name": "date_from",          "value": "={{$json.date_from}}"          },
+            { "name": "date_to",            "value": "={{$json.date_to}}"            },
+            { "name": "start_time",         "value": "={{$json.start_time}}"         },
+            { "name": "end_time",           "value": "={{$json.end_time}}"           },
+            { "name": "total_amount",       "value": "={{$json.total_amount}}"       },
+            { "name": "deposit_amount",     "value": "={{$json.deposit_amount}}"     },
+            { "name": "payment_method",     "value": "={{$json.payment_method}}"     },
+            { "name": "status",             "value": "={{$json.status}}"             },
+            { "name": "booking_request_id", "value": "={{$json.booking_request_id}}" },
+            { "name": "check_clashes",      "value": "=true"                         }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["customer_id","room_id","booking_date","start_time","end_time"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "POST /bookings/update": {
+    "replaces": ["7ZXOI73BhHLXkyOc → DB: Set Booking Confirmed (standalone updates)"],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/update",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" },
+            { "name": "Content-Type",  "value": "application/json"     }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "booking_id",   "value": "={{$json.booking_id}}"   },
+            { "name": "status",       "value": "={{$json.status}}"       },
+            { "name": "total_amount", "value": "={{$json.total_amount}}" },
+            { "name": "balance_due",  "value": "={{$json.balance_due}}"  },
+            { "name": "notes",        "value": "={{$json.notes}}"        }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["booking_id"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "POST /bookings/cancel (single)": {
+    "replaces": [
+      "AGkUe3zjjFDD0wOL → DB: Cancel Booking",
+      "DB: Record Cancellation",
+      "DB: Log Cancel Interaction",
+      "CancelBooking.json (all Postgres nodes)"
+    ],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/cancel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" },
+            { "name": "Content-Type",  "value": "application/json"     }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "booking_id",    "value": "={{$json.booking_id}}"    },
+            { "name": "cancelled_by",  "value": "={{$json.cancelled_by}}"  },
+            { "name": "reason",        "value": "={{$json.reason}}"        },
+            { "name": "refund_amount", "value": "={{$json.refund_amount}}" },
+            { "name": "refund_type",   "value": "={{$json.refund_type}}"   }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["booking_id","cancelled_by"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "POST /bookings/cancel (recurring series)": {
+    "replaces": [
+      "CancelRecurringSeries → DB: Deactivate Series",
+      "DB: Cancel Future Sessions"
+    ],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/cancel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" },
+            { "name": "Content-Type",  "value": "application/json"     }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "series_id",     "value": "={{$json.series_id}}"     },
+            { "name": "cancelled_by",  "value": "={{$json.cancelled_by}}"  },
+            { "name": "reason",        "value": "={{$json.reason}}"        }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["series_id","cancelled_by"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "POST /payments/record": {
+    "replaces": [
+      "KHvxUBua7hi5e1x1 → DB: Update Balance, DB: Mark Paid, DB: Log Payment Interaction",
+      "RecordRecurringPayment → DB: Mark Period Paid, DB: Record Payment Entry, DB: Write Audit Log, DB: Apply to Sessions",
+      "BillingCycleTrigger → DB: Create Outstanding Payment (payment recording portion)"
+    ],
+    "routing_logic": {
+      "booking_id only":         "Single booking — balance reduced on confirmed_bookings",
+      "booking_id (recurring)":  "Child session detected — debt routed to parent recurring_series",
+      "series_id only":          "Direct series payment — recurring_series.balance_due reduced"
+    },
+    "n8n_node_single_booking": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/payments/record",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "booking_id",     "value": "={{$json.booking_id}}"     },
+            { "name": "amount",         "value": "={{$json.amount}}"         },
+            { "name": "payment_method", "value": "={{$json.payment_method}}" },
+            { "name": "payment_type",   "value": "={{$json.payment_type}}"   },
+            { "name": "reference",      "value": "={{$json.reference}}"      }
+          ]
+        }
+      }
+    },
+    "n8n_node_recurring_series": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/payments/record",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "series_id",         "value": "={{$json.series_id}}"         },
+            { "name": "amount",            "value": "={{$json.amount}}"            },
+            { "name": "payment_method",    "value": "={{$json.payment_method}}"    },
+            { "name": "apply_to_sessions", "value": "={{$json.apply_to_sessions}}" },
+            { "name": "reference",         "value": "={{$json.reference}}"         }
+          ]
+        }
+      }
+    },
+    "required_body_fields": ["amount","payment_method"],
+    "omit_from_body": ["tenant_id"]
+  },
+
+  "GET /bookings/check-clashes": {
+    "replaces": [
+      "CheckRecurringClashes → DB: Find Clashes",
+      "CreateRecurringFromCalendar → DB: Check Room Clashes"
+    ],
+    "n8n_node": {
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/bookings/check-clashes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$json.jwt}}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "room_id",    "value": "={{$json.room_id}}"    },
+            { "name": "dates",      "value": "={{$json.dates}}"      },
+            { "name": "start_time", "value": "={{$json.start_time}}" },
+            { "name": "end_time",   "value": "={{$json.end_time}}"   }
+          ]
+        }
+      }
+    },
+    "response_shape": {
+      "success": true,
+      "data": { "clashed_dates": ["2026-05-01", "..."] }
+    },
+    "note": "clashed_dates empty array = no conflicts. 409 is NOT thrown — caller decides whether to abort."
+  }
+}

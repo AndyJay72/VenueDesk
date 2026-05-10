@@ -1,0 +1,82 @@
+{
+  "name": "VenueDesk - Get Member Invoices",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-member-invoices",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "gmi-001",
+      "name": "Webhook: Get Member Invoices",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-600, 200],
+      "webhookId": "get-member-invoices",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  mi.id,\n  mi.membership_id,\n  mi.customer_id,\n  mi.invoice_month::text,\n  mi.total_amount,\n  mi.amount_paid,\n  mi.balance_due,\n  mi.status,\n  mi.due_date::text,\n  mi.paid_at::text,\n  mi.notes,\n  mi.issued_at::text,\n  c.full_name AS customer_name\nFROM bookings.membership_invoices mi\nJOIN bookings.customers c ON c.id = mi.customer_id\nWHERE mi.membership_id = $1::uuid\n  AND mi.tenant_id = $2\nORDER BY mi.invoice_month DESC;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Get Member Invoices').first().json.query?.membership_id || '',\n  parseInt($('Webhook: Get Member Invoices').first().json.query?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "gmi-002",
+      "name": "DB: Get Invoices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-360, 200],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(r => r && r.id);\nreturn [{ json: { status: 'ok', count: rows.length, data: rows } }];"
+      },
+      "id": "gmi-003",
+      "name": "Code: Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "gmi-004",
+      "name": "Respond: Invoices",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [120, 200]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Get Member Invoices": { "main": [[{"node": "DB: Get Invoices", "type": "main", "index": 0}]] },
+    "DB: Get Invoices":             { "main": [[{"node": "Code: Format", "type": "main", "index": 0}]] },
+    "Code: Format":                 { "main": [[{"node": "Respond: Invoices", "type": "main", "index": 0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "aa100004-0004-0004-0004-000000000004",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "GetMemberInvoices01",
+  "tags": []
+}

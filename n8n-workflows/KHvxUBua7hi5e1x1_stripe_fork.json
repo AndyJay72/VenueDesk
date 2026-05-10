@@ -1,0 +1,283 @@
+{
+  "id": "KHvxUBua7hi5e1x1_stripe_fork",
+  "name": "VenueDesk - Financial Operations (Stripe + Manual Fork)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pay-balance",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "e1f835fd-4c70-475e-acf4-0a378de5e5cc",
+      "name": "Webhook: Pay Balance",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "pay-balance",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Code: Sanitize ──────────────────────────────────────────────────────────\n// CLAUDE.md Pattern 1: accept both body and root-level input (n8n wraps differently\n// depending on whether the trigger is a webhook or HTTP Request node).\n// CLAUDE.md Pattern 4: JWT travels in body.jwt — never as Authorization header.\nconst input = ($input.first().json.body) ? $input.first().json.body : $input.first().json;\n\nconst amount = parseFloat(input.amount);\nif (isNaN(amount) || amount <= 0) throw new Error('Payment amount must be positive');\nif (amount > 100000)               throw new Error('Amount exceeds maximum £100,000');\nif (!input.booking_id)             throw new Error('Missing booking_id');\nif (!input.customer_id && input.payment_method !== 'stripe') {\n  // customer_id is optional for Stripe path — webhook already recorded it\n  // For manual path it is required for the DB call\n}\n\n// Payment type\nconst sentType   = (input.payment_type || '').toLowerCase();\nconst payment_type = (sentType === 'deposit') ? 'deposit' : 'balance';\n\nconst balance    = parseFloat(input.balance_due || 999999);\nconst is_partial = payment_type === 'balance' && amount < (balance - 0.005);\n\n// Reference number\nconst ts  = new Date();\nconst pad = n => String(n).padStart(2,'0');\nconst stamp = ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate()) +\n              pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds());\nconst rand   = Math.random().toString(36).slice(2,6).toUpperCase();\nconst prefix = payment_type === 'deposit' ? 'DEP' : (input.payment_method === 'stripe' ? 'STR' : 'REF');\nconst reference_number = prefix + '-' + stamp + '-' + rand;\n\n// Payment method — default to 'cash' for manual path if not supplied\nconst payment_method = (input.payment_method || 'cash').toLowerCase();\n\n// BACS bank details — frontend sends these from GET /stripe/config\nconst bacs_account_name   = input.bacs_account_name   || '';\nconst bacs_sort_code      = input.bacs_sort_code      || '';\nconst bacs_account_number = input.bacs_account_number || '';\n\nreturn {\n  json: {\n    ...input,\n    tenant_id: parseInt(\n      input.tenant_id ||\n      $input.first().json.headers?.['x-tenant-id'] ||\n      $input.first().json.query?.tenant_id ||\n      '0'\n    ),\n    amount,\n    payment_type,\n    is_partial,\n    reference_number,\n    payment_method,\n    bacs_account_name,\n    bacs_sort_code,\n    bacs_account_number,\n    deposit_reference: input.deposit_reference || null,\n    jwt: String(input.jwt || '').trim()\n  }\n};"
+      },
+      "id": "6c1b0790-6c06-419b-bf26-956a04753044",
+      "name": "Code: Sanitize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [224, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is_stripe_check",
+              "leftValue": "={{ $json.payment_method }}",
+              "rightValue": "stripe",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-stripe-branch-001",
+      "name": "IF: Is Stripe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [448, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Code: Build Stripe Email ─────────────────────────────────────────────────\n// Stripe path: payment is already recorded by the db-api webhook handler.\n// This node only builds the confirmation email.\nconst s = $('Code: Sanitize').first().json;\n\nconst fmt     = n => '£' + parseFloat(n || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst fmtTime = t => t ? String(t).slice(0,5) : '—';\n\nconst customer_email = s.customer_email || s.email || '';\nconst customer_name  = s.customer_name  || s.full_name || 'Valued Customer';\nconst amount         = parseFloat(s.amount || 0);\nconst ref            = s.reference_number || s.stripe_session_id || '—';\nconst room           = s.room_name   || '—';\nconst eventDate      = s.event_date  || s.date_from || null;\nconst startTime      = s.start_time  || null;\nconst endTime        = s.end_time    || null;\n\nconst subject = `Card Payment Confirmed ✓ — ${fmtDate(eventDate)} | Ref: ${ref}`;\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:#10b981;border-radius:12px 12px 0 0;padding:32px;text-align:center;\">\n      <p style=\"margin:0 0 6px;color:rgba(255,255,255,0.8);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;\">VenueDesk Booking System</p>\n      <h1 style=\"margin:0;color:#ffffff;font-size:22px;font-weight:700;\">Card Payment Confirmed ✓</h1>\n    </div>\n    <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <div style=\"text-align:center;margin-bottom:24px;\">\n        <span style=\"display:inline-block;background:#ecfdf5;color:#065f46;font-size:11px;font-weight:700;letter-spacing:1.5px;padding:6px 18px;border-radius:20px;\">PAYMENT RECEIVED VIA CARD</span>\n      </div>\n      <p style=\"margin:0 0 16px;color:#1e293b;font-size:15px;\">Dear <strong>${customer_name}</strong>,</p>\n      <p style=\"margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;\">Thank you — your card payment of <strong>${fmt(amount)}</strong> has been received and your booking is now <strong>confirmed</strong>.</p>\n      <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:16px;\">\n        <p style=\"margin:0 0 14px;color:#0f172a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Booking Details</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Room / Venue</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${room}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Event Date</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtDate(eventDate)}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Time</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtTime(startTime)} – ${fmtTime(endTime)}</td></tr>\n        </table>\n      </div>\n      <div style=\"background:#eef2ff;border-radius:8px;padding:14px 20px;margin-bottom:28px;text-align:center;\">\n        <p style=\"margin:0;color:#64748b;font-size:12px;\">Payment Reference</p>\n        <p style=\"margin:4px 0 0;color:#4f46e5;font-size:17px;font-weight:700;letter-spacing:0.5px;\">${ref}</p>\n      </div>\n      <p style=\"margin:0;color:#64748b;font-size:13px;line-height:1.6;\">Please keep this email as your payment receipt. Questions? Reply quoting your reference or contact <a href=\"mailto:bookings@venuedesk.co.uk\" style=\"color:#6366f1;\">bookings@venuedesk.co.uk</a>.</p>\n    </div>\n    <div style=\"text-align:center;padding:20px 0 0;\">\n      <p style=\"margin:0;color:#94a3b8;font-size:11px;\">Automated message from VenueDesk Booking System.</p>\n    </div>\n  </div>\n</body></html>`;\n\nreturn { json: { ...s, subject, html, email: customer_email } };"
+      },
+      "id": "code-build-stripe-email-001",
+      "name": "Code: Build Stripe Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [672, -200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', message: 'Stripe payment processed', reference_number: $('Code: Sanitize').first().json.reference_number, payment_type: 'stripe', amount: $('Code: Sanitize').first().json.amount }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "respond-stripe-001",
+      "name": "Respond: Stripe Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [896, -200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": { "replyTo": "bookings@venuedesk.co.uk" }
+      },
+      "id": "email-stripe-conf-001",
+      "name": "Email: Stripe Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, -200],
+      "credentials": {
+        "smtp": { "id": "oWx6QKxXljDdeSDP", "name": "SMTP account" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/payments/record",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Im44bi1zZXJ2aWNlIiwidXNlcl9pZCI6Im44bi1zZXJ2aWNlIiwicm9sZSI6InNlcnZpY2UiLCJ0ZW5hbnRfaWQiOjEwMDEsImlhdCI6MTc3NzMwNjg1OX0.1N_PzNC8Zvve_0IzZg0h4i_cSSRyVMiqKXGx9jgJ7Xc"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": { "fullResponse": false, "neverError": true }
+          },
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ booking_id: $json.booking_id, amount: $json.amount, payment_method: $json.payment_method, payment_type: $json.payment_type || 'balance', reference: $json.reference || '', jwt: $json.jwt || '' }) }}"
+      },
+      "id": "http-record-payment-001",
+      "name": "DB: Record Payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [672, 140]
+    },
+    {
+      "parameters": { "jsCode": "return $input.all();" },
+      "id": "code-passthrough-001",
+      "name": "DB: Update Balance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [896, 140]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', message: 'Payment processed', reference_number: $('DB: Record Payment').first().json.reference_number || $('DB: Record Payment').first().json.id, payment_type: $('Code: Sanitize').first().json.is_partial ? 'partial' : 'full', amount: $('Code: Sanitize').first().json.amount }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "ee61c79c-62a2-42d4-8df2-45466f044461",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 140]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.venuedesk.co.uk/bookings/{{ $('Code: Sanitize').first().json.booking_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $('Code: Sanitize').first().json.jwt }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "options": {
+          "response": { "response": { "fullResponse": false, "neverError": true } },
+          "timeout": 15000
+        }
+      },
+      "id": "http-get-customer-det-001",
+      "name": "DB: Get Customer Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [1120, 340]
+    },
+    {
+      "id": "code-build-email-001",
+      "name": "Code: Build Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1344, 340],
+      "parameters": {
+        "jsCode": "// ── Code: Build Email Content (Manual / BACS paths) ─────────────────────────\n// Handles: cash, bank_transfer, bacs, cheque, card (non-Stripe), and all\n// other payment_method values.\n// For BACS specifically: renders an 'Awaiting Payment' template with bank details.\n\nconst sanitize    = $('Code: Sanitize').first().json;\nconst paymentNode = $('DB: Record Payment').first().json;\nconst paymentData = paymentNode?.success ? (paymentNode.data ?? paymentNode) : {};\nconst detailsRaw  = ($json.success !== false) ? ($json.data ?? $json) : {};\nconst webhookData = sanitize;\n\nconst raw = { ...webhookData, ...paymentData, ...detailsRaw };\n\nconst customer = {\n  ...raw,\n  email:     raw.customer_email || raw.email     || sanitize.email     || '',\n  full_name: raw.customer_name  || raw.full_name || 'Valued Customer',\n  event_date: raw.event_date    || raw.date_from || raw.booking_date   || null,\n};\n\nconst payment_method = (sanitize.payment_method || 'cash').toLowerCase();\nconst payment_type   = sanitize.payment_type;\nconst is_partial     = sanitize.is_partial;\nconst amount         = parseFloat(sanitize.amount || 0);\nconst ref            = sanitize.reference_number || '—';\nconst remaining      = parseFloat(raw.balance_due ?? raw.new_balance ?? 0);\nconst total          = parseFloat(customer.total_amount || 0);\nconst booking_id     = sanitize.booking_id || '—';\n\n// BACS bank details — sent by frontend from GET /stripe/config, or from tenant config\nconst bacs_account_name   = sanitize.bacs_account_name   || '';\nconst bacs_sort_code      = sanitize.bacs_sort_code       || '';\nconst bacs_account_number = sanitize.bacs_account_number  || '';\nconst isBacs = payment_method === 'bacs' || payment_method === 'bank_transfer';\n\nconst fmt = n => '£' + parseFloat(n || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst fmtTime = t => t ? String(t).slice(0,5) : '—';\n\nlet subject, headingColour, headingText, statusBadge, bodyText, extraSection = '';\n\nif (isBacs) {\n  // ── BACS / Awaiting Payment template ─────────────────────────────────────\n  subject       = `Booking Reserved — Awaiting BACS Payment | Ref: ${booking_id}`;\n  headingColour = '#f59e0b';\n  headingText   = 'Booking Reserved — Payment Pending';\n  statusBadge   = { text:'AWAITING PAYMENT', bg:'#fffbeb', color:'#b45309' };\n  bodyText      = `Your booking for <strong>${customer.room_name || 'your venue'}</strong> has been reserved. Please transfer the full amount to complete your booking.`;\n  \n  // Inject BACS bank details if available\n  if (bacs_sort_code || bacs_account_number) {\n    extraSection = `\n      <div style=\"background:#fffbeb;border:2px solid #f59e0b;border-radius:8px;padding:20px;margin-bottom:16px;\">\n        <p style=\"margin:0 0 14px;color:#92400e;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Bank Transfer Details</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n          ${bacs_account_name   ? `<tr><td style=\"padding:5px 0;color:#64748b;width:45%;\">Account Name</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${bacs_account_name}</td></tr>` : ''}\n          ${bacs_sort_code      ? `<tr><td style=\"padding:5px 0;color:#64748b;\">Sort Code</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;font-family:monospace;\">${bacs_sort_code}</td></tr>` : ''}\n          ${bacs_account_number ? `<tr><td style=\"padding:5px 0;color:#64748b;\">Account Number</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;font-family:monospace;\">${bacs_account_number}</td></tr>` : ''}\n          <tr style=\"border-top:1px solid #f59e0b;\"><td style=\"padding:8px 0 5px;color:#64748b;\">Payment Reference</td><td style=\"padding:8px 0 5px;color:#d97706;font-weight:700;font-family:monospace;\">${booking_id}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Amount Due</td><td style=\"padding:5px 0;color:#d97706;font-weight:700;\">${fmt(amount)}</td></tr>\n        </table>\n        <p style=\"margin:14px 0 0;color:#92400e;font-size:12px;\">⚠️ Please use your Booking ID as the payment reference so we can match your transfer.</p>\n      </div>`;\n  }\n} else if (payment_type === 'deposit') {\n  subject       = `Deposit Payment Confirmed — ${fmtDate(customer.event_date)} | Ref: ${ref}`;\n  headingColour = '#6366f1';\n  headingText   = 'Deposit Payment Confirmed';\n  statusBadge   = { text:'DEPOSIT RECEIVED', bg:'#eef2ff', color:'#4f46e5' };\n  bodyText      = `Thank you for your deposit payment of <strong>${fmt(amount)}</strong>. Your booking for <strong>${customer.room_name || 'your venue'}</strong> is now secured.`;\n} else if (is_partial) {\n  subject       = `Payment Received — Remaining Balance: ${fmt(remaining)} | Ref: ${ref}`;\n  headingColour = '#f59e0b';\n  headingText   = 'Partial Balance Payment Received';\n  statusBadge   = { text:'PAYMENT RECEIVED', bg:'#fffbeb', color:'#b45309' };\n  bodyText      = `Thank you for your payment of <strong>${fmt(amount)}</strong>. Your remaining balance of <strong>${fmt(remaining)}</strong> is due before your event date.`;\n} else {\n  subject       = `Balance Fully Settled — Booking Confirmed ✓ | Ref: ${ref}`;\n  headingColour = '#10b981';\n  headingText   = 'Balance Fully Settled ✓';\n  statusBadge   = { text:'FULLY PAID', bg:'#ecfdf5', color:'#065f46' };\n  bodyText      = `Thank you for your final payment of <strong>${fmt(amount)}</strong>. Your booking balance is now <strong>fully settled</strong> — we look forward to hosting your event!`;\n}\n\nconst remainingRow = (!isBacs && remaining > 0)\n  ? `<tr style=\"border-top:1px solid #e2e8f0;\"><td style=\"padding:8px 0 5px;color:#64748b;\">Balance Remaining</td><td style=\"padding:8px 0 5px;color:#f59e0b;font-weight:700;text-align:right;\">${fmt(remaining)}</td></tr>`\n  : (!isBacs ? `<tr style=\"border-top:1px solid #e2e8f0;\"><td style=\"padding:8px 0 5px;color:#64748b;\">Balance Remaining</td><td style=\"padding:8px 0 5px;color:#10b981;font-weight:700;text-align:right;\">£0.00 — Fully Paid ✓</td></tr>` : '');\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:${headingColour};border-radius:12px 12px 0 0;padding:32px;text-align:center;\">\n      <p style=\"margin:0 0 6px;color:rgba(255,255,255,0.8);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;\">VenueDesk Booking System</p>\n      <h1 style=\"margin:0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;\">${headingText}</h1>\n    </div>\n    <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <div style=\"text-align:center;margin-bottom:24px;\">\n        <span style=\"display:inline-block;background:${statusBadge.bg};color:${statusBadge.color};font-size:11px;font-weight:700;letter-spacing:1.5px;padding:6px 18px;border-radius:20px;\">${statusBadge.text}</span>\n      </div>\n      <p style=\"margin:0 0 16px;color:#1e293b;font-size:15px;\">Dear <strong>${customer.full_name || 'Valued Customer'}</strong>,</p>\n      <p style=\"margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;\">${bodyText}</p>\n      ${extraSection}\n      <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:16px;\">\n        <p style=\"margin:0 0 14px;color:#0f172a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Booking Details</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n          <tr><td style=\"padding:5px 0;color:#64748b;width:45%;\">Room / Venue</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${customer.room_name || '—'}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Event Date</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtDate(customer.event_date)}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Time</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtTime(customer.start_time)} – ${fmtTime(customer.end_time)}</td></tr>\n        </table>\n      </div>\n      ${!isBacs ? `<div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;\">\n        <p style=\"margin:0 0 14px;color:#0f172a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Payment Summary</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Total Booking Value</td><td style=\"padding:5px 0;color:#1e293b;text-align:right;\">${fmt(total)}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Amount Paid (This Transaction)</td><td style=\"padding:5px 0;color:${headingColour};font-weight:700;text-align:right;\">${fmt(amount)}</td></tr>\n          ${remainingRow}\n        </table>\n      </div>` : ''}\n      <div style=\"background:#eef2ff;border-radius:8px;padding:14px 20px;margin-bottom:28px;text-align:center;\">\n        <p style=\"margin:0;color:#64748b;font-size:12px;\">${isBacs ? 'Booking Reference (use as payment ref)' : 'Payment Reference'}</p>\n        <p style=\"margin:4px 0 0;color:#4f46e5;font-size:17px;font-weight:700;letter-spacing:0.5px;\">${isBacs ? booking_id : ref}</p>\n      </div>\n      <p style=\"margin:0;color:#64748b;font-size:13px;line-height:1.6;\">Please keep this email for your records. Questions? Contact <a href=\"mailto:bookings@venuedesk.co.uk\" style=\"color:#6366f1;text-decoration:none;\">bookings@venuedesk.co.uk</a>.</p>\n    </div>\n    <div style=\"text-align:center;padding:20px 0 0;\">\n      <p style=\"margin:0;color:#94a3b8;font-size:11px;\">Automated message from VenueDesk Booking System. Please do not reply directly.</p>\n    </div>\n  </div>\n</body></html>`;\n\nreturn { json: { ...customer, subject, html, email: customer.email } };"
+      }
+    },
+    {
+      "id": "email-pay-conf-001",
+      "name": "Email: Payment Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1568, 340],
+      "credentials": { "smtp": { "id": "oWx6QKxXljDdeSDP", "name": "SMTP account" } },
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail":   "={{ $json.email }}",
+        "subject":   "={{ $json.subject }}",
+        "html":      "={{ $json.html }}",
+        "options":   { "replyTo": "bookings@venuedesk.co.uk" }
+      }
+    },
+    {
+      "id": "if-fully-paid-001",
+      "name": "If Fully Paid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1792, 340],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "check_bal",
+              "leftValue":  "={{ parseFloat($('DB: Update Balance').first().json.balance_due) }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "lte" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Pay Balance": {
+      "main": [[{ "node": "Code: Sanitize",  "type": "main", "index": 0 }]]
+    },
+    "Code: Sanitize": {
+      "main": [[{ "node": "IF: Is Stripe?", "type": "main", "index": 0 }]]
+    },
+    "IF: Is Stripe?": {
+      "main": [
+        [{ "node": "Code: Build Stripe Email", "type": "main", "index": 0 }],
+        [{ "node": "DB: Record Payment",       "type": "main", "index": 0 }]
+      ]
+    },
+    "Code: Build Stripe Email": {
+      "main": [[
+        { "node": "Respond: Stripe Success",   "type": "main", "index": 0 },
+        { "node": "Email: Stripe Confirmation","type": "main", "index": 0 }
+      ]]
+    },
+    "DB: Record Payment": {
+      "main": [[
+        { "node": "DB: Update Balance", "type": "main", "index": 0 },
+        { "node": "Respond: Success",   "type": "main", "index": 0 }
+      ]]
+    },
+    "DB: Update Balance": {
+      "main": [[{ "node": "DB: Get Customer Details", "type": "main", "index": 0 }]]
+    },
+    "DB: Get Customer Details": {
+      "main": [[{ "node": "Code: Build Email Content", "type": "main", "index": 0 }]]
+    },
+    "Code: Build Email Content": {
+      "main": [[{ "node": "Email: Payment Confirmation", "type": "main", "index": 0 }]]
+    },
+    "Email: Payment Confirmation": {
+      "main": [[{ "node": "If Fully Paid?", "type": "main", "index": 0 }]]
+    },
+    "If Fully Paid?": { "main": [[]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "active": true,
+  "versionId": "b72c8490-1f3a-4527-9e2f-e7d5ca826b39"
+}

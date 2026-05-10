@@ -1,0 +1,1181 @@
+{
+  "updatedAt": "2026-03-15T20:46:15.113Z",
+  "createdAt": "2026-03-08T19:25:51.109Z",
+  "id": "ElZJaflNkUL51zbk",
+  "name": "VenueDesk \u2014 AI Lead Generator (Daily)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "sch",
+      "name": "Daily at 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        624,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE status='new' AND website_url IS NOT NULL AND website_url <> '' AND website_url NOT LIKE '%example.com%' AND website_url NOT LIKE '%duckduckgo.com%' ORDER BY created_at ASC LIMIT 20",
+        "options": {}
+      },
+      "id": "pg_f",
+      "name": "Fetch New Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        848,
+        48
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if1",
+      "name": "Any new leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.website_url || 'https://example.com' }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 8000
+        }
+      },
+      "id": "http",
+      "name": "Fetch Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1232,
+        32
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.analysis_prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "ai1",
+      "name": "AI Venue Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        32
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "sAiUxZnK5nm6DZfX",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE status='contacted' AND reply_received=FALSE AND last_email_sent_at<NOW()-INTERVAL '4 days' AND follow_up_count<2 AND email IS NOT NULL ORDER BY last_email_sent_at ASC LIMIT 10",
+        "options": {}
+      },
+      "id": "pg_fu",
+      "name": "Fetch Follow-up Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        864,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.followup_prompt }}\nInclude this website link in the email: https://in2netdigital.online/venuedesk/"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "ai3",
+      "name": "AI Follow-up",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        448
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "sAiUxZnK5nm6DZfX",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $('Fetch Follow-up Leads').item.json.email }}",
+        "subject": "={{ JSON.parse($('AI Follow-up').item.json.message.content).subject }}",
+        "text": "={{ JSON.parse($('AI Follow-up').item.json.message.content).body }}",
+        "options": {}
+      },
+      "id": "se2",
+      "name": "Send Follow-up",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        448
+      ],
+      "webhookId": "3cd27384-6e91-4ca4-95ec-21fb6a647a2d",
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET follow_up_count=follow_up_count+1,last_email_sent_at=NOW(),status=CASE WHEN follow_up_count>=1 THEN 'follow_up' ELSE status END WHERE id='{{ $('Fetch Follow-up Leads').item.json.id }}'",
+        "options": {}
+      },
+      "id": "pg_fuu",
+      "name": "Update Follow-up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO lead_activity (lead_id,type,message) VALUES ('{{ $('Fetch Follow-up Leads').item.json.id }}','email_sent','Follow-up sent to {{ $('Fetch Follow-up Leads').item.json.venue_name }}')",
+        "options": {}
+      },
+      "id": "lg2",
+      "name": "Log Follow-up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        448
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cf1",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if_fu",
+      "name": "Any follow-up leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Fetch New Leads').item.json;\nconst fullHtml = $input.item.json.data ? String($input.item.json.data) : '';\n\n// Extract first email address found in the raw HTML\n// Skip noreply/privacy/legal addresses and the known test email\nconst TEST_EMAIL = 'andyralston.johnson@yahoo.com';\nconst SKIP = /noreply|no-reply|privacy|legal|info@example|webmaster|support@|admin@/i;\nconst emailRe = /[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/g;\nlet scrapedEmail = '';\nlet match;\nwhile ((match = emailRe.exec(fullHtml)) !== null) {\n  const candidate = match[0].toLowerCase();\n  if (!SKIP.test(candidate) && candidate !== TEST_EMAIL.toLowerCase()) {\n    scrapedEmail = candidate;\n    break;\n  }\n}\n\nconst website = fullHtml.length > 0 ? fullHtml.substring(0, 2000) : 'No website available';\nconst contactName = lead.contact_name || 'there';\nconst venueName = lead.venue_name || 'the venue';\nconst analysisPrompt = [\n  'Analyse this venue for VenueDesk CRM outreach.',\n  'Respond ONLY with valid JSON: {\"score\":<1-10>,\"venue_type\":\"<type>\",\"key_feature\":\"<one sentence>\",\"pain_point\":\"<one sentence>\",\"tone\":\"<formal|friendly>\"}',\n  'Venue: ' + venueName,\n  'Website content (first 2000 chars): ' + website\n].join('\\n');\nreturn [{ json: {\n  ...lead,\n  contact_name_resolved: contactName,\n  venue_name_resolved: venueName,\n  website_data: website,\n  scraped_email: scrapedEmail,\n  analysis_prompt: analysisPrompt\n} }];"
+      },
+      "id": "prep_analysis",
+      "name": "Prepare Analysis Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.item.json;\nconst contactName = lead.contact_name || 'there';\nconst venueName = lead.venue_name || 'the venue';\nconst followupPrompt = [\n  'Write a brief, friendly follow-up email for VenueDesk. Maximum 2 paragraphs, not pushy.',\n  'The email MUST:',\n  '- Open with: Hi ' + contactName + ',',\n  '- Reference ' + venueName + ' by name',\n  '- Acknowledge the previous email was sent and you just wanted to check in',\n  '- Close with: The VenueDesk Team',\n  '- Be plain text, no placeholders or template variables',\n  '',\n  'Respond ONLY with valid JSON: {\"subject\":\"<subject line>\",\"body\":\"<complete plain text email body>\"}',\n  '',\n  'Venue name: ' + venueName,\n  'Contact name: ' + contactName\n].join('\\n');\nreturn [{ json: {\n  ...lead,\n  contact_name_resolved: contactName,\n  venue_name_resolved: venueName,\n  followup_prompt: followupPrompt\n} }];"
+      },
+      "id": "prep_followup",
+      "name": "Prepare Follow-up Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Fetch New Leads').item.json;\nif (!lead.id) return [];\nconst anRaw = $input.item.json.message.content;\nlet a = {score: 5};\ntry { a = JSON.parse(anRaw.replace(/^```json\\n?|```$/g, '')); } catch(x) {}\nconst esc = s => (s || '').replace(/'/g, \"''\");\nreturn [{ json: { ...lead, ai_score: a.score || 5, ai_analysis: esc(anRaw) } }];"
+      },
+      "id": "parse_score",
+      "name": "Parse Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET ai_score={{ $('Parse Score').item.json.ai_score }},ai_analysis='{{ $('Parse Score').item.json.ai_analysis }}',status='scored',email=CASE WHEN (email IS NULL OR email='' OR email='andyralston.johnson@yahoo.com') AND '{{ $('Prepare Analysis Prompt').item.json.scraped_email }}' != '' THEN '{{ $('Prepare Analysis Prompt').item.json.scraped_email }}' ELSE email END WHERE id='{{ $('Parse Score').item.json.id }}'",
+        "options": {}
+      },
+      "id": "save_score",
+      "name": "Save Score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1824,
+        32
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO lead_activity (lead_id,type,message) VALUES ('{{ $('Parse Score').item.json.id }}','lead_scored','AI scored lead: score={{ $('Parse Score').item.json.ai_score }}')",
+        "options": {}
+      },
+      "id": "log_score",
+      "name": "Log Score Saved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2064,
+        32
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "run-leadgen-now",
+        "responseMode": "onReceived",
+        "options": {},
+        "httpMethod": "POST",
+        "authentication": "none"
+      },
+      "id": "wh_manual_run",
+      "name": "Manual Run Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        160
+      ],
+      "webhookId": "run-leadgen-now",
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Daily at 9am": {
+      "main": [
+        [
+          {
+            "node": "Fetch New Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Follow-up Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch New Leads": {
+      "main": [
+        [
+          {
+            "node": "Any new leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any new leads?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Fetch Website": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analysis Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Follow-up Leads": {
+      "main": [
+        [
+          {
+            "node": "Any follow-up leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Update Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Log Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any follow-up leads?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Follow-up Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Prepare Analysis Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Venue Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Follow-up Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Venue Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Score": {
+      "main": [
+        [
+          {
+            "node": "Save Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Score": {
+      "main": [
+        [
+          {
+            "node": "Log Score Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Run Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch New Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Follow-up Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "staticData": {
+    "node:Daily at 9am": {
+      "recurrenceRules": [
+        0
+      ]
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+  "activeVersionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+  "versionCounter": 126,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-03-08T19:25:51.109Z",
+      "createdAt": "2026-03-08T19:25:51.109Z",
+      "role": "workflow:owner",
+      "workflowId": "ElZJaflNkUL51zbk",
+      "projectId": "xsdyFVsct988qLUy",
+      "project": {
+        "updatedAt": "2025-12-04T20:24:17.537Z",
+        "createdAt": "2025-12-04T19:47:48.685Z",
+        "id": "xsdyFVsct988qLUy",
+        "name": "andrew johnson <andrew.ralston.johnson@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-10T20:51:48.304Z",
+    "createdAt": "2026-03-10T20:51:48.304Z",
+    "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+    "workflowId": "ElZJaflNkUL51zbk",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 24
+              }
+            ]
+          }
+        },
+        "id": "sch",
+        "name": "Daily at 9am",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          624,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT * FROM leads WHERE status='new' AND website_url IS NOT NULL AND website_url <> '' AND website_url NOT LIKE '%example.com%' AND website_url NOT LIKE '%duckduckgo.com%' ORDER BY created_at ASC LIMIT 20",
+          "options": {}
+        },
+        "id": "pg_f",
+        "name": "Fetch New Leads",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2,
+        "position": [
+          848,
+          48
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.id }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "if1",
+        "name": "Any new leads?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1008,
+          48
+        ]
+      },
+      {
+        "parameters": {
+          "url": "={{ $json.website_url || 'https://example.com' }}",
+          "options": {
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            },
+            "timeout": 8000
+          }
+        },
+        "id": "http",
+        "name": "Fetch Website",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          1232,
+          32
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "modelId": "gpt-4o-mini",
+          "messages": {
+            "values": [
+              {
+                "content": "={{ $json.analysis_prompt }}"
+              }
+            ]
+          },
+          "options": {
+            "temperature": 0.3
+          }
+        },
+        "id": "ai1",
+        "name": "AI Venue Analysis",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1,
+        "position": [
+          1584,
+          32
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "sAiUxZnK5nm6DZfX",
+            "name": "OpenAi account 2"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT * FROM leads WHERE status='contacted' AND reply_received=FALSE AND last_email_sent_at<NOW()-INTERVAL '4 days' AND follow_up_count<2 AND email IS NOT NULL ORDER BY last_email_sent_at ASC LIMIT 10",
+          "options": {}
+        },
+        "id": "pg_fu",
+        "name": "Fetch Follow-up Leads",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2,
+        "position": [
+          864,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "modelId": "gpt-4o-mini",
+          "messages": {
+            "values": [
+              {
+                "content": "={{ $json.followup_prompt }}\nInclude this website link in the email: https://in2netdigital.online/venuedesk/"
+              }
+            ]
+          },
+          "options": {
+            "temperature": 0.7
+          }
+        },
+        "id": "ai3",
+        "name": "AI Follow-up",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1,
+        "position": [
+          1568,
+          448
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "sAiUxZnK5nm6DZfX",
+            "name": "OpenAi account 2"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fromEmail": "bookings@venuedesk.co.uk",
+          "toEmail": "={{ $('Fetch Follow-up Leads').item.json.email }}",
+          "subject": "={{ JSON.parse($('AI Follow-up').item.json.message.content).subject }}",
+          "text": "={{ JSON.parse($('AI Follow-up').item.json.message.content).body }}",
+          "options": {}
+        },
+        "id": "se2",
+        "name": "Send Follow-up",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [
+          1856,
+          448
+        ],
+        "webhookId": "3cd27384-6e91-4ca4-95ec-21fb6a647a2d",
+        "credentials": {
+          "smtp": {
+            "id": "oWx6QKxXljDdeSDP",
+            "name": "SMTP account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE leads SET follow_up_count=follow_up_count+1,last_email_sent_at=NOW(),status=CASE WHEN follow_up_count>=1 THEN 'follow_up' ELSE status END WHERE id='{{ $('Fetch Follow-up Leads').item.json.id }}'",
+          "options": {}
+        },
+        "id": "pg_fuu",
+        "name": "Update Follow-up",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2,
+        "position": [
+          2016,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO lead_activity (lead_id,type,message) VALUES ('{{ $('Fetch Follow-up Leads').item.json.id }}','email_sent','Follow-up sent to {{ $('Fetch Follow-up Leads').item.json.venue_name }}')",
+          "options": {}
+        },
+        "id": "lg2",
+        "name": "Log Follow-up",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2,
+        "position": [
+          2304,
+          448
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "cf1",
+                "leftValue": "={{ $json.id }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "if_fu",
+        "name": "Any follow-up leads?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1104,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const lead = $('Fetch New Leads').item.json;\nconst fullHtml = $input.item.json.data ? String($input.item.json.data) : '';\n\n// Extract first email address found in the raw HTML\n// Skip noreply/privacy/legal addresses and the known test email\nconst TEST_EMAIL = 'andyralston.johnson@yahoo.com';\nconst SKIP = /noreply|no-reply|privacy|legal|info@example|webmaster|support@|admin@/i;\nconst emailRe = /[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/g;\nlet scrapedEmail = '';\nlet match;\nwhile ((match = emailRe.exec(fullHtml)) !== null) {\n  const candidate = match[0].toLowerCase();\n  if (!SKIP.test(candidate) && candidate !== TEST_EMAIL.toLowerCase()) {\n    scrapedEmail = candidate;\n    break;\n  }\n}\n\nconst website = fullHtml.length > 0 ? fullHtml.substring(0, 2000) : 'No website available';\nconst contactName = lead.contact_name || 'there';\nconst venueName = lead.venue_name || 'the venue';\nconst analysisPrompt = [\n  'Analyse this venue for VenueDesk CRM outreach.',\n  'Respond ONLY with valid JSON: {\"score\":<1-10>,\"venue_type\":\"<type>\",\"key_feature\":\"<one sentence>\",\"pain_point\":\"<one sentence>\",\"tone\":\"<formal|friendly>\"}',\n  'Venue: ' + venueName,\n  'Website content (first 2000 chars): ' + website\n].join('\\n');\nreturn [{ json: {\n  ...lead,\n  contact_name_resolved: contactName,\n  venue_name_resolved: venueName,\n  website_data: website,\n  scraped_email: scrapedEmail,\n  analysis_prompt: analysisPrompt\n} }];"
+        },
+        "id": "prep_analysis",
+        "name": "Prepare Analysis Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1424,
+          32
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const lead = $input.item.json;\nconst contactName = lead.contact_name || 'there';\nconst venueName = lead.venue_name || 'the venue';\nconst followupPrompt = [\n  'Write a brief, friendly follow-up email for VenueDesk. Maximum 2 paragraphs, not pushy.',\n  'The email MUST:',\n  '- Open with: Hi ' + contactName + ',',\n  '- Reference ' + venueName + ' by name',\n  '- Acknowledge the previous email was sent and you just wanted to check in',\n  '- Close with: The VenueDesk Team',\n  '- Be plain text, no placeholders or template variables',\n  '',\n  'Respond ONLY with valid JSON: {\"subject\":\"<subject line>\",\"body\":\"<complete plain text email body>\"}',\n  '',\n  'Venue name: ' + venueName,\n  'Contact name: ' + contactName\n].join('\\n');\nreturn [{ json: {\n  ...lead,\n  contact_name_resolved: contactName,\n  venue_name_resolved: venueName,\n  followup_prompt: followupPrompt\n} }];"
+        },
+        "id": "prep_followup",
+        "name": "Prepare Follow-up Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1328,
+          448
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const lead = $('Fetch New Leads').item.json;\nif (!lead.id) return [];\nconst anRaw = $input.item.json.message.content;\nlet a = {score: 5};\ntry { a = JSON.parse(anRaw.replace(/^```json\\n?|```$/g, '')); } catch(x) {}\nconst esc = s => (s || '').replace(/'/g, \"''\");\nreturn [{ json: { ...lead, ai_score: a.score || 5, ai_analysis: esc(anRaw) } }];"
+        },
+        "id": "parse_score",
+        "name": "Parse Score",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1712,
+          -32
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE leads SET ai_score={{ $('Parse Score').item.json.ai_score }},ai_analysis='{{ $('Parse Score').item.json.ai_analysis }}',status='scored',email=CASE WHEN (email IS NULL OR email='' OR email='andyralston.johnson@yahoo.com') AND '{{ $('Prepare Analysis Prompt').item.json.scraped_email }}' != '' THEN '{{ $('Prepare Analysis Prompt').item.json.scraped_email }}' ELSE email END WHERE id='{{ $('Parse Score').item.json.id }}'",
+          "options": {}
+        },
+        "id": "save_score",
+        "name": "Save Score",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1824,
+          32
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO lead_activity (lead_id,type,message) VALUES ('{{ $('Parse Score').item.json.id }}','lead_scored','AI scored lead: score={{ $('Parse Score').item.json.ai_score }}')",
+          "options": {}
+        },
+        "id": "log_score",
+        "name": "Log Score Saved",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2064,
+          32
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "iEsRYyB7vjr5G7i8",
+            "name": "Postgres account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "path": "run-leadgen-now",
+          "responseMode": "onReceived",
+          "options": {},
+          "httpMethod": "POST",
+          "authentication": "none"
+        },
+        "id": "wh_manual_run",
+        "name": "Manual Run Trigger",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          200,
+          160
+        ],
+        "webhookId": "run-leadgen-now",
+        "credentials": {}
+      }
+    ],
+    "connections": {
+      "Daily at 9am": {
+        "main": [
+          [
+            {
+              "node": "Fetch New Leads",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch Follow-up Leads",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch New Leads": {
+        "main": [
+          [
+            {
+              "node": "Any new leads?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Any new leads?": {
+        "main": [
+          [
+            {
+              "node": "Fetch Website",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Fetch Website": {
+        "main": [
+          [
+            {
+              "node": "Prepare Analysis Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch Follow-up Leads": {
+        "main": [
+          [
+            {
+              "node": "Any follow-up leads?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Follow-up": {
+        "main": [
+          [
+            {
+              "node": "Send Follow-up",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Follow-up": {
+        "main": [
+          [
+            {
+              "node": "Update Follow-up",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Update Follow-up": {
+        "main": [
+          [
+            {
+              "node": "Log Follow-up",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Any follow-up leads?": {
+        "main": [
+          [
+            {
+              "node": "Prepare Follow-up Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Prepare Analysis Prompt": {
+        "main": [
+          [
+            {
+              "node": "AI Venue Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Follow-up Prompt": {
+        "main": [
+          [
+            {
+              "node": "AI Follow-up",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Venue Analysis": {
+        "main": [
+          [
+            {
+              "node": "Parse Score",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Score": {
+        "main": [
+          [
+            {
+              "node": "Save Score",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save Score": {
+        "main": [
+          [
+            {
+              "node": "Log Score Saved",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Manual Run Trigger": {
+        "main": [
+          [
+            {
+              "node": "Fetch New Leads",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch Follow-up Leads",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "andrew johnson",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-10T20:51:48.335Z",
+        "id": 925,
+        "workflowId": "ElZJaflNkUL51zbk",
+        "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-10T20:51:48.352Z",
+        "id": 926,
+        "workflowId": "ElZJaflNkUL51zbk",
+        "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:46:15.146Z",
+        "id": 1411,
+        "workflowId": "ElZJaflNkUL51zbk",
+        "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+        "event": "deactivated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      },
+      {
+        "createdAt": "2026-03-15T20:46:15.163Z",
+        "id": 1412,
+        "workflowId": "ElZJaflNkUL51zbk",
+        "versionId": "33935db5-c6c7-4a32-a441-9c726ad21da6",
+        "event": "activated",
+        "userId": "e2485274-7097-4eb5-8502-e39b2308096c"
+      }
+    ]
+  }
+}

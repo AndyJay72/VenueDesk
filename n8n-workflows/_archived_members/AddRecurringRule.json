@@ -1,0 +1,93 @@
+{
+  "name": "VenueDesk - Add Recurring Rule",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "add-recurring-rule",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "arr-001",
+      "name": "Webhook: Add Recurring Rule",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 200],
+      "webhookId": "add-recurring-rule",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.recurring_rules\n  (tenant_id, membership_id, room_id, day_of_week,\n   start_time, end_time, rate_per_session, frequency, end_date, active)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4::int,\n   $5::time, $6::time,\n   NULLIF($7, '')::numeric,\n   COALESCE(NULLIF($8,''), 'weekly'),\n   NULLIF($9,'')::date,\n   TRUE)\nRETURNING\n  id AS rule_id, membership_id, room_id, day_of_week,\n  start_time::text, end_time::text, rate_per_session,\n  frequency, end_date::text, active;",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Add Recurring Rule').first().json.body?.tenant_id || '0'),\n  $('Webhook: Add Recurring Rule').first().json.body?.membership_id || '',\n  $('Webhook: Add Recurring Rule').first().json.body?.room_id || '',\n  parseInt($('Webhook: Add Recurring Rule').first().json.body?.day_of_week ?? '1'),\n  $('Webhook: Add Recurring Rule').first().json.body?.start_time || '09:00',\n  $('Webhook: Add Recurring Rule').first().json.body?.end_time || '11:00',\n  String($('Webhook: Add Recurring Rule').first().json.body?.rate_per_session || ''),\n  $('Webhook: Add Recurring Rule').first().json.body?.frequency || 'weekly',\n  $('Webhook: Add Recurring Rule').first().json.body?.rule_end_date || ''\n] }}"
+        }
+      },
+      "id": "arr-002",
+      "name": "DB: Insert Rule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-560, 200],
+      "continueOnFail": false,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.customer_interactions\n  (customer_id, customer_name, customer_email, customer_phone,\n   booking_id, booking_date, room_name,\n   subject, interaction_type, notes, timestamp, staff_member, tenant_id)\nVALUES\n  ($1::uuid, $2, $3, '',\n   NULL, NULL, NULL,\n   'Recurring rule added to membership',\n   'membership',\n   $4,\n   NOW(), $5, $6)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Webhook: Add Recurring Rule').first().json.body?.customer_id || '',\n  $('Webhook: Add Recurring Rule').first().json.body?.customer_name || '',\n  $('Webhook: Add Recurring Rule').first().json.body?.customer_email || '',\n  'Rule: day ' + ($('Webhook: Add Recurring Rule').first().json.body?.day_of_week ?? '') + ' ' + ($('Webhook: Add Recurring Rule').first().json.body?.start_time || '') + '-' + ($('Webhook: Add Recurring Rule').first().json.body?.end_time || '') + ' (' + ($('Webhook: Add Recurring Rule').first().json.body?.frequency || 'weekly') + ')',\n  $('Webhook: Add Recurring Rule').first().json.body?.performed_by || 'Staff',\n  parseInt($('Webhook: Add Recurring Rule').first().json.body?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "arr-003",
+      "name": "DB: Audit Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-320, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', rule: $('DB: Insert Rule').first().json }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "arr-004",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-80, 200]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Add Recurring Rule": { "main": [[{"node": "DB: Insert Rule",  "type": "main", "index": 0}]] },
+    "DB: Insert Rule":             { "main": [[{"node": "DB: Audit Log",    "type": "main", "index": 0}]] },
+    "DB: Audit Log":               { "main": [[{"node": "Respond: OK",      "type": "main", "index": 0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "aa100003-0003-0003-0003-000000000004",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "AddRecurringRule01",
+  "tags": []
+}

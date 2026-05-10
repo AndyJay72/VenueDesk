@@ -1,0 +1,69 @@
+{
+  "name": "VenueDesk - Update Recurring Rule",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-recurring-rule",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-urr-001",
+      "name": "Webhook: Update Recurring Rule",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "update-recurring-rule",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/update-rule",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ rule_id: $('Webhook: Update Recurring Rule').first().json.body?.rule_id || '', room_id: $('Webhook: Update Recurring Rule').first().json.body?.room_id || '', day_of_week: $('Webhook: Update Recurring Rule').first().json.body?.day_of_week || '', start_time: $('Webhook: Update Recurring Rule').first().json.body?.start_time || '', end_time: $('Webhook: Update Recurring Rule').first().json.body?.end_time || '', frequency: $('Webhook: Update Recurring Rule').first().json.body?.frequency || '', end_date: $('Webhook: Update Recurring Rule').first().json.body?.end_date || '', rate_per_session: $('Webhook: Update Recurring Rule').first().json.body?.rate_per_session || '', active: $('Webhook: Update Recurring Rule').first().json.body?.active !== false, customer_id: $('Webhook: Update Recurring Rule').first().json.body?.customer_id || null, customer_name: $('Webhook: Update Recurring Rule').first().json.body?.customer_name || '', customer_email: $('Webhook: Update Recurring Rule').first().json.body?.customer_email || '', staff_member: $('Webhook: Update Recurring Rule').first().json.body?.staff_member || 'system', jwt: $('Webhook: Update Recurring Rule').first().json.body?.jwt || '' }) }}",
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-urr-001",
+      "name": "API: Update Rule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-urr-001",
+      "name": "Respond: Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Update Recurring Rule": { "main": [[{ "node": "API: Update Rule", "type": "main", "index": 0 }]] },
+    "API: Update Rule":               { "main": [[{ "node": "Respond: Updated", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "urr-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "UpdateRecurringRule",
+  "tags": []
+}

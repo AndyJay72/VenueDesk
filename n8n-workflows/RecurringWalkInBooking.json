@@ -1,0 +1,69 @@
+{
+  "name": "VenueDesk - Recurring Walk-In Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recurring-walk-in-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-rwib-001",
+      "name": "Webhook: Walk-In Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "recurring-walk-in-booking",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/upsert-customer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ full_name: $('Webhook: Walk-In Booking').first().json.body?.full_name || '', email: $('Webhook: Walk-In Booking').first().json.body?.email || '', phone: $('Webhook: Walk-In Booking').first().json.body?.phone || '', tenant_id: parseInt($('Webhook: Walk-In Booking').first().json.body?.tenant_id || '0'), jwt: $('Webhook: Walk-In Booking').first().json.body?.jwt || '' }) }}",
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-rwib-001",
+      "name": "API: Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-rwib-001",
+      "name": "Respond: Customer",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Walk-In Booking": { "main": [[{ "node": "API: Upsert Customer", "type": "main", "index": 0 }]] },
+    "API: Upsert Customer":     { "main": [[{ "node": "Respond: Customer",    "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "rwib-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "RecurringWalkInBooking",
+  "tags": []
+}

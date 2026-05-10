@@ -1,0 +1,231 @@
+{
+  "name": "VenueDesk - Migration: recurring_series Parent-Child Architecture",
+  "nodes": [
+    {
+      "id": "mig-wh-001",
+      "name": "Webhook: Run Migration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        300
+      ],
+      "webhookId": "run-migration-recurring-series",
+      "parameters": {
+        "path": "run-migration-recurring-series",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {}
+    },
+    {
+      "id": "mig-db-001",
+      "name": "DB: Step 1 — Create recurring_series",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS bookings.recurring_series (\n    id              UUID          PRIMARY KEY DEFAULT gen_random_uuid(),\n    tenant_id       INT           NOT NULL,\n    customer_id     UUID          NOT NULL REFERENCES bookings.customers(id) ON DELETE CASCADE,\n    room_id         UUID          REFERENCES bookings.rooms(id) ON DELETE SET NULL,\n    series_name     TEXT          NOT NULL DEFAULT 'Unnamed Series',\n    cycle_amount    NUMERIC(10,2) NOT NULL DEFAULT 0,\n    balance_due     NUMERIC(10,2) NOT NULL DEFAULT 0,\n    start_time      TIME,\n    end_time        TIME,\n    frequency       TEXT          DEFAULT 'weekly',\n    start_date      DATE,\n    end_date        DATE,\n    day_of_week     INT,\n    active          BOOLEAN       NOT NULL DEFAULT true,\n    payment_timing  VARCHAR(20)   DEFAULT 'in_advance',\n    billing_type    TEXT          DEFAULT 'monthly',\n    notes           TEXT,\n    created_at      TIMESTAMPTZ   DEFAULT NOW(),\n    updated_at      TIMESTAMPTZ   DEFAULT NOW()\n);\nCREATE INDEX IF NOT EXISTS idx_recurring_series_tenant   ON bookings.recurring_series(tenant_id);\nCREATE INDEX IF NOT EXISTS idx_recurring_series_customer ON bookings.recurring_series(customer_id);\nSELECT 'recurring_series table ready' AS status;",
+        "options": {}
+      }
+    },
+    {
+      "id": "mig-db-002",
+      "name": "DB: Step 2 — Add recurring_series_id to confirmed_bookings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.confirmed_bookings\n  ADD COLUMN IF NOT EXISTS recurring_series_id UUID REFERENCES bookings.recurring_series(id) ON DELETE SET NULL;\nCREATE INDEX IF NOT EXISTS idx_cb_recurring_series ON bookings.confirmed_bookings(recurring_series_id) WHERE recurring_series_id IS NOT NULL;\nSELECT 'recurring_series_id column ready' AS status;",
+        "options": {}
+      }
+    },
+    {
+      "id": "mig-db-003",
+      "name": "DB: Step 3 — Migrate recurring_rules → recurring_series",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -80,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Copy all existing recurring_rules into recurring_series, keeping the same UUID.\n-- This lets the FK update in Step 4 work without a mapping table.\n-- balance_due is computed from the pending payment schedule entries.\n--\n-- FIX: Some older recurring_rules rows have customer_id = NULL (created before\n-- that column was added). We recover customer_id from linked confirmed_bookings.\n-- Rules with no recoverable customer are skipped with a warning query below.\nINSERT INTO bookings.recurring_series (\n    id, tenant_id, customer_id, room_id, series_name,\n    cycle_amount, balance_due,\n    start_time, end_time, frequency, end_date, day_of_week,\n    active, payment_timing, billing_type, created_at\n)\nSELECT\n    rr.id,\n    rr.tenant_id,\n    -- Recover customer_id: use the rule's own value, or fall back to any\n    -- customer linked via confirmed_bookings (same rule UUID).\n    COALESCE(\n        rr.customer_id,\n        (SELECT cb.customer_id\n         FROM   bookings.confirmed_bookings cb\n         WHERE  cb.recurring_rule_id = rr.id\n           AND  cb.customer_id IS NOT NULL\n         ORDER  BY cb.created_at ASC\n         LIMIT  1)\n    ) AS customer_id,\n    rr.room_id,\n    COALESCE(NULLIF(rr.series_reference, ''), 'Series-' || SUBSTRING(rr.id::text, 1, 8)),\n    COALESCE(NULLIF(rr.agreed_price,   0),\n             NULLIF(rr.monthly_fee,    0),\n             rr.rate_per_session,\n             0),\n    COALESCE((\n        SELECT SUM(rps.amount_due)\n        FROM   bookings.recurring_payment_schedule rps\n        WHERE  rps.recurring_rule_id = rr.id\n          AND  rps.status = 'pending'\n    ), 0),\n    rr.start_time,\n    rr.end_time,\n    COALESCE(rr.frequency, 'weekly'),\n    rr.end_date,\n    rr.day_of_week,\n    COALESCE(rr.active, true),\n    COALESCE(rr.payment_timing, 'in_advance'),\n    COALESCE(rr.billing_type, 'monthly'),\n    rr.created_at\nFROM bookings.recurring_rules rr\n-- Skip any rule where customer_id is unrecoverable (truly orphaned)\nWHERE COALESCE(\n    rr.customer_id,\n    (SELECT cb.customer_id\n     FROM   bookings.confirmed_bookings cb\n     WHERE  cb.recurring_rule_id = rr.id\n       AND  cb.customer_id IS NOT NULL\n     LIMIT  1)\n) IS NOT NULL\nON CONFLICT (id) DO NOTHING\nRETURNING id, series_name, cycle_amount, balance_due;\n\n-- Show any orphaned rules that were skipped (customer unrecoverable)\nSELECT rr.id AS skipped_rule_id, rr.series_reference, rr.tenant_id\nFROM   bookings.recurring_rules rr\nWHERE  rr.customer_id IS NULL\n  AND  NOT EXISTS (\n       SELECT 1 FROM bookings.confirmed_bookings cb\n       WHERE  cb.recurring_rule_id = rr.id AND cb.customer_id IS NOT NULL\n  );",
+        "options": {}
+      }
+    },
+    {
+      "id": "mig-db-004",
+      "name": "DB: Step 4 — Link bookings + zero child balance_due",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        160,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Populate recurring_series_id from the existing recurring_rule_id (same UUIDs).\n-- Also zero out balance_due on each child session — debt now lives on the parent.\nUPDATE bookings.confirmed_bookings\nSET    recurring_series_id = recurring_rule_id,\n       balance_due         = 0,\n       updated_at          = NOW()\nWHERE  recurring_rule_id IS NOT NULL\n  AND  recurring_series_id IS NULL;\n\nSELECT COUNT(*) AS sessions_migrated\nFROM   bookings.confirmed_bookings\nWHERE  recurring_series_id IS NOT NULL;",
+        "options": {}
+      }
+    },
+    {
+      "id": "mig-db-005",
+      "name": "DB: Step 5 — Verification report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    (SELECT COUNT(*) FROM bookings.recurring_series)    AS series_count,\n    (SELECT COUNT(*) FROM bookings.confirmed_bookings WHERE recurring_series_id IS NOT NULL)\n                                                         AS linked_sessions,\n    (SELECT COUNT(*) FROM bookings.confirmed_bookings WHERE recurring_series_id IS NOT NULL AND balance_due > 0)\n                                                         AS child_sessions_with_balance_SHOULD_BE_ZERO,\n    (SELECT COALESCE(SUM(balance_due),0) FROM bookings.recurring_series WHERE active = true)\n                                                         AS total_series_outstanding,\n    (SELECT COALESCE(SUM(balance_due),0) FROM bookings.confirmed_bookings WHERE recurring_series_id IS NULL AND recurring_rule_id IS NULL)\n                                                         AS total_single_outstanding;",
+        "options": {}
+      }
+    },
+    {
+      "id": "mig-re-001",
+      "name": "Respond: Migration Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, report: $json }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Run Migration": {
+      "main": [
+        [
+          {
+            "node": "DB: Step 1 — Create recurring_series",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Step 1 — Create recurring_series": {
+      "main": [
+        [
+          {
+            "node": "DB: Step 2 — Add recurring_series_id to confirmed_bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Step 2 — Add recurring_series_id to confirmed_bookings": {
+      "main": [
+        [
+          {
+            "node": "DB: Step 3 — Migrate recurring_rules → recurring_series",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Step 3 — Migrate recurring_rules → recurring_series": {
+      "main": [
+        [
+          {
+            "node": "DB: Step 4 — Link bookings + zero child balance_due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Step 4 — Link bookings + zero child balance_due": {
+      "main": [
+        [
+          {
+            "node": "DB: Step 5 — Verification report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Step 5 — Verification report": {
+      "main": [
+        [
+          {
+            "node": "Respond: Migration Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a1b2c3d4-e5f6-7890-abcd-migration001",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "MigrationRecurringSeries01",
+  "tags": []
+}

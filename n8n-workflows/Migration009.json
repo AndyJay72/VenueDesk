@@ -1,0 +1,153 @@
+{
+  "name": "VenueDesk — Run Migration 009 (Contract & Series Schema)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "mig009-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1680, 0],
+      "parameters": {}
+    },
+    {
+      "id": "mig009-002",
+      "name": "DB: Step 1 — add customer_type to customers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1440, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.customers\n  ADD COLUMN IF NOT EXISTS customer_type VARCHAR(20) NOT NULL DEFAULT 'casual'\n    CHECK (customer_type IN ('casual', 'contract'));",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-003",
+      "name": "DB: Step 2 — add series columns to recurring_rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1200, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules\n  ADD COLUMN IF NOT EXISTS series_reference  VARCHAR(20),\n  ADD COLUMN IF NOT EXISTS total_cycles      INT,\n  ADD COLUMN IF NOT EXISTS remaining_cycles  INT,\n  ADD COLUMN IF NOT EXISTS monthly_fee       NUMERIC(10,2);\n\n-- Ensure billing_day has the right default (may already exist from Migration008)\nDO $$\nBEGIN\n  IF EXISTS (\n    SELECT 1 FROM information_schema.columns\n    WHERE table_schema = 'bookings'\n      AND table_name   = 'recurring_rules'\n      AND column_name  = 'billing_day'\n  ) THEN\n    ALTER TABLE bookings.recurring_rules ALTER COLUMN billing_day SET DEFAULT 20;\n  ELSE\n    ALTER TABLE bookings.recurring_rules ADD COLUMN billing_day INT DEFAULT 20\n      CHECK (billing_day BETWEEN 1 AND 31);\n  END IF;\nEND;\n$$;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-004",
+      "name": "DB: Step 3 — add cycle_number to outstanding_payments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-960, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.outstanding_payments\n  ADD COLUMN IF NOT EXISTS cycle_number INT;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-005",
+      "name": "DB: Step 4 — indexes and series_reference sequence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-720, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE INDEX IF NOT EXISTS idx_recurring_rules_series_ref\n  ON bookings.recurring_rules(series_reference);\n\nCREATE INDEX IF NOT EXISTS idx_customers_customer_type\n  ON bookings.customers(customer_type);\n\nCREATE INDEX IF NOT EXISTS idx_customers_type_tenant\n  ON bookings.customers(tenant_id, customer_type);\n\nCREATE SEQUENCE IF NOT EXISTS bookings.series_reference_seq\n  START WITH 1001\n  INCREMENT BY 1\n  NO MAXVALUE\n  CACHE 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-006",
+      "name": "DB: Step 5 — backfill series_reference for existing rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-480, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.recurring_rules\nSET series_reference = 'RB-' || nextval('bookings.series_reference_seq')::text\nWHERE series_reference IS NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-007",
+      "name": "DB: Step 6 — mark existing recurring customers as contract",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-240, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.customers c\nSET customer_type = 'contract'\nWHERE EXISTS (\n  SELECT 1 FROM bookings.recurring_rules rr\n  WHERE rr.customer_id = c.id\n    AND rr.active = TRUE\n)\nAND c.customer_type = 'casual';",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig009-008",
+      "name": "Migration Complete",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "DB: Step 1 — add customer_type to customers", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 1 — add customer_type to customers": {
+      "main": [[{ "node": "DB: Step 2 — add series columns to recurring_rules", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 2 — add series columns to recurring_rules": {
+      "main": [[{ "node": "DB: Step 3 — add cycle_number to outstanding_payments", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 3 — add cycle_number to outstanding_payments": {
+      "main": [[{ "node": "DB: Step 4 — indexes and series_reference sequence", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 4 — indexes and series_reference sequence": {
+      "main": [[{ "node": "DB: Step 5 — backfill series_reference for existing rules", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 5 — backfill series_reference for existing rules": {
+      "main": [[{ "node": "DB: Step 6 — mark existing recurring customers as contract", "type": "main", "index": 0 }]]
+    },
+    "DB: Step 6 — mark existing recurring customers as contract": {
+      "main": [[{ "node": "Migration Complete", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  }
+}

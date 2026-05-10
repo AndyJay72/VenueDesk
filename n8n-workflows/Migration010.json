@@ -1,0 +1,139 @@
+{
+  "name": "VenueDesk — Run Migration 010 (Payments & Recurring Schema Fixes)",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "nodes": [
+    {
+      "id": "mig010-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-2160, 0],
+      "parameters": {}
+    },
+    {
+      "id": "mig010-002",
+      "name": "DB: Step 1 — fix payments booking_id nullable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1920, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Allow NULL booking_id so recurring payments can be recorded without a specific booking\nALTER TABLE bookings.payments ALTER COLUMN booking_id DROP NOT NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "mig010-003",
+      "name": "DB: Step 2 — add missing payments columns",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1680, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Ensure all columns used by recurring payment INSERT exist\nALTER TABLE bookings.payments ADD COLUMN IF NOT EXISTS customer_id      UUID        REFERENCES bookings.customers(id);\nALTER TABLE bookings.payments ADD COLUMN IF NOT EXISTS tenant_id        INT;\nALTER TABLE bookings.payments ADD COLUMN IF NOT EXISTS payment_date     TIMESTAMPTZ DEFAULT NOW();\nALTER TABLE bookings.payments ADD COLUMN IF NOT EXISTS series_reference TEXT;\n\n-- Index for fast lookup by tenant and series\nCREATE INDEX IF NOT EXISTS idx_payments_tenant         ON bookings.payments(tenant_id);\nCREATE INDEX IF NOT EXISTS idx_payments_customer       ON bookings.payments(customer_id) WHERE customer_id IS NOT NULL;\nCREATE INDEX IF NOT EXISTS idx_payments_series_ref     ON bookings.payments(series_reference) WHERE series_reference IS NOT NULL;\nCREATE INDEX IF NOT EXISTS idx_payments_type_tenant    ON bookings.payments(payment_type, tenant_id);",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "mig010-004",
+      "name": "DB: Step 3 — add sessions_per_cycle and agreed_price to recurring_rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1440, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- sessions_per_cycle: number of sessions in one billing cycle (weekly=4, fortnightly=2, monthly=1)\nALTER TABLE bookings.recurring_rules ADD COLUMN IF NOT EXISTS sessions_per_cycle INT;\nALTER TABLE bookings.recurring_rules ADD COLUMN IF NOT EXISTS agreed_price       NUMERIC(10,2);\n\n-- Backfill sessions_per_cycle from frequency for existing rules\nUPDATE bookings.recurring_rules\nSET sessions_per_cycle = CASE frequency\n    WHEN 'fortnightly' THEN 2\n    WHEN 'monthly'     THEN 1\n    ELSE 4  -- weekly (default)\n  END\nWHERE sessions_per_cycle IS NULL;\n\n-- Backfill agreed_price = monthly_fee if not set\nUPDATE bookings.recurring_rules\nSET agreed_price = monthly_fee\nWHERE agreed_price IS NULL AND monthly_fee IS NOT NULL AND monthly_fee > 0;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "mig010-005",
+      "name": "DB: Step 4 — fix recurring_payment_schedule amount_due",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-1200, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Fix recurring_payment_schedule rows where amount_due was stored as session_price\n-- (i.e. amount_due <= rate_per_session, meaning it was NOT multiplied by sessions_per_cycle)\n-- Update to the correct cycle price.\nUPDATE bookings.recurring_payment_schedule rps\nSET amount_due = COALESCE(\n    NULLIF(rr.agreed_price, 0),\n    NULLIF(rr.monthly_fee, 0),\n    rr.rate_per_session * CASE rr.frequency\n      WHEN 'fortnightly' THEN 2\n      WHEN 'monthly'     THEN 1\n      ELSE 4\n    END\n  )\nFROM bookings.recurring_rules rr\nWHERE rps.recurring_rule_id = rr.id\n  AND rps.status = 'pending'\n  AND rr.rate_per_session IS NOT NULL\n  AND rr.rate_per_session > 0\n  AND rps.amount_due > 0\n  -- Only update rows where amount_due looks like a session price (not a cycle price)\n  -- i.e. amount_due roughly equals rate_per_session (within 1p tolerance)\n  AND ABS(rps.amount_due - rr.rate_per_session) < 0.01;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "mig010-006",
+      "name": "DB: Step 5 — verify migration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-960, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='payments' AND column_name='customer_id') AS pay_has_customer_id,\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='payments' AND column_name='tenant_id') AS pay_has_tenant_id,\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='payments' AND column_name='series_reference') AS pay_has_series_ref,\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='recurring_rules' AND column_name='sessions_per_cycle') AS rr_has_sessions_per_cycle,\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='recurring_rules' AND column_name='agreed_price') AS rr_has_agreed_price,\n  (SELECT is_nullable FROM information_schema.columns\n   WHERE table_schema='bookings' AND table_name='payments' AND column_name='booking_id') AS booking_id_nullable;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{"node": "DB: Step 1 — fix payments booking_id nullable", "type": "main", "index": 0}]]
+    },
+    "DB: Step 1 — fix payments booking_id nullable": {
+      "main": [[{"node": "DB: Step 2 — add missing payments columns", "type": "main", "index": 0}]]
+    },
+    "DB: Step 2 — add missing payments columns": {
+      "main": [[{"node": "DB: Step 3 — add sessions_per_cycle and agreed_price to recurring_rules", "type": "main", "index": 0}]]
+    },
+    "DB: Step 3 — add sessions_per_cycle and agreed_price to recurring_rules": {
+      "main": [[{"node": "DB: Step 4 — fix recurring_payment_schedule amount_due", "type": "main", "index": 0}]]
+    },
+    "DB: Step 4 — fix recurring_payment_schedule amount_due": {
+      "main": [[{"node": "DB: Step 5 — verify migration", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,801 @@
+{
+  "name": "VenueDesk - Services API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-service-data",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "svc-webhook-get-0001",
+      "name": "Webhook: Get Services",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "get-service-data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "svc-respond-get-0003",
+      "name": "Respond: Services",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-service",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "svc-webhook-save-0004",
+      "name": "Webhook: Save Service",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "save-service"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "svc-respond-save-0006",
+      "name": "Respond: Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-service",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "none"
+      },
+      "id": "svc-webhook-del-0007",
+      "name": "Webhook: Delete Service",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        440
+      ],
+      "webhookId": "delete-service"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"success\",\"message\":\"Service deleted.\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "svc-respond-del-0009",
+      "name": "Respond: Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.venuedesk.co.uk/config/services?tenant_id={{ $('Webhook: Get Services').first().json.query?.tenant_id || '' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "svc-http-get",
+      "name": "HTTP: Get Services",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : [resp]);\nif (!rows.length) return [{ json: {} }];\nreturn rows.map(row => ({ json: row }));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "svc-flat-get",
+      "name": "DB: Get Services",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/services/upsert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ ...($('Webhook: Save Service').first().json.body || {}), jwt: ($('Webhook: Save Service').first().json.body?.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "svc-http-save",
+      "name": "HTTP: Save Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "svc-flat-save",
+      "name": "DB: Upsert Service",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        450,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/config/services/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Webhook: Delete Service').first().json.body?.id, tenant_id: parseInt($('Webhook: Delete Service').first().json.body?.tenant_id || $('Webhook: Delete Service').first().json.query?.tenant_id || '0'), jwt: ($('Webhook: Delete Service').first().json.body?.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "svc-http-del",
+      "name": "HTTP: Delete Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        200,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "svc-flat-del",
+      "name": "DB: Delete Service",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        450,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Get Services": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Services",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Services": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Services",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Services": {
+      "main": [
+        [
+          {
+            "node": "Respond: Services",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Save Service": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Save Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Save Service": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Service": {
+      "main": [
+        [
+          {
+            "node": "Respond: Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Delete Service": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Delete Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Delete Service": {
+      "main": [
+        [
+          {
+            "node": "DB: Delete Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Delete Service": {
+      "main": [
+        [
+          {
+            "node": "Respond: Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "services-wf-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "ServicesWF",
+  "activeVersion": {
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "get-service-data",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "svc-webhook-get-0001",
+        "name": "Webhook: Get Services",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "webhookId": "get-service-data"
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://api.venuedesk.co.uk/config/services?tenant_id={{ $('Webhook: Get Services').first().json.query?.tenant_id || '' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": false,
+                "neverError": true
+              }
+            },
+            "timeout": 15000
+          }
+        },
+        "id": "svc-http-get",
+        "name": "HTTP: Get Services",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "continueOnFail": true,
+        "position": [
+          200,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : [resp]);\nif (!rows.length) return [{ json: {} }];\nreturn rows.map(row => ({ json: row }));",
+          "mode": "runOnceForAllItems"
+        },
+        "id": "svc-flat-get",
+        "name": "DB: Get Services",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "continueOnFail": true,
+        "position": [
+          450,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($input.first().json) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "svc-respond-get-0003",
+        "name": "Respond: Services",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          700,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "save-service",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "svc-webhook-save-0004",
+        "name": "Webhook: Save Service",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          300
+        ],
+        "webhookId": "save-service"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.venuedesk.co.uk/config/services/upsert",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ ...($('Webhook: Save Service').first().json.body || {}), jwt: ($('Webhook: Save Service').first().json.body?.jwt || '') }) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": false,
+                "neverError": true
+              }
+            },
+            "timeout": 15000
+          }
+        },
+        "id": "svc-http-save",
+        "name": "HTTP: Save Service",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "continueOnFail": true,
+        "position": [
+          200,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+          "mode": "runOnceForAllItems"
+        },
+        "id": "svc-flat-save",
+        "name": "DB: Upsert Service",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "continueOnFail": true,
+        "position": [
+          450,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($input.first().json) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "svc-respond-save-0006",
+        "name": "Respond: Saved",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          700,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "delete-service",
+          "responseMode": "responseNode",
+          "options": {},
+          "authentication": "none"
+        },
+        "id": "svc-webhook-del-0007",
+        "name": "Webhook: Delete Service",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          600
+        ],
+        "webhookId": "delete-service"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.venuedesk.co.uk/config/services/delete",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ id: $('Webhook: Delete Service').first().json.body?.id, tenant_id: parseInt($('Webhook: Delete Service').first().json.body?.tenant_id || $('Webhook: Delete Service').first().json.query?.tenant_id || '0'), jwt: ($('Webhook: Delete Service').first().json.body?.jwt || '') }) }}",
+          "options": {
+            "response": {
+              "response": {
+                "fullResponse": false,
+                "neverError": true
+              }
+            },
+            "timeout": 15000
+          }
+        },
+        "id": "svc-http-del",
+        "name": "HTTP: Delete Service",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "continueOnFail": true,
+        "position": [
+          200,
+          700
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+          "mode": "runOnceForAllItems"
+        },
+        "id": "svc-flat-del",
+        "name": "DB: Delete Service",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "continueOnFail": true,
+        "position": [
+          450,
+          700
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"status\":\"success\",\"message\":\"Service deleted.\"}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "svc-respond-del-0009",
+        "name": "Respond: Deleted",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          700,
+          700
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook: Get Services": {
+        "main": [
+          [
+            {
+              "node": "HTTP: Get Services",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP: Get Services": {
+        "main": [
+          [
+            {
+              "node": "DB: Get Services",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Get Services": {
+        "main": [
+          [
+            {
+              "node": "Respond: Services",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook: Save Service": {
+        "main": [
+          [
+            {
+              "node": "HTTP: Save Service",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP: Save Service": {
+        "main": [
+          [
+            {
+              "node": "DB: Upsert Service",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Upsert Service": {
+        "main": [
+          [
+            {
+              "node": "Respond: Saved",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook: Delete Service": {
+        "main": [
+          [
+            {
+              "node": "HTTP: Delete Service",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP: Delete Service": {
+        "main": [
+          [
+            {
+              "node": "DB: Delete Service",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Delete Service": {
+        "main": [
+          [
+            {
+              "node": "Respond: Deleted",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "versionId": "services-wf-v1"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "VenueDesk — Recurring Payment Reminder (Daily)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }] }
+      },
+      "id": "tr-rpr-001",
+      "name": "Trigger: Daily 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-600, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/upcoming-reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}" }
+          ]
+        },
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-rpr-001",
+      "name": "API: Get Due Reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-360, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json.data || [];\nif (!Array.isArray(items) || items.length === 0) return [];\nreturn items.map(i => ({ json: i }));"
+      },
+      "id": "code-rpr-001",
+      "name": "Code: Unwrap Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/mark-reminder-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ series_id: $json.series_id || $json.rule_id || '', tenant_id: $json.tenant_id || 0 }) }}",
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-rpr-002",
+      "name": "API: Mark Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [120, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger: Daily 09:00":  { "main": [[{ "node": "API: Get Due Reminders",  "type": "main", "index": 0 }]] },
+    "API: Get Due Reminders": { "main": [[{ "node": "Code: Unwrap Items",     "type": "main", "index": 0 }]] },
+    "Code: Unwrap Items":     { "main": [[{ "node": "API: Mark Reminder Sent","type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "rpr-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "RecurringPaymentReminder",
+  "tags": []
+}

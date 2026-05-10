@@ -1,0 +1,84 @@
+{
+  "name": "VenueDesk - Get All Memberships",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-all-memberships",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "gam-001",
+      "name": "Webhook: Get All Memberships",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-600, 200],
+      "webhookId": "get-all-memberships",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  m.id                        AS membership_id,\n  m.plan_name,\n  m.policy_template,\n  m.monthly_rate,\n  m.status,\n  m.start_date::text          AS start_date,\n  m.end_date::text            AS end_date,\n  m.notice_period_days,\n  m.notes,\n  m.created_at::text          AS created_at,\n  c.id                        AS customer_id,\n  c.full_name                 AS customer_name,\n  c.email,\n  c.phone,\n  COALESCE(\n    (\n      SELECT json_agg(json_build_object(\n        'id',            r.id,\n        'room_id',       r.room_id,\n        'room_name',     rm.name,\n        'day_of_week',   r.day_of_week,\n        'start_time',    r.start_time::text,\n        'end_time',      r.end_time::text,\n        'rate_per_session', r.rate_per_session,\n        'frequency',     COALESCE(r.frequency, 'weekly'),\n        'end_date',      r.end_date::text,\n        'active',        r.active\n      ) ORDER BY r.day_of_week, r.start_time)\n      FROM bookings.recurring_rules r\n      LEFT JOIN bookings.rooms rm ON rm.id = r.room_id\n      WHERE r.membership_id = m.id\n    ), '[]'::json\n  )                           AS rules,\n  COALESCE(\n    (SELECT SUM(mi.balance_due)\n     FROM bookings.membership_invoices mi\n     WHERE mi.membership_id = m.id AND mi.status NOT IN ('paid','waived')\n    ), 0\n  )                           AS total_balance_due\nFROM bookings.memberships m\nJOIN bookings.customers c ON c.id = m.customer_id\nWHERE m.tenant_id = $1\nORDER BY m.status, c.full_name;",
+        "options": {
+          "queryReplacement": "={{ [parseInt($('Webhook: Get All Memberships').first().json.query?.tenant_id || '0')] }}"
+        }
+      },
+      "id": "gam-002",
+      "name": "DB: Get All Memberships",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-360, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n returns [{json:{}}] when Postgres finds 0 rows — filter those out\nconst rows = $input.all().map(i => i.json).filter(r => r && r.membership_id);\nreturn [{ json: { status: 'ok', count: rows.length, data: rows } }];"
+      },
+      "id": "gam-003",
+      "name": "Code: Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "gam-004",
+      "name": "Respond: Memberships",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [120, 200]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Get All Memberships": { "main": [[{"node": "DB: Get All Memberships", "type": "main", "index": 0}]] },
+    "DB: Get All Memberships":      { "main": [[{"node": "Code: Format Response", "type": "main", "index": 0}]] },
+    "Code: Format Response":        { "main": [[{"node": "Respond: Memberships", "type": "main", "index": 0}]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "aa100001-0001-0001-0001-000000000001",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "GetAllMemberships01",
+  "tags": []
+}

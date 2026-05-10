@@ -1,0 +1,248 @@
+{
+  "id": "KqSekNRSeXpKh5pJ",
+  "name": "VenueDesk - User Manager (Final Database Fix)",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "connections": {
+    "Webhook: Get Users": {
+      "main": [[{"node": "DB: List Users", "type": "main", "index": 0}]]
+    },
+    "DB: List Users": {
+      "main": [[{"node": "Code: Format", "type": "main", "index": 0}]]
+    },
+    "Code: Format": {
+      "main": [[{"node": "Respond: List", "type": "main", "index": 0}]]
+    },
+    "Webhook: Create User": {
+      "main": [[{"node": "Code: Validate User", "type": "main", "index": 0}]]
+    },
+    "Code: Validate User": {
+      "main": [[{"node": "Crypto: Hash", "type": "main", "index": 0}]]
+    },
+    "Crypto: Hash": {
+      "main": [[{"node": "Code: Combine", "type": "main", "index": 0}]]
+    },
+    "Code: Combine": {
+      "main": [[{"node": "DB: Insert User (SQL)", "type": "main", "index": 0}]]
+    },
+    "DB: Insert User (SQL)": {
+      "main": [[{"node": "Respond: OK", "type": "main", "index": 0}]]
+    },
+    "Webhook: Delete User": {
+      "main": [[{"node": "DB: Delete User", "type": "main", "index": 0}]]
+    },
+    "DB: Delete User": {
+      "main": [[{"node": "Respond: Deleted", "type": "main", "index": 0}]]
+    }
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "path": "get-users",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f65563f2-fc5a-4c64-9a9a-ad5797618c12",
+      "name": "Webhook: Get Users",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [3296, 64],
+      "webhookId": "get-users"
+    },
+    {
+      "parameters": {
+        "url": "https://api.venuedesk.co.uk/users/list",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "options": {
+          "response": {"response": {"neverError": true}},
+          "timeout": 15000
+        }
+      },
+      "id": "08105da5-f91d-495c-a923-4ec46a955c69",
+      "name": "DB: List Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3520, 64],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst users = items.filter(i => i.json.id).map(i => i.json);\nreturn { json: { data: users } };"
+      },
+      "id": "31dd518b-bc2a-42cc-b810-1f27181ccca6",
+      "name": "Code: Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3744, 64]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+          }
+        }
+      },
+      "id": "0fd8ee41-b30c-4a09-b382-d7a81d3512f2",
+      "name": "Respond: List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3968, 64]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-user",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b750a2f8-0613-4e48-9448-00150b92b4cb",
+      "name": "Webhook: Create User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [3136, 304],
+      "webhookId": "create-user"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst allowedRoles = ['admin', 'manager', 'staff'];\nif (!body.username || body.username.trim() === '') throw new Error('Username is required');\nif (!body.full_name || body.full_name.trim() === '') throw new Error('Full name is required');\nif (!body.role || !allowedRoles.includes(body.role)) throw new Error('Invalid role. Allowed: ' + allowedRoles.join(', '));\nif (!body.password || body.password.length < 8) throw new Error('Password must be at least 8 characters');\n\nconst PEPPER = 'vp-pepper-change-me-in-env';\nreturn [{\n  json: {\n    username: body.username.trim().toLowerCase(),\n    full_name: body.full_name.trim(),\n    role: body.role,\n    password_to_hash: PEPPER + body.password\n  }\n}];"
+      },
+      "id": "529f0db4-fc2c-41aa-8446-12780ab5a236",
+      "name": "Code: Validate User",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3312, 304]
+    },
+    {
+      "parameters": {
+        "type": "SHA512",
+        "value": "={{ $json.password_to_hash }}"
+      },
+      "id": "610750bb-15e0-40e2-93ce-b48ada44d28a",
+      "name": "Crypto: Hash",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [3456, 304]
+    },
+    {
+      "parameters": {
+        "jsCode": "const validated = $('Code: Validate User').first().json;\nreturn [{\n  json: {\n    username: validated.username,\n    full_name: validated.full_name,\n    role: validated.role,\n    hashed_password: $json.data\n  }\n}];"
+      },
+      "id": "404db581-f69b-48b6-86cc-a01038952d2c",
+      "name": "Code: Combine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3616, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/users/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ username: $json.username, full_name: $json.full_name, role: $json.role, hashed_password: $json.hashed_password }) }}",
+        "options": {
+          "response": {"response": {"neverError": true}},
+          "timeout": 15000
+        }
+      },
+      "id": "d3b43db4-f3e4-48c9-9583-a317dd7e0744",
+      "name": "DB: Insert User (SQL)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3776, 304],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+          }
+        }
+      },
+      "id": "c02bc07c-b967-4dd6-bf02-8e65586df9f4",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [4000, 304]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-user",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5b2e1a61-ef6f-4f83-9d37-a22a103ff469",
+      "name": "Webhook: Delete User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [3296, 544],
+      "webhookId": "delete-user"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/users/delete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.body?.user_id || $json.user_id }) }}",
+        "options": {
+          "response": {"response": {"neverError": true}},
+          "timeout": 15000
+        }
+      },
+      "id": "d51592f3-f72f-480e-b7d9-171f6c87a41e",
+      "name": "DB: Delete User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3520, 544],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+          }
+        }
+      },
+      "id": "f861142a-6e6a-4bb2-9876-8e7fc6f66836",
+      "name": "Respond: Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3744, 544]
+    }
+  ]
+}

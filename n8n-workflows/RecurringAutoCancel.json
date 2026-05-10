@@ -1,0 +1,339 @@
+{
+  "name": "VenueDesk — Recurring Auto-Cancel Unpaid (Daily)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "rac-001",
+      "name": "Schedule: 10am Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1400,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "rac-003",
+      "name": "IF: Any Overdue",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-rule-id",
+              "leftValue": "={{ $json.recurring_rule_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "rac-008",
+      "name": "Skip: Payment OK",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -920,
+        200
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "skip",
+              "name": "status",
+              "value": "no_overdue_series",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/overdue-payment-schedules",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rac-http-over",
+      "name": "HTTP: Get Overdue Schedules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst rows = resp.data || (Array.isArray(resp) ? resp : [resp]);\nif (!rows.length) return [];\nreturn rows.map(row => ({ json: row }));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rac-flat-over",
+      "name": "DB: Get Overdue Series",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/cancel-overdue-series",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ recurring_rule_id: $json.recurring_rule_id, schedule_id:       $json.schedule_id, customer_id:       $json.customer_id, customer_email:    $json.customer_email || '', amount_due:        $json.amount_due, due_date:          $json.due_date || '' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "rac-http-canc",
+      "name": "HTTP: Cancel Overdue Series",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rac-flat-cfb",
+      "name": "DB: Cancel Future Bookings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rac-flat-dr",
+      "name": "DB: Deactivate Rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rac-flat-ms",
+      "name": "DB: Mark Schedule Cancelled",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: ($input.first().json.data || $input.first().json) }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "rac-flat-log",
+      "name": "DB: Log Cancellation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "continueOnFail": true,
+      "position": [
+        1400,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule: 10am Daily": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Overdue Schedules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Overdue Schedules": {
+      "main": [
+        [
+          {
+            "node": "DB: Get Overdue Series",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Overdue Series": {
+      "main": [
+        [
+          {
+            "node": "IF: Any Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Any Overdue": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Cancel Overdue Series",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: Payment OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Cancel Overdue Series": {
+      "main": [
+        [
+          {
+            "node": "DB: Cancel Future Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Cancel Future Bookings": {
+      "main": [
+        [
+          {
+            "node": "DB: Deactivate Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Deactivate Rule": {
+      "main": [
+        [
+          {
+            "node": "DB: Mark Schedule Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Mark Schedule Cancelled": {
+      "main": [
+        [
+          {
+            "node": "DB: Log Cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "rac-v1-2026-03-29",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "RecurringAutoCancel",
+  "tags": []
+}

@@ -1,0 +1,145 @@
+{
+  "name": "VenueDesk — Run Migration 007 (Standalone Recurring)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "mig007-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1200, 0],
+      "parameters": {}
+    },
+    {
+      "id": "mig007-002",
+      "name": "DB: Step 1 — membership_id nullable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-960, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules ALTER COLUMN membership_id DROP NOT NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-003",
+      "name": "DB: Step 2 — add customer_id column",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-720, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES bookings.customers(id) ON DELETE SET NULL;\nCREATE INDEX IF NOT EXISTS idx_recurring_rules_customer ON bookings.recurring_rules(customer_id) WHERE customer_id IS NOT NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-004",
+      "name": "DB: Step 3 — day_of_week nullable",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-480, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules ALTER COLUMN day_of_week DROP NOT NULL;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-005",
+      "name": "DB: Step 4 — frequency constraint + daily",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-240, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.recurring_rules DROP CONSTRAINT IF EXISTS recurring_rules_frequency_check;\nALTER TABLE bookings.recurring_rules ADD CONSTRAINT recurring_rules_frequency_check CHECK (frequency IN ('daily', 'weekly', 'fortnightly', 'monthly'));",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-006",
+      "name": "DB: Step 5 — create recurring_payment_schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [0, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS bookings.recurring_payment_schedule (\n    id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),\n    tenant_id         INT         NOT NULL,\n    recurring_rule_id UUID        NOT NULL REFERENCES bookings.recurring_rules(id) ON DELETE CASCADE,\n    customer_id       UUID        NOT NULL REFERENCES bookings.customers(id),\n    period_start      DATE        NOT NULL,\n    period_end        DATE        NOT NULL,\n    amount_due        NUMERIC(10,2) NOT NULL DEFAULT 0,\n    due_date          DATE        NOT NULL,\n    status            TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overridden', 'cancelled')),\n    override_by       TEXT,\n    override_note     TEXT,\n    paid_at           TIMESTAMPTZ,\n    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    UNIQUE (recurring_rule_id, period_start)\n);\nCREATE INDEX IF NOT EXISTS idx_rps_tenant   ON bookings.recurring_payment_schedule(tenant_id);\nCREATE INDEX IF NOT EXISTS idx_rps_rule     ON bookings.recurring_payment_schedule(recurring_rule_id);\nCREATE INDEX IF NOT EXISTS idx_rps_status   ON bookings.recurring_payment_schedule(tenant_id, status);\nCREATE INDEX IF NOT EXISTS idx_rps_due_date ON bookings.recurring_payment_schedule(due_date, status) WHERE status = 'pending';\nCREATE INDEX IF NOT EXISTS idx_rps_customer ON bookings.recurring_payment_schedule(customer_id);",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-007",
+      "name": "DB: Step 6 — series_label on confirmed_bookings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [240, 0],
+      "continueOnFail": true,
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE bookings.confirmed_bookings ADD COLUMN IF NOT EXISTS series_label TEXT;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    },
+    {
+      "id": "mig007-008",
+      "name": "DB: Verify Migration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [480, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema = 'bookings' AND table_name = 'recurring_rules'\n   AND column_name = 'customer_id') AS has_customer_id,\n  (SELECT COUNT(*) FROM information_schema.tables\n   WHERE table_schema = 'bookings' AND table_name = 'recurring_payment_schedule') AS has_payment_schedule,\n  (SELECT COUNT(*) FROM information_schema.columns\n   WHERE table_schema = 'bookings' AND table_name = 'confirmed_bookings'\n   AND column_name = 'series_label') AS has_series_label,\n  'Migration 007 complete' AS status;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": { "id": "XHopEzNBCVGCXpXV", "name": "Postgres account" }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger":                               { "main": [[{ "node": "DB: Step 1 — membership_id nullable",         "type": "main", "index": 0 }]] },
+    "DB: Step 1 — membership_id nullable":          { "main": [[{ "node": "DB: Step 2 — add customer_id column",         "type": "main", "index": 0 }]] },
+    "DB: Step 2 — add customer_id column":          { "main": [[{ "node": "DB: Step 3 — day_of_week nullable",           "type": "main", "index": 0 }]] },
+    "DB: Step 3 — day_of_week nullable":            { "main": [[{ "node": "DB: Step 4 — frequency constraint + daily",   "type": "main", "index": 0 }]] },
+    "DB: Step 4 — frequency constraint + daily":    { "main": [[{ "node": "DB: Step 5 — create recurring_payment_schedule", "type": "main", "index": 0 }]] },
+    "DB: Step 5 — create recurring_payment_schedule": { "main": [[{ "node": "DB: Step 6 — series_label on confirmed_bookings", "type": "main", "index": 0 }]] },
+    "DB: Step 6 — series_label on confirmed_bookings": { "main": [[{ "node": "DB: Verify Migration", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "mig007-v1-2026-03-29",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "Migration007Standalone",
+  "tags": []
+}

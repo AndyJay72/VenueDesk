@@ -1,0 +1,88 @@
+{
+  "name": "VenueDesk - Check Recurring Clashes",
+  "nodes": [
+    {
+      "id": "crc-chk-wh-001",
+      "name": "Webhook: Check Recurring Clashes",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "check-recurring-clashes",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "check-recurring-clashes",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {}
+    },
+    {
+      "id": "crc-chk-code-001",
+      "name": "Code: Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 200],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst body = raw.body || raw;\nreturn [{ json: {\n  dates:      body.dates      || '',\n  room_id:    body.room_id    || '',\n  tenant_id:  parseInt(body.tenant_id || raw.query?.tenant_id || '0'),\n  start_time: body.start_time || '09:00',\n  end_time:   body.end_time   || '23:59'\n}}];"
+      }
+    },
+    {
+      "id": "crc-chk-http-001",
+      "name": "API: Find Clashes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/check-clashes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Check Recurring Clashes').first().json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ dates: $('Code: Parse Input').first().json.dates, room_id: $('Code: Parse Input').first().json.room_id, start_time: $('Code: Parse Input').first().json.start_time, end_time: $('Code: Parse Input').first().json.end_time }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      }
+    },
+    {
+      "id": "crc-chk-resp-001",
+      "name": "Respond: Clashes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [320, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ clashed_dates: $('API: Find Clashes').first().json.data?.clashed_dates || [] }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: Check Recurring Clashes": {"main": [[{"node": "Code: Parse Input",  "type": "main", "index": 0}]]},
+    "Code: Parse Input":                {"main": [[{"node": "API: Find Clashes",   "type": "main", "index": 0}]]},
+    "API: Find Clashes":                {"main": [[{"node": "Respond: Clashes",    "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "active": true,
+  "meta": {"instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"},
+  "id": "CheckRecurringClashes01",
+  "tags": []
+}

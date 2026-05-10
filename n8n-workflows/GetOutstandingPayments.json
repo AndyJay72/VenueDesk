@@ -1,0 +1,65 @@
+{
+  "name": "VenueDesk — Get Outstanding Payments",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-outstanding-payments",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-gop-001",
+      "name": "Webhook: Get Outstanding Payments",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "get-outstanding-payments",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/outstanding-payments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Webhook: Get Outstanding Payments').first().json.headers?.authorization?.replace(/^Bearer\\s+/i,'') || $('Webhook: Get Outstanding Payments').first().json.query?.jwt || '') }}" }
+          ]
+        },
+        "options": { "continueOnFail": true }
+      },
+      "id": "api-gop-001",
+      "name": "API: Get Outstanding Payments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-160, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ data: $json.data || [] }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-gop-001",
+      "name": "Respond: Payments",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Get Outstanding Payments": { "main": [[{ "node": "API: Get Outstanding Payments", "type": "main", "index": 0 }]] },
+    "API: Get Outstanding Payments":     { "main": [[{ "node": "Respond: Payments",             "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "gop-v2-2026-04-27",
+  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "id": "GetOutstandingPayments",
+  "tags": []
+}

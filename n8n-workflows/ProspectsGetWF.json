@@ -1,0 +1,123 @@
+{
+  "name": "VenueDesk — API: Get Prospects",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "prospects-get",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-pros-get-01",
+      "name": "Webhook: Get Prospects",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-560, 200],
+      "webhookId": "prospects-get",
+      "credentials": {}
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS prospects (\n  id           SERIAL PRIMARY KEY,\n  lead_id      UUID UNIQUE NOT NULL,\n  venue_name   TEXT,\n  contact_name TEXT,\n  email        TEXT,\n  phone        TEXT,\n  website_url  TEXT,\n  ai_score     INTEGER,\n  status       TEXT NOT NULL DEFAULT 'ready_for_onboarding',\n  created_at   TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE prospects ADD COLUMN IF NOT EXISTS contact_name TEXT;\nALTER TABLE prospects ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready_for_onboarding';",
+        "options": {}
+      },
+      "id": "db-pros-ddl-01",
+      "name": "DB: Ensure Prospects Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-320, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO prospects (lead_id, venue_name, contact_name, email, phone, website_url, ai_score, status)\nSELECT id, venue_name, contact_name, email, phone, website_url, ai_score, 'ready_for_onboarding'\nFROM   leads\nWHERE  status = 'hot_prospect'\nON CONFLICT (lead_id) DO NOTHING;",
+        "options": {}
+      },
+      "id": "db-pros-backfill-01",
+      "name": "DB: Backfill from Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-80, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM prospects ORDER BY created_at DESC;",
+        "options": {}
+      },
+      "id": "db-pros-get-01",
+      "name": "DB: Get Prospects",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [160, 200],
+      "credentials": {
+        "postgres": {
+          "id": "iEsRYyB7vjr5G7i8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ data: $input.all().map(i => i.json) }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+          }
+        }
+      },
+      "id": "re-pros-get-01",
+      "name": "Respond: Prospects",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [400, 200]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Get Prospects": {
+      "main": [[{ "node": "DB: Ensure Prospects Table", "type": "main", "index": 0 }]]
+    },
+    "DB: Ensure Prospects Table": {
+      "main": [[{ "node": "DB: Backfill from Leads", "type": "main", "index": 0 }]]
+    },
+    "DB: Backfill from Leads": {
+      "main": [[{ "node": "DB: Get Prospects", "type": "main", "index": 0 }]]
+    },
+    "DB: Get Prospects": {
+      "main": [[{ "node": "Respond: Prospects", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "pros-9e74-0005-0000-000000000005",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "ProspectsGetWF01",
+  "tags": []
+}
