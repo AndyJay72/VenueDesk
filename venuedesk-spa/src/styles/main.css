@@ -11,6 +11,7 @@
   --info:           #3b82f6;
 
   --bg-main:        #0f172a;
+  --bg-dark:        #0f172a;   /* alias — bookings.html uses --bg-dark; both resolve to the same value */
   --bg-card:        rgba(30, 41, 59, 0.7);
   --bg-input:       rgba(15, 23, 42, 0.8);
   --border:         rgba(148, 163, 184, 0.1);
@@ -477,7 +478,7 @@ body.sidebar-collapsed main.content { margin-left: var(--sidebar-collapsed); }
   font-size: 1.4rem;
   font-weight: 700;
   position: relative;
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--bg-main);
   flex-shrink: 0;
   color: var(--card-color, var(--text-main));
 }

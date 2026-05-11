@@ -24,10 +24,32 @@ export const N8N_BASE = 'https://n8n.srv1090894.hstgr.cloud/webhook';
 // ── Response handler ─────────────────────────────────────────────────────────
 async function handleResponse(res) {
   if (res.status === 401) {
-    // Session expired — clear and redirect to login
-    auth.clearSession();
-    window.location.hash = '#/login';
-    throw new ApiError(401, 'Session expired. Please log in again.');
+    const expiresIn = auth.expiresIn(); // seconds remaining, 0 if expired/absent
+
+    if (expiresIn <= 0) {
+      // Token is genuinely expired — log and bounce to login
+      console.warn(
+        `[api] 401 — token expired. ` +
+        `Current: ${new Date().toISOString()}, ` +
+        `expiresIn: ${expiresIn}s. ` +
+        `URL: ${res.url}`
+      );
+      auth.clearSession();
+      window.location.hash = '#/login';
+      throw new ApiError(401, 'Session expired. Please log in again.');
+    }
+
+    // Token is still valid — the API rejected for a different reason (RLS, bad claim, etc.)
+    // Log but DO NOT clear the session; let the view handle the error gracefully.
+    let errJson = {};
+    try { errJson = await res.json(); } catch { /* ignore */ }
+    console.warn(
+      `[api] 401 — API rejected request but token has ${expiresIn}s remaining. ` +
+      `URL: ${res.url}. ` +
+      `Server message: ${JSON.stringify(errJson)}. ` +
+      `NOT logging out.`
+    );
+    throw new ApiError(401, errJson?.message || errJson?.error || 'Unauthorised', errJson?.code);
   }
 
   let json;

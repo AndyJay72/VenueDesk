@@ -62,10 +62,25 @@ export const auth = {
     if (!token) return false;
     const payload = decodePayload(token);
     if (!payload) return false;
-    // exp is Unix seconds
+    // exp is Unix seconds — multiply by 1000 to compare against Date.now() (ms)
     if (payload.exp && payload.exp * 1000 < Date.now()) {
+      const overdue = Math.floor(Date.now() / 1000) - payload.exp;
+      console.warn(
+        `[auth] Token expired ${overdue}s ago. ` +
+        `Current time: ${new Date().toISOString()}, ` +
+        `Expiry time: ${new Date(payload.exp * 1000).toISOString()}. ` +
+        `Clearing session.`
+      );
       this.clearSession();
       return false;
+    }
+    if (payload.exp) {
+      const remaining = payload.exp - Math.floor(Date.now() / 1000);
+      console.log(
+        `[auth] Token valid — expires in ${remaining}s ` +
+        `(${Math.floor(remaining / 60)}m ${remaining % 60}s). ` +
+        `Expiry: ${new Date(payload.exp * 1000).toISOString()}`
+      );
     }
     return true;
   },
