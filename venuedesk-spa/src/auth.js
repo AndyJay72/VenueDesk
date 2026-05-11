@@ -62,11 +62,14 @@ export const auth = {
     if (!token) return false;
     const payload = decodePayload(token);
     if (!payload) return false;
-    // exp is Unix seconds — multiply by 1000 to compare against Date.now() (ms)
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
+    // exp is Unix seconds — add 60 s grace period for clock skew between MacBook and VPS.
+    // Formula: (payload.exp * 1000) + 60_000 < Date.now()
+    // i.e. a token is only considered expired if it expired more than 60 seconds ago.
+    const SKEW_MS = 60_000;
+    if (payload.exp && (payload.exp * 1000) + SKEW_MS < Date.now()) {
       const overdue = Math.floor(Date.now() / 1000) - payload.exp;
       console.warn(
-        `[auth] Token expired ${overdue}s ago. ` +
+        `[auth] Token expired ${overdue}s ago (beyond 60s grace). ` +
         `Current time: ${new Date().toISOString()}, ` +
         `Expiry time: ${new Date(payload.exp * 1000).toISOString()}. ` +
         `Clearing session.`

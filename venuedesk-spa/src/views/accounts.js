@@ -19,11 +19,25 @@ const view = {
           <p>Payment history and outstanding balances</p>
         </div>
 
-        <div class="summary-strip" id="kpiRow">
-          ${['total','month','outstanding','recurring'].map(k=>`
-            <div class="sum-card" id="acc-kpi-${k}">
-              <div class="sum-val">—</div>
-              <div class="sum-lbl"><div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;"></div></div>
+        <!-- Finance metric dials — mirrors accounts.html fin-metrics-grid exactly -->
+        <div class="fin-metrics-grid" id="kpiRow">
+          ${[
+            { id:'total',       cls:'card-fin-revenue',     fin:'--fin-color:#10b981' },
+            { id:'month',       cls:'card-fin-deposits',    fin:'--fin-color:#6366f1' },
+            { id:'outstanding', cls:'card-fin-outstanding', fin:'--fin-color:#f59e0b' },
+            { id:'recurring',   cls:'card-fin-recurring',   fin:'--fin-color:#0ea5e9' },
+          ].map(k=>`
+            <div class="fin-metric-card ${k.cls}" id="acc-kpi-${k.id}" style="--pct:0%">
+              <div class="fin-dial-ring" style="--pct:0%">
+                <span class="fin-dial-short">—</span>
+              </div>
+              <div class="fin-metric-info">
+                <div class="fin-metric-label">&nbsp;</div>
+                <div class="fin-metric-val">—</div>
+                <div class="fin-metric-sub">
+                  <span class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;vertical-align:middle;"></span>
+                </div>
+              </div>
             </div>
           `).join('')}
         </div>
@@ -61,16 +75,28 @@ const view = {
         .reduce((s,p) => s + parseFloat(p.amount||0), 0);
       const outstandingTotal = outstanding.reduce((s,r) => s + parseFloat(r.amount_due||r.next_amount_due||0), 0);
 
+      // pct helper — cap at 100, 0-guard
+      const pct = (v, max) => `${Math.min(Math.round(((parseFloat(v)||0) / max) * 100), 100)}%`;
+
       const kpis = [
-        { id:'total',       label:'Total Revenue',       value:fmt(totalRevenue),    color:'var(--success)' },
-        { id:'month',       label:`${now.toLocaleString('en-GB',{month:'long'})}`,   value:fmt(monthRevenue),    color:'var(--primary)' },
-        { id:'outstanding', label:'Outstanding',         value:fmt(outstandingTotal),color:'var(--warning)' },
-        { id:'recurring',   label:'Recurring Contracts', value:outstanding.length,   color:'var(--info)' },
+        { id:'total',       label:'Total Revenue',       val:fmt(totalRevenue),     short:fmt(totalRevenue),     pct: totalRevenue > 0  ? '75%' : '0%' },
+        { id:'month',       label:now.toLocaleString('en-GB',{month:'long'}),       val:fmt(monthRevenue),       short:fmt(monthRevenue),     pct: monthRevenue > 0 ? '60%' : '0%' },
+        { id:'outstanding', label:'Outstanding',         val:fmt(outstandingTotal), short:fmt(outstandingTotal), pct: outstandingTotal > 0 ? '70%' : '0%' },
+        { id:'recurring',   label:'Recurring Contracts', val:String(outstanding.length), short:String(outstanding.length), pct: pct(outstanding.length, 10) },
       ];
       kpis.forEach(k => {
         const el = document.getElementById(`acc-kpi-${k.id}`);
         if (!el) return;
-        el.innerHTML = `<div class="sum-val" style="color:${k.color};">${k.value}</div><div class="sum-lbl">${k.label}</div>`;
+        el.style.setProperty('--pct', k.pct);
+        el.innerHTML = `
+          <div class="fin-dial-ring" style="--pct:${k.pct}">
+            <span class="fin-dial-short">${k.short}</span>
+          </div>
+          <div class="fin-metric-info">
+            <div class="fin-metric-label">${k.label}</div>
+            <div class="fin-metric-val">${k.val}</div>
+          </div>
+        `;
       });
 
       // Recent payments table

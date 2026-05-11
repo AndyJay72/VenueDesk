@@ -9,6 +9,7 @@
  */
 
 import './styles/main.css';
+import './styles/legacy-global.css'; // highest priority — verbatim from static source files
 import { auth } from './auth.js';
 import { store } from './store.js';
 import { initRouter } from './router.js';

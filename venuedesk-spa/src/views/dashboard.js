@@ -46,20 +46,24 @@ const view = {
           <p>Welcome back, ${auth.getUserName()}</p>
         </div>
 
-        <!-- KPI row -->
+        <!-- KPI row — structure mirrors bookings.html metric cards exactly -->
         <div class="metrics-grid" id="kpiRow">
           ${[
-            { cls:'card-pre',    id:'pending',     icon:'fa-clock' },
-            { cls:'card-booked', id:'revenue',     icon:'fa-sterling-sign' },
-            { cls:'card-post',   id:'contacted',   icon:'fa-comment-dots' },
-            { cls:'card-danger', id:'outstanding', icon:'fa-circle-exclamation' },
+            { cls:'card-pre',    id:'pending' },
+            { cls:'card-booked', id:'revenue' },
+            { cls:'card-post',   id:'contacted' },
+            { cls:'card-danger', id:'outstanding' },
           ].map(k => `
             <div class="metric-card ${k.cls}" id="kpi-${k.id}" style="--pct:0%">
-              <div class="dial-ring"><i class="fa-solid ${k.icon}" style="font-size:1.2rem;"></i></div>
+              <div class="dial-ring" style="--pct:0%">
+                <span class="dial-val">—</span>
+              </div>
               <div class="metric-info">
                 <h3>&nbsp;</h3>
                 <div class="metric-val">—</div>
-                <div class="metric-sub"><div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;"></div></div>
+                <div class="metric-sub">
+                  <span class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;vertical-align:middle;"></span>
+                </div>
               </div>
             </div>
           `).join('')}
@@ -151,9 +155,13 @@ const view = {
       kpis.forEach(k => {
         const el = document.getElementById(`kpi-${k.id}`);
         if (!el) return;
+        // Set --pct on BOTH the card wrapper and the dial-ring itself so the
+        // conic-gradient ::before always picks it up regardless of selector scope.
         el.style.setProperty('--pct', k.pct);
         el.innerHTML = `
-          <div class="dial-ring">${k.dial}</div>
+          <div class="dial-ring" style="--pct:${k.pct}">
+            <span class="dial-val">${k.dial}</span>
+          </div>
           <div class="metric-info">
             <h3>${k.label}</h3>
             <div class="metric-val">${k.val}</div>
