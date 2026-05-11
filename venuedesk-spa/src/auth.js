@@ -88,11 +88,14 @@ export const auth = {
     return true;
   },
 
-  /** Returns seconds until expiry, or 0 if expired/absent */
+  /** Returns seconds until expiry, or 0 if expired/absent.
+   *  Includes the same 60 s clock-skew grace period as isAuthenticated()
+   *  so the session monitor never fires before isAuthenticated() returns false. */
   expiresIn() {
     const payload = decodePayload(this.getToken());
     if (!payload?.exp) return 0;
-    return Math.max(0, payload.exp - Math.floor(Date.now() / 1000));
+    const SKEW_S = 60;
+    return Math.max(0, (payload.exp + SKEW_S) - Math.floor(Date.now() / 1000));
   },
 
   clearSession() {

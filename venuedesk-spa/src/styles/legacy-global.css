@@ -39,8 +39,16 @@ body {
     radial-gradient(at 50% 0%,  hsla(225,39%,30%,1) 0, transparent 50%);
   color: var(--text-main);
   min-height: 100vh;
-  display: flex;
   overflow-x: hidden;
+  /* Static pages use body as the flex container (body > aside + main).
+     The SPA wraps everything in #app, so flex lives on #app instead. */
+}
+
+/* ── SPA LAYOUT ROOT — the SPA's flex container is #app, not body ── */
+#app {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
 }
 
 /* ── SCROLLBAR ── */
@@ -484,7 +492,7 @@ input[type="date"], input[type="time"], textarea { min-height: 44px; }
 }
 @media (max-width: 768px) {
   aside { position: fixed; left:0; top:0; height:100vh; width:260px; transform: translateX(-100%); z-index: 200; transition: transform 0.3s ease; }
-  aside.active { transform: translateX(0); }
+  aside.active, aside.open { transform: translateX(0); }
   .close-sidebar { display: block !important; }
   .menu-toggle { display: flex !important; }
   main, main.content { margin-left: 0 !important; padding: 1rem; }
