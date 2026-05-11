@@ -75,9 +75,22 @@ fastify.register(jwt, {
 });
 
 // Decorate fastify with authenticate helper (used as preHandler in routes)
+// Pattern 4 — JWT body-tunnel: browsers cannot send Authorization headers cross-origin
+// (CORS allowedHeaders is limited to Content-Type). We therefore accept the raw token
+// from request.body.jwt (POST) or request.query.jwt (GET fallback) in addition to
+// the standard Authorization header (used by n8n server-to-server calls).
 fastify.decorate('authenticate', async (request, reply) => {
   try {
-    await request.jwtVerify();
+    // 1. Try standard Authorization header first (n8n, Postman, curl)
+    try {
+      await request.jwtVerify();
+    } catch (_headerErr) {
+      // 2. Fall back to body/query jwt tunnel (browser cross-origin POST)
+      const raw = request.body?.jwt || request.query?.jwt || '';
+      if (!raw) throw new Error('No token provided');
+      request.user = fastify.jwt.verify(raw);
+    }
+
     // Pattern 1 — normalise id vs user_id claim name
     const p = request.user;
     if (!p.user_id && p.id) p.user_id = p.id;
