@@ -1,14 +1,16 @@
 /**
  * views/login.js — Login view
  *
- * POST /auth/login with { username, password }
- * On success: stores session (Pattern 6) and navigates to #/dashboard
+ * Calls the n8n login webhook — n8n verifies credentials against the DB
+ * and signs the JWT. The db-api /auth/login returns raw user rows only
+ * (no token); it is an internal endpoint, not called directly by the browser.
  */
 
 import { auth } from '../auth.js';
 import { store } from '../store.js';
-import { api } from '../api.js';
 import { toast } from '../components/toast.js';
+
+const LOGIN_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/login';
 
 const view = {
   async mount(container) {
@@ -94,10 +96,16 @@ const view = {
       const password = document.getElementById('password').value;
 
       try {
-        // POST /auth/login — no JWT needed, noAuth = true in api layer
-        const data = await api.postPublic('/auth/login', { username, password });
+        const res  = await fetch(LOGIN_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
 
-        if (!data.token) throw new Error('No token in response');
+        if (!res.ok || !data.token) {
+          throw new Error(data.message || (res.status === 401 ? 'Invalid credentials' : 'Login failed'));
+        }
 
         auth.setSession(data);
         store.user     = data.user;
@@ -106,9 +114,7 @@ const view = {
         toast.success(`Welcome back, ${auth.getUserName() || username}`);
         window.location.hash = '#/dashboard';
       } catch (err) {
-        const msg = err.status === 401
-          ? 'Invalid username or password'
-          : (err.message || 'Login failed. Please try again.');
+        const msg = err.message || 'Login failed. Please try again.';
 
         errorEl.textContent    = msg;
         errorEl.style.display  = 'block';

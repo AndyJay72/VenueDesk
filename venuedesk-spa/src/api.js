@@ -14,10 +14,9 @@
 
 import { auth } from './auth.js';
 
-// Production API base — proxied to /api in local dev via vite.config.js
-const BASE = import.meta.env.DEV
-  ? '/api'
-  : 'https://api.venuedesk.co.uk';
+// Always use the absolute URL — server CORS has origin:true so localhost works fine.
+// new URL() requires an absolute base; relative paths throw TypeError.
+const BASE = 'https://api.venuedesk.co.uk';
 
 // N8n webhook base — used for legacy automation triggers
 export const N8N_BASE = 'https://n8n.srv1090894.hstgr.cloud/webhook';
@@ -63,10 +62,13 @@ export async function apiFetch(path, { method = 'GET', body, params, noAuth = fa
   const url = new URL(BASE + path);
 
   if (method === 'GET') {
-    // GETs: tenant context via query param only — no JWT header to avoid preflight
+    // GETs: no request body possible, so tunnel both tenant context AND jwt via query params
+    // (Pattern 4 — CORS constraint means no Authorization header)
     if (!noAuth) {
-      const tid = auth.getTenantId();
-      if (tid) url.searchParams.set('tenant_id', String(tid));
+      const tid   = auth.getTenantId();
+      const token = auth.getToken();
+      if (tid)   url.searchParams.set('tenant_id', String(tid));
+      if (token) url.searchParams.set('jwt', token);
     }
     if (params) {
       Object.entries(params).forEach(([k, v]) => {

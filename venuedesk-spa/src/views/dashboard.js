@@ -94,12 +94,12 @@ const view = {
 
   async _loadKpis() {
     try {
-      const { data } = await api.post('/dashboard/summary', {});
+      const data = await api.get('/dashboard/metrics');
       const kpis = [
-        { id: 'bookings',    label: 'Total Bookings',      value: data.total_bookings   ?? 0,   sub: 'All time',             icon: 'fa-calendar', color: 'var(--primary)' },
-        { id: 'revenue',     label: 'Revenue (Month)',     value: fmt(data.monthly_revenue), sub: 'This calendar month',  icon: 'fa-sterling-sign', color: 'var(--success)' },
-        { id: 'pending',     label: 'Pending Requests',    value: data.pending_count    ?? 0,   sub: 'Awaiting response',    icon: 'fa-clock', color: 'var(--warning)' },
-        { id: 'outstanding', label: 'Outstanding Balance', value: fmt(data.outstanding_total), sub: 'Across all bookings', icon: 'fa-circle-exclamation', color: 'var(--danger)' },
+        { id: 'bookings',    label: 'Pending Requests',    value: data.pending_requests   ?? 0,   sub: 'Awaiting response',    icon: 'fa-clock',              color: 'var(--warning)' },
+        { id: 'revenue',     label: 'Revenue (Month)',     value: fmt(data.total_revenue_month),  sub: 'This calendar month',  icon: 'fa-sterling-sign',      color: 'var(--success)' },
+        { id: 'pending',     label: 'Contacted Today',     value: data.contacted_today    ?? 0,   sub: 'Follow-ups done today', icon: 'fa-comment-dots',       color: 'var(--info)' },
+        { id: 'outstanding', label: 'Outstanding Balance', value: fmt(data.outstanding),          sub: 'Across all bookings',  icon: 'fa-circle-exclamation', color: 'var(--danger)' },
       ];
       kpis.forEach(k => {
         const el = document.getElementById(`kpi-${k.id}`);
@@ -122,7 +122,7 @@ const view = {
   async _loadUpcoming() {
     const container = document.getElementById('upcomingBookings');
     try {
-      const { data } = await api.post('/bookings/list', {});
+      const { data } = await api.get('/bookings/list');
       const upcoming = (data || [])
         .filter(b => b.status !== 'cancelled')
         .sort((a, b) => new Date(a.date_from || a.booking_date) - new Date(b.date_from || b.booking_date))
@@ -201,7 +201,7 @@ const view = {
     const container    = document.getElementById('pendingRequests');
     const badge        = document.getElementById('pendingBadge');
     try {
-      const { data } = await api.post('/bookings/pending', {});
+      const { data } = await api.get('/bookings/pending');
       const pending = data || [];
 
       if (badge) {

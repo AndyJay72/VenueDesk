@@ -1,6 +1,6 @@
 /**
  * views/accounts.js — Financial summary
- * POST /payments/list, GET /recurring/outstanding-payments
+ * GET /accounts/transactions, GET /recurring/outstanding-payments
  */
 import { api } from '../api.js';
 import { renderSidebar, initSidebar } from '../components/sidebar.js';
@@ -47,7 +47,7 @@ const view = {
   async _load() {
     try {
       const [paymentsRes, outstandingRes] = await Promise.allSettled([
-        api.post('/payments/list', {}),
+        api.get('/accounts/transactions'),
         api.get('/recurring/outstanding-payments'),
       ]);
 

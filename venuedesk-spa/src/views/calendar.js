@@ -1,7 +1,7 @@
 /**
  * views/calendar.js — Booking calendar + availability checker
  * Wraps FullCalendar (loaded from CDN) with the existing booking data.
- * POST /bookings/list, POST /bookings/check-availability
+ * GET /bookings/list, POST /bookings/check-availability
  */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -63,7 +63,7 @@ const view = {
     // Load bookings for events
     let events = [];
     try {
-      const { data } = await api.post('/bookings/list', {});
+      const { data } = await api.get('/bookings/list');
       events = (data || []).map(b => ({
         id:    b.id,
         title: `${b.customer_name||'Booking'} — ${b.room_name||''}`,
