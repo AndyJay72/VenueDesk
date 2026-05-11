@@ -2,10 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=CommunityHub/index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://js.stripe.com;
+                 script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://js.stripe.com;
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+                 connect-src 'self' https://api.venuedesk.co.uk https://n8n.srv1090894.hstgr.cloud https://api.stripe.com;
+                 img-src 'self' data: https:;
+                 font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
   <title>VenueDesk</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+  <script type="module" crossorigin src="/assets/index-CBNA1kT4.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-P4HhiN7Q.css">
 </head>
 <body>
-  <script>window.location.replace('CommunityHub/index.html');</script>
+  <!-- SPA mount point — router replaces inner content on every navigation -->
+  <div id="app"></div>
+
 </body>
 </html>

@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud https://api.venuedesk.co.uk; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VenueDesk — Customer Onboarding</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -773,17 +772,6 @@ body.sidebar-collapsed .nav-link:hover::after {
         <div class="ob-card-title">
           <i class="fa-solid fa-building-circle-plus"></i> Onboard New Venue
         </div>
-
-        <!-- Hot Prospect Banner — shown only when redirected from prospects.html -->
-        <div id="prospectBanner" style="display:none;align-items:center;gap:10px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35);border-radius:10px;padding:.65rem 1rem;margin-bottom:1rem;">
-          <i class="fa-solid fa-fire" style="color:#fb923c;font-size:1rem;"></i>
-          <div style="flex:1;font-size:.83rem;">
-            <span style="font-weight:700;color:#fb923c;">Converting Hot Prospect:</span>
-            <span class="prospect-name" style="color:#eef2ff;margin-left:6px;"></span>
-          </div>
-          <span style="font-size:.72rem;color:rgba(251,146,60,.7);">Fields pre-filled from lead record</span>
-        </div>
-
         <div class="row2">
           <div class="input-group">
             <label>Tenant / Venue ID</label>
@@ -959,10 +947,7 @@ body.sidebar-collapsed .nav-link:hover::after {
 <script>
 // ─── Config ───────────────────────────────────────────
 const N8N  = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-// FIX: Auth token is stored in sessionStorage after admin login — never hardcode tokens
-function getAdminAuth() {
-    return sessionStorage.getItem('vp_onboarding_token') || sessionStorage.getItem('vp_token') || '';
-}
+const AUTH = 'vp-api-2026-Kj9mXqR4wZ';
 
 // ─── Sidebar ──────────────────────────────────────────
 function toggleMenu() {
@@ -973,13 +958,13 @@ function toggleMenu() {
 }
 function toggleSidebarCollapse() {
     const col = document.body.classList.toggle('sidebar-collapsed');
-    sessionStorage.setItem('vp_sidebar_col', col ? '1' : '0');
+    localStorage.setItem('vp_sidebar_col', col ? '1' : '0');
 }
-(function(){ if (sessionStorage.getItem('vp_sidebar_col') === '1') document.body.classList.add('sidebar-collapsed'); })();
+(function(){ if (localStorage.getItem('vp_sidebar_col') === '1') document.body.classList.add('sidebar-collapsed'); })();
 
 // ─── Auth ─────────────────────────────────────────────
 (function checkAuth() {
-  if (sessionStorage.getItem('vd_admin_auth') === '1') {
+  if (localStorage.getItem('vd_admin_auth') === '1') {
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     loadVenues();
@@ -1001,9 +986,7 @@ async function adminLogin() {
       body: JSON.stringify({ admin_key: key })
     });
     if (r.ok) {
-      // FIX: Store the admin key in sessionStorage so API calls can use it as bearer token
-      sessionStorage.setItem('vd_admin_auth', '1');
-      sessionStorage.setItem('vp_onboarding_token', key);
+      localStorage.setItem('vd_admin_auth', '1');
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       loadVenues();
@@ -1019,7 +1002,7 @@ async function adminLogin() {
 }
 
 function adminLogout() {
-  sessionStorage.removeItem('vd_admin_auth');
+  localStorage.removeItem('vd_admin_auth');
   location.reload();
 }
 
@@ -1033,7 +1016,6 @@ async function loadVenues() {
     renderVenues();
     renderStats();
     suggestNextId();
-    applyPrefill();
   } catch(e) {
     document.getElementById('venuesTable').innerHTML =
       '<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:2rem">Failed to load venues</td></tr>';
@@ -1090,43 +1072,6 @@ function renderVenues() {
     </tr>`).join('');
 }
 
-// ─── Prospect Prefill (from prospects.html redirect) ─
-let _prospectId = null;
-
-function applyPrefill() {
-  const p = new URLSearchParams(window.location.search);
-  const vname   = p.get('vname');
-  const contact = p.get('contact');
-  const email   = p.get('email');
-  const pid     = p.get('pid');
-  if (!vname && !pid) return;
-
-  if (pid)     { _prospectId = pid; }
-  if (vname)   { document.getElementById('fVenueName').value = decodeURIComponent(vname); autoSlug(); }
-  if (contact) { document.getElementById('fFullName').value  = decodeURIComponent(contact); }
-
-  if (pid) {
-    const banner = document.getElementById('prospectBanner');
-    if (banner) {
-      banner.style.display = 'flex';
-      const vDecoded = vname ? decodeURIComponent(vname) : ('Lead #' + pid);
-      banner.querySelector('.prospect-name').textContent = vDecoded;
-      // Show email sub-line if present
-      const eDecoded = email ? decodeURIComponent(email) : null;
-      let emailEl = banner.querySelector('.prospect-email');
-      if (eDecoded) {
-        if (!emailEl) {
-          emailEl = document.createElement('span');
-          emailEl.className = 'prospect-email';
-          emailEl.style.cssText = 'font-size:.75rem;color:#94a3b8;margin-left:6px;';
-          banner.appendChild(emailEl);
-        }
-        emailEl.textContent = '— ' + eDecoded;
-      }
-    }
-  }
-}
-
 // ─── Add venue ────────────────────────────────────────
 function suggestNextId() {
   const ids = venues.map(v => v.tenant_id).filter(Boolean);
@@ -1143,13 +1088,12 @@ function autoSlug() {
 async function addVenue() {
   const btn = document.getElementById('addVenueBtn');
   const payload = {
-    tenant_id:   parseInt(document.getElementById('fTenantId').value, 10),
-    venue_name:  document.getElementById('fVenueName').value.trim(),
-    slug:        document.getElementById('fSlug').value.trim(),
-    username:    document.getElementById('fUsername').value.trim(),
-    full_name:   document.getElementById('fFullName').value.trim(),
-    password:    document.getElementById('fPassword').value,
-    prospect_id: _prospectId || undefined,
+    tenant_id:  parseInt(document.getElementById('fTenantId').value, 10),
+    venue_name: document.getElementById('fVenueName').value.trim(),
+    slug:       document.getElementById('fSlug').value.trim(),
+    username:   document.getElementById('fUsername').value.trim(),
+    full_name:  document.getElementById('fFullName').value.trim(),
+    password:   document.getElementById('fPassword').value,
   };
   if (!payload.tenant_id || payload.tenant_id < 1000) { showToast('Tenant ID must be ≥ 1000', 'error'); return; }
   if (!payload.venue_name) { showToast('Venue name is required', 'error'); return; }
@@ -1161,7 +1105,7 @@ async function addVenue() {
   try {
     const r = await fetch(N8N + '/onboarding/create-venue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
       body: JSON.stringify(payload)
     });
     const d = await r.json();
@@ -1186,7 +1130,7 @@ async function toggleVenue(tenantId, name, currentlyActive) {
   try {
     const r = await fetch(N8N + '/onboarding/toggle-venue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
       body: JSON.stringify({ tenant_id: tenantId })
     });
     const d = await r.json();
@@ -1280,12 +1224,11 @@ function closeVenueDetail() {
 
 // Pre-authenticate as this venue and open the target VenueDesk page
 function connectToPage(tenantId, venueName, fullName, page) {
-  sessionStorage.setItem('vp_tenant_id',  tenantId);
-  sessionStorage.setItem('vp_venue_id',   tenantId);
-  sessionStorage.setItem('vp_venue_name', venueName);
-  // NOTE: In Phase 3 this should be a proper JWT for the venue — using admin token as temporary proxy
-  sessionStorage.setItem('vp_token', getAdminAuth());
-  sessionStorage.setItem('vp_user',       JSON.stringify({ name: fullName || venueName, role: 'admin' }));
+  localStorage.setItem('vp_tenant_id',  tenantId);
+  localStorage.setItem('vp_venue_id',   tenantId);
+  localStorage.setItem('vp_venue_name', venueName);
+  localStorage.setItem('vp_token',      AUTH);
+  localStorage.setItem('vp_user',       JSON.stringify({ name: fullName || venueName, role: 'admin' }));
   window.open(page, '_blank');
   showToast(`Connecting to ${page.replace('.html','')} for "${venueName}"…`, 'success');
 }
@@ -1328,7 +1271,7 @@ async function confirmEditVenue() {
   try {
     const r = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/update-tenant', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
       body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName })
     });
     const d = await r.json();
@@ -1387,7 +1330,7 @@ async function confirmResetPw() {
       // Create staff user for existing tenant
       r = await fetch(N8N + '/onboarding/create-venue', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
         body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') })
       });
       const t = await r.text();
@@ -1399,7 +1342,7 @@ async function confirmResetPw() {
     } else {
       r = await fetch(N8N + '/onboarding/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminAuth() },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
         body: JSON.stringify({ username, password })
       });
       const t = await r.text();
@@ -1438,4 +1381,3 @@ body { background-color:var(--bg-dark) !important; }
 </style>
 </body>
 </html>
-

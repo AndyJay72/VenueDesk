@@ -2,29 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud https://api.venuedesk.co.uk; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Walk-In Booking | VenueDesk</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        (function() {
-            const _t = sessionStorage.getItem('vp_token');
-            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
-            try {
-                const _p = JSON.parse(atob(_t.split('.')[1]));
-                if (_p.exp && _p.exp * 1000 < Date.now()) {
-                    sessionStorage.clear();
-                    window.location.href = 'login.html';
-                }
-            } catch(e) { /* non-JWT token, skip expiry check */ }
-        })();
-
+        if (!localStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+    
         function toggleSidebarCollapse(){
             const col=document.body.classList.toggle('sidebar-collapsed');
-            sessionStorage.setItem('vp_sidebar_col',col?'1':'0');
+            localStorage.setItem('vp_sidebar_col',col?'1':'0');
         }
-        (function(){if(sessionStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        (function(){if(localStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
         </script>
     <style>
         :root {
@@ -171,7 +160,7 @@
         .pay-method-select option { background: #1e293b; }
     
         /* ============================================================
-           RESPONSIVE DESIGN — VenuePro Full Coverage
+           RESPONSIVE DESIGN — VenueDesk Full Coverage
            Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
         ============================================================ */
 
@@ -585,20 +574,20 @@
     <script>
         function logout() {
             if (confirm("Are you sure you want to log out?")) {
-                sessionStorage.removeItem('vp_token');
-                sessionStorage.removeItem('vp_user');
+                localStorage.removeItem('vp_token');
+                localStorage.removeItem('vp_user');
                 window.location.href = 'login.html';
             }
         }
 
         const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-        const _MB_TID     = sessionStorage.getItem('vp_tenant_id') || '';
+        const _MB_TID     = localStorage.getItem('vp_tenant_id') || '';
         const BOOKING_API   = BASE_API + '/walk-in-booking';
         const CHECK_API     = BASE_API + '/check-availability';
-        const ROOMS_API     = BASE_API + '/get-rooms';
+        const ROOMS_API     = BASE_API + '/get-rooms?tenant_id=' + _MB_TID;
         const PRICING_API   = BASE_API + '/get-pricing';
-        const TYPES_API     = BASE_API + '/get-event-types';
-        const BLOCKED_API   = BASE_API + '/blocked-dates';
+        const TYPES_API     = BASE_API + '/get-event-types?tenant_id=' + _MB_TID;
+        const BLOCKED_API   = BASE_API + '/blocked-dates?tenant_id=' + _MB_TID;
 
         const DEPOSIT_PCT = 30;
 
@@ -618,7 +607,7 @@
         }
 
         function getAuthHeaders() {
-            return { 'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || '') };
+            return { 'Authorization': 'Bearer ' + (localStorage.getItem('vp_token') || '') };
         }
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');

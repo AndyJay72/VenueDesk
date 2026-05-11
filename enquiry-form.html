@@ -129,93 +129,6 @@
             justify-content: center; gap: 0.45rem;
         }
         .multi-day-btn.active { background: var(--primary); color: #fff; }
-
-        /* ── Extra rooms selection ───────────────────────────────── */
-        .extra-rooms-section {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.9rem 1.1rem;
-        }
-        .extra-rooms-section .section-label {
-            font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin-bottom: 0.65rem;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .extra-rooms-section .section-label i { color: var(--primary); font-size: 0.78rem; }
-        .extra-room-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(148,163,184,0.07);
-        }
-        .extra-room-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .extra-room-item:first-child { padding-top: 0; }
-        .extra-room-item input[type="checkbox"] {
-            /* Restore native checkbox rendering — global input rule sets appearance:none which breaks checkboxes */
-            appearance: checkbox; -webkit-appearance: checkbox; -moz-appearance: checkbox;
-            width: 18px; height: 18px; min-height: unset;
-            accent-color: var(--primary); cursor: pointer;
-            flex-shrink: 0; padding: 0; border-radius: 4px;
-            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
-        }
-        .extra-room-item label {
-            cursor: pointer; font-size: 0.9rem; font-weight: 500;
-            color: var(--text-main);
-            display: flex; align-items: center; justify-content: space-between;
-            width: 100%; gap: 10px;
-            text-transform: none; letter-spacing: 0; margin-bottom: 0;
-        }
-        .extra-room-item label .room-cap {
-            font-size: 0.78rem; color: var(--text-muted); font-weight: 400; white-space: nowrap;
-        }
-        /* ─────────────────────────────────────────────────────────── */
-
-        /* ── Add-on services section ─────────────────────────────── */
-        .services-section {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.9rem 1.1rem;
-        }
-        .services-section .section-label {
-            font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin-bottom: 0.65rem;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .services-section .section-label i { color: var(--primary); font-size: 0.78rem; }
-        .svc-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 0.55rem 0;
-            border-bottom: 1px solid rgba(148,163,184,0.07);
-        }
-        .svc-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .svc-item:first-child { padding-top: 0; }
-        .svc-item input[type="checkbox"] {
-            appearance: checkbox; -webkit-appearance: checkbox; -moz-appearance: checkbox;
-            width: 18px; height: 18px; min-height: unset;
-            accent-color: var(--primary); cursor: pointer;
-            flex-shrink: 0; padding: 0;
-        }
-        .svc-item label {
-            cursor: pointer; font-size: 0.9rem; font-weight: 500;
-            color: var(--text-main); flex: 1;
-            text-transform: none; letter-spacing: 0; margin-bottom: 0;
-        }
-        .svc-item label .svc-price {
-            font-size: 0.76rem; color: var(--text-muted); font-weight: 400;
-        }
-        .svc-hrs-input {
-            width: 68px; padding: 4px 8px;
-            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
-            border-radius: 6px; color: white; font-size: 0.82rem;
-            min-height: unset !important; height: auto !important;
-            text-align: center; flex-shrink: 0;
-            appearance: auto; -webkit-appearance: auto;
-        }
-        /* ─────────────────────────────────────────────────────────── */
-
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
         .toast {
             background: #1e293b; color: white; padding: 1rem 1.5rem;
@@ -304,10 +217,10 @@
             <div class="form-section-title"><i class="fa-solid fa-calendar-check"></i> Event Details</div>
             <div class="form-grid">
                 <div class="input-group">
-                    <label>Primary Room <span style="color:var(--danger)">*</span></label>
+                    <label>Preferred Room <span style="color:var(--danger)">*</span></label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-door-open icon-left"></i>
-                        <select id="roomName" onchange="onRoomChange()" required>
+                        <select id="roomName" onchange="checkAvailability()" required>
                             <option value="" disabled selected>Loading rooms...</option>
                         </select>
                         <i class="fa-solid fa-chevron-down icon-right"></i>
@@ -323,16 +236,6 @@
                         <i class="fa-solid fa-chevron-down icon-right"></i>
                     </div>
                 </div>
-
-                <!-- ADDITIONAL ROOMS — shown when 2+ rooms available and primary is selected -->
-                <div id="extraRoomsOuter" class="input-group full-width" style="display:none;">
-                    <label><i class="fa-solid fa-layer-group" style="color:var(--primary);margin-right:6px;"></i>Additional Rooms <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
-                    <div class="extra-rooms-section">
-                        <div class="section-label"><i class="fa-solid fa-circle-plus"></i> Select any additional spaces needed</div>
-                        <div id="extraRoomsList"></div>
-                    </div>
-                </div>
-
                 <div class="input-group" id="singleDateGroup">
                     <label>Event Date <span style="color:var(--danger)">*</span></label>
                     <div class="input-wrapper">
@@ -397,15 +300,6 @@
                         <textarea id="notes" placeholder="Any special requirements, accessibility needs or additional information..." rows="3"></textarea>
                     </div>
                 </div>
-
-                <!-- ADD-ON SERVICES — shown when services are available for this venue -->
-                <div id="servicesOuter" class="input-group full-width" style="display:none;">
-                    <label><i class="fa-solid fa-concierge-bell" style="color:var(--primary);margin-right:6px;"></i>Add-on Services <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
-                    <div class="services-section">
-                        <div class="section-label"><i class="fa-solid fa-sparkles"></i> Select any extras you'd like to include</div>
-                        <div id="servicesList"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- AVAILABILITY -->
@@ -423,11 +317,10 @@
     <div id="toast-container"></div>
 
     <script>
-        const CHECK_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
-        const SUBMIT_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
-        const BASE_API     = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-        const BLOCKED_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
-        const SERVICES_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-service-data';
+        const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+        const SUBMIT_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
+        const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+        const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
 
         // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
         // Customer venues always have tenant_id >= 1000 (tenant_id=1 is system admin)
@@ -460,16 +353,7 @@
             } catch(e) { /* non-critical — form still usable */ }
         })();
 
-        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [], enquiryServicesData = [];
-
-        // ── Safe HTML escaping for dynamic content ───────────────────
-        function esc(s) {
-            return String(s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
+        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
 
         function isDateBlocked(dateStr) {
             const d = new Date(dateStr + 'T00:00:00'), dow = d.getDay();
@@ -506,59 +390,6 @@
         }
         loadRoomsAndTypes();
 
-        // ── Add-on services (fetched from DB — works across all browsers) ─
-        async function loadServicesForEnquiry() {
-            if (!TENANT_ID) return;
-            try {
-                const res = await fetch(SERVICES_API + '?tenant_id=' + TENANT_ID);
-                if (!res.ok) return;
-                const d = await res.json();
-                enquiryServicesData = (d.data || []).filter(s => s.active !== false);
-                renderEnquiryServices();
-            } catch(e) { /* services are optional — fail silently */ }
-        }
-        loadServicesForEnquiry();
-
-        function renderEnquiryServices() {
-            const outer = document.getElementById('servicesOuter');
-            const list  = document.getElementById('servicesList');
-            if (!enquiryServicesData.length) { outer.style.display = 'none'; return; }
-            outer.style.display = '';
-            list.innerHTML = enquiryServicesData.map(s => {
-                const priceLabel = s.type === 'hourly'
-                    ? `<span class="svc-price"> — £${parseFloat(s.price).toFixed(2)}/hr</span>`
-                    : `<span class="svc-price"> — £${parseFloat(s.price).toFixed(2)} flat</span>`;
-                const hrsInput = s.type === 'hourly'
-                    ? `<input type="number" id="svc-hrs-${esc(s.id)}" class="svc-hrs-input" placeholder="hrs" min="0.5" step="0.5" title="Hours required">`
-                    : '';
-                return `<div class="svc-item">
-                    <input type="checkbox" id="svc-cb-${esc(s.id)}" value="${esc(s.id)}" data-name="${esc(s.name)}" data-type="${esc(s.type)}" data-price="${esc(s.price)}">
-                    <label for="svc-cb-${esc(s.id)}">${esc(s.name)}${priceLabel}</label>
-                    ${hrsInput}
-                </div>`;
-            }).join('');
-        }
-
-        function getServicesPayload() {
-            const selected = [];
-            enquiryServicesData.forEach(s => {
-                const cb = document.getElementById('svc-cb-' + s.id);
-                if (!cb || !cb.checked) return;
-                const hours = s.type === 'hourly'
-                    ? parseFloat((document.getElementById('svc-hrs-' + s.id) || {}).value || 0) || 0
-                    : null;
-                selected.push({
-                    name: s.name,
-                    type: s.type,
-                    price: s.price,
-                    hours: hours,
-                    subtotal: s.type === 'hourly' ? parseFloat(s.price) * hours : parseFloat(s.price)
-                });
-            });
-            return selected;
-        }
-        // ─────────────────────────────────────────────────────────────────
-
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('eventDate').min = todayStr;
         document.getElementById('dateFrom').min   = todayStr;
@@ -571,53 +402,6 @@
                 if (i < 23) sel.add(new Option(hh+':30', hh+':30'));
             }
         });
-
-        // ── Multi-room selection ──────────────────────────────────────
-
-        // Called when primary room changes — render extra-room checkboxes then re-check availability
-        function onRoomChange() {
-            renderExtraRooms();
-            checkAvailability();
-        }
-
-        // Render checkboxes for all active rooms that are NOT the selected primary room
-        function renderExtraRooms() {
-            const primaryName = document.getElementById('roomName').value;
-            const outer = document.getElementById('extraRoomsOuter');
-            const list  = document.getElementById('extraRoomsList');
-            const others = enquiryRoomsData.filter(r =>
-                r.name !== primaryName && (r.is_active || r.is_active === undefined)
-            );
-            if (!primaryName || others.length === 0) {
-                outer.style.display = 'none';
-                list.innerHTML = '';
-                return;
-            }
-            outer.style.display = '';
-            list.innerHTML = others.map(r => `
-                <div class="extra-room-item">
-                    <input type="checkbox" id="xr-${esc(r.id)}" value="${esc(r.id)}" data-name="${esc(r.name)}">
-                    <label for="xr-${esc(r.id)}">
-                        <span>${esc(r.name)}</span>
-                        <span class="room-cap">${r.capacity ? 'Cap: ' + r.capacity : ''}</span>
-                    </label>
-                </div>
-            `).join('');
-        }
-
-        // Returns [{room_id, room_name}, ...] for the primary room + any checked extra rooms
-        function getExtraRoomsPayload() {
-            const primaryName = document.getElementById('roomName').value;
-            const primaryRoom = enquiryRoomsData.find(r => r.name === primaryName);
-            const rooms = primaryRoom ? [{ room_id: primaryRoom.id, room_name: primaryRoom.name, day_rate: parseFloat(primaryRoom.day_rate || 0) }] : [];
-            document.querySelectorAll('#extraRoomsList input[type="checkbox"]:checked').forEach(cb => {
-                const extraRoom = enquiryRoomsData.find(r => String(r.id) === String(cb.value));
-                rooms.push({ room_id: cb.value, room_name: cb.dataset.name, day_rate: parseFloat(extraRoom ? extraRoom.day_rate || 0 : 0) });
-            });
-            return rooms;
-        }
-
-        // ─────────────────────────────────────────────────────────────
 
         function setAvailStatus(type, text) {
             const el = document.getElementById('availStatus');
@@ -669,28 +453,19 @@
             if (start >= end) { setAvailStatus('unavailable','End time must be after start time.'); return; }
             clearTimeout(_availTimeout);
             _availTimeout = setTimeout(async () => {
-                const allRooms = getExtraRoomsPayload();
-                const roomLabel = allRooms.length > 1 ? allRooms.map(r => r.room_name).join(' & ') : room;
                 setAvailStatus('checking', 'Checking availability for ' + (numDays > 1 ? numDays+'-day booking' : dateFrom) + '...');
                 try {
-                    // Check all selected rooms in parallel — ALL must be free
-                    const checks = await Promise.all(allRooms.map(r =>
-                        fetch(CHECK_API, {
-                            method:'POST', headers:{'Content-Type':'application/json'},
-                            body: JSON.stringify({ roomName: r.room_name, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
-                        }).then(res => res.json())
-                    ));
-                    const blockedRoom = checks.find((c, i) => !c.available);
-                    const blockedIdx  = checks.findIndex(c => !c.available);
-                    if (!blockedRoom) {
-                        setAvailStatus('available', (allRooms.length > 1 ? roomLabel + ' are' : 'Date is') + (numDays > 1 ? ' available for your ' + numDays + '-day booking!' : ' available — you can submit your enquiry.'));
+                    const data = await (await fetch(CHECK_API, {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ roomName:room, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
+                    })).json();
+                    if (data.available) {
+                        setAvailStatus('available', numDays > 1 ? 'Available for your ' + numDays + '-day booking! You can submit.' : 'Date is available - you can submit your enquiry.');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
                         isAvailable = true;
-                    } else {
-                        setAvailStatus('unavailable', 'Sorry, ' + (allRooms[blockedIdx]?.room_name || 'a room') + ' is already booked for this time slot.');
-                    }
-                } catch(e) { setAvailStatus('unavailable','Could not reach the availability service — please check your connection and try again, or contact us directly.'); }
+                    } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
+                } catch(e) { setAvailStatus('unavailable','Connection error. Please try again.'); }
             }, 500);
         }
 
@@ -698,21 +473,15 @@
             if (!isAvailable) return;
             const form = document.getElementById('enquiryForm');
             if (!form.checkValidity()) { form.reportValidity(); return; }
-
-            // CAPACITY CHECK — sum capacities of all selected rooms and compare to guest count
-            const selectedRooms = getExtraRoomsPayload();
+            // CAPACITY CHECK — prevent guest count exceeding room cap
+            const selectedRoomName = document.getElementById('roomName').value;
+            const selectedRoom = enquiryRoomsData.find(r => r.name === selectedRoomName);
             const guestCount = parseInt(document.getElementById('numPeople').value, 10);
-            const totalCapacity = selectedRooms.reduce((sum, sr) => {
-                const room = enquiryRoomsData.find(r => String(r.id) === String(sr.room_id));
-                return sum + (room && room.capacity ? parseInt(room.capacity, 10) : 0);
-            }, 0);
-            if (totalCapacity > 0 && guestCount > totalCapacity) {
-                const roomNames = selectedRooms.map(sr => sr.room_name).join(', ');
-                alert(`The selected room(s) (${roomNames}) have a combined maximum capacity of ${totalCapacity} guests. Please reduce your guest count or add more rooms.`);
+            if (selectedRoom && selectedRoom.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
+                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests. Please reduce your guest count or choose a different room.`);
                 document.getElementById('numPeople').focus();
                 return;
             }
-
             const btn = document.getElementById('submitBtn');
             isSubmitting = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Sending...</span>';
@@ -726,8 +495,6 @@
                 eventDate:document.getElementById('multiDayToggle').dataset.active === 'true' ? g('dateFrom') : g('eventDate'),
                 timeFrom:g('timeFrom'), timeTo:g('timeTo'),
                 numPeople:g('numPeople'), guest_count:g('numPeople'), notes:g('notes')||'',
-                rooms: selectedRooms,
-                services: getServicesPayload(),
                 tenant_id: TENANT_ID, venue_id: TENANT_ID
             };
             try {
@@ -735,7 +502,6 @@
                 if (res.ok) {
                     showToast("Enquiry sent! We'll be in touch shortly.", 'success');
                     form.reset();
-                    renderExtraRooms(); // clear extra rooms checkboxes after reset
                     setAvailStatus('idle','Select a room, dates and times to check availability');
                     isAvailable = false;
                     btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
