@@ -23,23 +23,24 @@ const view = {
           <p>System actions and events</p>
         </div>
 
-        <div class="card">
-          <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center;">
-            <select id="filterLevel" class="form-select" style="width:140px;">
-              <option value="">All Levels</option>
-              <option value="info">Info</option>
-              <option value="warn">Warning</option>
-              <option value="error">Error</option>
-            </select>
-            <input id="filterSource" type="text" class="form-input" placeholder="Filter by source…" style="width:200px;" />
-            <select id="filterLimit" class="form-select" style="width:120px;">
-              <option value="100">100 rows</option>
-              <option value="250">250 rows</option>
-              <option value="500">500 rows</option>
-            </select>
-            <button class="btn btn-primary" id="refreshBtn"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-          </div>
-          <div id="logTable"><div class="spinner"></div></div>
+        <div class="filter-row">
+          <select id="filterLevel" class="f-select" style="width:140px;">
+            <option value="">All Levels</option>
+            <option value="info">Info</option>
+            <option value="warn">Warning</option>
+            <option value="error">Error</option>
+          </select>
+          <input id="filterSource" type="text" class="f-input" placeholder="Filter by source…" style="max-width:220px;" />
+          <select id="filterLimit" class="f-select" style="width:120px;">
+            <option value="100">100 rows</option>
+            <option value="250">250 rows</option>
+            <option value="500">500 rows</option>
+          </select>
+          <button class="f-btn" id="refreshBtn"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+        </div>
+
+        <div class="table-wrap">
+          <div id="logTable" class="table-inner"><div class="spinner" style="margin:2rem auto;"></div></div>
         </div>
       </main>
     `;
@@ -72,12 +73,12 @@ const view = {
       const rows = data || [];
 
       if (!rows.length) {
-        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-list-check"></i><p>No log entries found</p></div>`;
+        container.innerHTML = `<div class="empty-state" style="padding:3rem;"><i class="fa-solid fa-list-check"></i><p>No log entries found</p></div>`;
         return;
       }
 
       container.innerHTML = `
-        <table class="data-table">
+        <table>
           <thead>
             <tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th><th>Tenant</th></tr>
           </thead>

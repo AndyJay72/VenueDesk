@@ -47,11 +47,20 @@ const view = {
         </div>
 
         <!-- KPI row -->
-        <div class="grid-4" id="kpiRow">
-          ${['bookings','revenue','pending','outstanding'].map(k => `
-            <div class="kpi-card" id="kpi-${k}">
-              <div class="kpi-label"><div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></div></div>
-              <div class="kpi-value">—</div>
+        <div class="metrics-grid" id="kpiRow">
+          ${[
+            { cls:'card-pre',    id:'pending',     icon:'fa-clock' },
+            { cls:'card-booked', id:'revenue',     icon:'fa-sterling-sign' },
+            { cls:'card-post',   id:'contacted',   icon:'fa-comment-dots' },
+            { cls:'card-danger', id:'outstanding', icon:'fa-circle-exclamation' },
+          ].map(k => `
+            <div class="metric-card ${k.cls}" id="kpi-${k.id}" style="--pct:0%">
+              <div class="dial-ring"><i class="fa-solid ${k.icon}" style="font-size:1.2rem;"></i></div>
+              <div class="metric-info">
+                <h3>&nbsp;</h3>
+                <div class="metric-val">—</div>
+                <div class="metric-sub"><div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;"></div></div>
+              </div>
             </div>
           `).join('')}
         </div>
@@ -95,26 +104,68 @@ const view = {
   async _loadKpis() {
     try {
       const data = await api.get('/dashboard/metrics');
+
+      const pending    = data.pending_requests   ?? 0;
+      const contacted  = data.contacted_today    ?? 0;
+      const revenue    = parseFloat(data.total_revenue_month) || 0;
+      const outstanding = parseFloat(data.outstanding)        || 0;
+
+      // pct helpers — counts relative to a soft max; money shows fixed decorative arc
+      const pct = (val, max) => `${Math.min(Math.round((val / max) * 100), 100)}%`;
+
       const kpis = [
-        { id: 'bookings',    label: 'Pending Requests',    value: data.pending_requests   ?? 0,   sub: 'Awaiting response',    icon: 'fa-clock',              color: 'var(--warning)' },
-        { id: 'revenue',     label: 'Revenue (Month)',     value: fmt(data.total_revenue_month),  sub: 'This calendar month',  icon: 'fa-sterling-sign',      color: 'var(--success)' },
-        { id: 'pending',     label: 'Contacted Today',     value: data.contacted_today    ?? 0,   sub: 'Follow-ups done today', icon: 'fa-comment-dots',       color: 'var(--info)' },
-        { id: 'outstanding', label: 'Outstanding Balance', value: fmt(data.outstanding),          sub: 'Across all bookings',  icon: 'fa-circle-exclamation', color: 'var(--danger)' },
+        {
+          id:    'pending',
+          label: 'Pending Requests',
+          dial:  pending,
+          val:   String(pending),
+          sub:   'Awaiting response',
+          pct:   pct(pending, 20),
+        },
+        {
+          id:    'revenue',
+          label: 'Revenue (Month)',
+          dial:  '<i class="fa-solid fa-sterling-sign" style="font-size:1.1rem;"></i>',
+          val:   fmt(revenue),
+          sub:   'This calendar month',
+          pct:   revenue > 0 ? '65%' : '0%',
+        },
+        {
+          id:    'contacted',
+          label: 'Contacted Today',
+          dial:  contacted,
+          val:   String(contacted),
+          sub:   'Follow-ups done today',
+          pct:   pct(contacted, 10),
+        },
+        {
+          id:    'outstanding',
+          label: 'Outstanding Balance',
+          dial:  '<i class="fa-solid fa-circle-exclamation" style="font-size:1.1rem;"></i>',
+          val:   fmt(outstanding),
+          sub:   'Across all bookings',
+          pct:   outstanding > 0 ? '70%' : '0%',
+        },
       ];
+
       kpis.forEach(k => {
         const el = document.getElementById(`kpi-${k.id}`);
         if (!el) return;
+        el.style.setProperty('--pct', k.pct);
         el.innerHTML = `
-          <div class="kpi-label"><i class="fa-solid ${k.icon}" style="color:${k.color};margin-right:6px;"></i>${k.label}</div>
-          <div class="kpi-value" style="color:${k.color};">${k.value}</div>
-          <div class="kpi-sub">${k.sub}</div>
+          <div class="dial-ring">${k.dial}</div>
+          <div class="metric-info">
+            <h3>${k.label}</h3>
+            <div class="metric-val">${k.val}</div>
+            <div class="metric-sub">${k.sub}</div>
+          </div>
         `;
       });
     } catch (err) {
       console.error('[dashboard] KPI load failed', err);
-      ['bookings','revenue','pending','outstanding'].forEach(id => {
+      ['pending','revenue','contacted','outstanding'].forEach(id => {
         const el = document.getElementById(`kpi-${id}`);
-        if (el) el.innerHTML = `<div class="kpi-label">—</div><div class="kpi-value" style="color:var(--text-muted);">Error</div>`;
+        if (el) el.innerHTML = `<div class="dial-ring">—</div><div class="metric-info"><h3>Error</h3><div class="metric-val" style="color:var(--text-muted);">—</div></div>`;
       });
     }
   },

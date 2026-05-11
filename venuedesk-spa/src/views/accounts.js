@@ -19,24 +19,23 @@ const view = {
           <p>Payment history and outstanding balances</p>
         </div>
 
-        <div class="grid-4" id="kpiRow">
+        <div class="summary-strip" id="kpiRow">
           ${['total','month','outstanding','recurring'].map(k=>`
-            <div class="kpi-card" id="acc-kpi-${k}">
-              <div class="kpi-label"><div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></div></div>
-              <div class="kpi-value">—</div>
+            <div class="sum-card" id="acc-kpi-${k}">
+              <div class="sum-val">—</div>
+              <div class="sum-lbl"><div class="spinner" style="width:12px;height:12px;border-width:2px;margin:0;display:inline-block;"></div></div>
             </div>
           `).join('')}
         </div>
 
-        <div class="grid-2" style="margin-top:1.5rem;">
-          <div class="card">
-            <div class="card-title"><i class="fa-solid fa-receipt"></i> Recent Payments</div>
-            <div id="recentPayments"><div class="spinner"></div></div>
-          </div>
-          <div class="card">
-            <div class="card-title"><i class="fa-solid fa-circle-exclamation" style="color:var(--warning);"></i> Outstanding Balances</div>
-            <div id="outstandingList"><div class="spinner"></div></div>
-          </div>
+        <div class="table-wrap">
+          <div class="table-title"><i class="fa-solid fa-receipt"></i> Recent Payments</div>
+          <div id="recentPayments" class="table-inner"><div class="spinner" style="margin:2rem auto;"></div></div>
+        </div>
+
+        <div class="table-wrap">
+          <div class="table-title"><i class="fa-solid fa-circle-exclamation" style="color:var(--warning);"></i> Outstanding Balances</div>
+          <div id="outstandingList" class="table-inner"><div class="spinner" style="margin:2rem auto;"></div></div>
         </div>
       </main>
     `;
@@ -63,32 +62,33 @@ const view = {
       const outstandingTotal = outstanding.reduce((s,r) => s + parseFloat(r.amount_due||r.next_amount_due||0), 0);
 
       const kpis = [
-        { id:'total',       label:'Total Revenue',     value:fmt(totalRevenue),    sub:'All time',           color:'var(--success)' },
-        { id:'month',       label:'This Month',        value:fmt(monthRevenue),    sub:now.toLocaleString('en-GB',{month:'long'}), color:'var(--primary)' },
-        { id:'outstanding', label:'Outstanding',       value:fmt(outstandingTotal),sub:'Across all accounts',color:'var(--warning)' },
-        { id:'recurring',   label:'Recurring Contracts',value:outstanding.length,  sub:'Active series',      color:'var(--info)' },
+        { id:'total',       label:'Total Revenue',       value:fmt(totalRevenue),    color:'var(--success)' },
+        { id:'month',       label:`${now.toLocaleString('en-GB',{month:'long'})}`,   value:fmt(monthRevenue),    color:'var(--primary)' },
+        { id:'outstanding', label:'Outstanding',         value:fmt(outstandingTotal),color:'var(--warning)' },
+        { id:'recurring',   label:'Recurring Contracts', value:outstanding.length,   color:'var(--info)' },
       ];
       kpis.forEach(k => {
         const el = document.getElementById(`acc-kpi-${k.id}`);
         if (!el) return;
-        el.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.color};">${k.value}</div><div class="kpi-sub">${k.sub}</div>`;
+        el.innerHTML = `<div class="sum-val" style="color:${k.color};">${k.value}</div><div class="sum-lbl">${k.label}</div>`;
       });
 
       // Recent payments table
       const pEl = document.getElementById('recentPayments');
       if (!payments.length) {
-        pEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>No payments recorded</p></div>`;
+        pEl.innerHTML = `<div class="empty-state" style="padding:3rem;"><i class="fa-solid fa-receipt"></i><p>No payments recorded</p></div>`;
       } else {
         pEl.innerHTML = `
-          <table class="data-table">
-            <thead><tr><th>Date</th><th>Customer</th><th>Amount</th><th>Method</th><th>Ref</th></tr></thead>
+          <table>
+            <thead><tr><th>Date</th><th>Customer</th><th>Amount</th><th>Method</th><th>Type</th><th>Ref</th></tr></thead>
             <tbody>
               ${payments.slice(0,20).map(p=>`
                 <tr>
-                  <td style="color:var(--text-muted);font-size:0.8rem;">${fmtDate(p.payment_date||p.created_at)}</td>
+                  <td style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap;">${fmtDate(p.payment_date||p.created_at)}</td>
                   <td style="font-weight:600;">${p.customer_name||p.customer_id||'—'}</td>
                   <td style="color:var(--success);font-weight:600;">${fmt(p.amount)}</td>
                   <td><span class="badge badge-info">${p.payment_method||'—'}</span></td>
+                  <td><span class="type-pill type-${(p.payment_type||'payment').toLowerCase()}">${p.payment_type||'payment'}</span></td>
                   <td style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);">${p.reference_number||'—'}</td>
                 </tr>
               `).join('')}
@@ -100,10 +100,10 @@ const view = {
       // Outstanding list
       const oEl = document.getElementById('outstandingList');
       if (!outstanding.length) {
-        oEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>No outstanding balances</p></div>`;
+        oEl.innerHTML = `<div class="empty-state" style="padding:3rem;"><i class="fa-solid fa-circle-check"></i><p>No outstanding balances</p></div>`;
       } else {
         oEl.innerHTML = `
-          <table class="data-table">
+          <table>
             <thead><tr><th>Customer</th><th>Due Date</th><th>Amount</th></tr></thead>
             <tbody>
               ${outstanding.slice(0,20).map(r=>`

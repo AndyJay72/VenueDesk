@@ -63,7 +63,7 @@ export const auth = {
     const payload = decodePayload(token);
     if (!payload) return false;
     // exp is Unix seconds
-    if (payload.exp && payload.exp < Date.now() / 1000) {
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
       this.clearSession();
       return false;
     }
