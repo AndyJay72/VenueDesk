@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+venuedesk-spa/node_modules/
+
+# Build output (deployed separately)
+venuedesk-spa/dist/
+
+# Environment / secrets — NEVER commit these
+*.env
+.env*
+venuedesk-api/docker-compose.yml
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Skill workspaces (local tooling artefacts)
+skills/venuedesk-recurring-page-workspace/
+venuedesk-spa/package-lock.json
+
+# Misc
+*.b64
+rebrand-*.jpeg
