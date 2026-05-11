@@ -161,7 +161,7 @@
         @media (max-width: 768px) { aside { transform: translateX(-100%); } aside.active { transform: translateX(0); } main { margin-left: 0; padding: 1rem; } .menu-toggle { display: flex; } .close-sidebar { display: block; } }
     
         /* ============================================================
-           RESPONSIVE DESIGN — VenuePro Full Coverage
+           RESPONSIVE DESIGN — VenueDesk Full Coverage
            Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360
         ============================================================ */
 
@@ -687,6 +687,7 @@
         <button class="tab-btn"        onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> Settings</button>
         <button class="tab-btn"        onclick="switchTab('cancellation')"><i class="fa-solid fa-ban"></i> Cancellation Policy</button>
         <button class="tab-btn"        onclick="switchTab('policy-templates')"><i class="fa-solid fa-file-contract"></i> Policy Templates</button>
+        <button class="tab-btn"        onclick="switchTab('payments')"><i class="fa-solid fa-credit-card"></i> Payments</button>
     </div>
 
     <!-- ═══════════════════════════════════════ -->
@@ -1085,14 +1086,119 @@
         </div>
     </div>
 
+    <!-- ══════════════════ PAYMENTS TAB ══════════════════ -->
+    <div class="tab-panel" id="tab-payments">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;" class="grid-split">
+
+            <!-- ── Stripe ── -->
+            <div class="card">
+                <div class="card-title"><i class="fa-brands fa-stripe" style="color:#635bff;"></i> Stripe Payments</div>
+
+                <!-- Enable toggle -->
+                <div class="input-group" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                    <label style="margin:0;">Enable Stripe Card Payments</label>
+                    <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;">
+                        <input type="checkbox" id="stripeEnabled" onchange="onStripeToggle()" style="opacity:0;width:0;height:0;">
+                        <span style="position:absolute;inset:0;background:#334155;border-radius:26px;cursor:pointer;transition:.3s;" id="stripeToggleTrack"></span>
+                        <span style="position:absolute;left:3px;bottom:3px;width:20px;height:20px;background:white;border-radius:50%;transition:.3s;" id="stripeToggleThumb"></span>
+                    </label>
+                </div>
+
+                <div id="stripeFields">
+                    <div class="input-group">
+                        <label>Publishable Key <span style="color:var(--text-muted);font-weight:400;">(pk_live_... or pk_test_...)</span></label>
+                        <input type="text" id="stripePubKey" class="form-input" placeholder="pk_live_..." autocomplete="off">
+                    </div>
+                    <div class="input-group">
+                        <label>Secret Key <span style="color:var(--text-muted);font-weight:400;">(leave blank to keep existing)</span></label>
+                        <div style="position:relative;">
+                            <input type="password" id="stripeSecretKey" class="form-input" placeholder="sk_live_... (write-only)" autocomplete="new-password" style="padding-right:2.5rem;">
+                            <i class="fa-solid fa-eye" id="secretKeyToggle" onclick="toggleVis('stripeSecretKey','secretKeyToggle')"
+                               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);"></i>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.75rem;">Never shown after saving. Leave blank to keep the current key.</small>
+                    </div>
+
+                    <!-- Webhook setup guide -->
+                    <div style="background:rgba(99,91,255,0.08);border:1px solid rgba(99,91,255,0.25);border-radius:10px;padding:1rem;margin:1rem 0;">
+                        <p style="font-size:0.82rem;font-weight:700;color:#a5b4fc;margin:0 0 0.6rem;">
+                            <i class="fa-solid fa-circle-info"></i> Stripe Webhook Setup (one-time)
+                        </p>
+                        <ol style="font-size:0.8rem;color:var(--text-muted);margin:0;padding-left:1.2rem;line-height:1.8;">
+                            <li>Log in to your <a href="https://dashboard.stripe.com/webhooks" target="_blank" style="color:#818cf8;">Stripe Dashboard → Webhooks</a></li>
+                            <li>Click <strong style="color:var(--text-main);">+ Add endpoint</strong></li>
+                            <li>Endpoint URL — copy and paste:<br>
+                                <code id="webhookUrlDisplay" style="background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:4px;font-size:0.78rem;color:#c7d2fe;user-select:all;">https://api.venuedesk.co.uk/stripe/webhook</code>
+                                <button onclick="copyWebhookUrl()" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:0.75rem;margin-left:6px;"><i class="fa-solid fa-copy"></i> Copy</button>
+                            </li>
+                            <li>Under <em>Events</em>, select: <strong style="color:var(--text-main);">checkout.session.completed</strong></li>
+                            <li>Click <strong style="color:var(--text-main);">Add endpoint</strong>, then reveal and copy the <strong style="color:var(--text-main);">Signing secret</strong></li>
+                            <li>Paste it in the field below and click <strong style="color:var(--text-main);">Save Stripe Settings</strong></li>
+                        </ol>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Webhook Signing Secret <span style="color:var(--text-muted);font-weight:400;">(whsec_... — leave blank to keep existing)</span></label>
+                        <div style="position:relative;">
+                            <input type="password" id="stripeWebhookSecret" class="form-input" placeholder="whsec_... (write-only)" autocomplete="new-password" style="padding-right:2.5rem;">
+                            <i class="fa-solid fa-eye" id="webhookSecretToggle" onclick="toggleVis('stripeWebhookSecret','webhookSecretToggle')"
+                               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text-muted);"></i>
+                        </div>
+                    </div>
+
+                    <!-- Key status indicators -->
+                    <div style="display:flex;gap:0.75rem;margin:0.5rem 0 1.25rem;flex-wrap:wrap;" id="stripeKeyStatus">
+                        <span id="statusSecretKey" style="font-size:0.75rem;padding:3px 10px;border-radius:20px;background:rgba(100,116,139,0.2);color:var(--text-muted);">
+                            <i class="fa-solid fa-key"></i> Secret key: not set
+                        </span>
+                        <span id="statusWebhookSecret" style="font-size:0.75rem;padding:3px 10px;border-radius:20px;background:rgba(100,116,139,0.2);color:var(--text-muted);">
+                            <i class="fa-solid fa-webhook"></i> Webhook: not set
+                        </span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveStripeSettings()" id="saveStripeBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Stripe Settings
+                </button>
+                <span id="stripeStatus" style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+
+            <!-- ── BACS ── -->
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-building-columns"></i> BACS Bank Transfer</div>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">
+                    These details are shown to customers who choose to pay by bank transfer.
+                </p>
+                <div class="input-group">
+                    <label>Account Name</label>
+                    <input type="text" id="bacsName" class="form-input" placeholder="e.g. Your Venue Ltd">
+                </div>
+                <div class="input-group">
+                    <label>Sort Code</label>
+                    <input type="text" id="bacsSort" class="form-input" placeholder="00-00-00" maxlength="8">
+                </div>
+                <div class="input-group">
+                    <label>Account Number</label>
+                    <input type="text" id="bacsNumber" class="form-input" placeholder="12345678" maxlength="8">
+                </div>
+                <button class="btn btn-primary" onclick="saveBacsSettings()" id="saveBacsBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save BACS Details
+                </button>
+                <span id="bacsStatus" style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <script>
 // ─────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────
-const BASE = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-const _TID = () => sessionStorage.getItem('vp_tenant_id') || '';
+const BASE    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+const DB_API  = 'https://api.venuedesk.co.uk';
+const _TID    = () => sessionStorage.getItem('vp_tenant_id') || '';
+const _TOKEN  = () => sessionStorage.getItem('vp_token') || '';
 const API = {
     getPolicyTemplates:  BASE + '/get-policy-templates',
     savePolicyTemplate:  BASE + '/save-policy-template',
@@ -2081,6 +2187,175 @@ async function savePolicyTemplate(code) {
         if (status) status.textContent = '✗ Error: ' + err.message;
     }
 }
+
+// ─────────────────────────────────────────────
+// PAYMENTS TAB
+// ─────────────────────────────────────────────
+
+async function loadPaymentSettings() {
+    try {
+        // POST with jwt in body — Pattern 4 (CORS blocks Authorization header)
+        const res = await fetch(`${DB_API}/admin/payment-settings/load`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jwt: _TOKEN() }),
+        });
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!data) return;
+
+        // Stripe toggle
+        const chk = document.getElementById('stripeEnabled');
+        if (chk) {
+            chk.checked = !!data.is_stripe_enabled;
+            updateToggleVisual();
+        }
+
+        // Publishable key (not secret — show as-is)
+        const pub = document.getElementById('stripePubKey');
+        if (pub) pub.value = data.stripe_publishable_key || '';
+
+        // Status badges
+        setKeyBadge('statusSecretKey',     data.has_secret_key,     'Secret key',  'fa-key');
+        setKeyBadge('statusWebhookSecret', data.has_webhook_secret,  'Webhook',     'fa-webhook');
+
+        // BACS
+        setVal('bacsName',   data.bacs_account_name);
+        setVal('bacsSort',   data.bacs_sort_code);
+        setVal('bacsNumber', data.bacs_account_number);
+    } catch(e) { /* silent on load */ }
+}
+
+function setVal(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.value = v || '';
+}
+
+function setKeyBadge(id, isSet, label, icon) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (isSet) {
+        el.style.background = 'rgba(16,185,129,0.15)';
+        el.style.color       = '#6ee7b7';
+        el.innerHTML = `<i class="fa-solid ${icon}"></i> ${label}: saved ✓`;
+    } else {
+        el.style.background = 'rgba(100,116,139,0.2)';
+        el.style.color       = 'var(--text-muted)';
+        el.innerHTML = `<i class="fa-solid ${icon}"></i> ${label}: not set`;
+    }
+}
+
+function updateToggleVisual() {
+    const chk   = document.getElementById('stripeEnabled');
+    const track = document.getElementById('stripeToggleTrack');
+    const thumb = document.getElementById('stripeToggleThumb');
+    if (!chk || !track || !thumb) return;
+    const on = chk.checked;
+    track.style.background = on ? 'var(--primary)' : '#334155';
+    thumb.style.left        = on ? '25px' : '3px';
+}
+
+function onStripeToggle() { updateToggleVisual(); }
+
+function toggleVis(inputId, iconId) {
+    const inp = document.getElementById(inputId);
+    const ico = document.getElementById(iconId);
+    if (!inp) return;
+    const isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    if (ico) ico.className = `fa-solid fa-eye${isHidden ? '-slash' : ''} `;
+}
+
+function copyWebhookUrl() {
+    navigator.clipboard.writeText('https://api.venuedesk.co.uk/stripe/webhook')
+        .then(() => showToast('Webhook URL copied to clipboard', 'success'))
+        .catch(() => {});
+}
+
+async function saveStripeSettings() {
+    const btn    = document.getElementById('saveStripeBtn');
+    const status = document.getElementById('stripeStatus');
+    btn.disabled = true;
+    status.textContent = 'Saving…';
+
+    const body = {
+        jwt:                    _TOKEN(),
+        is_stripe_enabled:      document.getElementById('stripeEnabled').checked,
+        stripe_publishable_key: document.getElementById('stripePubKey').value.trim(),
+        stripe_secret_key:      document.getElementById('stripeSecretKey').value.trim(),
+        stripe_webhook_secret:  document.getElementById('stripeWebhookSecret').value.trim(),
+    };
+
+    try {
+        const res = await fetch(`${DB_API}/admin/payment-settings/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || res.statusText);
+
+        // Clear secret fields after save — they are write-only
+        document.getElementById('stripeSecretKey').value      = '';
+        document.getElementById('stripeWebhookSecret').value  = '';
+
+        status.style.color = '#6ee7b7';
+        status.textContent = '✓ Saved';
+        showToast('Stripe settings saved', 'success');
+        await loadPaymentSettings(); // refresh badges
+    } catch(e) {
+        status.style.color = '#f87171';
+        status.textContent = '✗ ' + e.message;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 4000);
+    }
+}
+
+async function saveBacsSettings() {
+    const btn    = document.getElementById('saveBacsBtn');
+    const status = document.getElementById('bacsStatus');
+    btn.disabled = true;
+    status.textContent = 'Saving…';
+
+    const body = {
+        jwt:                 _TOKEN(),
+        bacs_account_name:   document.getElementById('bacsName').value.trim(),
+        bacs_sort_code:      document.getElementById('bacsSort').value.trim(),
+        bacs_account_number: document.getElementById('bacsNumber').value.trim(),
+    };
+
+    try {
+        const res = await fetch(`${DB_API}/admin/payment-settings/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || res.statusText);
+
+        status.style.color = '#6ee7b7';
+        status.textContent = '✓ Saved';
+        showToast('BACS details saved', 'success');
+    } catch(e) {
+        status.style.color = '#f87171';
+        status.textContent = '✗ ' + e.message;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 4000);
+    }
+}
+
+// Load payment settings when the Payments tab is activated
+const _origSwitchTab = window.switchTab;
+document.addEventListener('DOMContentLoaded', () => {
+    const orig = window.switchTab;
+    window.switchTab = function(name) {
+        orig(name);
+        if (name === 'payments') loadPaymentSettings();
+    };
+    // Also patch the inline onclick calls which reference switchTab directly
+});
 
 
 </script>
