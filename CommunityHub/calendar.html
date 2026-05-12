@@ -1228,30 +1228,54 @@
         function getAuthHeaders(){return{};}
         function tidUrl(base){return base+(base.includes('?')?'&':'?')+'tenant_id='+_CAL_TID();}
 
-        // ── Payment config (Stripe + BACS) ─────────────────────────────────────
+        // ── Payment config (Stripe status + publishable key) ───────────────────
+        // /stripe/config is public — no JWT needed or sent (JWT in URL would be logged).
         const CAL_DB_API='https://api.venuedesk.co.uk';
-        let calPayConfig=null;
+        let calPayConfig=null, _calPayConfigTs=0;
         async function loadCalPayConfig(){
-            if(calPayConfig)return calPayConfig;
+            const now=Date.now();
+            if(calPayConfig&&(now-_calPayConfigTs)<300000)return calPayConfig;
             try{
-                const r=await fetch(`${CAL_DB_API}/stripe/config?tenant_id=${_CAL_TID()}&jwt=${encodeURIComponent(sessionStorage.getItem('vp_token')||'')}`);
+                const r=await fetch(`${CAL_DB_API}/stripe/config?tenant_id=${_CAL_TID()}`);
+                if(!r.ok){calPayConfig={};return calPayConfig;}
                 const j=await r.json();
                 calPayConfig=j.data||j||{};
+                _calPayConfigTs=now;
             }catch(e){calPayConfig={};}
             return calPayConfig;
+        }
+        // ── BACS details (authenticated — behind /stripe/bacs-details) ─────────
+        // Fetched lazily only when BACS/bank_transfer is selected.
+        // JWT travels via query param (GET + auth middleware supports request.query.jwt).
+        let _calBacsCache=null;
+        async function loadCalBacsDetails(){
+            if(_calBacsCache)return _calBacsCache;
+            try{
+                const jwt=encodeURIComponent(sessionStorage.getItem('vp_token')||'');
+                const r=await fetch(`${CAL_DB_API}/stripe/bacs-details?jwt=${jwt}`);
+                if(!r.ok){_calBacsCache={};return _calBacsCache;}
+                const j=await r.json();
+                _calBacsCache=j.data||{};
+            }catch(e){_calBacsCache={};}
+            return _calBacsCache;
+        }
+        function _renderBacsHtml(b){
+            return `<div><span style="color:var(--text-muted)">Account Name:</span> <strong>${b.bacs_account_name||'—'}</strong></div>`+
+                   `<div><span style="color:var(--text-muted)">Sort Code:</span> <strong>${b.bacs_sort_code||'—'}</strong></div>`+
+                   `<div><span style="color:var(--text-muted)">Account No:</span> <strong>${b.bacs_account_number||'—'}</strong></div>`;
         }
         // Called when staff changes payment method in the balance-payment panel
         async function onEpayMethodChange(){
             const method=document.getElementById('e-pay-method').value;
             const cfg=await loadCalPayConfig();
-            document.getElementById('epay-bacs-panel').style.display=
-                (method==='bacs'||method==='bank_transfer')&&(cfg.bacs_account_name||cfg.bacs_sort_code)
-                    ?'block':'none';
-            if(document.getElementById('epay-bacs-panel').style.display==='block'){
-                document.getElementById('epay-bacs-content').innerHTML=
-                    `<div><span style="color:var(--text-muted)">Account Name:</span> <strong>${cfg.bacs_account_name||'—'}</strong></div>`+
-                    `<div><span style="color:var(--text-muted)">Sort Code:</span> <strong>${cfg.bacs_sort_code||'—'}</strong></div>`+
-                    `<div><span style="color:var(--text-muted)">Account No:</span> <strong>${cfg.bacs_account_number||'—'}</strong></div>`;
+            const isBacs=method==='bacs'||method==='bank_transfer';
+            if(isBacs){
+                const bacs=await loadCalBacsDetails();
+                const hasDetails=bacs.bacs_account_name||bacs.bacs_sort_code;
+                document.getElementById('epay-bacs-panel').style.display=hasDetails?'block':'none';
+                if(hasDetails)document.getElementById('epay-bacs-content').innerHTML=_renderBacsHtml(bacs);
+            }else{
+                document.getElementById('epay-bacs-panel').style.display='none';
             }
             document.getElementById('epay-stripe-info').style.display=
                 method==='card'&&cfg.is_stripe_enabled?'block':'none';
@@ -1259,15 +1283,14 @@
         // Same for the Confirm + Deposit panel
         async function onCsMethodChange(){
             const method=document.getElementById('e-cs-method').value;
-            const cfg=await loadCalPayConfig();
-            document.getElementById('epay-cs-bacs-panel').style.display=
-                (method==='bacs'||method==='bank_transfer')&&(cfg.bacs_account_name||cfg.bacs_sort_code)
-                    ?'block':'none';
-            if(document.getElementById('epay-cs-bacs-panel').style.display==='block'){
-                document.getElementById('epay-cs-bacs-content').innerHTML=
-                    `<div><span style="color:var(--text-muted)">Account Name:</span> <strong>${cfg.bacs_account_name||'—'}</strong></div>`+
-                    `<div><span style="color:var(--text-muted)">Sort Code:</span> <strong>${cfg.bacs_sort_code||'—'}</strong></div>`+
-                    `<div><span style="color:var(--text-muted)">Account No:</span> <strong>${cfg.bacs_account_number||'—'}</strong></div>`;
+            const isBacs=method==='bacs'||method==='bank_transfer';
+            if(isBacs){
+                const bacs=await loadCalBacsDetails();
+                const hasDetails=bacs.bacs_account_name||bacs.bacs_sort_code;
+                document.getElementById('epay-cs-bacs-panel').style.display=hasDetails?'block':'none';
+                if(hasDetails)document.getElementById('epay-cs-bacs-content').innerHTML=_renderBacsHtml(bacs);
+            }else{
+                document.getElementById('epay-cs-bacs-panel').style.display='none';
             }
         }
 

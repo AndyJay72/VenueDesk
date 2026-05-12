@@ -331,18 +331,26 @@
         const SUBMIT_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
         const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
         const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+        const EF_DB_API   = 'https://api.venuedesk.co.uk';
 
         // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
-        // Customer venues always have tenant_id >= 1000 (tenant_id=1 is system admin)
+        // Tenant IDs for real venues are always >= 1000 (tenant_id=1 is system admin).
+        // SECURITY: TENANT_ID is used for display + availability lookup only.
+        // The enquiry submission and Stripe session endpoints validate it server-side
+        // independently — this client value is never trusted for billing or data access.
         const TENANT_ID = (function() {
             const p = new URLSearchParams(window.location.search);
             const id = parseInt(p.get('t') || p.get('tenant') || '0', 10);
             return (id >= 1000) ? id : null;
         })();
 
-        // Show error or load venue name + payment config
-        // SECURITY: uses /stripe/config which is scoped to TENANT_ID only.
-        // The old get-tenants call returned all tenant records — that was a data leak.
+        // Stripe state — declared before initTenant so the IIFE can assign them safely
+        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
+        let efStripeEnabled = false, efStripeKey = '', efDepositAmount = 50;
+
+        // Show error or load venue name + Stripe config
+        // SECURITY: /stripe/config returns only is_stripe_enabled + publishable key + venue_name.
+        // BACS fields are behind auth (/stripe/bacs-details). Secret key never leaves the server.
         (async function initTenant() {
             if (!TENANT_ID) {
                 document.getElementById('errorBanner').style.display = 'block';
@@ -363,7 +371,8 @@
                     document.title = 'Event Enquiry | ' + d.venue_name;
                 }
 
-                // Stripe — only show deposit button if fully configured
+                // Stripe — only show deposit button if publishable key is present
+                // (button stays disabled until availability is confirmed)
                 if (d.is_stripe_enabled && d.stripe_publishable_key) {
                     efStripeEnabled = true;
                     efStripeKey     = d.stripe_publishable_key;
@@ -371,10 +380,6 @@
                 }
             } catch(e) { /* non-critical — form still usable without venue name */ }
         })();
-
-        const EF_DB_API = 'https://api.venuedesk.co.uk';
-        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
-        let efStripeEnabled = false, efStripeKey = '';
 
         function isDateBlocked(dateStr) {
             const d = new Date(dateStr + 'T00:00:00'), dow = d.getDay();
@@ -487,10 +492,24 @@
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
                         isAvailable = true;
-                        // Enable deposit button if Stripe is configured
+                        // Calculate deposit amount from selected room pricing
+                        // Bounds: min £10, max £500 — must match server-side PUBLIC_SESSION bounds
+                        const selRoomName = document.getElementById('roomName').value;
+                        const selRoom = enquiryRoomsData.find(r => r.name === selRoomName);
+                        const rawDeposit = selRoom?.deposit_amount
+                            ? parseFloat(selRoom.deposit_amount)
+                            : selRoom?.day_rate
+                                ? Math.round(parseFloat(selRoom.day_rate) * 0.20 * 100) / 100
+                                : 50;
+                        efDepositAmount = Math.max(10, Math.min(500, rawDeposit || 50));
+                        // Enable deposit button and show calculated amount
                         const dep = document.getElementById('depositBtn');
                         const depNote = document.getElementById('depositNote');
-                        if (efStripeEnabled) { dep.disabled = false; depNote.style.display = 'block'; }
+                        if (efStripeEnabled) {
+                            dep.disabled = false;
+                            dep.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
+                            depNote.style.display = 'block';
+                        }
                     } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
                 } catch(e) { setAvailStatus('unavailable','Connection error. Please try again.'); }
             }, 500);
@@ -574,20 +593,22 @@
                 // Step 1 — submit the enquiry record
                 const eRes = await fetch(SUBMIT_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
                 if (!eRes.ok) throw new Error('Enquiry submission failed');
+                // Attempt to capture the booking_request_id from the response for Stripe metadata
+                let bookingRequestId = null;
+                try { const ej = await eRes.clone().json(); bookingRequestId = ej.id || ej.booking_request_id || null; } catch(e2) {}
 
-                // Step 2 — create a Stripe Checkout Session for the deposit
-                // Deposit amount: fetch the room rate to calculate; fall back to a placeholder
-                const depositAmount = selectedRoom?.deposit_amount || selectedRoom?.day_rate
-                    ? Math.round((parseFloat(selectedRoom.day_rate||0) * 0.2) * 100) / 100
-                    : 50; // £50 default if no pricing data available
-
-                const sRes = await fetch(`${EF_DB_API}/stripe/session`, {
+                // Step 2 — create a Stripe Checkout Session via the public endpoint (no JWT required)
+                // SECURITY: /public-session validates tenant server-side and enforces amount bounds (£10–£500).
+                // tenant_id here is used for server-side validation only — server re-reads the secret key
+                // from the validated tenant row, it does not trust this value for billing directly.
+                const sRes = await fetch(`${EF_DB_API}/stripe/public-session`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({
-                        amount: depositAmount || 50,
-                        tenant_id: TENANT_ID,
-                        description: `Deposit — ${g('eventType')} at ${g('roomName')} on ${payload.dateFrom}`,
-                        success_url: window.location.origin + '/CommunityHub/checkout.html?session_id={CHECKOUT_SESSION_ID}',
+                        tenant_id:          TENANT_ID,
+                        amount:             efDepositAmount,
+                        booking_request_id: bookingRequestId,
+                        description:        `Deposit — ${g('eventType')} at ${g('roomName')} on ${payload.dateFrom}`,
+                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}',
                         cancel_url:  window.location.href,
                     })
                 });
@@ -596,7 +617,7 @@
                 throw new Error(sj.message || 'Could not create payment session');
             } catch(e) {
                 isSubmitting = false;
-                depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay Deposit by Card</span>';
+                depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
                 depBtn.disabled = false;
                 showToast('Error: ' + e.message, 'error');
             }

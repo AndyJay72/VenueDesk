@@ -1,0 +1,88 @@
+{
+  "name": "VenuePro - Log Payment Action",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "log-payment-action",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-log-001",
+      "name": "Webhook: Log Payment Action",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-400, 200],
+      "webhookId": "log-payment-action",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.audit_log (tenant_id, action, entity, entity_id, payload, staff_user, source, created_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, NOW()) RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [\n  parseInt($('Webhook: Log Payment Action').first().json.body.tenant_id || $('Webhook: Log Payment Action').first().json.query.tenant_id || '0'),\n  ($('Webhook: Log Payment Action').first().json.body.action || 'manual_payment').substring(0, 100),\n  ($('Webhook: Log Payment Action').first().json.body.entity || 'booking').substring(0, 50),\n  ($('Webhook: Log Payment Action').first().json.body.entity_id || null),\n  JSON.stringify({\n    amount:         $('Webhook: Log Payment Action').first().json.body.amount || null,\n    method:         $('Webhook: Log Payment Action').first().json.body.payment_method || null,\n    payment_type:   $('Webhook: Log Payment Action').first().json.body.payment_type || null,\n    reference:      $('Webhook: Log Payment Action').first().json.body.reference_number || null,\n    customer_id:    $('Webhook: Log Payment Action').first().json.body.customer_id || null\n  }),\n  ($('Webhook: Log Payment Action').first().json.body.staff_user || null),\n  ($('Webhook: Log Payment Action').first().json.body.source || 'dashboard').substring(0, 50)\n] }}"
+        }
+      },
+      "id": "db-log-001",
+      "name": "DB: Insert Audit Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-160, 200],
+      "credentials": {
+        "postgres": {
+          "id": "XHopEzNBCVGCXpXV",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"logged\",\"id\":\"{{ $json.id }}\"}",
+        "options": {}
+      },
+      "id": "re-log-001",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [80, 200]
+    }
+  ],
+  "pinData": {},
+  "active": true,
+  "connections": {
+    "Webhook: Log Payment Action": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a9f3c2d1-b4e5-6789-cdef-012345678901",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "id": "LogPaymentActionWF01",
+  "tags": []
+}
