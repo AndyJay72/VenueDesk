@@ -1,6 +1,6 @@
 # VenueDesk Migration Status & Roadmap
-**Date:** 2026-04-28  
-**Phase:** 3 Complete → Phase 4b Pre-requisite  
+**Date:** 2026-05-12  
+**Phase:** 4b Ready — All prerequisites met, FORCE RLS next  
 **Classification:** Internal Engineering Reference
 
 ---
@@ -29,7 +29,7 @@ Browser / n8n
 | JWT required on all db-api endpoints | ✅ Complete |
 | Tenant isolation via JWT payload | ✅ Complete |
 | RLS ENABLE on all tenant tables | ✅ Complete |
-| RLS FORCE (zero-bypass enforcement) | ⏳ Blocked — see §4 |
+| RLS FORCE (zero-bypass enforcement) | ⏳ Ready to execute — see §5 |
 
 ---
 
@@ -116,31 +116,34 @@ The outer `BEGIN / COMMIT` transaction remains intact; only the savepoint rolls 
 | ✅ | Environment injection for n8n service auth | `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` confirmed live; `N8N_SERVICE_JWT` verified in container |
 | ✅ | PaymentChaser — HTTP-only | `CHASER_SERVICE_JWT` injected; zero PG nodes |
 | ✅ | Recurring payment lifecycle | `record-payment`, `cancel-series`, `get-schedule`, `get-outstanding`, `log-interaction` all live on db-api |
+| ✅ | Dirty Ten fully migrated | All 10 in-scope workflows confirmed at 0 PG nodes (audit: 2026-05-12) |
+| ✅ | `audit_log` RLS enabled + FORCED | Migration `015_audit_log_rls.sql` applied |
+| ✅ | `tenants` RLS policy applied | Migration `016_tenants_rls_policy.sql` — fixes stripe/config empty response |
+| ✅ | Stripe integration live | `/stripe/config`, `/stripe/session`, `/stripe/public-session`, `/stripe/webhook` all operational |
+| ✅ | `POST /audit/log` db-api endpoint | Replaces `LogPaymentActionWF.json` direct PG node; `index.html` updated |
 
 ---
 
-## 4. The "Dirty Ten" — Remaining Blocks on FORCE RLS
+## 4. The "Dirty Ten" — ✅ COMPLETE
 
-The original plan referenced six blocking workflows. A full audit reveals **ten in-scope VenuePro/VenueDesk workflows** still containing Postgres nodes. All ten must reach zero PG nodes before `FORCE ROW LEVEL SECURITY` can be safely applied.
+Audit run 2026-05-12 confirms all 10 in-scope workflows are at **0 PG nodes**:
 
-### 4.1 In-scope — Must migrate
+| Workflow | File | PG Nodes |
+|----------|------|----------|
+| Billing Cycle Daily Trigger | `BillingCycleTrigger.json` | ✅ 0 |
+| Cancel Booking (Series Support) | `CancelBooking.json` | ✅ 0 |
+| Record Recurring Payment | `RecordRecurringPayment.json` | ✅ 0 |
+| Recurring Auto-Cancel Unpaid | `RecurringAutoCancel.json` | ✅ 0 |
+| Recurring Make Booking | `RecurringMakeBooking.json` | ✅ 0 |
+| Services API | `ServicesWF.json` | ✅ 0 |
+| Pending Lifecycle Scheduler | `XKKG5SZ75bHg35Zt.json` | ✅ 0 |
+| Monthly Recurring Booking Generator | `RecurringBookingGenerator.json` | ✅ 0 |
+| Create Recurring Booking (Fixed) | `RecurringBookingWorkflow_fixed.json` | ✅ 0 |
+| Test: Recurring Series Architecture | `Test_RecurringSeries.json` | ✅ Deleted |
 
-| Workflow | File | PG Nodes | Priority |
-|----------|------|----------|----------|
-| Billing Cycle Daily Trigger | `BillingCycleTrigger.json` | 6 | HIGH — runs daily |
-| Cancel Booking (Series Support) | `CancelBooking.json` | 5 | HIGH — user-facing |
-| Record Recurring Payment | `RecordRecurringPayment.json` | 6 | HIGH — financial |
-| Recurring Auto-Cancel Unpaid | `RecurringAutoCancel.json` | 5 | HIGH — runs daily |
-| Recurring Make Booking | `RecurringMakeBooking.json` | 5 | HIGH — user-facing |
-| Services API | `ServicesWF.json` | 3 | MEDIUM |
-| Pending Lifecycle Scheduler | `XKKG5SZ75bHg35Zt.json` | 5 | MEDIUM — runs daily |
-| Monthly Recurring Booking Generator | `RecurringBookingGenerator.json` | 5 | LOW — may be superseded |
-| Create Recurring Booking (Fixed) | `RecurringBookingWorkflow_fixed.json` | 4 | LOW — legacy/backup |
-| Test: Recurring Series Architecture | `Test_RecurringSeries.json` | 9 | LOW — **delete, do not migrate** |
+**All Phase 4b prerequisites are met. RLS FORCE execution is unblocked.**
 
-**Total remaining in-scope PG nodes: 53**
-
-### 4.2 Excluded — Do not migrate for FORCE RLS purposes
+### 4.1 Excluded — Do not migrate for FORCE RLS purposes
 
 | Category | Workflows | Reason |
 |----------|-----------|--------|
@@ -153,10 +156,10 @@ The original plan referenced six blocking workflows. A full audit reveals **ten 
 
 ### Prerequisites (must be true before any FORCE command)
 
-- [ ] All ten in-scope workflows reach 0 PG nodes
-- [ ] `Test_RecurringSeries.json` deleted from n8n and removed from backup
-- [ ] All migrated workflows imported and smoke-tested in n8n
-- [ ] Each db-api endpoint verified with real bookings data (not just health check)
+- [x] All ten in-scope workflows reach 0 PG nodes
+- [x] `Test_RecurringSeries.json` deleted from n8n and removed from backup
+- [x] All migrated workflows imported and smoke-tested in n8n
+- [x] Each db-api endpoint verified with real bookings data (not just health check)
 
 ### FORCE RLS Execution Order
 
@@ -233,4 +236,4 @@ await client.query(
 
 ---
 
-*Generated: 2026-04-28 | Next review: after Dirty Ten migration completes*
+*Generated: 2026-04-28 | Updated: 2026-05-12 | Next action: execute FORCE RLS rollout (§5)*
