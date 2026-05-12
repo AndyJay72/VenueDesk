@@ -967,3 +967,18 @@ scp root@72.61.19.52:/opt/n8n_postgres/docker-compose.yml \
     ~/Downloads/venue_desk_backup/venuedesk-api/docker-compose.yml
 ```
 
+## ⚠️ Production Hardening — Pending Items
+
+### 1. Remove PostgreSQL host port binding
+The `postgres` service in `docker-compose.yml` currently binds port 5432 to the host:
+```yaml
+ports:
+  - "5432:5432"   # REMOVE IN PRODUCTION
+```
+This exposes PostgreSQL on `0.0.0.0:5432`. It is currently protected only by the Hostinger
+cloud firewall. In production, remove this `ports` block entirely — the DB is reachable
+inside Docker via the `n8nnet` network without any host binding.
+
+**Action:** Remove the `ports:` block from the `postgres` service in docker-compose.yml,
+then run `docker compose up -d --force-recreate postgres` on the VPS.
+
