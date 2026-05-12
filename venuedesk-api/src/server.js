@@ -37,9 +37,10 @@ const leadsRoutes        = require('./routes/leads');
 const adminRoutes        = require('./routes/admin');
 const onboardingRoutes   = require('./routes/onboarding');
 const stripeRoutes       = require('./routes/stripe');        // ← Phase 2 Stripe integration
-const auditRoutes        = require('./routes/audit');         // ← Audit log write endpoint
-const enquiryRoutes      = require('./routes/enquiry');       // ← Public enquiry form
-const bookingsRoutes     = require('./routes/bookings');      // ← Booking lifecycle
+const auditRoutes           = require('./routes/audit');            // ← Audit log write endpoint
+const enquiryRoutes         = require('./routes/enquiry');          // ← Public enquiry form
+const paymentsManualRoutes  = require('./routes/payments-manual');  // ← Dashboard manual pay (Ghost Success fix)
+const bookingsRoutes        = require('./routes/bookings');         // ← Booking lifecycle
 const recurringRoutes    = require('./routes/recurring');     // ← Recurring schedules + payments
 const customersRoutes    = require('./routes/customers');     // ← CRM customer management
 const usersRoutes        = require('./routes/users');         // ← Staff user management
@@ -54,6 +55,25 @@ const fastify = Fastify({
   disableRequestLogging: !IS_DEV,
   trustProxy:       true,    // Traefik sits in front on production
 });
+
+// ── Raw body capture ─────────────────────────────────────────────────────────
+// Replaces Fastify's built-in JSON parser with one that also stores the raw
+// Buffer on req.rawBody before parsing. Required for Stripe webhook signature
+// verification: stripe.webhooks.constructEvent() must receive the exact bytes
+// Stripe signed — not a re-serialised JS object.
+fastify.addContentTypeParser(
+  'application/json',
+  { parseAs: 'buffer' },
+  (req, body, done) => {
+    req.rawBody = body; // Buffer — passed directly to stripe.webhooks.constructEvent
+    try {
+      done(null, JSON.parse(body.toString('utf8')));
+    } catch (err) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  }
+);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // GitHub Pages frontend + n8n call the API.
@@ -125,9 +145,10 @@ fastify.register(leadsRoutes,      { prefix: '/leads'      });
 fastify.register(adminRoutes,      { prefix: '/admin'      });
 fastify.register(onboardingRoutes,   { prefix: '/onboarding'    });
 fastify.register(stripeRoutes,       { prefix: '/stripe'        }); // ← Stripe integration
-fastify.register(auditRoutes,        { prefix: '/audit'         }); // ← Audit log writes
-fastify.register(enquiryRoutes,      { prefix: '/enquiry'       }); // ← Public enquiry form
-fastify.register(bookingsRoutes,     { prefix: '/bookings'      }); // ← Booking lifecycle
+fastify.register(auditRoutes,          { prefix: '/audit'         }); // ← Audit log writes
+fastify.register(enquiryRoutes,        { prefix: '/enquiry'       }); // ← Public enquiry form
+fastify.register(paymentsManualRoutes, { prefix: '/payments'      }); // ← Dashboard manual pay
+fastify.register(bookingsRoutes,       { prefix: '/bookings'      }); // ← Booking lifecycle
 fastify.register(recurringRoutes,    { prefix: '/recurring'     }); // ← Recurring schedules
 fastify.register(customersRoutes,    { prefix: '/customers'     }); // ← CRM customers
 fastify.register(usersRoutes,        { prefix: '/users'         }); // ← Staff users

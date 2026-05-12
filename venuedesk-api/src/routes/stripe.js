@@ -271,10 +271,16 @@ module.exports = async function stripeRoutes(fastify, _opts) {
         return reply.code(500).send({ error: 'Stripe SDK not installed' });
       }
       try {
-        const rawBody = req.rawBody || JSON.stringify(req.body);
+        // req.rawBody is the raw Buffer set by addContentTypeParser in server.js.
+        // Must pass Buffer — stripe.webhooks.constructEvent verifies the exact
+        // signed bytes. Re-serialising via JSON.stringify changes whitespace/order
+        // and breaks the HMAC. Also trim the secret: env vars from deployment
+        // tools (Docker, Heroku, etc.) sometimes have trailing newlines.
+        const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
         const sig     = req.headers['stripe-signature'];
+        const secret  = webhookSecret.trim();
         const stripe  = Stripe('placeholder_only_used_for_webhook_construction');
-        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+        event = stripe.webhooks.constructEvent(rawBody, sig, secret);
       } catch (err) {
         return reply.code(400).send({ error: 'Webhook signature verification failed: ' + err.message });
       }
@@ -303,10 +309,18 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                  ON CONFLICT DO NOTHING`,
                 [bookingId, customerId || null, amountPaid, session.id, metaTenantId]
               );
+              // Update balance AND status atomically.
+              // If the Stripe payment settles the full balance, move to 'confirmed'.
+              // Otherwise move to 'provisional' (deposit received, balance outstanding).
               await client.query(
                 `UPDATE bookings.confirmed_bookings
                  SET balance_due  = GREATEST(0, COALESCE(balance_due, 0) - $1),
                      deposit_paid = COALESCE(deposit_paid, 0) + $1,
+                     status       = CASE
+                                      WHEN GREATEST(0, COALESCE(balance_due, 0) - $1) <= 0
+                                      THEN 'confirmed'
+                                      ELSE 'provisional'
+                                    END,
                      updated_at   = NOW()
                  WHERE id = $2 AND tenant_id = $3`,
                 [amountPaid, bookingId, metaTenantId]

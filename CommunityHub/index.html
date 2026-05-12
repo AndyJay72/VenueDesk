@@ -1754,7 +1754,11 @@
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
         const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
-        const PAY_BALANCE_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
+        // Ghost-Success fix: routes directly to db-api /payments/pay instead of n8n.
+        // n8n's pay-balance fanned out Respond: Success in parallel with the DB write —
+        // the UI saw 200 OK before balance_due was updated. The db-api endpoint commits
+        // the INSERT + UPDATE in a single transaction before returning.
+        const PAY_BALANCE_URL            = `${DASH_DB_API}/payments/pay`;
         const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
         const DASH_DB_API                = 'https://api.venuedesk.co.uk';
         const LOG_PAYMENT_URL            = `${DASH_DB_API}/audit/log`;
