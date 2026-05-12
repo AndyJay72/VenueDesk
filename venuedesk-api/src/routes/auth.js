@@ -75,22 +75,25 @@ async function authRoutes(fastify) {
 
     const user = rows[0];
 
-    // Sign JWT — payload includes both id and user_id so auth middleware
-    // normalisation (Pattern 1) always finds a valid user_id regardless of
-    // which claim name the token consumer checks.
+    // Sign JWT — both id AND user_id set so auth middleware normalisation
+    // (Pattern 1) works regardless of which claim name downstream checks use.
+    // name is included as an alias for full_name so legacy dashboard checks
+    // (user.name) resolve without needing index.html patches.
     const token = fastify.jwt.sign({
       id:        user.id,
       user_id:   user.id,
       username:  user.username,
       role:      user.role,
       full_name: user.full_name,
+      name:      user.full_name,   // alias — legacy dashboard checks user.name
       tenant_id: user.tenant_id,
     });
 
     // Return shape matches login.html expectations:
-    //   data.token       → stored as vp_token
-    //   data.user        → stored as vp_user (JSON)
-    //   data.user.tenant_id → stored as vp_tenant_id
+    //   data.token           → stored as vp_token
+    //   data.user            → stored as vp_user (JSON)
+    //   data.user.tenant_id  → stored as vp_tenant_id
+    //   data.user.full_name  → stored as vp_user_name (login.html line 480)
     return reply.send({
       success: true,
       token,
@@ -99,6 +102,7 @@ async function authRoutes(fastify) {
         username:  user.username,
         role:      user.role,
         full_name: user.full_name,
+        name:      user.full_name,   // alias — index.html sidebar checks user.name
         tenant_id: user.tenant_id,
       },
     });
