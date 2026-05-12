@@ -290,7 +290,28 @@
                     <label>Number of Guests <span style="color:var(--danger)">*</span></label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-users icon-left"></i>
-                        <input type="number" id="numPeople" placeholder="e.g. 50" min="1" required>
+                        <input type="number" id="numPeople" placeholder="e.g. 50" min="1" required onchange="calcCost()">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Hire Type <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-tag icon-left"></i>
+                        <select id="hireType" onchange="calcCost()" required>
+                            <option value="full_day" selected>Full Day</option>
+                            <option value="hourly">Hourly</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <!-- Cost estimate — shown once room + dates + times are selected -->
+                <div class="input-group full-width" id="costEstimateRow" style="display:none;">
+                    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                        <div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:0.85rem;font-weight:600;">
+                            <i class="fa-solid fa-calculator" style="color:var(--primary)"></i>
+                            <span id="costBreakdown">Estimated cost</span>
+                        </div>
+                        <div style="font-size:1.2rem;font-weight:700;color:#a5b4fc;" id="costTotal">£—</div>
                     </div>
                 </div>
                 <div class="input-group full-width">
@@ -328,10 +349,12 @@
 
     <script>
         const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
-        const SUBMIT_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/d057a40e-fb3e-402a-8ed7-fe16bce70feb';
         const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
         const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
         const EF_DB_API   = 'https://api.venuedesk.co.uk';
+        // Enquiry submissions go directly to db-api — guarantees a booking_request_id
+        // is returned so Stripe webhook can link the payment back to the request.
+        const SUBMIT_API  = `${EF_DB_API}/enquiry/create-request`;
 
         // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
         // Tenant IDs for real venues are always >= 1000 (tenant_id=1 is system admin).
@@ -492,20 +515,12 @@
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
                         isAvailable = true;
-                        // Calculate deposit amount from selected room pricing
-                        // Bounds: min £10, max £500 — must match server-side PUBLIC_SESSION bounds
-                        const selRoomName = document.getElementById('roomName').value;
-                        const selRoom = enquiryRoomsData.find(r => r.name === selRoomName);
-                        const rawDeposit = selRoom?.deposit_amount
-                            ? parseFloat(selRoom.deposit_amount)
-                            : selRoom?.day_rate
-                                ? Math.round(parseFloat(selRoom.day_rate) * 0.20 * 100) / 100
-                                : 50;
-                        efDepositAmount = Math.max(10, Math.min(500, rawDeposit || 50));
-                        // Enable deposit button and show calculated amount
+                        // Recalculate cost and update deposit amount
+                        calcCost();
+                        // Enable deposit button once availability confirmed
                         const dep = document.getElementById('depositBtn');
                         const depNote = document.getElementById('depositNote');
-                        if (efStripeEnabled) {
+                        if (efStripeEnabled && efDepositAmount >= 10) {
                             dep.disabled = false;
                             dep.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
                             depNote.style.display = 'block';
@@ -515,111 +530,200 @@
             }, 500);
         }
 
+        // ── Real-time cost calculator ────────────────────────────────────────
+        // Called whenever room, dates, times, hire type or guest count changes.
+        // Updates the cost panel and recalculates efDepositAmount (20% of total,
+        // clamped to £10–£500 to match server-side PUBLIC_SESSION bounds).
+        function calcCost() {
+            const roomName  = document.getElementById('roomName').value;
+            const hireType  = document.getElementById('hireType').value;
+            const isMulti   = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const dateFrom  = isMulti ? document.getElementById('dateFrom').value : document.getElementById('eventDate').value;
+            const dateTo    = isMulti ? document.getElementById('dateTo').value   : document.getElementById('eventDate').value;
+            const start     = document.getElementById('timeFrom').value;
+            const end       = document.getElementById('timeTo').value;
+            const row       = document.getElementById('costEstimateRow');
+            const totalEl   = document.getElementById('costTotal');
+            const breakEl   = document.getElementById('costBreakdown');
+
+            if (!roomName || !dateFrom || !start || !end) { row.style.display = 'none'; return; }
+
+            const selRoom  = enquiryRoomsData.find(r => r.name === roomName);
+            const dayRate  = selRoom ? parseFloat(selRoom.day_rate || 0) : 0;
+            if (!dayRate) { row.style.display = 'none'; return; }
+
+            const msPerDay = 86400000;
+            const numDays  = Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1);
+
+            let total = 0, breakText = '';
+            if (hireType === 'hourly') {
+                const [sh, sm] = start.split(':').map(Number);
+                const [eh, em] = end.split(':').map(Number);
+                const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
+                const hourRate = dayRate / 8;
+                total     = Math.round(hourRate * hours * numDays * 100) / 100;
+                breakText = `£${hourRate.toFixed(2)}/hr × ${hours.toFixed(1)}h${numDays > 1 ? ' × ' + numDays + ' days' : ''}`;
+            } else {
+                total     = Math.round(dayRate * numDays * 100) / 100;
+                breakText = numDays > 1 ? `£${dayRate.toFixed(2)}/day × ${numDays} days` : `Day rate`;
+            }
+
+            totalEl.textContent  = total > 0 ? `£${total.toFixed(2)}` : '£—';
+            breakEl.textContent  = breakText || 'Estimated cost';
+            row.style.display    = total > 0 ? '' : 'none';
+
+            // Update deposit amount (20% of total, bounds £10–£500)
+            if (total > 0) {
+                efDepositAmount = Math.max(10, Math.min(500, Math.round(total * 0.20 * 100) / 100));
+            } else {
+                // Fall back to room-level deposit_amount or 20% of day_rate
+                const rawDep = selRoom?.deposit_amount
+                    ? parseFloat(selRoom.deposit_amount)
+                    : dayRate ? Math.round(dayRate * 0.20 * 100) / 100 : 50;
+                efDepositAmount = Math.max(10, Math.min(500, rawDep || 50));
+            }
+        }
+
+        // ── Build the common enquiry payload ─────────────────────────────────
+        // Field names match the db-api /enquiry/create-request endpoint exactly.
+        function buildEnquiryPayload() {
+            const g      = id => document.getElementById(id).value;
+            const isMulti = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const df     = isMulti ? g('dateFrom') : g('eventDate');
+            const dt     = isMulti ? g('dateTo')   : g('eventDate');
+            calcCost(); // ensure total_cost is current
+            const selRoom = enquiryRoomsData.find(r => r.name === g('roomName'));
+            const dayRate = selRoom ? parseFloat(selRoom.day_rate || 0) : 0;
+            const hireType = g('hireType') || 'full_day';
+            let totalCost = null;
+            if (dayRate) {
+                if (hireType === 'hourly') {
+                    const [sh, sm] = g('timeFrom').split(':').map(Number);
+                    const [eh, em] = g('timeTo').split(':').map(Number);
+                    const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
+                    const numDays  = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
+                    totalCost      = Math.round((dayRate / 8) * hours * numDays * 100) / 100;
+                } else {
+                    const numDays = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
+                    totalCost     = Math.round(dayRate * numDays * 100) / 100;
+                }
+            }
+            return {
+                name:         g('name'),
+                email:        g('email'),
+                phone:        g('phone'),
+                room_name:    g('roomName'),
+                event_type:   g('eventType'),
+                hire_type:    hireType,
+                date_from:    df,
+                date_to:      dt,
+                event_date:   df,
+                start_time:   g('timeFrom'),
+                end_time:     g('timeTo'),
+                guest_count:  parseInt(g('numPeople') || '1', 10),
+                notes:        g('notes') || '',
+                total_cost:   totalCost,
+                tenant_id:    TENANT_ID,
+            };
+        }
+
         async function submitEnquiry() {
             if (!isAvailable) return;
             const form = document.getElementById('enquiryForm');
             if (!form.checkValidity()) { form.reportValidity(); return; }
-            // CAPACITY CHECK — prevent guest count exceeding room cap
-            const selectedRoomName = document.getElementById('roomName').value;
-            const selectedRoom = enquiryRoomsData.find(r => r.name === selectedRoomName);
-            const guestCount = parseInt(document.getElementById('numPeople').value, 10);
-            if (selectedRoom && selectedRoom.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
-                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests. Please reduce your guest count or choose a different room.`);
+            // Capacity check
+            const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10);
+            if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
+                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
                 document.getElementById('numPeople').focus();
                 return;
             }
             const btn = document.getElementById('submitBtn');
             isSubmitting = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Sending...</span>';
-            btn.disabled = true;
-            const g = id => document.getElementById(id).value;
-            const payload = {
-                name:g('name'), email:g('email'), contact:g('phone'),
-                roomName:g('roomName'), eventType:g('eventType'),
-                dateFrom:document.getElementById('multiDayToggle').dataset.active === 'true' ? g('dateFrom') : g('eventDate'),
-                dateTo:document.getElementById('multiDayToggle').dataset.active === 'true'   ? g('dateTo')   : g('eventDate'),
-                eventDate:document.getElementById('multiDayToggle').dataset.active === 'true' ? g('dateFrom') : g('eventDate'),
-                timeFrom:g('timeFrom'), timeTo:g('timeTo'),
-                numPeople:g('numPeople'), guest_count:g('numPeople'), notes:g('notes')||'',
-                tenant_id: TENANT_ID, venue_id: TENANT_ID
-            };
+            btn.disabled  = true;
             try {
-                const res = await fetch(SUBMIT_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-                if (res.ok) {
+                const res = await fetch(SUBMIT_API, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(buildEnquiryPayload()),
+                });
+                const j = await res.json().catch(() => ({}));
+                if (res.ok && j.success) {
                     showToast("Enquiry sent! We'll be in touch shortly.", 'success');
                     form.reset();
-                    setAvailStatus('idle','Select a room, dates and times to check availability');
+                    document.getElementById('costEstimateRow').style.display = 'none';
+                    setAvailStatus('idle', 'Select a room, dates and times to check availability');
                     isAvailable = false;
                     btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
-                    btn.disabled = true; isSubmitting = false;
-                } else throw new Error('Server error');
+                    btn.disabled = true;
+                } else {
+                    throw new Error(j.message || 'Server error');
+                }
             } catch(e) {
-                isSubmitting = false;
-                setAvailStatus('unavailable','Submission failed. Please check your details and try again.');
+                setAvailStatus('unavailable', 'Submission failed — ' + e.message);
                 btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
-                btn.disabled = false;
+                btn.disabled  = false;
+            } finally {
+                isSubmitting = false;
             }
         }
 
-        // Submits enquiry first, then redirects to Stripe Checkout for the deposit
+        // Submits enquiry to db-api first (guarantees booking_request_id is returned),
+        // then creates a Stripe Checkout Session using that ID in the metadata so the
+        // webhook can link the payment back to the booking_request row.
         async function submitWithDeposit() {
             if (!isAvailable || !efStripeEnabled) return;
             const form = document.getElementById('enquiryForm');
             if (!form.checkValidity()) { form.reportValidity(); return; }
-            const selectedRoomName = document.getElementById('roomName').value;
-            const selectedRoom = enquiryRoomsData.find(r => r.name === selectedRoomName);
-            const guestCount = parseInt(document.getElementById('numPeople').value, 10);
-            if (selectedRoom && selectedRoom.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
+            const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10);
+            if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
                 alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
                 return;
             }
             const depBtn = document.getElementById('depositBtn');
-            isSubmitting = true;
+            isSubmitting  = true;
             depBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
-            depBtn.disabled = true;
-            const g = id => document.getElementById(id).value;
-            const isMulti = document.getElementById('multiDayToggle').dataset.active === 'true';
-            const payload = {
-                name:g('name'), email:g('email'), contact:g('phone'),
-                roomName:g('roomName'), eventType:g('eventType'),
-                dateFrom: isMulti ? g('dateFrom') : g('eventDate'),
-                dateTo:   isMulti ? g('dateTo')   : g('eventDate'),
-                eventDate:isMulti ? g('dateFrom') : g('eventDate'),
-                timeFrom:g('timeFrom'), timeTo:g('timeTo'),
-                numPeople:g('numPeople'), guest_count:g('numPeople'), notes:g('notes')||'',
-                tenant_id: TENANT_ID, venue_id: TENANT_ID
-            };
+            depBtn.disabled  = true;
+            const payload = buildEnquiryPayload();
             try {
-                // Step 1 — submit the enquiry record
-                const eRes = await fetch(SUBMIT_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-                if (!eRes.ok) throw new Error('Enquiry submission failed');
-                // Attempt to capture the booking_request_id from the response for Stripe metadata
-                let bookingRequestId = null;
-                try { const ej = await eRes.clone().json(); bookingRequestId = ej.id || ej.booking_request_id || null; } catch(e2) {}
+                // Step 1 — create booking_request in db-api and get its UUID back
+                const eRes = await fetch(SUBMIT_API, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(payload),
+                });
+                const ej = await eRes.json().catch(() => ({}));
+                if (!eRes.ok || !ej.success) throw new Error(ej.message || 'Enquiry submission failed');
+                // booking_request_id is now guaranteed — endpoint always returns it
+                const bookingRequestId = ej.booking_request_id || null;
 
-                // Step 2 — create a Stripe Checkout Session via the public endpoint (no JWT required)
-                // SECURITY: /public-session validates tenant server-side and enforces amount bounds (£10–£500).
-                // tenant_id here is used for server-side validation only — server re-reads the secret key
-                // from the validated tenant row, it does not trust this value for billing directly.
+                // Step 2 — create Stripe Checkout Session (public endpoint, no JWT)
+                // SECURITY: /public-session re-validates tenant server-side and enforces
+                // amount bounds (£10–£500). tenant_id is never trusted for billing directly.
                 const sRes = await fetch(`${EF_DB_API}/stripe/public-session`, {
-                    method:'POST', headers:{'Content-Type':'application/json'},
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         tenant_id:          TENANT_ID,
                         amount:             efDepositAmount,
                         booking_request_id: bookingRequestId,
-                        description:        `Deposit — ${g('eventType')} at ${g('roomName')} on ${payload.dateFrom}`,
+                        description:        `Deposit — ${payload.event_type} at ${payload.room_name} on ${payload.date_from}`,
                         success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}',
                         cancel_url:  window.location.href,
-                    })
+                    }),
                 });
-                const sj = await sRes.json();
+                const sj = await sRes.json().catch(() => ({}));
                 if (sj.url) { window.location.href = sj.url; return; }
                 throw new Error(sj.message || 'Could not create payment session');
             } catch(e) {
-                isSubmitting = false;
                 depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
-                depBtn.disabled = false;
+                depBtn.disabled  = false;
                 showToast('Error: ' + e.message, 'error');
+            } finally {
+                isSubmitting = false;
             }
         }
 

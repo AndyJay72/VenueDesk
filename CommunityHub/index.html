@@ -1708,7 +1708,7 @@
             </div>
             <div class="pay-method-row">
                 <span class="pay-method-label">Payment Method:</span>
-                <select id="pm-method" class="pay-method-select" onchange="setModalMode()">
+                <select id="pm-method" class="pay-method-select" onchange="loadPayConfig().then(cfg=>setModalMode(cfg))">
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
                     <option value="bank_transfer">Bank Transfer</option>
