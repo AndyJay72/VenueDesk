@@ -430,8 +430,8 @@
     </div>
 
     <script>
-        // CONFIG: Add your n8n Login Webhook URL here (No Port if using Proxy)
-        const LOGIN_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/login';
+        // Auth via db-api — bypasses n8n login workflow (JWT payload guaranteed correct)
+        const LOGIN_API = 'https://api.venuedesk.co.uk/auth/login';
 
         async function login() {
             const user = document.getElementById('username').value;
