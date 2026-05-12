@@ -2,23 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud https://api.venuedesk.co.uk; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; connect-src 'self' https://n8n.srv1090894.hstgr.cloud https://api.venuedesk.co.uk https://api.stripe.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard | Venue Manager Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        // SECURITY CHECK
+        // SECURITY CHECK — validates token claims; forces re-login if stale/missing
         (function() {
             const _t = sessionStorage.getItem('vp_token');
             if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
             try {
                 const _p = JSON.parse(atob(_t.split('.')[1]));
+                // Expired token
                 if (_p.exp && _p.exp * 1000 < Date.now()) {
                     sessionStorage.clear();
                     window.location.href = 'login.html';
+                    return;
                 }
-            } catch(e) { /* non-JWT token, skip expiry check */ }
+                // Missing required claims — stale n8n token without tenant_id
+                const uid = _p.user_id || _p.id;
+                if (!uid || !_p.tenant_id) {
+                    console.warn('[auth] Token missing required claims — clearing session', _p);
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                console.info('[auth] Token valid — tenant_id:', _p.tenant_id, 'user:', _p.full_name || _p.name || _p.username);
+            } catch(e) { /* non-JWT token, skip checks */ }
         })();
     </script>
 
@@ -308,6 +319,16 @@
         .pay-confirm-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
         .pay-cancel-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 12px 20px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .pay-cancel-btn:hover { color: white; border-color: white; }
+        /* Stripe link panel — shown in pay modal when Card + Stripe enabled */
+        .pay-stripe-panel { display: none; margin-top: 1rem; padding: 1rem; background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; }
+        .pay-stripe-panel.visible { display: block; }
+        .pay-stripe-panel-title { font-size: 0.78rem; color: var(--success); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; }
+        .pay-stripe-link-box { background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: var(--text-muted); word-break: break-all; margin-bottom: 0.75rem; font-family: monospace; }
+        .pay-stripe-actions { display: flex; gap: 8px; }
+        .pay-stripe-copy-btn { flex: 1; padding: 9px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .pay-stripe-copy-btn:hover { color: white; border-color: rgba(148,163,184,0.4); }
+        .pay-stripe-open-btn { flex: 1; padding: 9px 12px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35); border-radius: 8px; color: var(--success); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; transition: 0.2s; }
+        .pay-stripe-open-btn:hover { background: rgba(16,185,129,0.25); }
         /* receipt mini-modal */
         .receipt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 4000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
         .receipt-overlay.open { opacity: 1; pointer-events: all; }
@@ -1698,7 +1719,7 @@
             </div>
             <div class="pay-method-row">
                 <span class="pay-method-label">Payment Method:</span>
-                <select id="pm-method" class="pay-method-select">
+                <select id="pm-method" class="pay-method-select" onchange="loadPayConfig().then(cfg=>setModalMode(cfg))">
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
                     <option value="bank_transfer">Bank Transfer</option>
@@ -1710,6 +1731,15 @@
                 <button id="pm-confirm-btn" class="pay-confirm-btn" onclick="submitPayModal()">
                     <i class="fa-solid fa-circle-check"></i> Confirm Payment
                 </button>
+            </div>
+            <!-- Stripe link panel — visible only when Card + Stripe enabled -->
+            <div id="pm-stripe-panel" class="pay-stripe-panel">
+                <div class="pay-stripe-panel-title"><i class="fa-solid fa-link"></i> Payment Link Generated</div>
+                <div id="pm-stripe-link-box" class="pay-stripe-link-box">—</div>
+                <div class="pay-stripe-actions">
+                    <button class="pay-stripe-copy-btn" onclick="copyStripeLink()"><i class="fa-solid fa-copy"></i> Copy Link</button>
+                    <a id="pm-stripe-open-btn" class="pay-stripe-open-btn" href="#" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</a>
+                </div>
             </div>
         </div>
     </div>
@@ -1735,8 +1765,113 @@
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
         const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
-        const PAY_BALANCE_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
+        // DASH_DB_API must be declared before any const that references it in a template literal
+        const DASH_DB_API                = 'https://api.venuedesk.co.uk';
+        // Ghost-Success fix: routes directly to db-api /payments/pay instead of n8n.
+        // n8n's pay-balance fanned out Respond: Success in parallel with the DB write —
+        // the UI saw 200 OK before balance_due was updated. The db-api endpoint commits
+        // the INSERT + UPDATE in a single transaction before returning.
+        const PAY_BALANCE_URL            = `${DASH_DB_API}/payments/pay`;
         const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
+        const LOG_PAYMENT_URL            = `${DASH_DB_API}/audit/log`;
+
+        // ── Stripe config cache (per page-load, refreshed every 5 min) ────────
+        let _payConfig = null, _payConfigTs = 0;
+        async function loadPayConfig() {
+            const now = Date.now();
+            if (_payConfig && (now - _payConfigTs) < 300000) return _payConfig;
+            const tid = _TID();
+            console.info('[stripe] loadPayConfig — tenant_id:', tid);
+            if (!tid || tid === '0') {
+                console.warn('[stripe] tenant_id is 0 — session may be stale');
+                _payConfig = { is_stripe_enabled: false };
+                return _payConfig;
+            }
+            try {
+                const r = await fetch(`${DASH_DB_API}/stripe/config?tenant_id=${tid}`);
+                if (!r.ok) {
+                    console.warn('[stripe] config fetch failed', r.status);
+                    _payConfig = { is_stripe_enabled: false };
+                    return _payConfig;
+                }
+                const j = await r.json();
+                _payConfig   = j.data || {};
+                _payConfigTs = now;
+                console.info('[stripe] config loaded — enabled:', _payConfig.is_stripe_enabled);
+            } catch(e) {
+                console.error('[stripe] loadPayConfig error:', e.message);
+                _payConfig = { is_stripe_enabled: false };
+            }
+            return _payConfig;
+        }
+
+        // ── Action swap: Card + Stripe enabled → "Generate Stripe Link" ───────
+        // Called by #pm-method onchange and by openPayModal after config loads.
+        // Resets the Stripe link panel whenever the method changes.
+        function setModalMode(cfg) {
+            const c      = cfg || _payConfig || {};
+            const method = document.getElementById('pm-method')?.value || 'cash';
+            const btn    = document.getElementById('pm-confirm-btn');
+            const panel  = document.getElementById('pm-stripe-panel');
+            if (!btn || !panel) return;
+            panel.classList.remove('visible');
+            document.getElementById('pm-stripe-link-box').textContent = '—';
+            const openBtn = document.getElementById('pm-stripe-open-btn');
+            if (openBtn) openBtn.href = '#';
+            if (method === 'card' && c.is_stripe_enabled) {
+                btn.innerHTML  = '<i class="fa-solid fa-link"></i> Generate Payment Link';
+                btn.onclick    = generateStripeLink;
+                btn.disabled   = false;
+            } else {
+                btn.innerHTML  = '<i class="fa-solid fa-circle-check"></i> Confirm Payment';
+                btn.onclick    = submitPayModal;
+            }
+        }
+
+        // ── Generate Stripe Checkout Session and display the link ────────────
+        let _generatedStripeUrl = '';
+        async function generateStripeLink() {
+            if (!_payBooking) return;
+            const amount = parseFloat(document.getElementById('pm-amount').value);
+            if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
+            const btn = document.getElementById('pm-confirm-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating link...';
+            try {
+                const res = await fetch(`${DASH_DB_API}/stripe/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jwt:         sessionStorage.getItem('vp_token') || '',
+                        booking_id:  _payBooking.booking_id || _payBooking.id || '',
+                        customer_id: _payBooking.customer_id || '',
+                        amount:      amount,
+                        description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
+                    })
+                });
+                const j = await res.json();
+                if (!j.success || !j.url) throw new Error(j.message || 'Session creation failed');
+                _generatedStripeUrl = j.url;
+                const linkBox = document.getElementById('pm-stripe-link-box');
+                const openBtn = document.getElementById('pm-stripe-open-btn');
+                linkBox.textContent = j.url;
+                openBtn.href = j.url;
+                document.getElementById('pm-stripe-panel').classList.add('visible');
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Link Ready — Copy or Open';
+                btn.disabled  = false;
+            } catch(e) {
+                btn.disabled  = false;
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Generate Payment Link';
+                showToast('Could not create payment link: ' + e.message, 'error');
+            }
+        }
+
+        function copyStripeLink() {
+            if (!_generatedStripeUrl) return;
+            navigator.clipboard.writeText(_generatedStripeUrl)
+                .then(() => showToast('Link copied to clipboard', 'success'))
+                .catch(() => { prompt('Copy this link:', _generatedStripeUrl); });
+        }
 
         function getAuthHeaders() {
             // No custom headers — avoid CORS preflight failures.
@@ -1751,7 +1886,7 @@
         // Populate header welcome text from sessionStorage
         (function() {
             const user = JSON.parse(sessionStorage.getItem('vp_user') || '{}');
-            const name = user.name || user.username || sessionStorage.getItem('vp_user_name') || 'Staff Manager';
+            const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff Manager';
             const venue = sessionStorage.getItem('vp_venue_name') || '';
             const nameEl  = document.getElementById('hdr-username');
             const venueEl = document.getElementById('hdr-venue');
@@ -2757,11 +2892,20 @@
             document.getElementById('pm-slider-max').innerText = formatCurrency(balance);
             updatePaySlider(balance, balance);
             document.getElementById('pm-method').value = 'cash';
+            // Reset Stripe panel and button to manual mode before config loads
+            document.getElementById('pm-stripe-panel').classList.remove('visible');
+            const confirmBtn = document.getElementById('pm-confirm-btn');
+            confirmBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Confirm Payment';
+            confirmBtn.onclick   = submitPayModal;
+            confirmBtn.disabled  = false;
             document.getElementById('payMod').classList.add('open');
+            // Background config load — swap button if Stripe is enabled for this tenant
+            loadPayConfig().then(cfg => setModalMode(cfg)).catch(() => {});
         }
 
         function closePayModal() {
             document.getElementById('payMod').classList.remove('open');
+            _generatedStripeUrl = '';
         }
 
         function onPayAmountInput() {
@@ -2832,6 +2976,25 @@
                     document.getElementById('receiptMod').classList.add('open');
                     loadAllBookings();
                     loadActivityFeed();
+                    // Audit log — fire and forget (non-blocking)
+                    fetch(LOG_PAYMENT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jwt:      sessionStorage.getItem('vp_token') || '',
+                            action:   'manual_payment',
+                            entity:   'booking',
+                            entity_id: String(_payBooking.booking_id || _payBooking.id || ''),
+                            payload:  {
+                                amount,
+                                payment_method: method,
+                                payment_type:   result.payment_type || 'payment',
+                                reference_number: ref !== '—' ? ref : null,
+                                customer_id:    _payBooking.customer_id || null,
+                            },
+                            source: 'dashboard',
+                        })
+                    }).catch(() => {}); // intentionally non-blocking
                 } else {
                     showToast('Payment failed — please try again', 'error');
                 }
@@ -3721,4 +3884,3 @@
 </script>
 </body>
 </html>
-
