@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Grimsargh Village Hall | Heart of the Community in Lancashire</title>
+  <meta name="description" content="Grimsargh Village Hall is a beautiful, well-equipped venue for community events, private parties, weddings, and corporate functions in the heart of Lancashire. Book your event today!">
+  <meta name="keywords" content="Grimsargh Village Hall, Lancashire venue, wedding venue, community hall, farmers market, event space, Preston">
+  <meta name="author" content="Grimsargh Village Hall">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:title" content="Grimsargh Village Hall | Heart of the Community">
+  <meta property="og:description" content="Beautiful rural venue for weddings, parties, meetings, and community events in Lancashire.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1464366400600-7168b7af0bc3?w=1200&h=630&fit=crop">
+  <meta property="og:url" content="https://grimsarghvillagehall.co.uk">
+  <meta property="og:type" content="website">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏡</text></svg>">
+  
+  <!-- Google Fonts + Tailwind + Font Awesome -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+    .hero-gradient { background: linear-gradient(135deg, #2b5e3b 0%, #1e3a2f 100%); }
+    .card-hover { transition: all 0.3s cubic-bezier(0.2, 0, 0, 1); }
+    .card-hover:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15); }
+    .btn-primary { background: #2b5e3b; transition: all 0.2s ease; }
+    .btn-primary:hover { background: #1e3a2f; transform: scale(1.02); }
+    .section-title { position: relative; display: inline-block; }
+    .section-title:after { content: ''; position: absolute; bottom: -12px; left: 0; width: 60px; height: 4px; background: #f5b042; border-radius: 2px; }
+    .center-title:after { left: 50%; transform: translateX(-50%); }
+    .bg-pattern { background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.03"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E'); }
+    .testimonial-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(8px); }
+    .farmers-badge { background: #fef3c7; color: #92400e; }
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+    .float-animation { animation: float 5s ease-in-out infinite; }
+  </style>
+</head>
+<body class="bg-white text-gray-800">
+
+  <!-- ========== HEADER / NAVIGATION ========== -->
+  <nav class="bg-white shadow-md sticky top-0 z-50 transition-all duration-300">
+    <div class="container mx-auto px-5 py-3 flex justify-between items-center flex-wrap">
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-tree text-3xl text-green-700"></i>
+        <span class="font-bold text-xl text-gray-800">Grimsargh <span class="text-green-700">Village Hall</span></span>
+      </div>
+      <div class="hidden md:flex space-x-8 font-medium">
+        <a href="#home" class="hover:text-green-700 transition">Home</a>
+        <a href="#about" class="hover:text-green-700 transition">About</a>
+        <a href="#facilities" class="hover:text-green-700 transition">Facilities</a>
+        <a href="#events" class="hover:text-green-700 transition">Events</a>
+        <a href="#farmers-market" class="hover:text-green-700 transition">Farmers' Market</a>
+        <a href="#contact" class="hover:text-green-700 transition">Contact</a>
+      </div>
+      <div class="md:hidden">
+        <button id="mobile-menu-btn" class="text-gray-700 focus:outline-none">
+          <i class="fas fa-bars text-2xl"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-t py-4 px-5 flex flex-col space-y-3 shadow-lg">
+      <a href="#home" class="hover:text-green-700 py-1">Home</a>
+      <a href="#about" class="hover:text-green-700 py-1">About</a>
+      <a href="#facilities" class="hover:text-green-700 py-1">Facilities</a>
+      <a href="#events" class="hover:text-green-700 py-1">Events</a>
+      <a href="#farmers-market" class="hover:text-green-700 py-1">Farmers' Market</a>
+      <a href="#contact" class="hover:text-green-700 py-1">Contact</a>
+    </div>
+  </nav>
+
+  <!-- ========== HERO SECTION ========== -->
+  <section id="home" class="hero-gradient text-white relative overflow-hidden">
+    <div class="absolute inset-0 bg-pattern opacity-20"></div>
+    <div class="container mx-auto px-5 py-20 md:py-28 relative z-10">
+      <div class="max-w-3xl mx-auto text-center">
+        <div class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-6">
+          <i class="fas fa-heart text-yellow-300 mr-1"></i> Heart of Lancashire
+        </div>
+        <h1 class="text-4xl md:text-6xl font-bold leading-tight mb-6">Welcome to Grimsargh <span class="text-yellow-300">Village Hall</span></h1>
+        <p class="text-lg md:text-xl text-gray-100 mb-8 max-w-2xl mx-auto">Lying in the heart of our beautiful Lancashire village — a popular venue for community groups, weddings, private parties, and corporate functions.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="#facilities" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold px-8 py-3 rounded-full transition shadow-lg inline-flex items-center justify-center gap-2"><i class="fas fa-calendar-check"></i> Explore Facilities</a>
+          <a href="#contact" class="bg-transparent border-2 border-white hover:bg-white hover:text-green-800 transition px-8 py-3 rounded-full font-semibold inline-flex items-center justify-center gap-2"><i class="fas fa-envelope"></i> Enquire Now</a>
+        </div>
+        <div class="mt-12 flex flex-wrap justify-center gap-6 text-sm">
+          <div class="flex items-center gap-2"><i class="fas fa-map-marker-alt text-yellow-300"></i> PR2 5JS, Lancashire</div>
+          <div class="flex items-center gap-2"><i class="fas fa-car"></i> Free parking for 60 cars</div>
+          <div class="flex items-center gap-2"><i class="fas fa-wheelchair"></i> Fully accessible</div>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
+  </section>
+
+  <!-- ========== ABOUT SECTION ========== -->
+  <section id="about" class="py-20 bg-gray-50">
+    <div class="container mx-auto px-5">
+      <div class="text-center mb-14">
+        <span class="text-green-700 font-semibold tracking-wide">OUR STORY</span>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2 section-title center-title inline-block">About the Hall</h2>
+      </div>
+      <div class="grid md:grid-cols-2 gap-12 items-center">
+        <div class="space-y-5">
+          <p class="text-gray-600 leading-relaxed">Opened in <span class="font-bold text-green-800">1983</span> after 12 years of dedication by local volunteers, Grimsargh Village Hall has been the beating heart of our community for over four decades.</p>
+          <p class="text-gray-600 leading-relaxed">In 2010 we completed a major extension and development, followed by a 10kWp solar array in 2012 which significantly reduces our carbon footprint. The facilities were further upgraded in 2017 with a full refit of all toilets and accessible amenities.</p>
+          <p class="text-gray-600 leading-relaxed">Managed by a registered charity, the hall provides a vibrant space for cultural, educational, and recreational activities — from Toddlers Playgroup to the Women's Institute, Badminton Club, Gardening Club, and Parish Council meetings.</p>
+          <div class="flex flex-wrap gap-4 pt-3">
+            <div class="bg-white rounded-lg shadow p-3 flex items-center gap-3"><i class="fas fa-users text-green-700 text-xl"></i><span>Community-led charity</span></div>
+            <div class="bg-white rounded-lg shadow p-3 flex items-center gap-3"><i class="fas fa-solar-panel text-green-700 text-xl"></i><span>Eco-friendly solar power</span></div>
+          </div>
+        </div>
+        <div class="relative">
+          <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=450&fit=crop" alt="Grimsargh Village Hall exterior" class="rounded-2xl shadow-xl w-full object-cover h-80 md:h-96">
+          <div class="absolute -bottom-5 -right-5 bg-yellow-500 text-gray-900 p-3 rounded-xl shadow-lg hidden md:block"><i class="fas fa-leaf text-2xl"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FACILITIES SHOWCASE ========== -->
+  <section id="facilities" class="py-20 bg-white">
+    <div class="container mx-auto px-5">
+      <div class="text-center mb-14">
+        <span class="text-green-700 font-semibold tracking-wide">EXCELLENT SPACES</span>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2 section-title center-title inline-block">Our Facilities</h2>
+        <p class="text-gray-500 max-w-2xl mx-auto mt-4">Versatile, modern, and fully equipped for any occasion</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Main Hall -->
+        <div class="bg-gray-50 rounded-2xl overflow-hidden shadow-md card-hover">
+          <div class="h-56 overflow-hidden"><img src="https://images.unsplash.com/photo-1527529482837-4698179dc6ce?w=600&h=400&fit=crop" alt="Main Hall" class="w-full h-full object-cover transition hover:scale-105 duration-500"></div>
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">Main Hall</h3><i class="fas fa-chalkboard-user text-green-700 text-2xl"></i></div>
+            <p class="text-gray-500 text-sm mb-3">14m x 10m | Stage | Licensed Bar</p>
+            <p class="text-gray-600">Seats up to <strong>200 theatre style</strong> or 150 for dining. Full stage (7.5 x 3.5m) with lighting, changing area, and casual seating alcove with terrace views.</p>
+            <div class="mt-4 pt-3 border-t border-gray-200 flex flex-wrap gap-2"><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-glass-cheers mr-1"></i> Full bar</span><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-utensils mr-1"></i> Catering ready</span></div>
+          </div>
+        </div>
+        <!-- Small Hall -->
+        <div class="bg-gray-50 rounded-2xl overflow-hidden shadow-md card-hover">
+          <div class="h-56 overflow-hidden"><img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=400&fit=crop" alt="Small Hall meeting room" class="w-full h-full object-cover transition hover:scale-105 duration-500"></div>
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">Small Hall</h3><i class="fas fa-chalkboard text-green-700 text-2xl"></i></div>
+            <p class="text-gray-500 text-sm mb-3">6m x 6.5m | Meetings & Parties</p>
+            <p class="text-gray-600">Perfect for conferences, workshops, or intimate gatherings. Accommodates up to 50 seated, with flexible layout and access to bar services.</p>
+            <div class="mt-4 pt-3 border-t border-gray-200 flex flex-wrap gap-2"><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-wifi mr-1"></i> Free WiFi</span><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-microphone mr-1"></i> AV ready</span></div>
+          </div>
+        </div>
+        <!-- Kitchen & General -->
+        <div class="bg-gray-50 rounded-2xl overflow-hidden shadow-md card-hover">
+          <div class="h-56 overflow-hidden"><img src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=600&h=400&fit=crop" alt="Modern kitchen" class="w-full h-full object-cover transition hover:scale-105 duration-500"></div>
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">Kitchen & Amenities</h3><i class="fas fa-kitchen-set text-green-700 text-2xl"></i></div>
+            <p class="text-gray-600">Modern commercial kitchen with stainless steel worktops, double oven, hob, warming ovens, water boiler, microwave, fridge, freezer. Servery access to both halls.</p>
+            <div class="mt-4 flex flex-wrap gap-2"><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-parking mr-1"></i> 60 parking spaces</span><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><i class="fas fa-wheelchair mr-1"></i> Disabled access</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-center mt-12"><a href="#contact" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-green-800 text-white px-6 py-3 rounded-full transition font-medium"><i class="fas fa-pound-sign"></i> View full hire charges & discounts <i class="fas fa-arrow-right"></i></a></div>
+    </div>
+  </section>
+
+  <!-- ========== FARMERS' MARKET SPOTLIGHT ========== -->
+  <section id="farmers-market" class="py-20 bg-gradient-to-br from-green-50 to-emerald-50">
+    <div class="container mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div class="order-2 lg:order-1">
+          <span class="farmers-badge inline-block px-3 py-1 rounded-full text-sm font-semibold mb-3"><i class="fas fa-store"></i> Monthly tradition since 2006</span>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Grimsargh Farmers' Market</h2>
+          <p class="text-gray-600 mb-4 leading-relaxed">Running the <strong class="text-green-800">third Saturday of every month</strong> (except January & August), our market brings 20–30 stalls of local Lancashire produce, crafts, and delicious street food.</p>
+          <div class="grid grid-cols-2 gap-3 mb-5">
+            <div><i class="fas fa-check-circle text-green-700"></i> Fresh meats & cheeses</div>
+            <div><i class="fas fa-check-circle text-green-700"></i> Artisan bread & pies</div>
+            <div><i class="fas fa-check-circle text-green-700"></i> Local gin & fudge</div>
+            <div><i class="fas fa-check-circle text-green-700"></i> Handmade crafts & gifts</div>
+          </div>
+          <p class="text-gray-600">Alongside the market, our pop-up café serves breakfast barms, toasties, cakes, and fresh coffee — all run by volunteers, with proceeds supporting the hall.</p>
+          <div class="mt-6 flex flex-wrap gap-4"><span class="bg-white shadow rounded-full px-4 py-2 text-sm"><i class="far fa-clock"></i> 9am – 1pm</span><span class="bg-white shadow rounded-full px-4 py-2 text-sm"><i class="fas fa-location-dot"></i> Grimsargh Village Hall Car Park</span></div>
+        </div>
+        <div class="order-1 lg:order-2 relative float-animation">
+          <img src="https://images.unsplash.com/photo-1489278353717-f64c6ee8a4f2?w=600&h=450&fit=crop" alt="Farmers market with fresh produce" class="rounded-2xl shadow-2xl w-full object-cover h-80 lg:h-96">
+          <div class="absolute -top-4 -left-4 bg-white p-3 rounded-full shadow-lg"><i class="fas fa-carrot text-green-700 text-xl"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== EVENTS & ANNUAL HIGHLIGHTS ========== -->
+  <section id="events" class="py-20 bg-white">
+    <div class="container mx-auto px-5">
+      <div class="text-center mb-14">
+        <span class="text-green-700 font-semibold tracking-wide">JOIN US</span>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2 section-title center-title inline-block">What's On</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="bg-gray-50 rounded-xl p-6 border-l-4 border-green-600 shadow-sm">
+          <div class="flex items-center gap-3 mb-3"><i class="fas fa-calendar-alt text-green-700 text-2xl"></i><span class="font-bold text-green-800">Annual Event</span></div>
+          <h3 class="font-bold text-xl">Grimsargh Field Day</h3>
+          <p class="text-gray-500 text-sm">Fourth Saturday in June</p>
+          <p class="mt-2">Fancy dress parade starts at the Village Hall, then fun on the Village Green. A true community celebration!</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-6 border-l-4 border-yellow-600 shadow-sm">
+          <div class="flex items-center gap-3 mb-3"><i class="fas fa-seedling text-green-700 text-2xl"></i><span class="font-bold text-green-800">Annual Event</span></div>
+          <h3 class="font-bold text-xl">Flower, Produce & Handicraft Show</h3>
+          <p class="text-gray-500 text-sm">Second Saturday in August</p>
+          <p class="mt-2">Traditional village show with beautiful exhibits, homemade crafts, and friendly competition.</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-6 border-l-4 border-red-600 shadow-sm">
+          <div class="flex items-center gap-3 mb-3"><i class="fas fa-gift text-green-700 text-2xl"></i><span class="font-bold text-green-800">Seasonal</span></div>
+          <h3 class="font-bold text-xl">Christmas Fair & More</h3>
+          <p class="text-gray-500 text-sm">December & seasonal events</p>
+          <p class="mt-2">Festive market, carols, and family entertainment — perfect for getting into the Christmas spirit.</p>
+        </div>
+      </div>
+      <div class="mt-12 bg-green-50 rounded-2xl p-6 md:p-8 text-center">
+        <h3 class="font-bold text-2xl">Regular Weekly Clubs</h3>
+        <div class="flex flex-wrap justify-center gap-4 mt-4 text-gray-700">
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">🧸 Toddlers Playgroup</span>
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">🏸 Badminton Club</span>
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">🌻 Gardening Club</span>
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">👩‍🌾 Women's Institute</span>
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">🌈 Rainbows & Brownies</span>
+          <span class="bg-white px-4 py-1 rounded-full shadow-sm">🧶 Grimsargh Yarn Group</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TESTIMONIAL / STATS SECTION ========== -->
+  <section class="py-16 hero-gradient text-white">
+    <div class="container mx-auto px-5 text-center">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div><i class="fas fa-calendar-week text-4xl text-yellow-300 mb-2"></i><p class="text-3xl font-bold">40+</p><p>Years serving community</p></div>
+        <div><i class="fas fa-users text-4xl text-yellow-300 mb-2"></i><p class="text-3xl font-bold">200</p><p>Seated capacity</p></div>
+        <div><i class="fas fa-car text-4xl text-yellow-300 mb-2"></i><p class="text-3xl font-bold">60</p><p>Free parking spaces</p></div>
+        <div><i class="fas fa-calendar-alt text-4xl text-yellow-300 mb-2"></i><p class="text-3xl font-bold">20+</p><p>Monthly market stalls</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CONTACT & BOOKING ========== -->
+  <section id="contact" class="py-20 bg-gray-50">
+    <div class="container mx-auto px-5">
+      <div class="text-center mb-14">
+        <span class="text-green-700 font-semibold tracking-wide">GET IN TOUCH</span>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2 section-title center-title inline-block">Book the Hall</h2>
+        <p class="text-gray-500 max-w-2xl mx-auto mt-4">Ready to host your event? Our bookings manager is here to help.</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-md p-8">
+          <h3 class="text-2xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-pound-sign bg-green-100 p-2 rounded-full text-green-700"></i> Hire Charges (sample)</h3>
+          <ul class="space-y-3 text-gray-600">
+            <li class="flex justify-between border-b pb-2"><span>Main Hall (off-peak)</span><span class="font-bold">£17 per hour</span></li>
+            <li class="flex justify-between border-b pb-2"><span>Small Hall (off-peak)</span><span class="font-bold">£8 per hour</span></li>
+            <li class="flex justify-between border-b pb-2"><span>Full Suite (Fri 5pm–12am)</span><span class="font-bold">£165</span></li>
+            <li class="flex justify-between border-b pb-2"><span>Full Suite (Sat 5pm–12am)</span><span class="font-bold">£250</span></li>
+            <li class="flex justify-between"><span>Children's Parties (3h)</span><span class="font-bold">£60 full suite</span></li>
+          </ul>
+          <p class="text-xs text-gray-400 mt-3">*Grimsargh residents enjoy £65-£75 discount on evening events. Bar profit share can make your event free!</p>
+          <div class="mt-6 bg-green-50 p-4 rounded-xl"><i class="fas fa-percent text-green-700"></i> Community groups & regular hirers get special discounted rates.</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-md p-8">
+          <h3 class="text-2xl font-bold mb-4 flex items-center gap-2"><i class="fas fa-envelope-open-text bg-green-100 p-2 rounded-full text-green-700"></i> Contact & Visit</h3>
+          <div class="space-y-4">
+            <p><i class="fas fa-map-marker-alt w-6 text-green-700"></i> Grimsargh Village Hall, Preston, Lancashire, PR2 5JS</p>
+            <p><i class="fas fa-phone-alt w-6 text-green-700"></i> <a href="tel:+441772652981" class="hover:underline">01772 652981</a> (Badminton Club / general enquiries)</p>
+            <p><i class="fas fa-envelope w-6 text-green-700"></i> <a href="mailto:bookings@grimsarghvillagehall.co.uk" class="hover:underline">bookings@grimsarghvillagehall.co.uk</a></p>
+            <p><i class="fas fa-globe w-6 text-green-700"></i> <a href="#" class="hover:underline">www.grimsarghvillagehall.co.uk</a></p>
+          </div>
+          <div class="mt-6 pt-4 border-t">
+            <p class="font-semibold mb-2">Easy access:</p>
+            <p>📍 M6 junctions 31A & 32<br>🚌 Excellent public transport from Preston & Longridge<br>♿ Disabled access & facilities throughout</p>
+          </div>
+          <a href="#" class="mt-6 inline-block w-full text-center btn-primary text-white py-3 rounded-xl font-bold transition"><i class="fas fa-calendar-plus"></i> Enquire about availability</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="bg-gray-900 text-gray-300 py-10">
+    <div class="container mx-auto px-5 text-center">
+      <div class="flex justify-center gap-6 mb-6 text-xl">
+        <a href="#" class="hover:text-yellow-400 transition"><i class="fab fa-facebook"></i></a>
+        <a href="#" class="hover:text-yellow-400 transition"><i class="fab fa-instagram"></i></a>
+        <a href="#" class="hover:text-yellow-400 transition"><i class="fab fa-twitter"></i></a>
+      </div>
+      <p class="text-sm">Grimsargh Village Hall (CIO) is a registered charity run by volunteers for the benefit of the community.</p>
+      <p class="text-xs mt-4 opacity-70">© 2026 Grimsargh Village Hall | Built with <i class="fas fa-heart text-red-400"></i> for Lancashire community</p>
+    </div>
+  </footer>
+
+  <!-- Mobile menu toggle script -->
+  <script>
+    const btn = document.getElementById('mobile-menu-btn');
+    const menu = document.getElementById('mobile-menu');
+    if (btn && menu) {
+      btn.addEventListener('click', () => {
+        menu.classList.toggle('hidden');
+      });
+    }
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href === "#" || href === "") return;
+        const target = document.querySelector(href);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth' });
+          if (menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

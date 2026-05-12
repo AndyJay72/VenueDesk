@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — VenueDesk API v2
+#
+# Excludes files from the Docker build context sent to the daemon.
+# Smaller context = faster builds and no accidental secret leakage.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Node artefacts ────────────────────────────────────────────────────────────
+# node_modules is rebuilt inside the container via npm ci — never copy from host.
+node_modules
+npm-debug.log
+npm-debug.log.*
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Version control ───────────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ── OS artefacts ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Dev tooling / IDE ─────────────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+
+# ── Test / CI output ──────────────────────────────────────────────────────────
+coverage
+.nyc_output
+
+# ── Documentation (not needed at runtime) ────────────────────────────────────
+*.md
+INSTALL.md

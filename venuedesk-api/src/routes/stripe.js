@@ -19,7 +19,10 @@
  *   - /public-session validates tenant exists + is_active before using stored secret key
  *   - /config never returns secret key, webhook secret, or BACS fields
  *   - Tenant enumeration on /public-session returns 404 for both missing and inactive tenants
+ *   - All DB access via pool.js helpers (withTenantContext) — never fastify.pg
  */
+
+const { withTenantContext } = require('../db/pool');
 
 const PUBLIC_SESSION_MIN_AMOUNT = 10;   // £10 minimum deposit
 const PUBLIC_SESSION_MAX_AMOUNT = 500;  // £500 maximum deposit
@@ -27,42 +30,31 @@ const PUBLIC_SESSION_MAX_AMOUNT = 500;  // £500 maximum deposit
 module.exports = async function stripeRoutes(fastify, _opts) {
 
   // ── GET /stripe/config ──────────────────────────────────────────────────────
-  // Public endpoint — used by enquiry-form.html and calendar.html to decide
-  // whether to show the Stripe payment option before any user is logged in.
-  // Returns: is_stripe_enabled, stripe_publishable_key, venue_name.
-  // Does NOT return BACS fields, secret key, or webhook secret.
   fastify.get('/config', async (req, reply) => {
     const tenantId = parseInt(req.query.tenant_id || '0', 10);
     if (!tenantId) {
       return reply.code(400).send({ success: false, message: 'tenant_id required' });
     }
 
-    const client = await fastify.pg.connect();
-    try {
-      const { rows } = await client.query(
+    const { rows } = await withTenantContext(tenantId, (client) =>
+      client.query(
         `SELECT is_stripe_enabled,
-                stripe_publishable_key,
-                venue_name
+                stripe_publishable_key
          FROM bookings.tenants
          WHERE tenant_id = $1
          LIMIT 1`,
         [tenantId]
-      );
-      return reply.send({ success: true, data: rows[0] || {} });
-    } finally {
-      client.release();
-    }
+      )
+    );
+    return reply.send({ success: true, data: rows[0] || {} });
   });
 
   // ── GET /stripe/bacs-details ────────────────────────────────────────────────
-  // Authenticated. Returns BACS account fields for display inside the pay modal.
-  // Behind auth to prevent cross-tenant enumeration of bank details.
   fastify.get('/bacs-details', { preHandler: fastify.authenticate }, async (req, reply) => {
     const tenantId = req.user.tenant_id;
 
-    const client = await fastify.pg.connect();
-    try {
-      const { rows } = await client.query(
+    const { rows } = await withTenantContext(tenantId, (client) =>
+      client.query(
         `SELECT bacs_account_name,
                 bacs_sort_code,
                 bacs_account_number
@@ -70,18 +62,12 @@ module.exports = async function stripeRoutes(fastify, _opts) {
          WHERE tenant_id = $1
          LIMIT 1`,
         [tenantId]
-      );
-      return reply.send({ success: true, data: rows[0] || {} });
-    } finally {
-      client.release();
-    }
+      )
+    );
+    return reply.send({ success: true, data: rows[0] || {} });
   });
 
   // ── POST /stripe/session ────────────────────────────────────────────────────
-  // Authenticated (staff/calendar context).
-  // tenant_id comes exclusively from JWT — never from request body.
-  // Body: { jwt, booking_id, customer_id, amount, description?, success_url?, cancel_url? }
-  // Returns: { success: true, url, session_id }
   fastify.post('/session', { preHandler: fastify.authenticate }, async (req, reply) => {
     const tenantId  = req.user.tenant_id;
     const staffUser = req.user.full_name || req.user.username || String(req.user.user_id);
@@ -98,8 +84,7 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       return reply.code(400).send({ success: false, message: 'amount must be > 0' });
     }
 
-    const client = await fastify.pg.connect();
-    try {
+    const cfg = await withTenantContext(tenantId, async (client) => {
       const { rows } = await client.query(
         `SELECT stripe_secret_key, is_stripe_enabled
          FROM bookings.tenants
@@ -107,49 +92,51 @@ module.exports = async function stripeRoutes(fastify, _opts) {
          LIMIT 1`,
         [tenantId]
       );
+      return rows[0] || {};
+    });
 
-      const cfg = rows[0] || {};
-      if (!cfg.is_stripe_enabled) {
-        return reply.code(400).send({ success: false, message: 'Stripe payments are not enabled for this venue' });
-      }
-      if (!cfg.stripe_secret_key) {
-        return reply.code(400).send({ success: false, message: 'Stripe secret key not configured — please add it in Admin Config' });
-      }
+    if (!cfg.is_stripe_enabled) {
+      return reply.code(400).send({ success: false, message: 'Stripe payments are not enabled for this venue' });
+    }
+    if (!cfg.stripe_secret_key) {
+      return reply.code(400).send({ success: false, message: 'Stripe secret key not configured — please add it in Admin Config' });
+    }
 
-      let Stripe;
-      try { Stripe = require('stripe'); } catch (e) {
-        return reply.code(500).send({ success: false, message: 'Stripe SDK not installed on server' });
-      }
+    let Stripe;
+    try { Stripe = require('stripe'); } catch (e) {
+      return reply.code(500).send({ success: false, message: 'Stripe SDK not installed on server' });
+    }
 
-      const stripe       = Stripe(cfg.stripe_secret_key);
-      const amountPence  = Math.round(parseFloat(amount) * 100);
-      const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
+    const stripe       = Stripe(cfg.stripe_secret_key);
+    const amountPence  = Math.round(parseFloat(amount) * 100);
+    const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
 
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency:     'gbp',
-            unit_amount:  amountPence,
-            product_data: { name: description || 'Venue Booking Payment' },
-          },
-          quantity: 1,
-        }],
-        mode:        'payment',
-        success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  cancel_url  || `${frontendBase}/calendar.html`,
-        metadata: {
-          tenant_id:   String(tenantId),
-          booking_id:  String(booking_id  || ''),
-          customer_id: String(customer_id || ''),
-          source:      'calendar',
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency:     'gbp',
+          unit_amount:  amountPence,
+          product_data: { name: description || 'Venue Booking Payment' },
         },
-      });
+        quantity: 1,
+      }],
+      mode:        'payment',
+      success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  cancel_url  || `${frontendBase}/calendar.html`,
+      metadata: {
+        tenant_id:   String(tenantId),
+        booking_id:  String(booking_id  || ''),
+        customer_id: String(customer_id || ''),
+        source:      'calendar',
+      },
+    });
 
-      // Audit log
-      await client.query(
+    // Audit log
+    await withTenantContext(tenantId, (client) =>
+      client.query(
         `INSERT INTO bookings.audit_log
-           (tenant_id, action, entity, entity_id, payload, staff_user, source)
+          (tenant_id, action, entity, entity_id, payload, staff_user, source)
          VALUES ($1, 'stripe_session_created', 'booking', $2, $3, $4, 'calendar')`,
         [
           tenantId,
@@ -157,26 +144,13 @@ module.exports = async function stripeRoutes(fastify, _opts) {
           JSON.stringify({ amount: parseFloat(amount), session_id: session.id, customer_id: customer_id || null }),
           staffUser,
         ]
-      );
+      )
+    );
 
-      return reply.send({ success: true, url: session.url, session_id: session.id });
-    } finally {
-      client.release();
-    }
+    return reply.send({ success: true, url: session.url, session_id: session.id });
   });
 
   // ── POST /stripe/public-session ─────────────────────────────────────────────
-  // Unauthenticated. Used exclusively by enquiry-form.html (public/guest page).
-  //
-  // Security model:
-  //   - tenant_id validated against bookings.tenants (must exist AND is_active = TRUE)
-  //   - Amount bounded server-side (£10–£500) regardless of client value
-  //   - 404 for both missing and inactive tenants (no enumeration oracle)
-  //   - Description sanitised before passing to Stripe
-  //   - Audit log written before URL is returned
-  //
-  // Body: { tenant_id, amount, booking_request_id?, description?, success_url?, cancel_url? }
-  // Returns: { success: true, url, session_id }
   fastify.post('/public-session', async (req, reply) => {
     const rawTenantId = parseInt(req.body?.tenant_id || '0', 10);
     if (!rawTenantId) {
@@ -193,95 +167,100 @@ module.exports = async function stripeRoutes(fastify, _opts) {
 
     const { booking_request_id, description, success_url, cancel_url } = req.body || {};
 
-    const client = await fastify.pg.connect();
+    // Validate tenant — withTenantContext sets app.tenant_id = rawTenantId so
+    // FORCE RLS filters to only rows where tenant_id matches. Combined with the
+    // explicit WHERE clause, returns a row only for a valid, active tenant.
+    // Any DB error is caught and treated as 404 to prevent tenant enumeration.
+    let cfg;
     try {
-      // Validate tenant — identical 404 for both non-existent and inactive (no oracle)
-      const { rows } = await client.query(
-        `SELECT tenant_id, stripe_secret_key, is_stripe_enabled
-         FROM bookings.tenants
-         WHERE tenant_id = $1
-           AND is_active = TRUE
-         LIMIT 1`,
-        [rawTenantId]
-      );
-
-      if (!rows[0]) return reply.code(404).send({});
-
-      const cfg = rows[0];
-      if (!cfg.is_stripe_enabled || !cfg.stripe_secret_key) {
-        return reply.code(400).send({ success: false, message: 'Online payments are not available for this venue' });
-      }
-
-      let Stripe;
-      try { Stripe = require('stripe'); } catch (e) {
-        return reply.code(500).send({ success: false, message: 'Stripe SDK not installed on server' });
-      }
-
-      const stripe       = Stripe(cfg.stripe_secret_key);
-      const amountPence  = Math.round(amountNum * 100);
-      const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
-
-      // Sanitise description — never reflect raw client input verbatim into Stripe
-      const safeDescription = typeof description === 'string'
-        ? description.replace(/[<>"']/g, '').substring(0, 200)
-        : 'Venue Deposit';
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency:     'gbp',
-            unit_amount:  amountPence,
-            product_data: { name: safeDescription },
-          },
-          quantity: 1,
-        }],
-        mode:        'payment',
-        success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  cancel_url  || `${frontendBase}/enquiry-form.html?t=${rawTenantId}`,
-        metadata: {
-          tenant_id:          String(cfg.tenant_id),
-          booking_request_id: String(booking_request_id || ''),
-          source:             'enquiry-form',
-        },
+      cfg = await withTenantContext(rawTenantId, async (client) => {
+        const { rows } = await client.query(
+          `SELECT tenant_id, stripe_secret_key, is_stripe_enabled
+           FROM bookings.tenants
+           WHERE tenant_id = $1
+             AND is_active = TRUE
+           LIMIT 1`,
+          [rawTenantId]
+        );
+        return rows[0] || null;
       });
+    } catch (err) {
+      cfg = null;
+    }
 
-      // Audit log
-      await client.query(
+    if (!cfg) return reply.code(404).send({});
+
+    if (!cfg.is_stripe_enabled || !cfg.stripe_secret_key) {
+      return reply.code(400).send({ success: false, message: 'Online payments are not available for this venue' });
+    }
+
+    let Stripe;
+    try { Stripe = require('stripe'); } catch (e) {
+      return reply.code(500).send({ success: false, message: 'Stripe SDK not installed on server' });
+    }
+
+    const stripe       = Stripe(cfg.stripe_secret_key);
+    const amountPence  = Math.round(amountNum * 100);
+    const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
+
+    const safeDescription = typeof description === 'string'
+      ? description.replace(/[<>"']/g, '').substring(0, 200)
+      : 'Venue Deposit';
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency:     'gbp',
+          unit_amount:  amountPence,
+          product_data: { name: safeDescription },
+        },
+        quantity: 1,
+      }],
+      mode:        'payment',
+      success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  cancel_url  || `${frontendBase}/enquiry-form.html?t=${rawTenantId}`,
+      metadata: {
+        tenant_id:          String(cfg.tenant_id),
+        booking_request_id: String(booking_request_id || ''),
+        source:             'enquiry-form',
+      },
+    });
+
+    // Audit log
+    await withTenantContext(cfg.tenant_id, (client) =>
+      client.query(
         `INSERT INTO bookings.audit_log
-           (tenant_id, action, entity, entity_id, payload, staff_user, source)
+          (tenant_id, action, entity, entity_id, payload, staff_user, source)
          VALUES ($1, 'public_stripe_session_created', 'enquiry', $2, $3, NULL, 'enquiry-form')`,
         [
           cfg.tenant_id,
           booking_request_id || null,
           JSON.stringify({ amount: amountNum, session_id: session.id }),
         ]
-      );
+      )
+    );
 
-      return reply.send({ success: true, url: session.url, session_id: session.id });
-    } finally {
-      client.release();
-    }
+    return reply.send({ success: true, url: session.url, session_id: session.id });
   });
 
   // ── POST /stripe/webhook ────────────────────────────────────────────────────
-  // Called by Stripe. Verifies signature using the tenant's webhook secret.
-  // tenant_id must be passed as a query param: /stripe/webhook?tenant_id=1001
   fastify.post('/webhook', async (req, reply) => {
     const tenantId = parseInt(req.query.tenant_id || '0', 10) || null;
 
     let webhookSecret = null;
     if (tenantId) {
-      const client = await fastify.pg.connect();
       try {
-        const { rows } = await client.query(
-          `SELECT stripe_webhook_secret, stripe_secret_key
-           FROM bookings.tenants WHERE tenant_id = $1 LIMIT 1`,
-          [tenantId]
+        const { rows } = await withTenantContext(tenantId, (client) =>
+          client.query(
+            `SELECT stripe_webhook_secret
+             FROM bookings.tenants WHERE tenant_id = $1 LIMIT 1`,
+            [tenantId]
+          )
         );
         webhookSecret = rows[0]?.stripe_webhook_secret || null;
-      } finally {
-        client.release();
+      } catch (e) {
+        // Ignore — proceed without webhook verification
       }
     }
 
@@ -313,51 +292,49 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       const source       = session.metadata?.source              || 'calendar';
 
       if (metaTenantId) {
-        const client = await fastify.pg.connect();
         try {
-          if (bookingId) {
-            // Confirmed booking payment — record and reduce balance
-            await client.query(
-              `INSERT INTO bookings.payments
-                 (booking_id, customer_id, amount, payment_method, payment_type,
-                  reference_number, tenant_id)
-               VALUES ($1, $2, $3, 'card', 'deposit', $4, $5)
-               ON CONFLICT DO NOTHING`,
-              [bookingId, customerId || null, amountPaid, session.id, metaTenantId]
-            );
-            await client.query(
-              `UPDATE bookings.confirmed_bookings
-               SET balance_due  = GREATEST(0, COALESCE(balance_due, 0) - $1),
-                   deposit_paid = COALESCE(deposit_paid, 0) + $1,
-                   updated_at   = NOW()
-               WHERE id = $2 AND tenant_id = $3`,
-              [amountPaid, bookingId, metaTenantId]
-            );
-          } else if (requestId) {
-            // Enquiry deposit — mark booking request
-            await client.query(
-              `UPDATE bookings.booking_requests
-               SET status = 'deposit_paid', updated_at = NOW()
-               WHERE id = $1 AND tenant_id = $2`,
-              [requestId, metaTenantId]
-            );
-          }
+          await withTenantContext(metaTenantId, async (client) => {
+            if (bookingId) {
+              await client.query(
+                `INSERT INTO bookings.payments
+                  (booking_id, customer_id, amount, payment_method, payment_type,
+                   reference_number, tenant_id)
+                 VALUES ($1, $2, $3, 'card', 'deposit', $4, $5)
+                 ON CONFLICT DO NOTHING`,
+                [bookingId, customerId || null, amountPaid, session.id, metaTenantId]
+              );
+              await client.query(
+                `UPDATE bookings.confirmed_bookings
+                 SET balance_due  = GREATEST(0, COALESCE(balance_due, 0) - $1),
+                     deposit_paid = COALESCE(deposit_paid, 0) + $1,
+                     updated_at   = NOW()
+                 WHERE id = $2 AND tenant_id = $3`,
+                [amountPaid, bookingId, metaTenantId]
+              );
+            } else if (requestId) {
+              await client.query(
+                `UPDATE bookings.booking_requests
+                 SET status = 'deposit_paid', updated_at = NOW()
+                 WHERE id = $1 AND tenant_id = $2`,
+                [requestId, metaTenantId]
+              );
+            }
 
-          // Webhook audit entry
-          await client.query(
-            `INSERT INTO bookings.audit_log
-               (tenant_id, action, entity, entity_id, payload, staff_user, source)
-             VALUES ($1, 'stripe_webhook_received', $2, $3, $4, NULL, $5)`,
-            [
-              metaTenantId,
-              bookingId ? 'booking' : 'enquiry',
-              bookingId || requestId || null,
-              JSON.stringify({ amount: amountPaid, session_id: session.id, event_type: event.type }),
-              source,
-            ]
-          );
-        } finally {
-          client.release();
+            await client.query(
+              `INSERT INTO bookings.audit_log
+                (tenant_id, action, entity, entity_id, payload, staff_user, source)
+               VALUES ($1, 'stripe_webhook_received', $2, $3, $4, NULL, $5)`,
+              [
+                metaTenantId,
+                bookingId ? 'booking' : 'enquiry',
+                bookingId || requestId || null,
+                JSON.stringify({ amount: amountPaid, session_id: session.id, event_type: event.type }),
+                source,
+              ]
+            );
+          });
+        } catch (e) {
+          console.error('[webhook] DB error:', e.message);
         }
       }
     }

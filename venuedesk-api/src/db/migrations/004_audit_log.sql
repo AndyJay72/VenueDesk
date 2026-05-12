@@ -42,4 +42,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_time
 CREATE INDEX IF NOT EXISTS idx_audit_log_entity
   ON bookings.audit_log (tenant_id, entity, entity_id);
 
-RAISE NOTICE 'Migration 004 complete';
+-- Fix the run command header too
+-- Run via: docker exec -i n8n_postgres-postgres-1 psql -U n8n -d bookings_db < 004_audit_log.sql
+DO $$ BEGIN RAISE NOTICE 'Migration 004 complete'; END $$;

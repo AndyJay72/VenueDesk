@@ -1,0 +1,5 @@
+[
+  { "name": "Main Hall", "capacity": 100, "day_rate": 250, "half_rate": 150, "is_active": true },
+  { "name": "Meeting Room 1", "capacity": 20, "day_rate": 120, "half_rate": 75, "is_active": true },
+  { "name": "Board Room", "capacity": 12, "day_rate": 100, "half_rate": 60, "is_active": true }
+]

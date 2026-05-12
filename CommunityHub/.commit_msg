@@ -1,0 +1,16 @@
+Full qbModal rebuild + list view fix + multiday drag-select
+
+- List view: fix invisible white text on white bg (#1e293b, #f1f5f9 headers)
+- qbModal CSS: section labels, avail status states, payment box, action buttons
+- qbModal HTML: full match of manual-booking.html — customer name/phone/email,
+  room select, event type, multi-day toggle (single/range), start/end time
+  selects 08:00-23:30, guest count, notes, availability status, payment section
+  with method/amount/override, Deposit / Pay Full / Submit as Pending buttons
+- qbInit(): loads rooms, pricing, event types, populates time selects on open
+- qbCheckAvailability(): 500ms debounce, calls check-availability API
+- qbCalculateCost(): half/full day rate x days + event type surcharge
+- qbSubmitBooking(type): full validation, blocked date check, re-checks
+  availability on deposit/full pay, posts walk_in payload to booking API
+- FullCalendar: selectable + selectAllow (past guard) + select callback
+  for multi-day drag/click to open booking modal with date range pre-filled
+- dateClick: passes (dateStr, dateStr) to updated openQbModal signature

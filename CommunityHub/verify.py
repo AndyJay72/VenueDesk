@@ -1,0 +1,26 @@
+c=open("calendar.html").read()
+items={
+"list_bg":"fc-list{background:#ffffff",
+"qb_section_label":"qb-section-label",
+"qb_customerName":"qb-customerName",
+"qb_roomSelect":"qb-roomSelect",
+"multiDayToggle":"qb-multiDayToggle",
+"availStatus":"qb-availStatus",
+"payment_box":"qb-payment-box",
+"btn_deposit":"qb-btn-deposit",
+"btn_pending":"qb-btn-pending",
+"CHECK_API":"CHECK_API",
+"PRICING_API":"PRICING_API",
+"TYPES_API":"TYPES_API",
+"qbInit_fn":"qbInit",
+"qbSubmitBooking":"qbSubmitBooking",
+"selectable_true":"selectable:true",
+"select_callback":"select:function",
+"two_args":"openQbModal(info.dateStr,info.dateStr)",
+"conflict_modal":"qb-conflictModal",
+"NO_old_qb_date":"id=\"qb-date\"",
+"NO_old_qb_room":"id=\"qb-room\"",
+"NO_submitBookingRequest":"submitBookingRequest",
+}
+for k,v in items.items():
+    print(k,c.count(v))

@@ -1,0 +1,927 @@
+{
+  "id": "bkD0FkR1MtXvcm59",
+  "name": "VenuePro - Create Recurring Booking (Fixed)",
+  "active": true,
+  "isArchived": false,
+  "versionId": "12189e51-634c-43dd-86d2-6191d82c9e2a",
+  "activeVersionId": "12189e51-634c-43dd-86d2-6191d82c9e2a",
+  "triggerCount": 1,
+  "createdAt": "2026-04-06T21:31:33.164Z",
+  "updatedAt": "2026-04-07T17:41:05.371Z",
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "connections": {
+    "Webhook: Create Recurring Booking": {
+      "main": [
+        [
+          {
+            "node": "Debug: Check Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug: Check Input Data": {
+      "main": [
+        [
+          {
+            "node": "DB: Ensure Schema (payment_timing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Upsert Customer": {
+      "main": [
+        [
+          {
+            "node": "DB: Set Contract Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Set Contract Type": {
+      "main": [
+        [
+          {
+            "node": "Code: Generate Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Generate Dates": {
+      "main": [
+        [
+          {
+            "node": "Code: Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Validate": {
+      "main": [
+        [
+          {
+            "node": "DB: Check Room Clashes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Rule": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Series",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Bookings": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Payment Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Payment Schedule": {
+      "main": [
+        [
+          {
+            "node": "Respond: Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Ensure Schema (payment_timing)": {
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Insert Series": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Check Room Clashes": {
+      "main": [
+        [
+          {
+            "node": "Code: Filter Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Filter Dates": {
+      "main": [
+        [
+          {
+            "node": "IF: Room Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Room Available?": {
+      "main": [
+        [
+          {
+            "node": "DB: Insert Rule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Not Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-recurring-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a7c520ae-2a92-485e-9658-fc1a6a86169c",
+      "name": "Webhook: Create Recurring Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        7792,
+        0
+      ],
+      "webhookId": "eca5d49e-e60f-492e-a368-504b62aa46e9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get raw input\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = \"Parsing failed: \" + e.message;\n}\n\nconst output = {\n  ...finalResult,\n  tenant_id: parseInt(finalResult.tenant_id || 1001),\n  day_of_week: parseInt(finalResult.day_of_week ?? -1),\n  _debug_parsed: true\n};\n\nreturn [{ json: output }];"
+      },
+      "id": "b69f4ead-be2e-45a2-bfdc-f8642a4d65da",
+      "name": "Debug: Check Input Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7984,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing AS (\n  SELECT id AS customer_id, full_name, email, phone, false AS is_new\n  FROM bookings.customers\n  WHERE ((lower(email) = lower(NULLIF($2,'')) AND NULLIF($2,'') IS NOT NULL) OR phone = NULLIF($3,''))\n  AND tenant_id = $4\n  ORDER BY created_at ASC\n  LIMIT 1\n),\nupdated AS (\n  UPDATE bookings.customers\n  SET full_name = CASE\n    WHEN lower(email) = lower(NULLIF($2,'')) AND NULLIF($2,'') IS NOT NULL THEN $1\n    ELSE full_name\n  END,\n      email = CASE\n    WHEN NULLIF($2,'') IS NOT NULL THEN NULLIF($2,'')\n    ELSE email\n  END,\n      phone = COALESCE(NULLIF($3,''), phone)\n  WHERE id = (SELECT customer_id FROM existing) AND tenant_id = $4\n  RETURNING id AS customer_id, full_name, email, phone, false AS is_new\n),\ninserted AS (\n  INSERT INTO bookings.customers (tenant_id, full_name, email, phone)\n  SELECT $4, $1, NULLIF($2,''), NULLIF($3,'')\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n    AND NULLIF($2,'') IS NOT NULL\n  ON CONFLICT DO NOTHING\n  RETURNING id AS customer_id, full_name, email, phone, true AS is_new\n)\nSELECT * FROM updated\nUNION ALL SELECT * FROM inserted\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [\n  ($('Debug: Check Input Data').first().json?.customer_name || '').trim(),\n  ($('Debug: Check Input Data').first().json?.customer_email || '').trim().toLowerCase(),\n  ($('Debug: Check Input Data').first().json?.customer_phone || '').trim(),\n  parseInt($('Debug: Check Input Data').first().json?.tenant_id || '0')\n] }}"
+        }
+      },
+      "id": "c5a9693b-1276-448e-b5fb-c4cf94a7bc35",
+      "name": "DB: Upsert Customer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        8192,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bookings.customers\nSET customer_type = 'contract'\nWHERE id = $1::uuid\n  AND tenant_id = $2;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('DB: Upsert Customer').first().json.customer_id,\n  $('Debug: Check Input Data').first().json.tenant_id\n] }}"
+        }
+      },
+      "id": "02e23134-810b-4d20-beb9-6370f85214ca",
+      "name": "DB: Set Contract Type",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8384,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $('Debug: Check Input Data').first().json;\nconst wb = inputData || {};\n\nconsole.log('Received for Date Gen:', wb);\n\nconst specificDates  = (wb.specific_dates || '').trim();\nconst frequency      = wb.frequency || 'weekly';\nconst startDateStr   = wb.start_date || '';\nconst endDateStr     = wb.end_date || '';\nconst dayOfWeek      = parseInt(wb.day_of_week ?? '-1');\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst monthlyRate    = parseFloat(wb.monthly_rate || wb.monthly_fee || '0') || 0;\nconst billingFreq    = (wb.billing_frequency || 'monthly').toLowerCase();\nconst paymentTiming  = wb.payment_timing || 'in_advance';\n// Auto-calculate monthly rate from rate_per_session × sessions-per-month\n// when frontend doesn't supply an explicit monthly_rate\nconst sessFreq = (wb.frequency || wb.session_frequency || 'weekly').toLowerCase();\nconst sessionsPerMonth = { weekly: 4, fortnightly: 2, monthly: 1 }[sessFreq] || 4;\nconst effectiveMonthlyRate = monthlyRate > 0\n  ? monthlyRate\n  : parseFloat((ratePerSession * sessionsPerMonth).toFixed(2));\n// Derive amount per billing period\nconst periodAmount = parseFloat(wb.period_amount || '0') ||\n                     (billingFreq === 'fortnightly' ? effectiveMonthlyRate / 2 : effectiveMonthlyRate) ||\n                     ratePerSession;\n\nif (!startDateStr && !specificDates) {\n  return [{ json: { error: \"Missing start_date or specific_dates\", date_count: 0, dates: \"\", payment_timing: paymentTiming } }];\n}\n\nlet dates = [];\n\nif (specificDates) {\n  dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n} else {\n  // Generate dates from day_of_week + frequency (fallback path for recurring-bookings.html)\n  const startDate = new Date(startDateStr + 'T12:00:00');\n  const maxDate   = endDateStr ? new Date(endDateStr + 'T12:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 3, startDate.getDate());\n  const dow       = dayOfWeek >= 0 ? dayOfWeek : startDate.getDay();\n  const daysToAdd = (dow - startDate.getDay() + 7) % 7;\n  const cursor    = new Date(startDate.getTime() + daysToAdd * 86400000);\n  while (cursor <= maxDate && dates.length < 100) {\n    dates.push(cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0')+'-'+String(cursor.getDate()).padStart(2,'0'));\n    if (frequency === 'monthly') { cursor.setMonth(cursor.getMonth() + 1); }\n    else if (frequency === 'fortnightly') { cursor.setDate(cursor.getDate() + 14); }\n    else { cursor.setDate(cursor.getDate() + 7); }\n  }\n}\n\nlet monthlyPeriods, monthlyEnds, monthlyAmounts, monthlySessions,\n    firstPeriodStart, firstPeriodEnd, firstMonthSessions, firstMonthAmount;\n\nif (paymentTiming === 'per_session') {\n  // One schedule row per individual session\n  monthlyPeriods  = dates.slice();\n  monthlyEnds     = dates.slice();\n  monthlyAmounts  = dates.map(() => ratePerSession.toFixed(2));\n  monthlySessions = dates.map(() => 1);\n  firstPeriodStart   = dates[0] || '';\n  firstPeriodEnd     = dates[0] || '';\n  firstMonthSessions = dates.length > 0 ? 1 : 0;\n  firstMonthAmount   = ratePerSession.toFixed(2);\n\n} else if (billingFreq === 'fortnightly') {\n  // Group into 14-day windows anchored at the first session date\n  const anchor = new Date(dates[0] + 'T12:00:00');\n  const periodMap = {};\n  for (const d of dates) {\n    const dt = new Date(d + 'T12:00:00');\n    const diffDays = Math.round((dt - anchor) / 86400000);\n    const winIdx   = Math.floor(diffDays / 14);\n    const winStart = new Date(anchor.getTime() + winIdx * 14 * 86400000);\n    const winEnd   = new Date(winStart.getTime() + 13 * 86400000);\n    const ks = winStart.getFullYear()+'-'+String(winStart.getMonth()+1).padStart(2,'0')+'-'+String(winStart.getDate()).padStart(2,'0');\n    const ke = winEnd.getFullYear()  +'-'+String(winEnd.getMonth()+1  ).padStart(2,'0')+'-'+String(winEnd.getDate()  ).padStart(2,'0');\n    if (!periodMap[ks]) periodMap[ks] = { count: 0, period_start: ks, period_end: ke };\n    periodMap[ks].count++;\n  }\n  const sortedKeys = Object.keys(periodMap).sort();\n  monthlyPeriods  = sortedKeys.map(k => periodMap[k].period_start);\n  monthlyEnds     = sortedKeys.map(k => periodMap[k].period_end);\n  monthlyAmounts  = sortedKeys.map(() => periodAmount.toFixed(2));\n  monthlySessions = sortedKeys.map(k => periodMap[k].count);\n  const fk = sortedKeys[0];\n  const fp = fk ? periodMap[fk] : null;\n  firstPeriodStart   = fp ? fp.period_start : '';\n  firstPeriodEnd     = fp ? fp.period_end   : '';\n  firstMonthSessions = fp ? fp.count : 0;\n  firstMonthAmount   = periodAmount.toFixed(2);\n\n} else {\n  // Monthly billing: group by calendar month — fixed subscription amount per month\n  const monthMap = {};\n  for (const d of dates) {\n    const dt = new Date(d + 'T12:00:00');\n    const y  = dt.getFullYear();\n    const m  = dt.getMonth();\n    const key = y + '-' + String(m + 1).padStart(2, '0');\n    if (!monthMap[key]) {\n      const mEnd = new Date(y, m + 1, 0);\n      monthMap[key] = {\n        count: 0,\n        period_start: key + '-01',\n        period_end:   key + '-' + String(mEnd.getDate()).padStart(2, '0')\n      };\n    }\n    monthMap[key].count++;\n  }\n  const sortedKeys = Object.keys(monthMap).sort();\n  monthlyPeriods  = sortedKeys.map(k => monthMap[k].period_start);\n  monthlyEnds     = sortedKeys.map(k => monthMap[k].period_end);\n  monthlyAmounts  = sortedKeys.map(() => periodAmount.toFixed(2));  // fixed per period\n  monthlySessions = sortedKeys.map(k => monthMap[k].count);\n  const fk = sortedKeys[0];\n  const fm = fk ? monthMap[fk] : null;\n  firstPeriodStart   = fm ? fm.period_start : '';\n  firstPeriodEnd     = fm ? fm.period_end   : '';\n  firstMonthSessions = fm ? fm.count : 0;\n  firstMonthAmount   = periodAmount.toFixed(2);\n}\n\nreturn [{ json: {\n  dates: dates.join(','),\n  date_count: dates.length,\n  payment_timing: paymentTiming,\n  billing_frequency: billingFreq,\n  monthly_rate: monthlyRate.toFixed(2),\n  period_amount: periodAmount.toFixed(2),\n  monthly_periods_csv:  monthlyPeriods.join(','),\n  monthly_ends_csv:     monthlyEnds.join(','),\n  monthly_amounts_csv:  monthlyAmounts.join(','),\n  monthly_sessions_csv: monthlySessions.join(','),\n  monthly_count:  monthlyPeriods.length,\n  period_start:   firstPeriodStart,\n  period_end:     firstPeriodEnd,\n  first_month_sessions: firstMonthSessions,\n  first_month_amount:   firstMonthAmount\n} }];"
+      },
+      "id": "f04cc50e-145e-416c-b918-75cf9a2c4913",
+      "name": "Code: Generate Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const wb = $('Debug: Check Input Data').first().json;\nconst customerRow = $('DB: Upsert Customer').first().json;\nconst dateGen = $('Code: Generate Dates').first().json;\n\nconst customer_id = customerRow?.customer_id;\nconst room_id = wb?.room_id;\nconst tenant_id = wb?.tenant_id;\n\nconsole.log(\"Validation Check:\", { customer_id, room_id, tenant_id, date_count: dateGen.date_count });\n\nif (!customer_id) {\n  throw new Error(\"Validation Error: The database did not return a customer_id. Check 'DB: Upsert Customer' output.\");\n}\n\nif (!room_id || !tenant_id) {\n  throw new Error(`Validation Error: Missing Webhook data. Room: ${room_id}, Tenant: ${tenant_id}`);\n}\n\nif (!dateGen.dates || dateGen.date_count === 0) {\n  throw new Error(\"Validation Error: No dates were generated for this booking.\");\n}\n\nreturn [{\n  json: {\n    customer_id,\n    room_id,\n    tenant_id,\n    dates: dateGen.dates,\n    date_count: dateGen.date_count,\n    first_month_amount: dateGen.first_month_amount,\n    customer_name: customerRow.full_name || wb.customer_name,\n    customer_email: customerRow.email || wb.customer_email\n  }\n}];"
+      },
+      "id": "e263f393-db28-4921-94ff-312aa055af1a",
+      "name": "Code: Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8592,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.recurring_rules\n  (tenant_id, customer_id, room_id, day_of_week, start_time, end_time,\n   rate_per_session, active, frequency, end_date,\n   billing_day, total_months, upfront_paid,\n   series_reference, monthly_fee, payment_timing, billing_frequency)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4, $5::time, $6::time,\n   NULLIF($7,'')::numeric, TRUE, $8, NULLIF($9,'')::date,\n   NULLIF($10,'')::int, NULLIF($11,'')::int, $12::boolean,\n   'RB-' || nextval('bookings.series_reference_seq')::text,\n   NULLIF($13,'')::numeric, COALESCE(NULLIF($14,''), 'in_advance'),\n   COALESCE(NULLIF($15,''), 'monthly'))\nRETURNING id AS rule_id, series_reference;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  parseInt($('Debug: Check Input Data').first().json?.day_of_week ?? '1'),\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || ''),\n  $('Debug: Check Input Data').first().json?.frequency || 'weekly',\n  $('Debug: Check Input Data').first().json?.end_date || '',\n  String($('Debug: Check Input Data').first().json?.billing_day || ''),\n  String($('Debug: Check Input Data').first().json?.total_months || ''),\n  String($('Debug: Check Input Data').first().json?.upfront_paid === true || $('Debug: Check Input Data').first().json?.upfront_paid === 'true' ? 'true' : 'false'),\n  String($('Debug: Check Input Data').first().json?.monthly_rate || $('Debug: Check Input Data').first().json?.monthly_fee || ''),\n  String($('Debug: Check Input Data').first().json?.payment_timing || 'in_advance'),\n  String($('Debug: Check Input Data').first().json?.billing_frequency || 'monthly')\n] }}"
+        }
+      },
+      "id": "23ee12c9-c776-4852-89cc-62d4213a993c",
+      "name": "DB: Insert Rule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.confirmed_bookings\n  (tenant_id, customer_id, room_id, booking_date, date_from, date_to,\n   start_time, end_time, total_amount, deposit_paid, balance_due,\n   status, is_recurring, recurring_rule_id, recurring_series_id, series_label, updated_at)\nSELECT\n  $1, $2::uuid, $3::uuid, d::date, d::date, d::date,\n  $5::time, $6::time,\n  COALESCE(NULLIF($7,'')::numeric, 0),\n  0,\n  0,\n  'confirmed', TRUE,\n  NULLIF($8,'')::uuid,\n  NULLIF($9,'')::uuid,\n  $10, NOW()\nFROM unnest(string_to_array($4, ',')) AS t(d)\nWHERE $4 <> ''\n  -- Race-condition guard 1: no overlapping confirmed booking\n  AND NOT EXISTS (\n    SELECT 1 FROM bookings.confirmed_bookings ex\n    WHERE ex.room_id    = $3::uuid\n      AND ex.tenant_id  = $1::integer\n      AND ex.status NOT IN ('cancelled')\n      AND ex.booking_date = d::date\n      AND ex.start_time  < $6::time\n      AND ex.end_time    > $5::time\n  )\n  -- Race-condition guard 2: no active recurring rule for this DOW/time\n  -- (excludes the rule we just created for this series via $8)\n  AND NOT EXISTS (\n    SELECT 1 FROM bookings.recurring_rules rr\n    WHERE rr.room_id    = $3::uuid\n      AND rr.tenant_id  = $1::integer\n      AND rr.active     = TRUE\n      AND rr.id        != NULLIF($8,'')::uuid\n      AND rr.day_of_week = EXTRACT(DOW FROM d::date)::int\n      AND rr.start_time  < $6::time\n      AND rr.end_time    > $5::time\n      AND (rr.end_date IS NULL OR rr.end_date >= d::date)\n  )\nRETURNING booking_date::text, id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  $('Code: Filter Dates').first().json.filtered_dates || '',\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || ''),\n  $('DB: Insert Rule').first().json.rule_id || '',\n  $('DB: Insert Series').first().json.series_id || '',\n  'Recurring'\n] }}"
+        }
+      },
+      "id": "8b3351c1-56a1-41e9-9ef4-1a273af38e6c",
+      "name": "DB: Insert Bookings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9104,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.recurring_payment_schedule (\n    tenant_id,\n    recurring_rule_id,\n    customer_id,\n    period_start,\n    period_end,\n    amount_due,\n    due_date,\n    status,\n    total_cycles,\n    remaining_cycles,\n    billing_day,\n    upfront_paid,\n    payment_timing\n)\nSELECT\n    $1::int,\n    $2::uuid,\n    $3::uuid,\n    ps::date,\n    pe::date,\n    amt::numeric,\n    CASE\n        WHEN $7 = 'in_arrears' THEN (pe::date + INTERVAL '7 days')::date\n        ELSE ps::date\n    END,\n    'pending',\n    NULLIF($8,'')::int,\n    CASE WHEN NULLIF($8,'') IS NOT NULL THEN GREATEST(0, NULLIF($8,'')::int - rn::int) ELSE NULL END,\n    NULLIF($9,'')::int,\n    $10::boolean,\n    $7\nFROM unnest(\n    string_to_array($4, ','),\n    string_to_array($5, ','),\n    string_to_array($6, ',')\n) WITH ORDINALITY AS t(ps, pe, amt, rn)\nON CONFLICT (recurring_rule_id, period_start) DO NOTHING\nRETURNING id, period_start::text, amount_due, due_date::text;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('DB: Insert Rule').first().json.rule_id || '',\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Generate Dates').first().json.monthly_periods_csv || '',\n  $('Code: Generate Dates').first().json.monthly_ends_csv || '',\n  $('Code: Generate Dates').first().json.monthly_amounts_csv || '0',\n  $('Code: Generate Dates').first().json.payment_timing || 'in_advance',\n  String($('Debug: Check Input Data').first().json?.total_months || ''),\n  String($('Debug: Check Input Data').first().json?.billing_day || ''),\n  String($('Debug: Check Input Data').first().json?.upfront_paid === true || $('Debug: Check Input Data').first().json?.upfront_paid === 'true' ? 'true' : 'false')\n] }}"
+        }
+      },
+      "id": "be28d34d-6e7f-4757-9f28-06e2761810df",
+      "name": "DB: Insert Payment Schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9312,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  status: 'created',\n  rule_id: $('DB: Insert Rule').first().json.rule_id,\n  series_id: $('DB: Insert Series').first().json.series_id || null,\n  series_reference: $('DB: Insert Rule').first().json.series_reference || null,\n  customer_id: $('Code: Validate').first().json.customer_id,\n  customer_name: $('Code: Validate').first().json.customer_name,\n  booking_count: $('Code: Filter Dates').first().json.dates_count,\n  agreed_price: $('DB: Insert Series').first().json.agreed_price || null,\n  amount_due: $('Code: Generate Dates').first().json.first_month_amount,\n  first_month_sessions: $('Code: Generate Dates').first().json.first_month_sessions || null,\n  frequency: $('Debug: Check Input Data').first().json.frequency || null,\n  total_cycles: $('DB: Insert Payment Schedule').first().json.total_cycles || null,\n  remaining_cycles: $('DB: Insert Payment Schedule').first().json.remaining_cycles || null,\n  billing_day: $('DB: Insert Payment Schedule').first().json.billing_day || null,\n  due_date: $('DB: Insert Payment Schedule').first().json.due_date || null\n,\n  partial_booking: $('Code: Filter Dates').first().json.has_conflict || false,\n  warning: $('Code: Filter Dates').first().json.warning || null,\n  first_conflict_date: $('Code: Filter Dates').first().json.first_conflict_date || null\n}) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "079e1e48-7e75-4c59-a8c1-05ab844ea0a7",
+      "name": "Respond: Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        9520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ALTER TABLE IF EXISTS bookings.recurring_rules ADD COLUMN IF NOT EXISTS payment_timing VARCHAR(20) DEFAULT 'in_advance';\nALTER TABLE IF EXISTS bookings.recurring_payment_schedule ADD COLUMN IF NOT EXISTS payment_timing VARCHAR(20) DEFAULT 'in_advance';\nALTER TABLE IF EXISTS bookings.recurring_rules ADD COLUMN IF NOT EXISTS billing_frequency TEXT DEFAULT 'monthly';\nALTER TABLE IF EXISTS bookings.confirmed_bookings ADD COLUMN IF NOT EXISTS recurring_series_id UUID REFERENCES bookings.recurring_series(id) ON DELETE SET NULL;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS rate_per_session   NUMERIC(10,2) NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS total_sessions      INT           NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS sessions_completed  INT           NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS agreed_price        NUMERIC(10,2) NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS status              TEXT          NOT NULL DEFAULT 'active';\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS billing_type        TEXT          NOT NULL DEFAULT 'monthly';\n-- Install the trigger that enforces child balance_due = 0\nCREATE OR REPLACE FUNCTION bookings.fn_zero_child_balance()\nRETURNS TRIGGER LANGUAGE plpgsql AS $fn$\nBEGIN\n    IF NEW.recurring_series_id IS NOT NULL THEN\n        NEW.balance_due := 0;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;\n\nDROP TRIGGER IF EXISTS trg_zero_child_balance ON bookings.confirmed_bookings;\nCREATE TRIGGER trg_zero_child_balance\n    BEFORE INSERT OR UPDATE OF recurring_series_id, balance_due\n    ON bookings.confirmed_bookings\n    FOR EACH ROW\n    EXECUTE FUNCTION bookings.fn_zero_child_balance();",
+        "options": {}
+      },
+      "id": "2aeb509b-f2eb-457a-ab12-5097d703a9cf",
+      "name": "DB: Ensure Schema (payment_timing)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        7984,
+        128
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bookings.recurring_series\n  (tenant_id, customer_id, room_id, series_name, frequency, start_date, end_date,\n   start_time, end_time, rate_per_session, total_sessions,\n   agreed_price, cycle_amount, balance_due,\n   billing_type, payment_timing, status, active)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4, $5,\n   NULLIF($6,'')::date, NULLIF($7,'')::date,\n   NULLIF($8,'')::time, NULLIF($9,'')::time,\n   COALESCE(NULLIF($10,'')::numeric, 0),\n   COALESCE(NULLIF($11,'')::int, 0),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   COALESCE(NULLIF($12,''), 'monthly'),\n   COALESCE(NULLIF($13,''), 'in_advance'),\n   'active', true)\nRETURNING id AS series_id;",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  ($('Debug: Check Input Data').first().json?.series_name || $('Debug: Check Input Data').first().json?.customer_name || 'Recurring Session').trim(),\n  $('Debug: Check Input Data').first().json?.frequency || 'weekly',\n  $('Debug: Check Input Data').first().json?.start_date || '',\n  $('Debug: Check Input Data').first().json?.end_date || '',\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || '0'),\n  String($('Code: Generate Dates').first().json.date_count || '0'),\n  String($('Debug: Check Input Data').first().json?.billing_frequency || 'monthly'),\n  String($('Debug: Check Input Data').first().json?.payment_timing || 'in_advance')\n] }}"
+        }
+      },
+      "id": "718fd918-c104-4699-8233-5f2bc507e29a",
+      "name": "DB: Insert Series",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        8896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(\n  ARRAY_AGG(d::text ORDER BY d),\n  ARRAY[]::text[]\n) AS clashed_dates\nFROM unnest(string_to_array($1, ',')) AS d\nWHERE $1 <> ''\n  AND (\n    -- Check 1: Existing confirmed bookings (strict time-overlap formula)\n    EXISTS (\n      SELECT 1 FROM bookings.confirmed_bookings cb\n      WHERE cb.room_id    = NULLIF($2,'')::uuid\n        AND cb.tenant_id  = $3::integer\n        AND cb.status NOT IN ('cancelled')\n        AND d::date BETWEEN COALESCE(cb.date_from::date, cb.booking_date)\n                        AND COALESCE(cb.date_to::date, cb.booking_date)\n        AND cb.start_time < $5::time\n        AND cb.end_time   > $4::time\n    )\n    -- Check 2: Active recurring rules – blocks ungenerated future sessions too\n    OR EXISTS (\n      SELECT 1 FROM bookings.recurring_rules rr\n      WHERE rr.room_id    = NULLIF($2,'')::uuid\n        AND rr.tenant_id  = $3::integer\n        AND rr.active     = TRUE\n        AND rr.day_of_week = EXTRACT(DOW FROM d::date)::int\n        AND rr.start_time < $5::time\n        AND rr.end_time   > $4::time\n        AND (rr.end_date IS NULL OR rr.end_date >= d::date)\n    )\n    -- Check 3: Manually blocked dates\n    OR EXISTS (\n      SELECT 1 FROM bookings.blocked_dates bd\n      WHERE bd.tenant_id = $3::integer\n        AND (\n          (bd.block_type = 'oneoff' AND bd.block_date::date = d::date)\n          OR (bd.block_type IN ('recurring', 'recurring-weekday') AND bd.day_of_week = EXTRACT(DOW FROM d::date)::int)\n          OR (bd.block_type = 'range' AND d::date BETWEEN bd.date_from::date AND bd.date_to::date)\n        )\n    )\n  )",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Code: Validate').first().json.dates || '',\n  $('Code: Validate').first().json.room_id,\n  $('Code: Validate').first().json.tenant_id,\n  $('Debug: Check Input Data').first().json.start_time || '09:00',\n  $('Debug: Check Input Data').first().json.end_time || '23:59'\n] }}"
+        }
+      },
+      "id": "e627f788-98e8-40c2-af56-f519a4b4820e",
+      "name": "DB: Check Room Clashes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        9184,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const validate  = $('Code: Validate').first().json;\nconst allDates  = (validate.dates || '').split(',').filter(Boolean).sort();\nconst clashRow  = $input.first().json;\nconst clashed   = new Set((clashRow.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });\n};\n\n// ── No clashes at all ──────────────────────────────────────────────────────\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count:    allDates.length,\n    has_conflict:   false,\n    blocked:        false,\n    warning:        null\n  }}];\n}\n\n// ── Hard block: first date of the series is unavailable ───────────────────\nif (allDates.length > 0 && clashed.has(allDates[0])) {\n  return [{ json: {\n    filtered_dates:     '',\n    dates_count:        0,\n    has_conflict:       true,\n    blocked:            true,\n    first_conflict_date: allDates[0],\n    warning: 'The first session date (' + fmtDate(allDates[0]) + ') is already taken for this room at this time. Please choose a different start date or room.'\n  }}];\n}\n\n// ── Soft block: some later dates are clashed – exclude only those ──────────\nconst safeDates    = allDates.filter(d => !clashed.has(d));\nconst removedDates = allDates.filter(d =>  clashed.has(d));\n\n// If every date was clashed (but not the first — caught above) something odd happened\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates:     '',\n    dates_count:        0,\n    has_conflict:       true,\n    blocked:            true,\n    first_conflict_date: removedDates[0] || null,\n    removed_dates:      removedDates,\n    warning: 'All ' + allDates.length + ' requested session dates are already taken for this room at this time.'\n  }}];\n}\n\n// Build a readable list of the removed dates\nconst fmtList = removedDates.map(fmtDate);\nlet removedMsg;\nif (fmtList.length === 1) {\n  removedMsg = fmtList[0];\n} else if (fmtList.length <= 4) {\n  removedMsg = fmtList.slice(0, -1).join(', ') + ' and ' + fmtList[fmtList.length - 1];\n} else {\n  removedMsg = fmtList.slice(0, 3).join(', ') + ', and ' + (fmtList.length - 3) + ' more';\n}\n\nreturn [{ json: {\n  filtered_dates:     safeDates.join(','),\n  dates_count:        safeDates.length,\n  has_conflict:       true,\n  blocked:            false,\n  first_conflict_date: removedDates[0],\n  clashed_count:      clashed.size,\n  removed_dates:      removedDates,\n  warning: safeDates.length + ' session(s) booked. ' + removedDates.length + ' date(s) excluded due to conflicts: ' + removedMsg + '.'\n}}];"
+      },
+      "id": "507d810b-1bfb-4aca-9c29-7733b88fcbb1",
+      "name": "Code: Filter Dates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9424,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "avail-cond-rb-001",
+              "leftValue": "={{ $('Code: Filter Dates').first().json.blocked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0d3324bd-4246-4e9c-93ad-c9e2d61f6337",
+      "name": "IF: Room Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9664,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, status: 'unavailable', message: $('Code: Filter Dates').first().json.warning || 'Room not available for the requested dates.' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "6fb8f69a-3c4c-4a08-b9a0-7bc452c80dcf",
+      "name": "Respond: Not Available",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        9904,
+        496
+      ]
+    }
+  ],
+  "activeVersion": {
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "create-recurring-booking",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "a7c520ae-2a92-485e-9658-fc1a6a86169c",
+        "name": "Webhook: Create Recurring Booking",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          7792,
+          0
+        ],
+        "webhookId": "eca5d49e-e60f-492e-a368-504b62aa46e9"
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Get raw input\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = \"Parsing failed: \" + e.message;\n}\n\nconst output = {\n  ...finalResult,\n  tenant_id: parseInt(finalResult.tenant_id || 1001),\n  day_of_week: parseInt(finalResult.day_of_week ?? -1),\n  _debug_parsed: true\n};\n\nreturn [{ json: output }];"
+        },
+        "id": "b69f4ead-be2e-45a2-bfdc-f8642a4d65da",
+        "name": "Debug: Check Input Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          7984,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH existing AS (\n  SELECT id AS customer_id, full_name, email, phone, false AS is_new\n  FROM bookings.customers\n  WHERE ((lower(email) = lower(NULLIF($2,'')) AND NULLIF($2,'') IS NOT NULL) OR phone = NULLIF($3,''))\n  AND tenant_id = $4\n  ORDER BY created_at ASC\n  LIMIT 1\n),\nupdated AS (\n  UPDATE bookings.customers\n  SET full_name = CASE\n    WHEN lower(email) = lower(NULLIF($2,'')) AND NULLIF($2,'') IS NOT NULL THEN $1\n    ELSE full_name\n  END,\n      email = CASE\n    WHEN NULLIF($2,'') IS NOT NULL THEN NULLIF($2,'')\n    ELSE email\n  END,\n      phone = COALESCE(NULLIF($3,''), phone)\n  WHERE id = (SELECT customer_id FROM existing) AND tenant_id = $4\n  RETURNING id AS customer_id, full_name, email, phone, false AS is_new\n),\ninserted AS (\n  INSERT INTO bookings.customers (tenant_id, full_name, email, phone)\n  SELECT $4, $1, NULLIF($2,''), NULLIF($3,'')\n  WHERE NOT EXISTS (SELECT 1 FROM existing)\n    AND NULLIF($2,'') IS NOT NULL\n  ON CONFLICT DO NOTHING\n  RETURNING id AS customer_id, full_name, email, phone, true AS is_new\n)\nSELECT * FROM updated\nUNION ALL SELECT * FROM inserted\nLIMIT 1;",
+          "options": {
+            "queryReplacement": "={{ [\n  ($('Debug: Check Input Data').first().json?.customer_name || '').trim(),\n  ($('Debug: Check Input Data').first().json?.customer_email || '').trim().toLowerCase(),\n  ($('Debug: Check Input Data').first().json?.customer_phone || '').trim(),\n  parseInt($('Debug: Check Input Data').first().json?.tenant_id || '0')\n] }}"
+          }
+        },
+        "id": "c5a9693b-1276-448e-b5fb-c4cf94a7bc35",
+        "name": "DB: Upsert Customer",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          8192,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE bookings.customers\nSET customer_type = 'contract'\nWHERE id = $1::uuid\n  AND tenant_id = $2;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('DB: Upsert Customer').first().json.customer_id,\n  $('Debug: Check Input Data').first().json.tenant_id\n] }}"
+          }
+        },
+        "id": "02e23134-810b-4d20-beb9-6370f85214ca",
+        "name": "DB: Set Contract Type",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          8384,
+          0
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const inputData = $('Debug: Check Input Data').first().json;\nconst wb = inputData || {};\n\nconsole.log('Received for Date Gen:', wb);\n\nconst specificDates  = (wb.specific_dates || '').trim();\nconst frequency      = wb.frequency || 'weekly';\nconst startDateStr   = wb.start_date || '';\nconst endDateStr     = wb.end_date || '';\nconst dayOfWeek      = parseInt(wb.day_of_week ?? '-1');\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst monthlyRate    = parseFloat(wb.monthly_rate || wb.monthly_fee || '0') || 0;\nconst billingFreq    = (wb.billing_frequency || 'monthly').toLowerCase();\nconst paymentTiming  = wb.payment_timing || 'in_advance';\n// Auto-calculate monthly rate from rate_per_session × sessions-per-month\n// when frontend doesn't supply an explicit monthly_rate\nconst sessFreq = (wb.frequency || wb.session_frequency || 'weekly').toLowerCase();\nconst sessionsPerMonth = { weekly: 4, fortnightly: 2, monthly: 1 }[sessFreq] || 4;\nconst effectiveMonthlyRate = monthlyRate > 0\n  ? monthlyRate\n  : parseFloat((ratePerSession * sessionsPerMonth).toFixed(2));\n// Derive amount per billing period\nconst periodAmount = parseFloat(wb.period_amount || '0') ||\n                     (billingFreq === 'fortnightly' ? effectiveMonthlyRate / 2 : effectiveMonthlyRate) ||\n                     ratePerSession;\n\nif (!startDateStr && !specificDates) {\n  return [{ json: { error: \"Missing start_date or specific_dates\", date_count: 0, dates: \"\", payment_timing: paymentTiming } }];\n}\n\nlet dates = [];\n\nif (specificDates) {\n  dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n} else {\n  // Generate dates from day_of_week + frequency (fallback path for recurring-bookings.html)\n  const startDate = new Date(startDateStr + 'T12:00:00');\n  const maxDate   = endDateStr ? new Date(endDateStr + 'T12:00:00') : new Date(startDate.getFullYear(), startDate.getMonth() + 3, startDate.getDate());\n  const dow       = dayOfWeek >= 0 ? dayOfWeek : startDate.getDay();\n  const daysToAdd = (dow - startDate.getDay() + 7) % 7;\n  const cursor    = new Date(startDate.getTime() + daysToAdd * 86400000);\n  while (cursor <= maxDate && dates.length < 100) {\n    dates.push(cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0')+'-'+String(cursor.getDate()).padStart(2,'0'));\n    if (frequency === 'monthly') { cursor.setMonth(cursor.getMonth() + 1); }\n    else if (frequency === 'fortnightly') { cursor.setDate(cursor.getDate() + 14); }\n    else { cursor.setDate(cursor.getDate() + 7); }\n  }\n}\n\nlet monthlyPeriods, monthlyEnds, monthlyAmounts, monthlySessions,\n    firstPeriodStart, firstPeriodEnd, firstMonthSessions, firstMonthAmount;\n\nif (paymentTiming === 'per_session') {\n  // One schedule row per individual session\n  monthlyPeriods  = dates.slice();\n  monthlyEnds     = dates.slice();\n  monthlyAmounts  = dates.map(() => ratePerSession.toFixed(2));\n  monthlySessions = dates.map(() => 1);\n  firstPeriodStart   = dates[0] || '';\n  firstPeriodEnd     = dates[0] || '';\n  firstMonthSessions = dates.length > 0 ? 1 : 0;\n  firstMonthAmount   = ratePerSession.toFixed(2);\n\n} else if (billingFreq === 'fortnightly') {\n  // Group into 14-day windows anchored at the first session date\n  const anchor = new Date(dates[0] + 'T12:00:00');\n  const periodMap = {};\n  for (const d of dates) {\n    const dt = new Date(d + 'T12:00:00');\n    const diffDays = Math.round((dt - anchor) / 86400000);\n    const winIdx   = Math.floor(diffDays / 14);\n    const winStart = new Date(anchor.getTime() + winIdx * 14 * 86400000);\n    const winEnd   = new Date(winStart.getTime() + 13 * 86400000);\n    const ks = winStart.getFullYear()+'-'+String(winStart.getMonth()+1).padStart(2,'0')+'-'+String(winStart.getDate()).padStart(2,'0');\n    const ke = winEnd.getFullYear()  +'-'+String(winEnd.getMonth()+1  ).padStart(2,'0')+'-'+String(winEnd.getDate()  ).padStart(2,'0');\n    if (!periodMap[ks]) periodMap[ks] = { count: 0, period_start: ks, period_end: ke };\n    periodMap[ks].count++;\n  }\n  const sortedKeys = Object.keys(periodMap).sort();\n  monthlyPeriods  = sortedKeys.map(k => periodMap[k].period_start);\n  monthlyEnds     = sortedKeys.map(k => periodMap[k].period_end);\n  monthlyAmounts  = sortedKeys.map(() => periodAmount.toFixed(2));\n  monthlySessions = sortedKeys.map(k => periodMap[k].count);\n  const fk = sortedKeys[0];\n  const fp = fk ? periodMap[fk] : null;\n  firstPeriodStart   = fp ? fp.period_start : '';\n  firstPeriodEnd     = fp ? fp.period_end   : '';\n  firstMonthSessions = fp ? fp.count : 0;\n  firstMonthAmount   = periodAmount.toFixed(2);\n\n} else {\n  // Monthly billing: group by calendar month — fixed subscription amount per month\n  const monthMap = {};\n  for (const d of dates) {\n    const dt = new Date(d + 'T12:00:00');\n    const y  = dt.getFullYear();\n    const m  = dt.getMonth();\n    const key = y + '-' + String(m + 1).padStart(2, '0');\n    if (!monthMap[key]) {\n      const mEnd = new Date(y, m + 1, 0);\n      monthMap[key] = {\n        count: 0,\n        period_start: key + '-01',\n        period_end:   key + '-' + String(mEnd.getDate()).padStart(2, '0')\n      };\n    }\n    monthMap[key].count++;\n  }\n  const sortedKeys = Object.keys(monthMap).sort();\n  monthlyPeriods  = sortedKeys.map(k => monthMap[k].period_start);\n  monthlyEnds     = sortedKeys.map(k => monthMap[k].period_end);\n  monthlyAmounts  = sortedKeys.map(() => periodAmount.toFixed(2));  // fixed per period\n  monthlySessions = sortedKeys.map(k => monthMap[k].count);\n  const fk = sortedKeys[0];\n  const fm = fk ? monthMap[fk] : null;\n  firstPeriodStart   = fm ? fm.period_start : '';\n  firstPeriodEnd     = fm ? fm.period_end   : '';\n  firstMonthSessions = fm ? fm.count : 0;\n  firstMonthAmount   = periodAmount.toFixed(2);\n}\n\nreturn [{ json: {\n  dates: dates.join(','),\n  date_count: dates.length,\n  payment_timing: paymentTiming,\n  billing_frequency: billingFreq,\n  monthly_rate: monthlyRate.toFixed(2),\n  period_amount: periodAmount.toFixed(2),\n  monthly_periods_csv:  monthlyPeriods.join(','),\n  monthly_ends_csv:     monthlyEnds.join(','),\n  monthly_amounts_csv:  monthlyAmounts.join(','),\n  monthly_sessions_csv: monthlySessions.join(','),\n  monthly_count:  monthlyPeriods.length,\n  period_start:   firstPeriodStart,\n  period_end:     firstPeriodEnd,\n  first_month_sessions: firstMonthSessions,\n  first_month_amount:   firstMonthAmount\n} }];"
+        },
+        "id": "f04cc50e-145e-416c-b918-75cf9a2c4913",
+        "name": "Code: Generate Dates",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          8400,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const wb = $('Debug: Check Input Data').first().json;\nconst customerRow = $('DB: Upsert Customer').first().json;\nconst dateGen = $('Code: Generate Dates').first().json;\n\nconst customer_id = customerRow?.customer_id;\nconst room_id = wb?.room_id;\nconst tenant_id = wb?.tenant_id;\n\nconsole.log(\"Validation Check:\", { customer_id, room_id, tenant_id, date_count: dateGen.date_count });\n\nif (!customer_id) {\n  throw new Error(\"Validation Error: The database did not return a customer_id. Check 'DB: Upsert Customer' output.\");\n}\n\nif (!room_id || !tenant_id) {\n  throw new Error(`Validation Error: Missing Webhook data. Room: ${room_id}, Tenant: ${tenant_id}`);\n}\n\nif (!dateGen.dates || dateGen.date_count === 0) {\n  throw new Error(\"Validation Error: No dates were generated for this booking.\");\n}\n\nreturn [{\n  json: {\n    customer_id,\n    room_id,\n    tenant_id,\n    dates: dateGen.dates,\n    date_count: dateGen.date_count,\n    first_month_amount: dateGen.first_month_amount,\n    customer_name: customerRow.full_name || wb.customer_name,\n    customer_email: customerRow.email || wb.customer_email\n  }\n}];"
+        },
+        "id": "e263f393-db28-4921-94ff-312aa055af1a",
+        "name": "Code: Validate",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          8592,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.recurring_rules\n  (tenant_id, customer_id, room_id, day_of_week, start_time, end_time,\n   rate_per_session, active, frequency, end_date,\n   billing_day, total_months, upfront_paid,\n   series_reference, monthly_fee, payment_timing, billing_frequency)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4, $5::time, $6::time,\n   NULLIF($7,'')::numeric, TRUE, $8, NULLIF($9,'')::date,\n   NULLIF($10,'')::int, NULLIF($11,'')::int, $12::boolean,\n   'RB-' || nextval('bookings.series_reference_seq')::text,\n   NULLIF($13,'')::numeric, COALESCE(NULLIF($14,''), 'in_advance'),\n   COALESCE(NULLIF($15,''), 'monthly'))\nRETURNING id AS rule_id, series_reference;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  parseInt($('Debug: Check Input Data').first().json?.day_of_week ?? '1'),\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || ''),\n  $('Debug: Check Input Data').first().json?.frequency || 'weekly',\n  $('Debug: Check Input Data').first().json?.end_date || '',\n  String($('Debug: Check Input Data').first().json?.billing_day || ''),\n  String($('Debug: Check Input Data').first().json?.total_months || ''),\n  String($('Debug: Check Input Data').first().json?.upfront_paid === true || $('Debug: Check Input Data').first().json?.upfront_paid === 'true' ? 'true' : 'false'),\n  String($('Debug: Check Input Data').first().json?.monthly_rate || $('Debug: Check Input Data').first().json?.monthly_fee || ''),\n  String($('Debug: Check Input Data').first().json?.payment_timing || 'in_advance'),\n  String($('Debug: Check Input Data').first().json?.billing_frequency || 'monthly')\n] }}"
+          }
+        },
+        "id": "23ee12c9-c776-4852-89cc-62d4213a993c",
+        "name": "DB: Insert Rule",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          8800,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.confirmed_bookings\n  (tenant_id, customer_id, room_id, booking_date, date_from, date_to,\n   start_time, end_time, total_amount, deposit_paid, balance_due,\n   status, is_recurring, recurring_rule_id, recurring_series_id, series_label, updated_at)\nSELECT\n  $1, $2::uuid, $3::uuid, d::date, d::date, d::date,\n  $5::time, $6::time,\n  COALESCE(NULLIF($7,'')::numeric, 0),\n  0,\n  0,\n  'confirmed', TRUE,\n  NULLIF($8,'')::uuid,\n  NULLIF($9,'')::uuid,\n  $10, NOW()\nFROM unnest(string_to_array($4, ',')) AS t(d)\nWHERE $4 <> ''\n  AND NOT EXISTS (\n    SELECT 1 FROM bookings.confirmed_bookings ex\n    WHERE ex.room_id    = $3::uuid\n      AND ex.tenant_id  = $1::integer\n      AND ex.status NOT IN ('cancelled')\n      AND ex.booking_date = d::date\n      AND ex.start_time < $6::time\n      AND ex.end_time   > $5::time\n  )\nRETURNING booking_date::text, id;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  $('Code: Filter Dates').first().json.filtered_dates || '',\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || ''),\n  $('DB: Insert Rule').first().json.rule_id || '',\n  $('DB: Insert Series').first().json.series_id || '',\n  'Recurring'\n] }}"
+          }
+        },
+        "id": "8b3351c1-56a1-41e9-9ef4-1a273af38e6c",
+        "name": "DB: Insert Bookings",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          9104,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.recurring_payment_schedule (\n    tenant_id,\n    recurring_rule_id,\n    customer_id,\n    period_start,\n    period_end,\n    amount_due,\n    due_date,\n    status,\n    total_cycles,\n    remaining_cycles,\n    billing_day,\n    upfront_paid,\n    payment_timing\n)\nSELECT\n    $1::int,\n    $2::uuid,\n    $3::uuid,\n    ps::date,\n    pe::date,\n    amt::numeric,\n    CASE\n        WHEN $7 = 'in_arrears' THEN (pe::date + INTERVAL '7 days')::date\n        ELSE ps::date\n    END,\n    'pending',\n    NULLIF($8,'')::int,\n    CASE WHEN NULLIF($8,'') IS NOT NULL THEN GREATEST(0, NULLIF($8,'')::int - rn::int) ELSE NULL END,\n    NULLIF($9,'')::int,\n    $10::boolean,\n    $7\nFROM unnest(\n    string_to_array($4, ','),\n    string_to_array($5, ','),\n    string_to_array($6, ',')\n) WITH ORDINALITY AS t(ps, pe, amt, rn)\nON CONFLICT (recurring_rule_id, period_start) DO NOTHING\nRETURNING id, period_start::text, amount_due, due_date::text;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('DB: Insert Rule').first().json.rule_id || '',\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Generate Dates').first().json.monthly_periods_csv || '',\n  $('Code: Generate Dates').first().json.monthly_ends_csv || '',\n  $('Code: Generate Dates').first().json.monthly_amounts_csv || '0',\n  $('Code: Generate Dates').first().json.payment_timing || 'in_advance',\n  String($('Debug: Check Input Data').first().json?.total_months || ''),\n  String($('Debug: Check Input Data').first().json?.billing_day || ''),\n  String($('Debug: Check Input Data').first().json?.upfront_paid === true || $('Debug: Check Input Data').first().json?.upfront_paid === 'true' ? 'true' : 'false')\n] }}"
+          }
+        },
+        "id": "be28d34d-6e7f-4757-9f28-06e2761810df",
+        "name": "DB: Insert Payment Schedule",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          9312,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({\n  status: 'created',\n  rule_id: $('DB: Insert Rule').first().json.rule_id,\n  series_id: $('DB: Insert Series').first().json.series_id || null,\n  series_reference: $('DB: Insert Rule').first().json.series_reference || null,\n  customer_id: $('Code: Validate').first().json.customer_id,\n  customer_name: $('Code: Validate').first().json.customer_name,\n  booking_count: $('Code: Filter Dates').first().json.dates_count,\n  agreed_price: $('DB: Insert Series').first().json.agreed_price || null,\n  amount_due: $('Code: Generate Dates').first().json.first_month_amount,\n  first_month_sessions: $('Code: Generate Dates').first().json.first_month_sessions || null,\n  frequency: $('Debug: Check Input Data').first().json.frequency || null,\n  total_cycles: $('DB: Insert Payment Schedule').first().json.total_cycles || null,\n  remaining_cycles: $('DB: Insert Payment Schedule').first().json.remaining_cycles || null,\n  billing_day: $('DB: Insert Payment Schedule').first().json.billing_day || null,\n  due_date: $('DB: Insert Payment Schedule').first().json.due_date || null\n,\n  partial_booking: $('Code: Filter Dates').first().json.has_conflict || false,\n  warning: $('Code: Filter Dates').first().json.warning || null,\n  first_conflict_date: $('Code: Filter Dates').first().json.first_conflict_date || null\n}) }}",
+          "options": {
+            "responseCode": 201,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        },
+        "id": "079e1e48-7e75-4c59-a8c1-05ab844ea0a7",
+        "name": "Respond: Created",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          9520,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "ALTER TABLE IF EXISTS bookings.recurring_rules ADD COLUMN IF NOT EXISTS payment_timing VARCHAR(20) DEFAULT 'in_advance';\nALTER TABLE IF EXISTS bookings.recurring_payment_schedule ADD COLUMN IF NOT EXISTS payment_timing VARCHAR(20) DEFAULT 'in_advance';\nALTER TABLE IF EXISTS bookings.recurring_rules ADD COLUMN IF NOT EXISTS billing_frequency TEXT DEFAULT 'monthly';\nALTER TABLE IF EXISTS bookings.confirmed_bookings ADD COLUMN IF NOT EXISTS recurring_series_id UUID REFERENCES bookings.recurring_series(id) ON DELETE SET NULL;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS rate_per_session   NUMERIC(10,2) NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS total_sessions      INT           NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS sessions_completed  INT           NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS agreed_price        NUMERIC(10,2) NOT NULL DEFAULT 0;\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS status              TEXT          NOT NULL DEFAULT 'active';\nALTER TABLE IF EXISTS bookings.recurring_series ADD COLUMN IF NOT EXISTS billing_type        TEXT          NOT NULL DEFAULT 'monthly';\n-- Install the trigger that enforces child balance_due = 0\nCREATE OR REPLACE FUNCTION bookings.fn_zero_child_balance()\nRETURNS TRIGGER LANGUAGE plpgsql AS $fn$\nBEGIN\n    IF NEW.recurring_series_id IS NOT NULL THEN\n        NEW.balance_due := 0;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;\n\nDROP TRIGGER IF EXISTS trg_zero_child_balance ON bookings.confirmed_bookings;\nCREATE TRIGGER trg_zero_child_balance\n    BEFORE INSERT OR UPDATE OF recurring_series_id, balance_due\n    ON bookings.confirmed_bookings\n    FOR EACH ROW\n    EXECUTE FUNCTION bookings.fn_zero_child_balance();",
+          "options": {}
+        },
+        "id": "2aeb509b-f2eb-457a-ab12-5097d703a9cf",
+        "name": "DB: Ensure Schema (payment_timing)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          7984,
+          128
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO bookings.recurring_series\n  (tenant_id, customer_id, room_id, series_name, frequency, start_date, end_date,\n   start_time, end_time, rate_per_session, total_sessions,\n   agreed_price, cycle_amount, balance_due,\n   billing_type, payment_timing, status, active)\nVALUES\n  ($1, $2::uuid, $3::uuid, $4, $5,\n   NULLIF($6,'')::date, NULLIF($7,'')::date,\n   NULLIF($8,'')::time, NULLIF($9,'')::time,\n   COALESCE(NULLIF($10,'')::numeric, 0),\n   COALESCE(NULLIF($11,'')::int, 0),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   ROUND(COALESCE(NULLIF($10,'')::numeric, 0) * COALESCE(NULLIF($11,'')::int, 0), 2),\n   COALESCE(NULLIF($12,''), 'monthly'),\n   COALESCE(NULLIF($13,''), 'in_advance'),\n   'active', true)\nRETURNING id AS series_id;",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Code: Validate').first().json.tenant_id,\n  $('Code: Validate').first().json.customer_id,\n  $('Code: Validate').first().json.room_id,\n  ($('Debug: Check Input Data').first().json?.series_name || $('Debug: Check Input Data').first().json?.customer_name || 'Recurring Session').trim(),\n  $('Debug: Check Input Data').first().json?.frequency || 'weekly',\n  $('Debug: Check Input Data').first().json?.start_date || '',\n  $('Debug: Check Input Data').first().json?.end_date || '',\n  $('Debug: Check Input Data').first().json?.start_time || '',\n  $('Debug: Check Input Data').first().json?.end_time || '',\n  String($('Debug: Check Input Data').first().json?.rate_per_session || '0'),\n  String($('Code: Generate Dates').first().json.date_count || '0'),\n  String($('Debug: Check Input Data').first().json?.billing_frequency || 'monthly'),\n  String($('Debug: Check Input Data').first().json?.payment_timing || 'in_advance')\n] }}"
+          }
+        },
+        "id": "718fd918-c104-4699-8233-5f2bc507e29a",
+        "name": "DB: Insert Series",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          8896,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT COALESCE(\n  ARRAY_AGG(d::text ORDER BY d),\n  ARRAY[]::text[]\n) AS clashed_dates\nFROM unnest(string_to_array($1, ',')) AS d\nWHERE $1 <> ''\n  AND (\n    EXISTS (\n      SELECT 1 FROM bookings.confirmed_bookings cb\n      WHERE cb.room_id = NULLIF($2,'')::uuid\n        AND cb.tenant_id = $3::integer\n        AND cb.status NOT IN ('cancelled')\n        AND d::date BETWEEN COALESCE(cb.date_from::date, cb.booking_date)\n                        AND COALESCE(cb.date_to::date, cb.booking_date)\n        AND cb.start_time < $5::time\n        AND cb.end_time   > $4::time\n    )\n    OR EXISTS (\n      SELECT 1 FROM bookings.blocked_dates bd\n      WHERE bd.tenant_id = $3::integer\n        AND (\n          (bd.block_type = 'oneoff' AND bd.block_date::date = d::date)\n          OR (bd.block_type IN ('recurring', 'recurring-weekday') AND bd.day_of_week = EXTRACT(DOW FROM d::date)::int)\n          OR (bd.block_type = 'range' AND d::date BETWEEN bd.date_from::date AND bd.date_to::date)\n        )\n    )\n  )",
+          "options": {
+            "queryReplacement": "={{ [\n  $('Code: Validate').first().json.dates || '',\n  $('Code: Validate').first().json.room_id,\n  $('Code: Validate').first().json.tenant_id,\n  $('Debug: Check Input Data').first().json.start_time || '09:00',\n  $('Debug: Check Input Data').first().json.end_time || '23:59'\n] }}"
+          }
+        },
+        "id": "e627f788-98e8-40c2-af56-f519a4b4820e",
+        "name": "DB: Check Room Clashes",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          9184,
+          336
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const validate = $('Code: Validate').first().json;\nconst allDates = (validate.dates || '').split(',').filter(Boolean).sort();\nconst clashRow = $input.first().json;\nconst clashed = new Set((clashRow.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count: allDates.length,\n    has_conflict: false,\n    blocked: false,\n    warning: null\n  }}];\n}\n\nconst sortedClashed = [...clashed].sort();\nconst firstConflict = sortedClashed[0];\nconst safeDates = allDates.filter(d => d < firstConflict);\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});\n};\n\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates: '',\n    dates_count: 0,\n    has_conflict: true,\n    blocked: true,\n    first_conflict_date: firstConflict,\n    warning: 'The first session date (' + fmtDate(firstConflict) + ') is already booked for this room at this time. Please choose a different start date or room.'\n  }}];\n}\n\nreturn [{ json: {\n  filtered_dates: safeDates.join(','),\n  dates_count: safeDates.length,\n  has_conflict: true,\n  blocked: false,\n  first_conflict_date: firstConflict,\n  clashed_count: clashed.size,\n  warning: 'Recurring series created for ' + safeDates.length + ' session(s) up to ' + fmtDate(safeDates[safeDates.length-1]) + '. Bookings stop before ' + fmtDate(firstConflict) + ' — that date is already taken by an existing booking.'\n}}];"
+        },
+        "id": "507d810b-1bfb-4aca-9c29-7733b88fcbb1",
+        "name": "Code: Filter Dates",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          9424,
+          336
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "avail-cond-rb-001",
+                "leftValue": "={{ $('Code: Filter Dates').first().json.blocked }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "notEquals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "0d3324bd-4246-4e9c-93ad-c9e2d61f6337",
+        "name": "IF: Room Available?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          9664,
+          336
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ success: false, status: 'unavailable', message: $('Code: Filter Dates').first().json.warning || 'Room not available for the requested dates.' }) }}",
+          "options": {
+            "responseCode": 409
+          }
+        },
+        "id": "6fb8f69a-3c4c-4a08-b9a0-7bc452c80dcf",
+        "name": "Respond: Not Available",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          9904,
+          496
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook: Create Recurring Booking": {
+        "main": [
+          [
+            {
+              "node": "Debug: Check Input Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Debug: Check Input Data": {
+        "main": [
+          [
+            {
+              "node": "DB: Ensure Schema (payment_timing)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Upsert Customer": {
+        "main": [
+          [
+            {
+              "node": "DB: Set Contract Type",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Set Contract Type": {
+        "main": [
+          [
+            {
+              "node": "Code: Generate Dates",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code: Generate Dates": {
+        "main": [
+          [
+            {
+              "node": "Code: Validate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code: Validate": {
+        "main": [
+          [
+            {
+              "node": "DB: Check Room Clashes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Insert Rule": {
+        "main": [
+          [
+            {
+              "node": "DB: Insert Series",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Insert Bookings": {
+        "main": [
+          [
+            {
+              "node": "DB: Insert Payment Schedule",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Insert Payment Schedule": {
+        "main": [
+          [
+            {
+              "node": "Respond: Created",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Ensure Schema (payment_timing)": {
+        "main": [
+          [
+            {
+              "node": "DB: Upsert Customer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Insert Series": {
+        "main": [
+          [
+            {
+              "node": "DB: Insert Bookings",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB: Check Room Clashes": {
+        "main": [
+          [
+            {
+              "node": "Code: Filter Dates",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code: Filter Dates": {
+        "main": [
+          [
+            {
+              "node": "IF: Room Available?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF: Room Available?": {
+        "main": [
+          [
+            {
+              "node": "DB: Insert Rule",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond: Not Available",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "parentFolderId": null,
+  "scopes": [
+    "workflow:create",
+    "workflow:delete",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update",
+    "workflow:updateRedactionSetting"
+  ],
+  "canExecute": true
+}

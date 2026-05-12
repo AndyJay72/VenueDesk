@@ -1,0 +1,8 @@
+[
+  { "name": "Wedding", "is_active": true },
+  { "name": "Conference", "is_active": true },
+  { "name": "Birthday Party", "is_active": true },
+  { "name": "Corporate Event", "is_active": true },
+  { "name": "Charity Event", "is_active": true },
+  { "name": "Other", "is_active": true }
+]

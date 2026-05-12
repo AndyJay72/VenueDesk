@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Payment | VenueDesk</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    // Auth guard — CLAUDE.md Pattern 6 sessionStorage key contract
+    if (!sessionStorage.getItem('vp_token')) {
+      window.location.href = 'login.html';
+    }
+  </script>
+  <style>
+    :root {
+      --bg-dark:   #0f172a;
+      --bg-card:   rgba(30, 41, 59, 0.9);
+      --border:    rgba(148, 163, 184, 0.1);
+      --primary:   #6366f1;
+      --success:   #10b981;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --stripe:    #635bff;
+      --text-main: #f8fafc;
+      --text-muted:#94a3b8;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Plus Jakarta Sans',sans-serif; }
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
+                        radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%);
+      color: var(--text-main); min-height:100vh; display:flex; overflow-x:hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    aside {
+      width:260px; background:rgba(15,23,42,0.95); backdrop-filter:blur(10px);
+      border-right:1px solid var(--border); padding:2rem;
+      display:flex; flex-direction:column; position:fixed;
+      height:100vh; z-index:100; transition:transform 0.3s ease;
+    }
+    .brand { font-size:1.22rem; font-weight:800; color:white; margin-bottom:2rem; display:flex; align-items:center; justify-content:space-between; letter-spacing:-0.01em; }
+    .nav-link { display:flex; align-items:center; gap:12px; padding:10px 14px; color:var(--text-muted); text-decoration:none; border-radius:10px; margin-bottom:2px; font-size:0.88rem; font-weight:500; transition:all 0.2s; }
+    .nav-link:hover { background:rgba(99,102,241,0.09); color:#c7d2fe; }
+    .nav-link.active { background:rgba(99,102,241,0.15); color:var(--primary); font-weight:600; }
+    .close-sidebar { display:none; background:none; border:none; color:white; font-size:1.2rem; cursor:pointer; }
+    .sidebar-collapse-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:4px 7px; border-radius:6px; line-height:1; min-height:unset; flex-shrink:0; }
+    .sidebar-collapse-btn:hover { color:var(--primary); }
+    .brand-text { white-space:nowrap; overflow:hidden; display:inline; }
+    .nav-label  { white-space:nowrap; overflow:hidden; display:inline; }
+
+    /* ── Main ────────────────────────────────────────────────────────────── */
+    main { margin-left:260px; flex:1; padding:2rem; max-width:900px; }
+    .menu-toggle { display:none; background:var(--bg-card); border:1px solid var(--border); color:white; width:40px; height:40px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; }
+    header { display:flex; align-items:center; gap:1rem; margin-bottom:2rem; }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:16px; padding:2rem; margin-bottom:1.5rem;
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    }
+    .section-title {
+      font-size:0.95rem; font-weight:700; color:var(--text-main);
+      border-bottom:1px solid var(--border); padding-bottom:0.5rem;
+      margin-bottom:1.25rem; display:flex; align-items:center; gap:10px;
+    }
+    .section-title i { color:var(--primary); }
+
+    /* ── Booking summary strip ───────────────────────────────────────────── */
+    .summary-strip {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem;
+    }
+    .summary-item {
+      background:rgba(0,0,0,0.2); border:1px solid var(--border);
+      border-radius:10px; padding:1rem; text-align:center;
+    }
+    .summary-item .lbl { font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+    .summary-item .val { font-size:1.2rem; font-weight:700; }
+
+    /* ── Payment method buttons ─────────────────────────────────────────── */
+    .method-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+    .method-btn {
+      border:2px solid var(--border); border-radius:14px;
+      padding:1.5rem; cursor:pointer; background:rgba(0,0,0,0.2);
+      transition:all 0.2s; text-align:center; position:relative;
+    }
+    .method-btn:hover { border-color:rgba(99,102,241,0.4); background:rgba(99,102,241,0.05); }
+    .method-btn.selected { border-color:var(--primary); background:rgba(99,102,241,0.1); }
+    .method-btn.stripe-btn.selected { border-color:var(--stripe); background:rgba(99,91,255,0.1); }
+    .method-btn .method-icon { font-size:2rem; margin-bottom:0.5rem; }
+    .method-btn .method-name { font-size:1rem; font-weight:700; margin-bottom:0.3rem; }
+    .method-btn .method-desc { font-size:0.78rem; color:var(--text-muted); line-height:1.4; }
+    .method-btn .badge {
+      position:absolute; top:10px; right:10px;
+      font-size:0.65rem; font-weight:700; text-transform:uppercase;
+      padding:2px 8px; border-radius:10px;
+    }
+    .badge-live  { background:rgba(16,185,129,0.15); color:var(--success); }
+    .badge-avail { background:rgba(148,163,184,0.1);  color:var(--text-muted); }
+    .method-btn.disabled { opacity:0.35; cursor:not-allowed; pointer-events:none; }
+
+    /* ── BACS details panel ─────────────────────────────────────────────── */
+    .bacs-panel {
+      display:none; background:rgba(245,158,11,0.05);
+      border:1px solid rgba(245,158,11,0.3); border-radius:12px;
+      padding:1.5rem; margin-bottom:1.5rem;
+    }
+    .bacs-panel.show { display:block; }
+    .bacs-table { width:100%; border-collapse:collapse; font-size:0.9rem; margin-top:0.75rem; }
+    .bacs-table td { padding:6px 0; }
+    .bacs-table td:first-child { color:var(--text-muted); width:45%; }
+    .bacs-table td:last-child  { font-weight:700; font-family:monospace; }
+    .bacs-ref { color:var(--warning) !important; font-size:1rem; }
+    .bacs-notice {
+      margin-top:0.75rem; font-size:0.8rem; color:var(--warning);
+      background:rgba(245,158,11,0.1); border-radius:8px; padding:8px 12px;
+    }
+
+    /* ── Action button ───────────────────────────────────────────────────── */
+    #btn-pay {
+      width:100%; padding:16px; border:none; border-radius:12px;
+      font-size:1rem; font-weight:700; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      transition:transform 0.2s, opacity 0.2s;
+    }
+    #btn-pay:disabled { opacity:0.4; cursor:not-allowed; }
+    #btn-pay:not(:disabled):hover { transform:translateY(-2px); }
+    #btn-pay.stripe-mode { background:var(--stripe);  color:white; }
+    #btn-pay.bacs-mode   { background:var(--warning); color:#0f172a; }
+    #btn-pay.cash-mode   { background:var(--success); color:#0f172a; }
+
+    /* ── Status overlay ─────────────────────────────────────────────────── */
+    .overlay-bg {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.75); z-index:300;
+      align-items:center; justify-content:center; backdrop-filter:blur(4px);
+    }
+    .overlay-bg.show { display:flex; }
+    .overlay-card {
+      background:#1e293b; border:1px solid var(--border);
+      border-radius:16px; padding:2.5rem; max-width:440px; width:90%; text-align:center;
+    }
+    .overlay-icon {
+      width:64px; height:64px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.5rem; margin:0 auto 1rem;
+    }
+    .overlay-icon.success { background:rgba(16,185,129,0.15); border:2px solid var(--success); color:var(--success); }
+    .overlay-icon.pending { background:rgba(245,158,11,0.15); border:2px solid var(--warning); color:var(--warning); }
+    .overlay-icon.error   { background:rgba(239,68,68,0.15);  border:2px solid var(--danger);  color:var(--danger);  }
+    .overlay-ref { font-family:monospace; font-size:1.1rem; color:var(--primary); background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:8px; padding:8px 16px; display:inline-block; margin:8px 0; }
+
+    .btn-outline { background:none; border:1px solid var(--border); color:var(--text-muted); padding:10px 20px; border-radius:8px; cursor:pointer; margin-top:1rem; font-size:0.9rem; transition:border-color 0.2s; }
+    .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+
+    /* ── Spinner ─────────────────────────────────────────────────────────── */
+    .spinner { width:20px; height:20px; border:3px solid rgba(255,255,255,0.3); border-top:3px solid white; border-radius:50%; animation:spin 0.7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Loading skeleton ────────────────────────────────────────────────── */
+    #loading-state { text-align:center; padding:3rem; color:var(--text-muted); }
+
+    /* ── Sidebar overlay (mobile) ────────────────────────────────────────── */
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99; }
+    .sidebar-overlay.active { display:block; }
+
+    /* ── Collapsed sidebar ───────────────────────────────────────────────── */
+    body.sidebar-collapsed aside         { width:68px; padding:1.25rem 0.6rem; }
+    body.sidebar-collapsed main          { margin-left:68px; }
+    body.sidebar-collapsed .brand-text   { opacity:0; width:0; display:inline-block; }
+    body.sidebar-collapsed .nav-label    { opacity:0; width:0; display:inline-block; }
+    body.sidebar-collapsed .nav-link     { justify-content:center; gap:0; padding:12px 8px; font-size:1.05rem; }
+    body.sidebar-collapsed .close-sidebar{ display:none !important; }
+    body.sidebar-collapsed .sidebar-collapse-btn i { transform:rotate(180deg); }
+    body.sidebar-collapsed .nav-link     { position:relative; }
+    body.sidebar-collapsed .nav-link:hover::after {
+      content:attr(data-label); position:absolute; left:calc(100% + 12px); top:50%;
+      transform:translateY(-50%); background:rgba(15,23,42,0.97); color:var(--text-main);
+      padding:5px 12px; border-radius:7px; font-size:0.82rem; white-space:nowrap;
+      pointer-events:none; border:1px solid var(--border); z-index:300;
+      box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    @media (max-width:768px) {
+      aside    { transform:translateX(-100%); }
+      aside.active { transform:translateX(0); }
+      main     { margin-left:0; padding:1rem; }
+      .menu-toggle { display:flex; }
+      .close-sidebar { display:block !important; }
+      .summary-strip { grid-template-columns:1fr 1fr; }
+      .method-grid   { grid-template-columns:1fr; }
+      body.sidebar-collapsed aside      { width:260px; padding:2rem; }
+      body.sidebar-collapsed main       { margin-left:0; }
+      body.sidebar-collapsed .brand-text{ opacity:1; width:auto; }
+      body.sidebar-collapsed .nav-label { opacity:1; width:auto; }
+      body.sidebar-collapsed .nav-link  { justify-content:flex-start; gap:12px; padding:10px 14px; font-size:inherit; }
+    }
+    @media (max-width:480px) {
+      .summary-strip { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="brand">
+    <span><i class="fa-solid fa-layer-group"></i> <span class="brand-text">VenueDesk</span></span>
+    <div style="display:flex;align-items:center;gap:2px;">
+      <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar"><i class="fa-solid fa-chevron-left"></i></button>
+      <button class="close-sidebar" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html"             class="nav-link"        data-label="Dashboard">  <i class="fa-solid fa-chart-pie fa-fw"></i>            <span class="nav-label"> Dashboard</span></a>
+    <a href="calendar.html"          class="nav-link"        data-label="Calendar">   <i class="fa-solid fa-calendar-alt fa-fw"></i>          <span class="nav-label"> Calendar</span></a>
+    <a href="bookings.html"          class="nav-link"        data-label="Bookings">   <i class="fa-solid fa-chart-line fa-fw"></i>            <span class="nav-label"> Booking Stats</span></a>
+    <a href="recurring-bookings.html"class="nav-link"        data-label="Recurring">  <i class="fa-solid fa-repeat fa-fw"></i>                <span class="nav-label"> Recurring</span></a>
+    <a href="accounts.html"          class="nav-link"        data-label="Accounts">   <i class="fa-solid fa-file-invoice-dollar fa-fw"></i>   <span class="nav-label"> Accounts</span></a>
+    <a href="audit-log.html"         class="nav-link"        data-label="Audit Log">  <i class="fa-solid fa-clock-rotate-left fa-fw"></i>     <span class="nav-label"> Audit Log</span></a>
+    <a href="checkout.html"          class="nav-link active" data-label="Checkout">   <i class="fa-solid fa-credit-card fa-fw"></i>           <span class="nav-label"> Checkout</span></a>
+    <a href="users.html"             class="nav-link"        data-label="Users">      <i class="fa-solid fa-user-shield fa-fw"></i>           <span class="nav-label"> Users</span></a>
+    <a href="admin-config.html"      class="nav-link"        data-label="Config">     <i class="fa-solid fa-sliders fa-fw"></i>               <span class="nav-label"> Config</span></a>
+    <a href="#" onclick="logout()"   class="nav-link"        data-label="Logout"
+       style="margin-top:auto; color:#ef4444; border-top:1px solid rgba(255,255,255,0.05);">
+      <i class="fa-solid fa-right-from-bracket fa-fw"></i><span class="nav-label"> Logout</span>
+    </a>
+  </nav>
+</aside>
+
+<!-- Main -->
+<main>
+  <header>
+    <button class="menu-toggle" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
+    <div>
+      <h1 style="font-size:1.5rem; font-weight:700;">Payment Checkout</h1>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Select a payment method to complete this booking</p>
+    </div>
+  </header>
+
+  <!-- Loading state -->
+  <div id="loading-state">
+    <div class="spinner" style="margin:0 auto 1rem; border-top-color:var(--primary);"></div>
+    <p>Loading booking details…</p>
+  </div>
+
+  <!-- Content (hidden until loaded) -->
+  <div id="checkout-content" style="display:none;">
+
+    <!-- Return-from-Stripe status banner (shown on redirect back) -->
+    <div id="stripe-status-banner" style="display:none; padding:1rem 1.5rem; border-radius:12px; margin-bottom:1.5rem; font-weight:600;"></div>
+
+    <!-- Booking summary -->
+    <div class="card">
+      <div class="section-title"><i class="fas fa-receipt"></i> Booking Summary</div>
+      <div class="summary-strip">
+        <div class="summary-item">
+          <div class="lbl">Booking ID</div>
+          <div class="val" id="sum-booking-id" style="font-size:0.8rem; font-family:monospace; word-break:break-all;">—</div>
+        </div>
+        <div class="summary-item">
+          <div class="lbl">Amount Due</div>
+          <div class="val" id="sum-amount" style="color:var(--warning);">—</div>
+        </div>
+        <div class="summary-item">
+          <div class="lbl">Description</div>
+          <div class="val" id="sum-description" style="font-size:0.85rem;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment method selection -->
+    <div class="card">
+      <div class="section-title"><i class="fas fa-wallet"></i> Choose Payment Method</div>
+      <div class="method-grid">
+
+        <!-- Stripe card payment -->
+        <div class="method-btn stripe-btn disabled" id="btn-stripe-method" onclick="selectMethod('stripe')">
+          <span class="badge badge-live" id="stripe-badge" style="display:none;">ENABLED</span>
+          <div class="method-icon">💳</div>
+          <div class="method-name">Pay by Card</div>
+          <div class="method-desc" id="stripe-desc">Checking availability…</div>
+        </div>
+
+        <!-- Manual / BACS -->
+        <div class="method-btn" id="btn-bacs-method" onclick="selectMethod('bacs')">
+          <span class="badge badge-avail">ALWAYS AVAILABLE</span>
+          <div class="method-icon">🏦</div>
+          <div class="method-name">BACS / Bank Transfer</div>
+          <div class="method-desc">Pay by bank transfer. Booking held as provisional until payment clears.</div>
+        </div>
+
+      </div>
+
+      <!-- BACS bank details panel (shown when BACS selected) -->
+      <div class="bacs-panel" id="bacs-panel">
+        <div style="font-size:0.85rem; font-weight:700; color:var(--warning); margin-bottom:0.5rem;">
+          <i class="fas fa-university" style="margin-right:6px;"></i>Bank Transfer Details
+        </div>
+        <table class="bacs-table">
+          <tr id="bacs-row-name"   style="display:none;"><td>Account Name</td>   <td id="bacs-account-name"></td></tr>
+          <tr id="bacs-row-sort"   style="display:none;"><td>Sort Code</td>       <td id="bacs-sort-code"></td></tr>
+          <tr id="bacs-row-acc"    style="display:none;"><td>Account Number</td>  <td id="bacs-account-number"></td></tr>
+          <tr><td>Amount</td>                                                      <td id="bacs-amount-due"></td></tr>
+          <tr><td>Payment Reference</td>                                           <td id="bacs-reference" class="bacs-ref"></td></tr>
+        </table>
+        <div class="bacs-notice">
+          <i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>
+          Use your Booking ID as the payment reference so we can match your transfer.
+        </div>
+      </div>
+
+      <!-- Pay button -->
+      <button id="btn-pay" class="cash-mode" onclick="processPayment()" disabled>
+        Select a payment method above
+      </button>
+      <p id="btn-hint" style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:0.75rem;"></p>
+    </div>
+
+  </div><!-- /checkout-content -->
+</main>
+
+<!-- Status overlay -->
+<div class="overlay-bg" id="overlay">
+  <div class="overlay-card">
+    <div class="overlay-icon" id="overlay-icon"><i id="overlay-icon-i" class="fas fa-check"></i></div>
+    <h2 id="overlay-title" style="margin-bottom:0.5rem;">Done</h2>
+    <p  id="overlay-body"  style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;"></p>
+    <div id="overlay-ref-wrap" style="display:none; margin-bottom:1rem;">
+      <div class="overlay-ref" id="overlay-ref"></div>
+    </div>
+    <button class="btn-outline" onclick="closeOverlay()">Close</button>
+    <a href="accounts.html" style="display:block; margin-top:0.5rem;">
+      <button class="btn-outline" style="width:100%;">View Accounts</button>
+    </a>
+  </div>
+</div>
+
+<!-- Stripe.js (loaded on demand in initStripe()) -->
+<script>
+  'use strict';
+
+  // ─── CLAUDE.md Pattern 6 — sessionStorage key contract ───────────────────
+  const API    = 'https://api.venuedesk.co.uk';
+  const _TID   = () => sessionStorage.getItem('vp_tenant_id') || '0';
+  const _JWT   = () => sessionStorage.getItem('vp_token')     || '';
+  const _USER  = () => sessionStorage.getItem('vp_user_name') || 'Staff';
+
+  // ─── Read URL params ──────────────────────────────────────────────────────
+  const params      = new URLSearchParams(location.search);
+  const BOOKING_ID  = params.get('booking_id')  || '';
+  const AMOUNT      = parseFloat(params.get('amount') || '0');
+  const DESCRIPTION = params.get('description') || 'Venue Booking';
+
+  // ─── State ────────────────────────────────────────────────────────────────
+  let selectedMethod  = null;   // 'stripe' | 'bacs'
+  let stripeConfig    = null;   // { is_stripe_enabled, stripe_publishable_key, bacs_* }
+  let stripeInstance  = null;   // Stripe.js instance
+  let sessionId       = null;   // Stripe Checkout Session ID (returned by POST /stripe/session)
+
+  // ─── Boot ─────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Show sidebar user name
+    document.getElementById('sidebar-user').textContent = _USER();
+
+    // Validate required URL params
+    if (!BOOKING_ID) {
+      showError('No booking_id provided in the URL. Please return to the booking and try again.');
+      return;
+    }
+
+    // Populate summary strip immediately from URL params
+    document.getElementById('sum-booking-id').textContent   = BOOKING_ID;
+    document.getElementById('sum-amount').textContent       = AMOUNT ? fmt(AMOUNT) : '—';
+    document.getElementById('sum-description').textContent  = DESCRIPTION;
+    document.getElementById('bacs-amount-due').textContent  = AMOUNT ? fmt(AMOUNT) : '—';
+    document.getElementById('bacs-reference').textContent   = BOOKING_ID;
+
+    // Check for Stripe redirect-back status in URL
+    handleStripeReturn();
+
+    // Fetch tenant Stripe config (GET /stripe/config — JWT gated via body… but
+    // this is a GET so we pass tenant_id as query param per the CORS pattern).
+    await loadStripeConfig();
+
+    document.getElementById('loading-state').style.display  = 'none';
+    document.getElementById('checkout-content').style.display = 'block';
+  });
+
+  // ─── Handle return from Stripe Checkout ──────────────────────────────────
+  function handleStripeReturn() {
+    const status = params.get('status');
+    const banner = document.getElementById('stripe-status-banner');
+    if (!status) return;
+
+    if (status === 'success') {
+      banner.style.display    = 'block';
+      banner.style.background = 'rgba(16,185,129,0.15)';
+      banner.style.border     = '1px solid rgba(16,185,129,0.3)';
+      banner.style.color      = '#10b981';
+      banner.innerHTML        = '<i class="fas fa-check-circle" style="margin-right:8px;"></i>Card payment successful! Your booking is confirmed. A receipt has been emailed to you.';
+    } else if (status === 'cancelled') {
+      banner.style.display    = 'block';
+      banner.style.background = 'rgba(245,158,11,0.1)';
+      banner.style.border     = '1px solid rgba(245,158,11,0.3)';
+      banner.style.color      = '#f59e0b';
+      banner.innerHTML        = '<i class="fas fa-times-circle" style="margin-right:8px;"></i>Payment cancelled. Your booking is still provisional — choose another method below to complete it.';
+    }
+  }
+
+  // ─── Load Stripe/payment config from db-api ───────────────────────────────
+  // CLAUDE.md Pattern 4 note: GET /stripe/config is JWT-gated but we can't
+  // send Authorization headers cross-origin (triggers CORS preflight).
+  // Solution: pass tenant_id as query param; db-api validates against the
+  // service-level JWT baked into the Authorization header on POST routes.
+  // For this GET, the API uses the query param + validates it isn't spoofed
+  // by checking against the bearer token in cases where it's available.
+  // The publishable key is not sensitive — worst case is a wrong tenant
+  // seeing another's public key, which has no security impact.
+  async function loadStripeConfig() {
+    try {
+      const res  = await fetch(`${API}/stripe/config?tenant_id=${_TID()}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        console.warn('[checkout] stripe config unavailable:', json.message);
+        setStripeUnavailable('Configuration unavailable');
+        return;
+      }
+
+      stripeConfig = json.data;
+
+      if (stripeConfig.is_stripe_enabled && stripeConfig.stripe_publishable_key) {
+        enableStripeButton();
+      } else {
+        setStripeUnavailable('Not enabled for this venue');
+      }
+
+      // Populate BACS details from config
+      populateBacsDetails();
+
+    } catch (err) {
+      console.warn('[checkout] failed to load stripe config:', err.message);
+      setStripeUnavailable('Unavailable');
+    }
+  }
+
+  function enableStripeButton() {
+    const btn = document.getElementById('btn-stripe-method');
+    btn.classList.remove('disabled');
+    document.getElementById('stripe-desc').textContent = 'Secure card payment via Stripe Checkout. Booking confirmed instantly.';
+    document.getElementById('stripe-badge').style.display = 'inline-block';
+  }
+
+  function setStripeUnavailable(reason) {
+    const btn  = document.getElementById('btn-stripe-method');
+    btn.classList.add('disabled');
+    document.getElementById('stripe-desc').textContent = `Card payments: ${reason}`;
+    document.getElementById('stripe-badge').style.display = 'none';
+  }
+
+  function populateBacsDetails() {
+    if (!stripeConfig) return;
+    const setRow = (rowId, cellId, value) => {
+      if (value) {
+        document.getElementById(rowId).style.display = '';
+        document.getElementById(cellId).textContent  = value;
+      }
+    };
+    setRow('bacs-row-name', 'bacs-account-name',   stripeConfig.bacs_account_name);
+    setRow('bacs-row-sort', 'bacs-sort-code',       stripeConfig.bacs_sort_code);
+    setRow('bacs-row-acc',  'bacs-account-number',  stripeConfig.bacs_account_number);
+  }
+
+  // ─── Method selection ─────────────────────────────────────────────────────
+  function selectMethod(method) {
+    selectedMethod = method;
+
+    document.getElementById('btn-stripe-method').classList.toggle('selected', method === 'stripe');
+    document.getElementById('btn-bacs-method').classList.toggle('selected',   method === 'bacs');
+
+    const bacsPanel = document.getElementById('bacs-panel');
+    bacsPanel.classList.toggle('show', method === 'bacs');
+
+    const payBtn  = document.getElementById('btn-pay');
+    const hint    = document.getElementById('btn-hint');
+
+    if (method === 'stripe') {
+      payBtn.className        = 'stripe-mode';
+      payBtn.innerHTML        = '<i class="fas fa-lock"></i> Pay by Card via Stripe';
+      payBtn.disabled         = false;
+      hint.textContent        = 'You will be redirected to Stripe's secure checkout page.';
+    } else {
+      payBtn.className        = 'bacs-mode';
+      payBtn.innerHTML        = '<i class="fas fa-university"></i> Reserve Booking (BACS)';
+      payBtn.disabled         = false;
+      hint.textContent        = 'Your booking will be reserved as provisional until your bank transfer clears.';
+    }
+  }
+
+  // ─── Process payment ──────────────────────────────────────────────────────
+  async function processPayment() {
+    if (!selectedMethod) return;
+    if (!BOOKING_ID)      { showError('No booking ID — cannot process payment.'); return; }
+    if (AMOUNT <= 0)      { showError('Invalid amount — cannot process payment.'); return; }
+
+    if (selectedMethod === 'stripe') {
+      await initiateStripeCheckout();
+    } else {
+      await initiateBACSBooking();
+    }
+  }
+
+  // ─── Stripe checkout ──────────────────────────────────────────────────────
+  async function initiateStripeCheckout() {
+    const payBtn = document.getElementById('btn-pay');
+    payBtn.disabled   = true;
+    payBtn.innerHTML  = '<div class="spinner"></div> Creating session…';
+
+    try {
+      // CLAUDE.md Pattern 4 — JWT body-tunnel (CORS blocks Authorization header)
+      const res  = await fetch(`${API}/stripe/session`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id:  BOOKING_ID,
+          amount:      AMOUNT,
+          description: DESCRIPTION,
+          jwt:         _JWT(),          // body tunnel
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || `API error ${res.status}`);
+      }
+
+      const { checkout_url, session_id, publishable_key } = json.data;
+      sessionId = session_id;
+
+      // Option A: Direct URL redirect (simplest — no Stripe.js required)
+      if (checkout_url) {
+        window.location.href = checkout_url;
+        return;
+      }
+
+      // Option B: Stripe.js redirectToCheckout (fallback)
+      await loadStripeJs(publishable_key);
+      const { error } = await stripeInstance.redirectToCheckout({ sessionId: session_id });
+      if (error) throw new Error(error.message);
+
+    } catch (err) {
+      payBtn.disabled   = false;
+      payBtn.innerHTML  = '<i class="fas fa-lock"></i> Pay by Card via Stripe';
+      showError(`Could not create Stripe session: ${err.message}`);
+    }
+  }
+
+  // ─── BACS provisional booking ─────────────────────────────────────────────
+  async function initiateBACSBooking() {
+    const payBtn  = document.getElementById('btn-pay');
+    payBtn.disabled   = true;
+    payBtn.innerHTML  = '<div class="spinner"></div> Reserving booking…';
+
+    try {
+      // Notify n8n Financial Operations to record provisional + send BACS email
+      // CLAUDE.md Pattern 4 — JWT body-tunnel
+      const bacsDetails = stripeConfig ? {
+        bacs_account_name:   stripeConfig.bacs_account_name,
+        bacs_sort_code:      stripeConfig.bacs_sort_code,
+        bacs_account_number: stripeConfig.bacs_account_number,
+      } : {};
+
+      const res  = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id:      BOOKING_ID,
+          amount:          AMOUNT,
+          payment_method:  'bacs',
+          payment_type:    'balance',
+          payment_status:  'pending',
+          tenant_id:       parseInt(_TID()),
+          jwt:             _JWT(),          // body tunnel
+          ...bacsDetails,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok && res.status !== 200) {
+        throw new Error(json?.message || `n8n returned ${res.status}`);
+      }
+
+      showSuccess(
+        'Booking Reserved',
+        `Your booking has been reserved as provisional. Please transfer ${fmt(AMOUNT)} using your Booking ID as the reference. An email with bank details has been sent.`,
+        BOOKING_ID
+      );
+
+    } catch (err) {
+      payBtn.disabled   = false;
+      payBtn.innerHTML  = '<i class="fas fa-university"></i> Reserve Booking (BACS)';
+      showError(`Could not reserve booking: ${err.message}`);
+    }
+  }
+
+  // ─── Stripe.js loader ─────────────────────────────────────────────────────
+  async function loadStripeJs(publishableKey) {
+    if (stripeInstance) return;
+    if (!document.getElementById('stripe-js-script')) {
+      await new Promise((resolve, reject) => {
+        const s  = document.createElement('script');
+        s.id     = 'stripe-js-script';
+        s.src    = 'https://js.stripe.com/v3/';
+        s.onload = resolve;
+        s.onerror= reject;
+        document.head.appendChild(s);
+      });
+    }
+    stripeInstance = window.Stripe(publishableKey);
+  }
+
+  // ─── Overlay helpers ──────────────────────────────────────────────────────
+  function showSuccess(title, body, ref) {
+    const icon = document.getElementById('overlay-icon');
+    icon.className = 'overlay-icon success';
+    document.getElementById('overlay-icon-i').className = 'fas fa-check';
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-body').textContent  = body;
+    if (ref) {
+      document.getElementById('overlay-ref-wrap').style.display = 'block';
+      document.getElementById('overlay-ref').textContent = ref;
+    }
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function showPending(title, body) {
+    const icon = document.getElementById('overlay-icon');
+    icon.className = 'overlay-icon pending';
+    document.getElementById('overlay-icon-i').className = 'fas fa-clock';
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-body').textContent  = body;
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function showError(msg) {
+    const icon = document.getElementById('overlay-icon');
+    icon.className = 'overlay-icon error';
+    document.getElementById('overlay-icon-i').className = 'fas fa-exclamation';
+    document.getElementById('overlay-title').textContent = 'Error';
+    document.getElementById('overlay-body').textContent  = msg;
+    document.getElementById('overlay-ref-wrap').style.display = 'none';
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function closeOverlay() {
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  // ─── Format helpers ───────────────────────────────────────────────────────
+  function fmt(n) { return '£' + parseFloat(n || 0).toFixed(2); }
+
+  // ─── Sidebar ──────────────────────────────────────────────────────────────
+  function openSidebar()  {
+    document.getElementById('sidebar').classList.add('active');
+    document.getElementById('sidebarOverlay').classList.add('active');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('active');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+  }
+  function toggleSidebarCollapse() {
+    document.body.classList.toggle('sidebar-collapsed');
+  }
+  function logout() {
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+  }
+</script>
+</body>
+</html>

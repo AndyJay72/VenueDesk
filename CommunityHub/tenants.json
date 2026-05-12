@@ -1,0 +1,7 @@
+{
+  "tenants": [
+    { "tenant_id": 1001, "venue_id": 1001, "name": "Village Hall A",       "slug": "village-hall-a",       "active": true },
+    { "tenant_id": 1002, "venue_id": 1002, "name": "Community Centre B",   "slug": "community-centre-b",   "active": true },
+    { "tenant_id": 1003, "venue_id": 1003, "name": "Sports Hall C",        "slug": "sports-hall-c",        "active": true }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "skill_name": "venuedesk-recurring-page",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add a 'Guest Count' number input field to the recurring booking form on recurring-bookings.html. It should sit between the Event Type dropdown and the Notes textarea, use the same form-group / form-label / form-input styling, and its value should be included in the payload sent to the create-recurring-booking webhook as guest_count.",
+      "expected_output": "HTML file with guest_count field added correctly, matching VenueDesk form styling, included in payload, JS syntax valid",
+      "files": ["venue_desk_backup/CommunityHub/recurring-bookings.html"]
+    },
+    {
+      "id": 2,
+      "prompt": "Change the mini-calendar section on recurring-bookings.html to show 4 months instead of 3. Update the grid layout and navigation so it steps forward/back 4 months at a time.",
+      "expected_output": "HTML file updated: loop runs 4 times, grid is repeat(4,1fr), nav steps by 4, JS syntax valid",
+      "files": ["venue_desk_backup/CommunityHub/recurring-bookings.html"]
+    },
+    {
+      "id": 3,
+      "prompt": "Add a selected-dates list below the mini-calendars on recurring-bookings.html. It should show all currently selected dates grouped by day of week (e.g. 'Mondays: 3 Apr, 10 Apr, 17 Apr · Wednesdays: 5 Apr, 12 Apr'). It should update in real time as dates are selected and disappear when the selection is cleared.",
+      "expected_output": "HTML file with a date summary div that renders grouped weekday lists, updates on selection change, hidden when empty, styled consistently with the rest of the page",
+      "files": ["venue_desk_backup/CommunityHub/recurring-bookings.html"]
+    }
+  ]
+}
