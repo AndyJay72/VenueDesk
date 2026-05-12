@@ -8,17 +8,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        // SECURITY CHECK
+        // SECURITY CHECK — validates token claims; forces re-login if stale/missing
         (function() {
             const _t = sessionStorage.getItem('vp_token');
             if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
             try {
                 const _p = JSON.parse(atob(_t.split('.')[1]));
+                // Expired token
                 if (_p.exp && _p.exp * 1000 < Date.now()) {
                     sessionStorage.clear();
                     window.location.href = 'login.html';
+                    return;
                 }
-            } catch(e) { /* non-JWT token, skip expiry check */ }
+                // Missing required claims — stale n8n token without tenant_id
+                const uid = _p.user_id || _p.id;
+                if (!uid || !_p.tenant_id) {
+                    console.warn('[auth] Token missing required claims — clearing session', _p);
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                console.info('[auth] Token valid — tenant_id:', _p.tenant_id, 'user:', _p.full_name || _p.name || _p.username);
+            } catch(e) { /* non-JWT token, skip checks */ }
         })();
     </script>
 
@@ -1754,13 +1765,14 @@
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
         const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
+        // DASH_DB_API must be declared before any const that references it in a template literal
+        const DASH_DB_API                = 'https://api.venuedesk.co.uk';
         // Ghost-Success fix: routes directly to db-api /payments/pay instead of n8n.
         // n8n's pay-balance fanned out Respond: Success in parallel with the DB write —
         // the UI saw 200 OK before balance_due was updated. The db-api endpoint commits
         // the INSERT + UPDATE in a single transaction before returning.
         const PAY_BALANCE_URL            = `${DASH_DB_API}/payments/pay`;
         const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
-        const DASH_DB_API                = 'https://api.venuedesk.co.uk';
         const LOG_PAYMENT_URL            = `${DASH_DB_API}/audit/log`;
 
         // ── Stripe config cache (per page-load, refreshed every 5 min) ────────
@@ -1768,13 +1780,26 @@
         async function loadPayConfig() {
             const now = Date.now();
             if (_payConfig && (now - _payConfigTs) < 300000) return _payConfig;
+            const tid = _TID();
+            console.info('[stripe] loadPayConfig — tenant_id:', tid);
+            if (!tid || tid === '0') {
+                console.warn('[stripe] tenant_id is 0 — session may be stale');
+                _payConfig = { is_stripe_enabled: false };
+                return _payConfig;
+            }
             try {
-                const r = await fetch(`${DASH_DB_API}/stripe/config?tenant_id=${_TID()}`);
-                if (!r.ok) { _payConfig = { is_stripe_enabled: false }; return _payConfig; }
+                const r = await fetch(`${DASH_DB_API}/stripe/config?tenant_id=${tid}`);
+                if (!r.ok) {
+                    console.warn('[stripe] config fetch failed', r.status);
+                    _payConfig = { is_stripe_enabled: false };
+                    return _payConfig;
+                }
                 const j = await r.json();
                 _payConfig   = j.data || {};
                 _payConfigTs = now;
+                console.info('[stripe] config loaded — enabled:', _payConfig.is_stripe_enabled);
             } catch(e) {
+                console.error('[stripe] loadPayConfig error:', e.message);
                 _payConfig = { is_stripe_enabled: false };
             }
             return _payConfig;
@@ -1861,7 +1886,7 @@
         // Populate header welcome text from sessionStorage
         (function() {
             const user = JSON.parse(sessionStorage.getItem('vp_user') || '{}');
-            const name = user.name || user.username || sessionStorage.getItem('vp_user_name') || 'Staff Manager';
+            const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff Manager';
             const venue = sessionStorage.getItem('vp_venue_name') || '';
             const nameEl  = document.getElementById('hdr-username');
             const venueEl = document.getElementById('hdr-venue');
