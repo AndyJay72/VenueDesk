@@ -1757,7 +1757,7 @@
         const PAY_BALANCE_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
         const DASH_DB_API                = 'https://api.venuedesk.co.uk';
-        const LOG_PAYMENT_URL            = 'https://n8n.srv1090894.hstgr.cloud/webhook/log-payment-action';
+        const LOG_PAYMENT_URL            = `${DASH_DB_API}/audit/log`;
 
         // ── Stripe config cache (per page-load, refreshed every 5 min) ────────
         let _payConfig = null, _payConfigTs = 0;
@@ -2952,17 +2952,18 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            tenant_id:      parseInt(_TID()),
-                            action:         'manual_payment',
-                            entity:         'booking',
-                            entity_id:      String(_payBooking.booking_id || _payBooking.id || ''),
-                            amount:         amount,
-                            payment_method: method,
-                            payment_type:   result.payment_type || 'payment',
-                            reference_number: ref !== '—' ? ref : null,
-                            customer_id:    _payBooking.customer_id || null,
-                            staff_user:     sessionStorage.getItem('vp_user_name') || null,
-                            source:         'dashboard',
+                            jwt:      sessionStorage.getItem('vp_token') || '',
+                            action:   'manual_payment',
+                            entity:   'booking',
+                            entity_id: String(_payBooking.booking_id || _payBooking.id || ''),
+                            payload:  {
+                                amount,
+                                payment_method: method,
+                                payment_type:   result.payment_type || 'payment',
+                                reference_number: ref !== '—' ? ref : null,
+                                customer_id:    _payBooking.customer_id || null,
+                            },
+                            source: 'dashboard',
                         })
                     }).catch(() => {}); // intentionally non-blocking
                 } else {

@@ -37,6 +37,7 @@ const leadsRoutes        = require('./routes/leads');
 const adminRoutes        = require('./routes/admin');
 const onboardingRoutes   = require('./routes/onboarding');
 const stripeRoutes       = require('./routes/stripe');        // ← Phase 2 Stripe integration
+const auditRoutes        = require('./routes/audit');         // ← Audit log write endpoint
 const bookingsRoutes     = require('./routes/bookings');      // ← Booking lifecycle
 const recurringRoutes    = require('./routes/recurring');     // ← Recurring schedules + payments
 const customersRoutes    = require('./routes/customers');     // ← CRM customer management
@@ -123,6 +124,7 @@ fastify.register(leadsRoutes,      { prefix: '/leads'      });
 fastify.register(adminRoutes,      { prefix: '/admin'      });
 fastify.register(onboardingRoutes,   { prefix: '/onboarding'    });
 fastify.register(stripeRoutes,       { prefix: '/stripe'        }); // ← Stripe integration
+fastify.register(auditRoutes,        { prefix: '/audit'         }); // ← Audit log writes
 fastify.register(bookingsRoutes,     { prefix: '/bookings'      }); // ← Booking lifecycle
 fastify.register(recurringRoutes,    { prefix: '/recurring'     }); // ← Recurring schedules
 fastify.register(customersRoutes,    { prefix: '/customers'     }); // ← CRM customers
