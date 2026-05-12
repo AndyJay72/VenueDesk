@@ -656,11 +656,46 @@
             </div>
         </div>
     </main>
+
+    <!-- Edit User Modal -->
+    <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:3000;align-items:center;justify-content:center;">
+        <div style="background:#1e293b;border:1px solid rgba(148,163,184,0.15);border-radius:20px;padding:2rem;width:92%;max-width:440px;position:relative;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+                <div style="font-size:1.2rem;font-weight:700;color:white;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-user-pen" style="color:#a5b4fc;"></i> Edit User — <span id="editUsername" style="color:#a5b4fc;font-family:monospace;"></span></div>
+                <button onclick="closeEditModal()" style="background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+            <input type="hidden" id="editUserId">
+            <div style="margin-bottom:1rem;">
+                <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:6px;font-weight:600;">FULL NAME</label>
+                <input id="editFullName" type="text" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid rgba(148,163,184,0.2);border-radius:10px;padding:10px 14px;color:white;font-size:0.95rem;" placeholder="Full name">
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:6px;font-weight:600;">ROLE</label>
+                <select id="editRole" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid rgba(148,163,184,0.2);border-radius:10px;padding:10px 14px;color:white;font-size:0.95rem;">
+                    <option value="staff">Staff</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:6px;font-weight:600;">NEW PASSWORD <span style="color:#64748b;font-weight:400;">(leave blank to keep existing)</span></label>
+                <input id="editPassword" type="password" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid rgba(148,163,184,0.2);border-radius:10px;padding:10px 14px;color:white;font-size:0.95rem;" placeholder="Leave blank to keep current password">
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <button id="editSaveBtn" onclick="saveEditUser()" style="flex:1;padding:11px;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;border-radius:10px;color:white;font-weight:700;font-size:0.95rem;cursor:pointer;">Save Changes</button>
+                <button onclick="closeEditModal()" style="padding:11px 18px;background:rgba(100,116,139,0.2);border:1px solid rgba(148,163,184,0.15);border-radius:10px;color:#94a3b8;font-weight:600;cursor:pointer;">Cancel</button>
+            </div>
+            <div id="editStatus" style="margin-top:0.75rem;font-size:0.85rem;min-height:1.2em;text-align:center;"></div>
+        </div>
+    </div>
+
 <script>
         // CONFIG
-        const GET_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-users';
+        const DB_API     = 'https://api.venuedesk.co.uk';
+        const GET_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-users';
         const CREATE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/create-user';
         const DELETE_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/delete-user';
+        const UPDATE_URL = `${DB_API}/users/update`;
 
         function getAuthHeaders() { return {}; }
         function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
@@ -732,12 +767,12 @@
                 }
 
                 tbody.innerHTML = users.map(u => `
-                    <tr>
-                        <td><div style="font-weight:600; color:var(--text-main);">${u.full_name || '---'}</div></td>
+                    <tr id="row-${u.id}">
+                        <td><div style="font-weight:600; color:var(--text-main);" id="name-${u.id}">${u.full_name || '---'}</div></td>
                         <td style="font-family:monospace; color:var(--primary);">${u.username}</td>
-                        <td><span class="role-badge ${u.role === 'admin' ? 'role-admin' : ''}">${u.role}</span></td>
-                        <td style="text-align: right;">
-                            <!-- Only show delete for non-admin users -->
+                        <td><span class="role-badge ${u.role === 'admin' ? 'role-admin' : ''}" id="role-${u.id}">${u.role}</span></td>
+                        <td style="text-align: right; display:flex; gap:6px; justify-content:flex-end;">
+                            <button class="btn-delete" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.3);color:#a5b4fc;" onclick="openEditUser('${u.id}','${(u.full_name||'').replace(/'/g,"\\'")}','${u.role}','${u.username}')"><i class="fa-solid fa-pen"></i></button>
                             ${u.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUser('${u.id}', '${u.username}')"><i class="fa-solid fa-trash"></i></button>` : '<span style="opacity:0.3">-</span>'}
                         </td>
                     </tr>
@@ -789,6 +824,64 @@
                 });
                 if(res.ok) { loadUsers(); } else { alert("Failed to delete."); }
             } catch(e) { alert("Connection Error"); }
+        }
+
+        // ── Edit User ──────────────────────────────────────────────────────────
+        let _editUserId = null;
+
+        function openEditUser(id, fullName, role, username) {
+            _editUserId = id;
+            document.getElementById('editUserId').value    = id;
+            document.getElementById('editFullName').value  = fullName;
+            document.getElementById('editRole').value      = role;
+            document.getElementById('editUsername').textContent = username;
+            document.getElementById('editPassword').value  = '';
+            document.getElementById('editStatus').textContent = '';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            _editUserId = null;
+        }
+
+        async function saveEditUser() {
+            const id       = document.getElementById('editUserId').value;
+            const fullName = document.getElementById('editFullName').value.trim();
+            const role     = document.getElementById('editRole').value;
+            const password = document.getElementById('editPassword').value;
+            const status   = document.getElementById('editStatus');
+
+            if (!fullName) { status.style.color='#f87171'; status.textContent = 'Full name is required'; return; }
+
+            const btn = document.getElementById('editSaveBtn');
+            btn.disabled = true;
+            status.textContent = 'Saving…';
+            status.style.color = '';
+
+            try {
+                const res = await fetch(UPDATE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jwt:       sessionStorage.getItem('vp_token') || '',
+                        user_id:   id,
+                        full_name: fullName,
+                        role:      role,
+                        password:  password || undefined,
+                    })
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.message || res.statusText);
+                status.style.color = '#6ee7b7';
+                status.textContent = '✓ Saved';
+                setTimeout(() => { closeEditModal(); loadUsers(); }, 800);
+            } catch(e) {
+                status.style.color = '#f87171';
+                status.textContent = '✗ ' + e.message;
+            } finally {
+                btn.disabled = false;
+            }
         }
 
         // Initialize on page load

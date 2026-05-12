@@ -44,6 +44,7 @@ const bookingsRoutes        = require('./routes/bookings');         // ← Booki
 const recurringRoutes    = require('./routes/recurring');     // ← Recurring schedules + payments
 const customersRoutes    = require('./routes/customers');     // ← CRM customer management
 const usersRoutes        = require('./routes/users');         // ← Staff user management
+const usersUpdateRoutes  = require('./routes/users-update');  // ← Staff user write ops (update)
 const blockedDatesRoutes = require('./routes/blocked-dates'); // ← Blocked date rules
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -152,6 +153,7 @@ fastify.register(bookingsRoutes,       { prefix: '/bookings'      }); // ← Boo
 fastify.register(recurringRoutes,    { prefix: '/recurring'     }); // ← Recurring schedules
 fastify.register(customersRoutes,    { prefix: '/customers'     }); // ← CRM customers
 fastify.register(usersRoutes,        { prefix: '/users'         }); // ← Staff users
+fastify.register(usersUpdateRoutes,  { prefix: '/users'         }); // ← Staff user update
 fastify.register(blockedDatesRoutes, { prefix: '/blocked-dates' }); // ← Blocked date rules
 
 // ── Health check ──────────────────────────────────────────────────────────────
