@@ -982,3 +982,275 @@ inside Docker via the `n8nnet` network without any host binding.
 **Action:** Remove the `ports:` block from the `postgres` service in docker-compose.yml,
 then run `docker compose up -d --force-recreate postgres` on the VPS.
 
+---
+
+# 🛡️ Frontend Development Rules (Phase 2 Lessons — DO NOT SKIP)
+
+Derived from live production regressions. Apply automatically to all frontend work.
+
+---
+
+## Rule F1 — Global API Constant Declaration Order
+
+**Problem:** A `const` referencing an undeclared `const` in a template literal throws
+`ReferenceError: Cannot access 'X' before initialization`. Because the error occurs at
+parse/execute time inside a `<script>` block, **the entire block silently fails** — every
+function, event handler, and UI initialisation below it never runs.
+
+**Classic failure:**
+```javascript
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;  // ReferenceError — DASH_DB_API not yet declared
+// ... lines later ...
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+```
+
+**Rule:** Declare ALL API base URL constants at the **very top** of the `<script>` block,
+before any `const` that references them in a template literal:
+```javascript
+// ── API base URLs — must come first ──────────────────────────────────────────
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+const CAL_DB_API  = 'https://api.venuedesk.co.uk';
+const EF_DB_API   = 'https://api.venuedesk.co.uk';
+
+// ── Derived URLs — safe after base URLs are declared ─────────────────────────
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
+const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
+```
+
+---
+
+## Rule F2 — Static Site Constraint
+
+**Rule:** VenueDesk frontend is static HTML/CSS/JS served via GitHub Pages. Do **not**
+introduce Vite, Webpack, React, Vue, or any build step or SPA framework unless explicitly
+requested. All fixes must be vanilla JS edits to the existing `.html` files in
+`CommunityHub/`. Maintain the existing dark-theme fintech CSS layout exactly.
+
+---
+
+## Rule F3 — Identity Object Lookup Order
+
+**Problem:** The JWT payload and `vp_user` sessionStorage object use `full_name`, but
+legacy frontend code checks `user.name` or `user.username` first, showing raw usernames
+instead of display names in the UI.
+
+**Rule:** Always resolve display names in this priority order:
+```javascript
+const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff';
+```
+
+Auth.js must include **both** `full_name` and `name` (alias) in the JWT payload and the
+response `user` object so all pages work regardless of which field they check:
+```javascript
+fastify.jwt.sign({
+  id:        user.id,
+  user_id:   user.id,
+  username:  user.username,
+  role:      user.role,
+  full_name: user.full_name,
+  name:      user.full_name,  // alias for legacy checks
+  tenant_id: user.tenant_id,
+});
+```
+
+---
+
+## Rule F4 — Page-Load JWT Claim Validation
+
+Every authenticated page must validate JWT claims at load time and force re-login if
+the token is stale or missing required fields. Add this as the **first** `<script>` block:
+
+```javascript
+(function() {
+  const _t = sessionStorage.getItem('vp_token');
+  if (!_t) { window.location.href = 'login.html'; return; }
+  try {
+    const _p = JSON.parse(atob(_t.split('.')[1]));
+    if (_p.exp && _p.exp * 1000 < Date.now()) { sessionStorage.clear(); window.location.href = 'login.html'; return; }
+    // Missing required claims (stale n8n token without tenant_id)
+    if (!(_p.user_id || _p.id) || !_p.tenant_id) {
+      console.warn('[auth] stale token — missing claims', _p);
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+  } catch(e) { /* non-JWT, skip */ }
+})();
+```
+
+---
+
+## Rule F5 — Stripe Webhook Raw Body + Secret Trimming
+
+**Rule:** `stripe.webhooks.constructEvent()` verifies the exact bytes Stripe signed.
+Two mandatory requirements:
+
+1. **Raw body capture** — Fastify's default parser re-serialises to a JS object, changing
+   whitespace and breaking the HMAC. Use the custom `addContentTypeParser` in `server.js`
+   that stores the raw Buffer on `req.rawBody` before parsing.
+
+2. **Secret trimming** — Docker, Heroku, and similar deployment tools sometimes append
+   `\n` to env var values. Always `.trim()` the webhook secret:
+   ```javascript
+   const secret = webhookSecret.trim();
+   event = stripe.webhooks.constructEvent(req.rawBody, sig, secret);
+   ```
+
+Never pass `JSON.stringify(req.body)` as the body argument — this always breaks HMAC.
+
+---
+
+## Rule F6 — JWT Body-Tunnel (CORS Constraint — Pattern 4 Reminder)
+
+**Rule:** The db-api CORS config permits only `Content-Type` in `allowedHeaders`.
+Sending an `Authorization: Bearer` header triggers a CORS preflight that the browser
+blocks. **Never add `Authorization` to frontend fetch calls.**
+
+JWT travels via request body for POST, query param for GET:
+```javascript
+// POST — jwt in body
+body: JSON.stringify({ jwt: sessionStorage.getItem('vp_token') || '', ...payload })
+
+// GET with auth (e.g. /stripe/bacs-details)
+fetch(`${DB_API}/stripe/bacs-details?jwt=${encodeURIComponent(token)}`)
+```
+
+The `fastify.authenticate` decorator tries `Authorization` header first (for n8n/Postman),
+then falls back to `body.jwt` / `query.jwt`. This supports both patterns without changing
+the CORS policy.
+
+---
+
+# 🔧 Skills & Operating Procedures
+
+---
+
+## Skill: Staff User Management
+
+### Creating a user
+`users.html` → Add New User form → POST to n8n `create-user` webhook.
+The n8n workflow hashes the password with SHA512+PEPPER before storing.
+
+### Updating a user (name / role / password)
+`users.html` → pen icon on user row → Edit modal → POST to `https://api.venuedesk.co.uk/users/update`.
+JWT body-tunnel. Password field optional — leave blank to keep existing hash.
+
+### Password hashing algorithm
+```
+hash = SHA512(PEPPER + plaintext_password)   → 128-char hex string
+```
+PEPPER constant: `'vp-pepper-change-me'` (default if `PASSWORD_PEPPER` env var not set).
+This matches the n8n Crypto node that originally created the hashes.
+**Do not change PEPPER** — it invalidates all existing passwords.
+
+### Tenant assignments
+- `admin` → `tenant_id = 1` (master/super-admin — intentional, sees no venue data)
+- Venue staff → `tenant_id = 1001`
+- New users created via UI inherit `tenant_id` from the logged-in user's JWT
+
+---
+
+## Skill: RLS Enforcement — Tenant Context Injection
+
+Every API request must carry `tenant_id`. Two patterns:
+
+**GET requests:**
+```javascript
+function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+fetch(`${DB_API}/some/endpoint?tenant_id=${_TID()}`)
+```
+
+**POST requests:**
+```javascript
+body: JSON.stringify({
+  jwt:       sessionStorage.getItem('vp_token') || '',
+  tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+  // ... other fields
+})
+```
+
+On the db-api side, `withTenantContext(tenantId, fn)` calls
+`SELECT set_config('app.tenant_id', tenantId, true)` before running queries, activating
+PostgreSQL RLS. Never pass `tenant_id` from body into query parameters — always use
+`req.user.tenant_id` (from JWT) for write operations.
+
+---
+
+## Skill: Enquiry Form Submission Flow
+
+1. User fills `enquiry-form.html` — room, dates, hire type, contact details
+2. On submit: `POST /enquiry/create-request` (public, no JWT)
+   - Validates tenant is active
+   - Upserts customer by `(email, tenant_id)` UNIQUE constraint
+   - Inserts `bookings.booking_requests` row with `status = 'pending_review'`
+   - Returns `{ booking_request_id, customer_id }`
+3. If deposit selected: `POST /stripe/public-session` with `booking_request_id`
+   - Stripe Checkout created, customer redirected
+   - On payment: webhook updates `booking_requests.status = 'deposit_paid'`
+4. If no deposit: submission complete, staff review pending request in dashboard
+
+**Critical:** `booking_request_id` must be captured from step 2 before initiating
+step 3. Previously this was broken because n8n never returned an ID.
+
+---
+
+## Skill: Environment Hygiene — JWT Claims Checklist
+
+Every JWT issued by `auth.js` must contain:
+
+| Claim | Type | Source |
+|-------|------|--------|
+| `id` | UUID string | `staff_users.id` |
+| `user_id` | UUID string | same as `id` (alias for middleware normalisation) |
+| `username` | string | `staff_users.username` |
+| `role` | string | `staff_users.role` |
+| `full_name` | string | `staff_users.full_name` |
+| `name` | string | alias for `full_name` (legacy UI compat) |
+| `tenant_id` | integer | `staff_users.tenant_id` |
+
+The `fastify.authenticate` middleware validates `user_id || id` and `tenant_id`.
+Missing either → 401 `INVALID_TOKEN`. The page-load security check (Rule F4) must
+catch stale tokens before any API calls are made.
+
+---
+
+## Skill: Deployment Checklist (API Changes)
+
+```bash
+# 1. Edit file locally in venuedesk-api/src/routes/
+# 2. Commit + push to GitHub
+git add <files> && git commit -m "..." && git push origin main
+
+# 3. SCP to VPS host path
+scp <local_file> root@72.61.19.52:/opt/n8n_postgres/venuedesk-api/src/routes/<file>
+
+# 4. docker cp into running container
+ssh root@72.61.19.52 "docker cp /opt/n8n_postgres/venuedesk-api/src/routes/<file> venuedesk-api:/app/src/routes/<file>"
+
+# 5. Restart container (migrations run automatically on start)
+ssh root@72.61.19.52 "docker restart venuedesk-api && sleep 4 && docker logs venuedesk-api --tail 10"
+
+# 6. Smoke test — check for 401 (not 404) on authenticated route
+curl -s -o /dev/null -w "%{http_code}" -X POST https://api.venuedesk.co.uk/<route>
+```
+
+**server.js changes:** SCP puts server.js in the routes directory by accident — always
+`mv` it to the correct path on the VPS before docker cp:
+```bash
+ssh root@72.61.19.52 "mv /opt/n8n_postgres/venuedesk-api/src/routes/server.js /opt/n8n_postgres/venuedesk-api/src/server.js"
+```
+
+---
+
+## Skill: GitHub Pages Deployment — Cache Busting
+
+GitHub Pages serves from a CDN with up to 10-minute propagation delay after a push.
+Browser cache adds further latency. Standard verification procedure:
+
+1. Push to `main` branch
+2. Wait 2–5 minutes
+3. Open **incognito/private window** — bypasses browser cache, forces fresh CDN fetch
+4. Hard-refresh if needed: `Cmd+Shift+R` (Mac) / `Ctrl+Shift+R` (Windows)
+
+Never test frontend changes in a normal browser window immediately after push — cached
+files will make it appear the fix didn't land.
+
