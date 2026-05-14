@@ -1124,16 +1124,25 @@
             btn.disabled  = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating link...';
             try {
+                // success_url lands on the branded checkout.html (Payment Received)
+                // with the venue name + booking id surfaced via query params.
+                const _bid    = _payBooking.booking_id || _payBooking.id || '';
+                const _venue  = encodeURIComponent(sessionStorage.getItem('vp_venue_name') || '');
+                const _bidEnc = encodeURIComponent(_bid);
+                const _successUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'checkout.html?venue=' + _venue + '&booking=' + _bidEnc;
+
                 const res = await fetch(STRIPE_SESSION_URL, {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         jwt:         sessionStorage.getItem('vp_token') || '',
                         tenant_id:   parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
-                        booking_id:  _payBooking.booking_id || _payBooking.id || '',
+                        booking_id:  _bid,
                         customer_id: _payBooking.customer_id || '',
                         amount:      amount,
                         description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
+                        success_url: _successUrl,
+                        cancel_url:  window.location.href,
                     })
                 });
                 const j = await res.json();

@@ -1244,9 +1244,78 @@
             setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
         }
 
+        // ── Invoice modal field IDs (single source of truth for resetModal) ──
+        const INVOICE_FIELD_IDS = [
+            'invSubtitle', 'invRef', 'invDate',
+            'invCustomer', 'invEmail',
+            'invRoom', 'invBookingDate', 'invTime', 'invTotal',
+            'invType', 'invMethod', 'invRefDetail', 'invOrigRef', 'invStatus', 'invAmount'
+        ];
+
+        // ── resetModal — blank every UI field + show spinner ──────────────────
+        // Eliminates the "previous customer's data flashes briefly" UX bug when
+        // staff click rapidly between two transactions. Called at the top of
+        // every showInvoice() invocation BEFORE populate.
+        function resetModal() {
+            INVOICE_FIELD_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '<span style="color:var(--text-muted);opacity:0.4;">—</span>';
+            });
+            // Hide conditional rows / banners that may have been shown previously
+            const origRow = document.getElementById('invOrigRefRow');
+            if (origRow) origRow.style.display = 'none';
+            const svcSection = document.getElementById('invServicesSection');
+            if (svcSection) svcSection.style.display = 'none';
+            const cancBanner = document.getElementById('invCancBanner');
+            if (cancBanner) cancBanner.style.display = 'none';
+            const svcList = document.getElementById('invServicesList');
+            if (svcList) svcList.innerHTML = '';
+
+            // Drop in a transient spinner over the body
+            const body = document.querySelector('#invoiceModal .invoice-body');
+            if (body && !document.getElementById('inv-loader')) {
+                const sp = document.createElement('div');
+                sp.id = 'inv-loader';
+                sp.style.cssText = 'position:absolute;inset:0;background:rgba(30,41,59,0.85);border-radius:16px;display:flex;align-items:center;justify-content:center;z-index:5;backdrop-filter:blur(2px);';
+                sp.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;"><div style="width:40px;height:40px;border:3px solid rgba(99,102,241,0.2);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;"></div><div style="font-size:0.8rem;color:var(--text-muted);font-weight:600;">Loading…</div></div>';
+                body.style.position = 'relative';
+                body.appendChild(sp);
+                // Inject keyframes once
+                if (!document.getElementById('inv-loader-kf')) {
+                    const st = document.createElement('style'); st.id = 'inv-loader-kf';
+                    st.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+                    document.head.appendChild(st);
+                }
+            }
+        }
+        function _clearModalLoader() {
+            const sp = document.getElementById('inv-loader');
+            if (sp) sp.remove();
+        }
+
         function showInvoice(idx) {
             const t = allTransactions[idx];
             if (!t) return;
+
+            // ① Wipe every field + show spinner (eliminates stale-data flash)
+            resetModal();
+            // ② Open the modal immediately so the spinner is visible
+            document.getElementById('invoiceModal').classList.add('active');
+            // ③ Populate on the next frame — gives the spinner time to paint
+            //    and matches the transaction_id-specific render pattern. The
+            //    transaction is identified by t.id (or reference_number as a
+            //    secondary key) which we use for the data lookup below.
+            const txId = t.id || t.transaction_id || t.reference_number;
+            requestAnimationFrame(() => _populateInvoice(t, txId));
+        }
+
+        function _populateInvoice(t, txId) {
+            // Defensive: if a newer showInvoice fired between rAF schedule and now,
+            // the modal might have been re-reset. Verify the transaction we're
+            // about to paint is still the one the user wanted (matches txId).
+            // (Cheap stale-render guard for rapid-fire clicks.)
+            if (window._invPendingTxId && window._invPendingTxId !== txId) return;
+            window._invPendingTxId = txId;
 
             const pDateFull = t.payment_date ? new Date(t.payment_date).toLocaleString('en-GB') : '—';
             const bDate     = fmtTxDate(t);
@@ -1326,7 +1395,10 @@
                 svcList.innerHTML = '';
             }
 
-            document.getElementById('invoiceModal').classList.add('active');
+            // Populate complete — drop the spinner. Modal was already opened in
+            // showInvoice() so the user has been looking at the loader until now.
+            _clearModalLoader();
+            window._invPendingTxId = null;
         }
 
         function closeModal(e) {

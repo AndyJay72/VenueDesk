@@ -703,6 +703,57 @@
 
         let allTx=[], filtered=[], page=1;
         const PAGE_SIZE=25;
+
+        // ── Fuzzy audit-log dedup ──────────────────────────────────────────────
+        // Two log rows count as duplicates when they share:
+        //   1. The same booking_id (or rule_id for series)
+        //   2. The same amount (rounded to pence — float-tolerant)
+        //   3. Timestamps within 2000ms of each other
+        // When a dupe pair is detected we keep the row attributed to a real
+        // staff member; the "System"/automated row is dropped. If both rows
+        // are attributed (or both unattributed) we keep the earlier one.
+        const _DEDUP_WINDOW_MS = 2000;
+        function _isAutomated(row) {
+            const sm = (row.staff_member || row.actor || '').toLowerCase();
+            return !sm || sm === 'system' || sm === 'automated' || sm === 'n8n' || sm === 'webhook';
+        }
+        function _fuzzyDedupAuditLogs(rows) {
+            if (!Array.isArray(rows) || rows.length < 2) return rows || [];
+            // Group by booking_id + amount-in-pence. Rows without booking_id
+            // or with zero amount stay outside the buckets — they have no
+            // grouping key, so they're preserved automatically by the final
+            // .filter() call below (they never end up in `drop`).
+            const buckets = new Map();
+            for (const r of rows) {
+                const bid = r.booking_id || r.recurring_rule_id || '';
+                const amt = parseFloat(r.amount || 0);
+                if (!bid || !isFinite(amt) || amt === 0) continue;
+                const key = `${bid}|${Math.round(amt * 100)}`;
+                if (!buckets.has(key)) buckets.set(key, []);
+                buckets.get(key).push(r);
+            }
+            const drop = new Set();
+            for (const group of buckets.values()) {
+                if (group.length < 2) continue;
+                // Sort group by timestamp ascending for stable pairwise walk
+                group.sort((a, b) => new Date(a.ts || 0) - new Date(b.ts || 0));
+                for (let i = 0; i < group.length - 1; i++) {
+                    if (drop.has(group[i])) continue;
+                    for (let j = i + 1; j < group.length; j++) {
+                        if (drop.has(group[j])) continue;
+                        const dt = Math.abs(new Date(group[j].ts || 0) - new Date(group[i].ts || 0));
+                        if (dt > _DEDUP_WINDOW_MS) break;   // sorted: no later row can match
+                        // Pair within window — pick winner: prefer staff-attributed.
+                        const iAuto = _isAutomated(group[i]);
+                        const jAuto = _isAutomated(group[j]);
+                        if (iAuto && !jAuto)      drop.add(group[i]);
+                        else if (jAuto && !iAuto) drop.add(group[j]);
+                        else                       drop.add(group[j]); // tie → drop the later one
+                    }
+                }
+            }
+            return rows.filter(r => !drop.has(r));
+        }
         function clearFilters(){document.getElementById('f-search').value='';document.getElementById('f-from').value='';document.getElementById('f-to').value='';document.getElementById('f-type').value='';document.getElementById('f-method').value='';applyFilters();}
         function applyFilters(){
             const q=(document.getElementById('f-search').value||'').toLowerCase();
@@ -925,7 +976,15 @@
                 }
                 events.sort((a,b)=>new Date(b.ts||0)-new Date(a.ts||0));
                 const _seenAudit=new Set();
-                allTx=events.filter(e=>{const k=`${e.type}|${e.ts}|${e.customer_name}|${e.ref}`;if(_seenAudit.has(k))return false;_seenAudit.add(k);return true;});
+                let _dedupExact=events.filter(e=>{const k=`${e.type}|${e.ts}|${e.customer_name}|${e.ref}`;if(_seenAudit.has(k))return false;_seenAudit.add(k);return true;});
+
+                // ── Fuzzy dedup: same booking_id + same amount + ≤2s apart ──
+                // Backend currently double-logs some payments (one at booking
+                // creation, one at payment confirmation). Until n8n's Log: Audit
+                // node is gated on payment-confirmed only, we collapse the pair
+                // client-side: keep the staff-attributed entry, drop the System one.
+                // Time window: 2000ms (spec). Identifier: booking_id + amount.
+                allTx = _fuzzyDedupAuditLogs(_dedupExact);
                 applyFilters();
             }catch(e){
                 document.getElementById('log-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:3rem;color:#ef4444"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load data</td></tr>';

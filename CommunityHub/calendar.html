@@ -1252,7 +1252,14 @@
         // Mirrors index.html's generateStripeLink() but takes explicit (amount, bookingId)
         // so it can be invoked from any flow (QB, balance pay, future contexts).
         // JWT travels via body.jwt (Rule F6 / Pattern 4 — CORS forbids Authorization header).
+        // success_url always lands on checkout.html (branded "Payment Received" page).
         // Returns the Stripe Checkout URL on success, or null on failure.
+        function _calStripeSuccessUrl(bookingId) {
+            const venue   = encodeURIComponent(sessionStorage.getItem('vp_venue_name') || '');
+            const booking = encodeURIComponent(bookingId || '');
+            const base    = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'checkout.html';
+            return `${base}?venue=${venue}&booking=${booking}`;
+        }
         async function generateStripeLink(amount, bookingId, opts){
             opts = opts || {};
             try {
@@ -1266,7 +1273,7 @@
                         customer_id: opts.customer_id || '',
                         amount:      amount,
                         description: opts.description || `Quick booking — £${(parseFloat(amount)||0).toFixed(2)}`,
-                        success_url: opts.success_url || (window.location.origin + window.location.pathname + '?pay=success&booking=' + (bookingId||'')),
+                        success_url: opts.success_url || _calStripeSuccessUrl(bookingId),
                         cancel_url:  opts.cancel_url  ||  window.location.href,
                     })
                 });
@@ -2555,7 +2562,7 @@
                         body:JSON.stringify({booking_id:currentModalBookingId||p.request_id,customer_id:p.customer_id,
                             amount:deposit,tenant_id:parseInt(_CAL_TID()),jwt:sessionStorage.getItem('vp_token')||'',
                             description:`Deposit for ${p.customer_name||'booking'} — £${total.toFixed(2)} total`,
-                            success_url:window.location.origin+window.location.pathname+'?pay=success',
+                            success_url:_calStripeSuccessUrl(currentModalBookingId||p.request_id),
                             cancel_url:window.location.href})});
                     const sj=await sr.json();
                     if(sj.url){window.location.href=sj.url;return;}
@@ -2686,7 +2693,7 @@
                             tenant_id:parseInt(_CAL_TID()),
                             jwt:sessionStorage.getItem('vp_token')||'',
                             description:`Balance payment — ${currentModalProps.customer_name||''}`,
-                            success_url:window.location.origin+window.location.pathname+'?pay=success&booking='+currentModalBookingId,
+                            success_url:_calStripeSuccessUrl(currentModalBookingId),
                             cancel_url:window.location.href
                         })
                     });

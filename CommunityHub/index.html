@@ -1836,6 +1836,16 @@
         // JWT body-tunnel only (Rule F6 / Pattern 4) — never sets Authorization.
         // Used by both the pay modal (generateStripeLink below) AND the Convert
         // Request flow (submitConfirmFromDashboard). DRY: one source of truth.
+        //
+        // success_url builder: always lands on checkout.html with venue + booking
+        // params so the customer/staff member sees the branded "Payment Received"
+        // page instead of bouncing back to a flow that may require login.
+        function _stripeSuccessUrl(bookingId) {
+            const venue   = encodeURIComponent(sessionStorage.getItem('vp_venue_name') || '');
+            const booking = encodeURIComponent(bookingId || '');
+            const base    = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'checkout.html';
+            return `${base}?venue=${venue}&booking=${booking}`;
+        }
         async function createStripeSession(amount, bookingId, opts) {
             opts = opts || {};
             const res = await fetch(STRIPE_SESSION_URL, {
@@ -1848,7 +1858,7 @@
                     customer_id: opts.customer_id || '',
                     amount:      amount,
                     description: opts.description || `Payment — £${(parseFloat(amount)||0).toFixed(2)}`,
-                    success_url: opts.success_url || (window.location.origin + window.location.pathname + '?pay=success&booking=' + (bookingId||'')),
+                    success_url: opts.success_url || _stripeSuccessUrl(bookingId),
                     cancel_url:  opts.cancel_url  ||  window.location.href,
                 })
             });
