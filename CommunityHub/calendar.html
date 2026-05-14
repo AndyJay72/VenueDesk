@@ -1212,12 +1212,16 @@
         </div>
     </div>
     <script>
+        // ── API base URLs — declared first (Rule F1: prevents ReferenceError) ──
+        const DASH_DB_API='https://api.venuedesk.co.uk';
+        const CAL_DB_API =DASH_DB_API;   // legacy alias — keep both in scope
+
         const API_URL='https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const BLOCKED_API='https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
         const ROOMS_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-rooms';
         const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/make-booking';
         const RECURRING_CAL_API='https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-from-calendar';
-        const CHECK_API='https://api.venuedesk.co.uk/bookings/check-availability';
+        const CHECK_API=`${DASH_DB_API}/bookings/check-availability`;
         const CHECK_RECURRING_CLASHES_API='https://n8n.srv1090894.hstgr.cloud/webhook/check-recurring-clashes';
         const PRICING_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-pricing';
         const TYPES_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-event-types';
@@ -1230,7 +1234,7 @@
 
         // ── Payment config (Stripe status + publishable key) ───────────────────
         // /stripe/config is public — no JWT needed or sent (JWT in URL would be logged).
-        const CAL_DB_API='https://api.venuedesk.co.uk';
+        // CAL_DB_API is declared at the top of this script block (alias for DASH_DB_API).
         let calPayConfig=null, _calPayConfigTs=0;
         async function loadCalPayConfig(){
             const now=Date.now();
@@ -1244,6 +1248,37 @@
             }catch(e){calPayConfig={};}
             return calPayConfig;
         }
+        // ── Stripe Checkout — Quick-Booking hand-off ───────────────────────────
+        // Mirrors index.html's generateStripeLink() but takes explicit (amount, bookingId)
+        // so it can be invoked from any flow (QB, balance pay, future contexts).
+        // JWT travels via body.jwt (Rule F6 / Pattern 4 — CORS forbids Authorization header).
+        // Returns the Stripe Checkout URL on success, or null on failure.
+        async function generateStripeLink(amount, bookingId, opts){
+            opts = opts || {};
+            try {
+                const res = await fetch(`${DASH_DB_API}/stripe/session`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jwt:         sessionStorage.getItem('vp_token') || '',
+                        tenant_id:   parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                        booking_id:  bookingId || '',
+                        customer_id: opts.customer_id || '',
+                        amount:      amount,
+                        description: opts.description || `Quick booking — £${(parseFloat(amount)||0).toFixed(2)}`,
+                        success_url: opts.success_url || (window.location.origin + window.location.pathname + '?pay=success&booking=' + (bookingId||'')),
+                        cancel_url:  opts.cancel_url  ||  window.location.href,
+                    })
+                });
+                const j = await res.json();
+                if (!j || !j.url) throw new Error(j && j.message || 'Stripe session failed');
+                return j.url;
+            } catch (e) {
+                showToast('Stripe error: ' + (e.message || e), 'error');
+                return null;
+            }
+        }
+
         // ── BACS details (authenticated — behind /stripe/bacs-details) ─────────
         // Fetched lazily only when BACS/bank_transfer is selected.
         // JWT travels via query param (GET + auth middleware supports request.query.jwt).
@@ -1673,14 +1708,61 @@
             const daySchedule=qbGetDayTimesPayload();
             const payload={customer_name:name,customer_email:email||null,customer_phone:phone,room_id:roomId||null,room_name:roomName,booking_date:from,date_from:from,date_to:to,start_time:startT,end_time:endT,guest_count:parseInt(guests)||null,event_type:eventType||null,notes:notes||null,total_amount:qbTotalAmount,payment_amount:payAmt,balance_due:balance,payment_type:paymentType,payment_method:payMethod,booking_source:'walk_in',status,tenant_id:parseInt(_CAL_TID()),services:qbGetServicesPayload(),rooms:qbGetRoomsPayload(),day_schedule:daySchedule,jwt:sessionStorage.getItem('vp_token')||''};
             ['qb-btn-deposit','qb-btn-full','qb-btn-pending'].forEach(id=>document.getElementById(id).disabled=true);
+            // Cache the active submit button so we can flip its label during
+            // the Stripe hand-off without disturbing the other two.
+            const activeBtnId = type==='deposit' ? 'qb-btn-deposit' : type==='full' ? 'qb-btn-full' : 'qb-btn-pending';
+            const activeBtn   = document.getElementById(activeBtnId);
+            const originalLbl = activeBtn ? activeBtn.innerHTML : '';
+
             try{
                 const res=await fetch(BOOKING_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify(payload)});
                 if(res.status===409)throw new Error('This slot conflicts with an existing booking. Please choose a different time.');
                 if(!res.ok)throw new Error('HTTP '+res.status);
-                const rj=await res.json().catch(()=>({}));
-                if(!rj.success)throw new Error(rj.message||'Booking failed');
-                closeQbModal();showToast('Booking created!','success');setTimeout(()=>location.reload(),1500);
-            }catch(err){showToast('Failed to submit: '+err.message,'error');}
+                const data=await res.json().catch(()=>({}));
+                if(!data.success)throw new Error(data.message||'Booking failed');
+
+                // ── Card → Stripe redirect ───────────────────────────────────
+                // Spec: payMethod==='card' + booking_id present → secondary
+                // POST to /stripe/session via JWT body-tunnel (no Authorization
+                // header, Rule F6 / CORS). On success → window.location.href.
+                if (payMethod === 'card' && data.booking_id) {
+                    if (activeBtn) activeBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Generating Stripe Link...';
+                    try {
+                        const sres = await fetch(`${DASH_DB_API}/stripe/session`, {
+                            method:  'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                jwt:        sessionStorage.getItem('vp_token') || '',
+                                booking_id: data.booking_id,
+                                amount:     payAmt,
+                                tenant_id:  parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                            })
+                        });
+                        const sjson = await sres.json().catch(()=>({}));
+                        if (sjson && sjson.url) { window.location.href = sjson.url; return; }
+                        throw new Error(sjson.message || 'Stripe session failed');
+                    } catch (e) {
+                        // Stripe failed — fall through to standard success path
+                        // (booking is already saved server-side; payment can be
+                        // taken manually via the bookings list).
+                        if (activeBtn) activeBtn.innerHTML = originalLbl;
+                        showToast('Booking saved, but Stripe link failed: ' + (e.message||e), 'warning');
+                    }
+                }
+
+                // ── Standard success path (non-card OR Stripe disabled OR failed) ──
+                closeQbModal();
+                alert('Booking Created Successfully!');
+                if (typeof calendarInstance !== 'undefined' && calendarInstance && typeof calendarInstance.refetchEvents === 'function') {
+                    calendarInstance.refetchEvents();
+                } else {
+                    // FullCalendar instance not ready (rare race) — fall back to reload.
+                    setTimeout(()=>location.reload(), 800);
+                }
+            }catch(err){
+                if (activeBtn) activeBtn.innerHTML = originalLbl;
+                showToast('Failed to submit: '+err.message,'error');
+            }
             finally{['qb-btn-deposit','qb-btn-full','qb-btn-pending'].forEach(id=>document.getElementById(id).disabled=false);qbSetButtons(true);}
         }
         

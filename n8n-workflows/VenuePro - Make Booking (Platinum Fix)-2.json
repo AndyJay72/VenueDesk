@@ -228,7 +228,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: $('DB: Create Booking').first().json?.success === true, status: $('DB: Create Booking').first().json?.success === true ? 'success' : 'error', message: $('DB: Create Booking').first().json?.success === true ? 'Booking secured.' : ('Booking failed: ' + ($('DB: Create Booking').first().json?.message || JSON.stringify($('DB: Create Booking').first().json))) }) }}",
+        "responseBody": "={{ JSON.stringify({ success: $('DB: Create Booking').first().json?.success === true, status: $('DB: Create Booking').first().json?.success === true ? 'success' : 'error', message: $('DB: Create Booking').first().json?.success === true ? 'Booking secured.' : ('Booking failed: ' + ($('DB: Create Booking').first().json?.message || JSON.stringify($('DB: Create Booking').first().json))), booking_id: $('DB: Create Booking').first().json?.data?.id || null, customer_id: $('DB: Create Booking').first().json?.data?.customer_id || null }) }}",
         "options": {
           "responseHeaders": {
             "entries": [

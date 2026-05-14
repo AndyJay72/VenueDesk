@@ -145,6 +145,24 @@
         .pay-confirm-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
         .pay-cancel-btn { background: rgba(30,41,59,0.9); border: 1px solid var(--border); color: var(--text-muted); padding: 12px 20px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .pay-cancel-btn:hover { color: white; border-color: white; }
+        /* Stripe-link panel — visible only after a payment link is generated */
+        .pay-stripe-panel { margin-top: 1rem; padding: 14px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.35); border-radius: 12px; display: none; }
+        .pay-stripe-panel.visible { display: block; }
+        .pay-stripe-panel-title { font-size: 0.78rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .pay-stripe-link-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; color: var(--text-muted); word-break: break-all; margin-bottom: 8px; }
+        .pay-stripe-actions { display: flex; gap: 8px; }
+        .pay-stripe-copy-btn, .pay-stripe-open-btn { flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .pay-stripe-copy-btn { background: rgba(99,102,241,0.18); border: 1px solid rgba(99,102,241,0.4); color: var(--primary); }
+        .pay-stripe-open-btn { background: var(--primary); border: 1px solid var(--primary); color: white; }
+        .pay-stripe-copy-btn:hover, .pay-stripe-open-btn:hover { transform: translateY(-1px); }
+        /* Lightweight inline toast — error/info notifications */
+        .pm-toast-host { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .pm-toast { padding: 12px 18px; border-radius: 10px; color: white; font-size: 0.88rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.25s; max-width: 360px; pointer-events: auto; }
+        .pm-toast.success { background: #10b981; }
+        .pm-toast.error   { background: #ef4444; }
+        .pm-toast.info    { background: #6366f1; }
+        .pm-toast.warning { background: #f59e0b; }
+        .pm-toast.show    { opacity: 1; }
         .receipt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 4000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
         .receipt-overlay.open { opacity: 1; pointer-events: all; }
         .receipt-card { background: #1e293b; border: 1px solid rgba(148,163,184,0.15); border-radius: 20px; padding: 2rem; width: 92%; max-width: 400px; text-align: center; }
@@ -780,9 +798,9 @@
             </div>
             <div class="pay-method-row">
                 <span class="pay-method-label">Payment Method:</span>
-                <select id="pm-method" class="pay-method-select">
+                <select id="pm-method" class="pay-method-select" onchange="loadPayConfig().then(cfg=>setModalMode(cfg))">
                     <option value="cash">Cash</option>
-                    <option value="card">Card</option>
+                    <option value="card" id="pm-method-card-opt">Card</option>
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="other">Other</option>
                 </select>
@@ -793,8 +811,18 @@
                     <i class="fa-solid fa-circle-check"></i> Confirm Payment
                 </button>
             </div>
+            <!-- Stripe link panel — visible only when Card + Stripe enabled and a link has been generated -->
+            <div id="pm-stripe-panel" class="pay-stripe-panel">
+                <div class="pay-stripe-panel-title"><i class="fa-solid fa-link"></i> Payment Link Generated</div>
+                <div id="pm-stripe-link-box" class="pay-stripe-link-box">—</div>
+                <div class="pay-stripe-actions">
+                    <button class="pay-stripe-copy-btn" onclick="copyStripeLink()"><i class="fa-solid fa-copy"></i> Copy Link</button>
+                    <a id="pm-stripe-open-btn" class="pay-stripe-open-btn" href="#" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</a>
+                </div>
+            </div>
         </div>
     </div>
+    <div class="pm-toast-host" id="pm-toast-host"></div>
 
     <!-- RECEIPT MODAL -->
     <div id="receiptMod" class="receipt-overlay">
@@ -809,6 +837,9 @@
     </div>
 
     <script>
+        // ── API base URLs — declared FIRST (Rule F1: prevents ReferenceError) ──
+        const DASH_DB_API = 'https://api.venuedesk.co.uk';
+
         function logout() {
            if(confirm("Are you sure you want to log out?")) {
            // Clear the keys
@@ -817,11 +848,13 @@
            // Redirect
            window.location.href = 'login.html';
           }
-        }        
+        }
         const API_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const PAY_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const CANCEL_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-booking';
         const GET_RECURRING_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-recurring-bookings';
+        const STRIPE_SESSION_URL = `${DASH_DB_API}/stripe/session`;
+        const STRIPE_CONFIG_URL  = `${DASH_DB_API}/stripe/config`;
 
         function getAuthHeaders() { return {}; }
         function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
@@ -1003,6 +1036,128 @@
 
         let _payBooking = null;
 
+        // ── Lightweight toast (matches dashboard look) ─────────────────────────
+        function showToast(msg, type) {
+            const host = document.getElementById('pm-toast-host'); if (!host) { console.warn(msg); return; }
+            const t = document.createElement('div');
+            t.className = 'pm-toast ' + (type || 'success');
+            t.textContent = msg;
+            host.appendChild(t);
+            requestAnimationFrame(() => t.classList.add('show'));
+            setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, type === 'warning' ? 6000 : 3200);
+        }
+
+        // ── Stripe config cache + generated-link cache (declared first per Rule F1) ─
+        // Returns { is_stripe_enabled: bool, ... }. Silent-fails to disabled so
+        // CORS / network blips never break the modal.
+        let _payConfig = null, _payConfigTs = 0;
+        let _generatedStripeUrl = '';
+        async function loadPayConfig() {
+            const now = Date.now();
+            if (_payConfig && (now - _payConfigTs) < 300000) return _payConfig;
+            const tid = _TID();
+            if (!tid || tid === '0') { _payConfig = { is_stripe_enabled: false }; return _payConfig; }
+            try {
+                const r = await fetch(`${STRIPE_CONFIG_URL}?tenant_id=${tid}`);
+                if (!r.ok) { _payConfig = { is_stripe_enabled: false }; return _payConfig; }
+                const j = await r.json();
+                _payConfig   = j.data || j || {};
+                _payConfigTs = now;
+            } catch (e) {
+                _payConfig = { is_stripe_enabled: false };
+            }
+            return _payConfig;
+        }
+
+        // ── Hide/show "Card" option and swap confirm-button action ─────────────
+        // - Card option is hidden when Stripe is disabled for this tenant.
+        // - When Card is selected + Stripe enabled, the confirm button generates
+        //   a Stripe Checkout link instead of recording a manual payment.
+        function setModalMode(cfg) {
+            const c        = cfg || _payConfig || {};
+            const methodEl = document.getElementById('pm-method');
+            const cardOpt  = document.getElementById('pm-method-card-opt');
+            const btn      = document.getElementById('pm-confirm-btn');
+            const panel    = document.getElementById('pm-stripe-panel');
+            if (!methodEl || !btn || !panel) return;
+
+            // Card option visibility — keys absent → don't tease the user
+            if (cardOpt) {
+                if (c.is_stripe_enabled) {
+                    cardOpt.disabled = false;
+                    cardOpt.hidden   = false;
+                    cardOpt.style.display = '';
+                } else {
+                    cardOpt.disabled = true;
+                    cardOpt.hidden   = true;
+                    cardOpt.style.display = 'none';
+                    if (methodEl.value === 'card') methodEl.value = 'cash';
+                }
+            }
+
+            // Reset stripe panel whenever we re-evaluate mode
+            panel.classList.remove('visible');
+            document.getElementById('pm-stripe-link-box').textContent = '—';
+            const openBtn = document.getElementById('pm-stripe-open-btn');
+            if (openBtn) openBtn.href = '#';
+            _generatedStripeUrl = '';
+
+            const method = methodEl.value || 'cash';
+            if (method === 'card' && c.is_stripe_enabled) {
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Generate Payment Link';
+                btn.onclick   = generateStripeLink;
+                btn.disabled  = false;
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Confirm Payment';
+                btn.onclick   = submitPayModal;
+            }
+        }
+
+        // ── Generate Stripe Checkout session, surface link in modal ────────────
+        // JWT travels via body.jwt (Rule F6 / Pattern 4 — Authorization header
+        // breaks CORS). The db-api authenticate decorator falls back to body.jwt.
+        async function generateStripeLink() {
+            if (!_payBooking) return;
+            const amount = parseFloat(document.getElementById('pm-amount').value);
+            if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
+            const btn = document.getElementById('pm-confirm-btn');
+            btn.disabled  = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating link...';
+            try {
+                const res = await fetch(STRIPE_SESSION_URL, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jwt:         sessionStorage.getItem('vp_token') || '',
+                        tenant_id:   parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                        booking_id:  _payBooking.booking_id || _payBooking.id || '',
+                        customer_id: _payBooking.customer_id || '',
+                        amount:      amount,
+                        description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
+                    })
+                });
+                const j = await res.json();
+                if (!j.success || !j.url) throw new Error(j.message || 'Session creation failed');
+                _generatedStripeUrl = j.url;
+                document.getElementById('pm-stripe-link-box').textContent = j.url;
+                document.getElementById('pm-stripe-open-btn').href        = j.url;
+                document.getElementById('pm-stripe-panel').classList.add('visible');
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Link Ready — Copy or Open';
+                btn.disabled  = false;
+            } catch (e) {
+                btn.disabled  = false;
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Generate Payment Link';
+                showToast('Could not create payment link: ' + e.message, 'error');
+            }
+        }
+
+        function copyStripeLink() {
+            if (!_generatedStripeUrl) return;
+            navigator.clipboard.writeText(_generatedStripeUrl)
+                .then(() => showToast('Link copied to clipboard', 'success'))
+                .catch(() => { prompt('Copy this link:', _generatedStripeUrl); });
+        }
+
         function openPayModal(b) {
             _payBooking = b;
             const balance = parseFloat(b.balance_due || b.balanceNum || 0);
@@ -1029,7 +1184,13 @@
             document.getElementById('pm-slider-max').innerText = formatCurrency(balance);
             updatePaySlider(balance, balance);
             document.getElementById('pm-method').value = 'cash';
+            // Reset any leftover Stripe panel state from a previous booking
+            const _sp = document.getElementById('pm-stripe-panel');
+            if (_sp) _sp.classList.remove('visible');
+            _generatedStripeUrl = '';
             document.getElementById('payMod').classList.add('open');
+            // Resolve Stripe availability for this tenant + paint Card option / button
+            loadPayConfig().then(cfg => setModalMode(cfg)).catch(() => setModalMode({ is_stripe_enabled: false }));
         }
 
         function closePayModal() {
@@ -1074,6 +1235,19 @@
             if (isNaN(amount) || amount <= 0) return;
             if (amount > balance + 0.005)      return;
             const method = document.getElementById('pm-method').value;
+
+            // ── Card / Stripe path ───────────────────────────────────────────
+            // setModalMode normally swaps btn.onclick → generateStripeLink, but
+            // if the config hadn't resolved yet, the user can still land here
+            // with method=card. Re-route to Stripe so we never silently record
+            // a "Card" payment without actually charging the card.
+            if (method === 'card' || method === 'stripe') {
+                const cfg = await loadPayConfig();
+                if (cfg && cfg.is_stripe_enabled) { return generateStripeLink(); }
+                showToast('Stripe is not enabled for this tenant.', 'error');
+                return;
+            }
+
             const btn    = document.getElementById('pm-confirm-btn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';

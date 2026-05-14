@@ -1,0 +1,326 @@
+{
+  "name": "VenuePro - Confirm Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "confirm-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8128d41a-a500-4c23-be01-bbc9919a4986",
+      "name": "Webhook: Confirm Booking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        800,
+        240
+      ],
+      "webhookId": "confirm-booking"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ booking_id: $json.body?.booking_id, status: 'booked', total_amount: $json.body?.total_amount, balance_due: $json.body?.balance_due, jwt: ($json.body?.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "f614ac10-4882-45b5-a4b5-1a5ca2eceb38",
+      "name": "DB: Set Booking Confirmed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        368
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, status: 'success', message: 'Booking confirmed.', booking_id: ($json?.data?.id) || ($json?.id) || ($json?.booking_id) || ($('Webhook: Confirm Booking').first().json?.body?.booking_id) || null, customer_id: ($json?.data?.customer_id) || ($json?.customer_id) || ($('Webhook: Confirm Booking').first().json?.body?.customer_id) || null }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "6290f5f8-d985-4834-ae22-d9de964caef5",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-request-id",
+              "leftValue": "={{ $json.body.request_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2be9270-adc0-4f85-bfcd-4c9f27785cd1",
+      "name": "IF: New or Update?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/bookings/confirm-request",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ request_id: $json.body?.request_id, customer_id: $json.body?.customer_id, total_amount: parseFloat($json.body?.total_amount || 0), balance_due: parseFloat($json.body?.balance_due || 0), deposit_amount: parseFloat($json.body?.deposit_amount || 0), payment_method: $json.body?.payment_method || 'cash', rooms: $json.body?.rooms || [], jwt: ($json.body?.jwt || '') }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "e8651e32-146e-46e1-a25d-1401c3058eca",
+      "name": "DB: Create Booking From Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        128
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "436ebf1f-a6f5-481f-aa36-d9e38b23460d",
+      "name": "DB: Close Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "f568cc4a-8548-4bed-b79f-1879e4132a02",
+      "name": "DB: Record Deposit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items || items.length === 0) return [];\nreturn [items[0]];"
+      },
+      "id": "1954be5c-3d81-45aa-9405-d76df10fa644",
+      "name": "Code: First Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "daa65925-54ec-421b-b671-c436c72c9f01",
+      "name": "DB: Log Confirm Interaction (New)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "eb7e2828-abf5-4478-a976-2f236cbcbd69",
+      "name": "DB: Log Confirm Interaction (Upd)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        480
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Confirm Booking": {
+      "main": [
+        [
+          {
+            "node": "IF: New or Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: New or Update?": {
+      "main": [
+        [
+          {
+            "node": "DB: Create Booking From Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB: Set Booking Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Create Booking From Request": {
+      "main": [
+        [
+          {
+            "node": "Code: First Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Close Request": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DB: Record Deposit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DB: Log Confirm Interaction (New)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Set Booking Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DB: Log Confirm Interaction (Upd)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: First Item": {
+      "main": [
+        [
+          {
+            "node": "DB: Close Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "c19584d6-7de0-4dcf-a332-5fc5e74751d3",
+  "meta": {
+    "instanceId": "1f9758702e94fbfb23055101a09859cd23b07ac6b02ca3c74c37a1a7a28d1b03"
+  },
+  "id": "MXCss5PTB3YpiQuV",
+  "tags": []
+}

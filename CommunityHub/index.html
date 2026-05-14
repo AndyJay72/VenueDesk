@@ -1757,22 +1757,26 @@
     </div>
 
     <script>
+        // ── API base URLs — declared FIRST (Rule F1: prevents ReferenceError ──
+        // before any const that references them in a template literal).
+        const DASH_DB_API                = 'https://api.venuedesk.co.uk';
+        const STRIPE_SESSION_URL         = `${DASH_DB_API}/stripe/session`;
+
         const DASHBOARD_WEBHOOK_URL  = 'https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard';
         const UPDATE_STATUS_URL      = 'https://n8n.srv1090894.hstgr.cloud/webhook/update-status';
         const CANCEL_PENDING_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/cancel-pending';
+        const CONFIRM_BOOKING_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/confirm-booking';
         let currentPendingData       = null;
         const EXPIRY_WARNING_URL     = 'https://n8n.srv1090894.hstgr.cloud/webhook/send-expiry-warning';
         const MONTHLY_REVENUE_URL    = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-monthly-revenue';
         const ALL_BOOKINGS_URL           = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const OUTSTANDING_BOOKINGS_URL   = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
-        // DASH_DB_API must be declared before any const that references it in a template literal
-        const DASH_DB_API                = 'https://api.venuedesk.co.uk';
         // Ghost-Success fix: routes directly to db-api /payments/pay instead of n8n.
         // n8n's pay-balance fanned out Respond: Success in parallel with the DB write —
         // the UI saw 200 OK before balance_due was updated. The db-api endpoint commits
         // the INSERT + UPDATE in a single transaction before returning.
         const PAY_BALANCE_URL            = `${DASH_DB_API}/payments/pay`;
-        const RECURRING_NEXT_DUE_URL     = 'https://api.venuedesk.co.uk/recurring/next-due';
+        const RECURRING_NEXT_DUE_URL     = `${DASH_DB_API}/recurring/next-due`;
         const LOG_PAYMENT_URL            = `${DASH_DB_API}/audit/log`;
 
         // ── Stripe config cache (per page-load, refreshed every 5 min) ────────
@@ -1828,7 +1832,34 @@
             }
         }
 
-        // ── Generate Stripe Checkout Session and display the link ────────────
+        // ── Stripe Checkout primitive — UI-agnostic, returns URL or throws ───
+        // JWT body-tunnel only (Rule F6 / Pattern 4) — never sets Authorization.
+        // Used by both the pay modal (generateStripeLink below) AND the Convert
+        // Request flow (submitConfirmFromDashboard). DRY: one source of truth.
+        async function createStripeSession(amount, bookingId, opts) {
+            opts = opts || {};
+            const res = await fetch(STRIPE_SESSION_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jwt:         sessionStorage.getItem('vp_token') || '',
+                    tenant_id:   parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                    booking_id:  bookingId || '',
+                    customer_id: opts.customer_id || '',
+                    amount:      amount,
+                    description: opts.description || `Payment — £${(parseFloat(amount)||0).toFixed(2)}`,
+                    success_url: opts.success_url || (window.location.origin + window.location.pathname + '?pay=success&booking=' + (bookingId||'')),
+                    cancel_url:  opts.cancel_url  ||  window.location.href,
+                })
+            });
+            const j = await res.json().catch(()=>({}));
+            if (!j || !j.url) throw new Error((j && j.message) || 'Stripe session failed');
+            return j.url;
+        }
+
+        // ── Generate Stripe Checkout Session and display the link (pay modal) ─
+        // Thin UI wrapper around createStripeSession — keeps existing modal UX
+        // (link panel, button label swap) intact.
         let _generatedStripeUrl = '';
         async function generateStripeLink() {
             if (!_payBooking) return;
@@ -1838,24 +1869,13 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating link...';
             try {
-                const res = await fetch(`${DASH_DB_API}/stripe/session`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jwt:         sessionStorage.getItem('vp_token') || '',
-                        booking_id:  _payBooking.booking_id || _payBooking.id || '',
-                        customer_id: _payBooking.customer_id || '',
-                        amount:      amount,
-                        description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
-                    })
+                const url = await createStripeSession(amount, _payBooking.booking_id || _payBooking.id || '', {
+                    customer_id: _payBooking.customer_id || '',
+                    description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
                 });
-                const j = await res.json();
-                if (!j.success || !j.url) throw new Error(j.message || 'Session creation failed');
-                _generatedStripeUrl = j.url;
-                const linkBox = document.getElementById('pm-stripe-link-box');
-                const openBtn = document.getElementById('pm-stripe-open-btn');
-                linkBox.textContent = j.url;
-                openBtn.href = j.url;
+                _generatedStripeUrl = url;
+                document.getElementById('pm-stripe-link-box').textContent = url;
+                document.getElementById('pm-stripe-open-btn').href        = url;
                 document.getElementById('pm-stripe-panel').classList.add('visible');
                 btn.innerHTML = '<i class="fa-solid fa-link"></i> Link Ready — Copy or Open';
                 btn.disabled  = false;
@@ -2635,29 +2655,65 @@
             const method  = document.getElementById('m-confirm-method').value;
             if (!total || total <= 0) { showToast('Please enter the total booking price', 'error'); return; }
             const balance = Math.max(0, total - deposit);
-            const btn = document.getElementById('m-confirm-btn');
+            const payAmt  = deposit;   // amount to charge upfront via Stripe (deposit path)
+            const btn         = document.getElementById('m-confirm-btn');
+            const originalLbl = btn ? btn.innerHTML : '';
             btn.disabled = true;
             try {
                 const p = currentPendingData;
-                const res = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/confirm-booking', {
+                const res = await fetch(CONFIRM_BOOKING_URL, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        request_id: p.request_id || p.id,
-                        customer_id: p.id,
-                        total_amount: total,
-                        balance_due: balance,
+                        request_id:     p.request_id || p.id,
+                        customer_id:    p.id,
+                        total_amount:   total,
+                        balance_due:    balance,
                         deposit_amount: deposit,
                         payment_method: method,
-                        services: mGetServicesPayload(),
-                        rooms: mGetRoomsPayload(),
-                        tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0')
+                        services:       mGetServicesPayload(),
+                        rooms:          mGetRoomsPayload(),
+                        tenant_id:      parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                        jwt:            sessionStorage.getItem('vp_token') || ''
                     })
                 });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json().catch(()=>({}));
+
+                // ── Card → Stripe redirect (ghost-buster) ────────────────────
+                // Only fire when: card selected, n8n surfaced booking_id, amount>0,
+                // and Stripe is enabled for this tenant. Otherwise fall through to
+                // the standard "Booking confirmed!" path.
+                if (method === 'card' && data.booking_id && payAmt > 0) {
+                    const cfg = await loadPayConfig();
+                    if (cfg && cfg.is_stripe_enabled) {
+                        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Redirecting to Stripe...';
+                        try {
+                            const url = await createStripeSession(payAmt, data.booking_id, {
+                                customer_id: data.customer_id || p.id || '',
+                                description: `Deposit — ${p.full_name || p.customer_name || ''} · £${payAmt.toFixed(2)}`,
+                            });
+                            window.location.href = url;
+                            return; // hard-exit — do NOT toast, do NOT close modal, do NOT loadDashboard
+                        } catch (e) {
+                            // Stripe failed — do NOT remove the pending card.
+                            // The booking IS confirmed server-side, but staff should
+                            // see the error and decide how to proceed (manual pay etc.)
+                            btn.disabled  = false;
+                            btn.innerHTML = originalLbl;
+                            showToast('Confirmed, but Stripe link failed: ' + (e.message || e) + ' — open the booking to retry.', 'error');
+                            return;
+                        }
+                    }
+                }
+
+                // ── Standard success path (non-card OR Stripe disabled) ──────
                 showToast('Booking confirmed!', 'success');
                 document.getElementById('custModal').classList.remove('open');
                 setTimeout(() => loadDashboard(), 1500);
-            } catch(e) { showToast('Error confirming: ' + e.message, 'error'); }
+            } catch(e) {
+                btn.innerHTML = originalLbl;
+                showToast('Error confirming: ' + e.message, 'error');
+            }
             finally { btn.disabled = false; }
         }
 

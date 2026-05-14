@@ -873,6 +873,32 @@ const rawToken = headers.authorization || headers.Authorization || body.jwt || '
 const auth = rawToken.startsWith('Bearer ') ? rawToken : (rawToken ? 'Bearer ' + rawToken : '');
 ```
 
+### Scope — frontend only, NOT server-to-server
+
+This rule applies **only to browser → db-api** calls, where CORS preflight is in play.
+Server-to-server hops (n8n HTTP Request nodes → db-api, scheduled tasks, db-api → db-api
+internal calls, curl/Postman smoke tests) **should** use the standard
+`Authorization: Bearer <jwt>` header — there is no browser, no preflight, and the
+`fastify.authenticate` decorator prefers the header path over the `body.jwt` fallback.
+
+| Caller                        | Auth method                  | Why                                       |
+|-------------------------------|------------------------------|-------------------------------------------|
+| Browser `fetch()`             | `body.jwt` / `?jwt=...`      | CORS blocks custom headers                |
+| n8n HTTP Request node         | `Authorization: Bearer ...`  | Server-to-server, no preflight            |
+| curl / Postman smoke tests    | `Authorization: Bearer ...`  | No browser involved                       |
+| Scheduled tasks / cron        | `Authorization: Bearer ...`  | Server-to-server                          |
+
+**Do NOT homogenise the two patterns during cleanup.** The n8n workflows
+`VenuePro - Confirm Booking`, `VenuePro - Make Booking (Platinum Fix)`,
+`VenueDesk - Cancel Booking`, and others correctly send `Authorization: Bearer ...`
+on their internal HTTP Request nodes to db-api — that is the right pattern for that hop.
+A future "consistency pass" that strips those headers will break every n8n→db-api call
+because the body-tunnel fallback isn't reliable for server-to-server payloads
+constructed from `$json` expressions.
+
+The reliable mental model: **CORS is a browser concept.** If the caller isn't a browser,
+Rule F6 / Pattern 4 doesn't apply.
+
 ---
 
 ## Pattern 5 — Docker Build Cache Bypass
@@ -1118,6 +1144,12 @@ The `fastify.authenticate` decorator tries `Authorization` header first (for n8n
 then falls back to `body.jwt` / `query.jwt`. This supports both patterns without changing
 the CORS policy.
 
+**Scope reminder — "frontend" means browser only.** n8n HTTP Request nodes that call
+db-api **should** keep their `Authorization: Bearer ...` headers; server-to-server hops
+have no CORS preflight. See **Pattern 4 → Scope** for the full caller/auth-method matrix.
+Stripping Auth headers from n8n nodes during a "consistency pass" will break the n8n →
+db-api hop because the body-tunnel fallback isn't reliable for `$json`-constructed payloads.
+
 ---
 
 # 🔧 Skills & Operating Procedures
@@ -1253,4 +1285,56 @@ Browser cache adds further latency. Standard verification procedure:
 
 Never test frontend changes in a normal browser window immediately after push — cached
 files will make it appear the fix didn't land.
+
+---
+
+# VenueDesk Development Procedures
+
+## 1. Variable Ordering (Critical)
+
+**Problem this prevents:** A `const` referencing an undeclared `const` in a template literal throws `ReferenceError: Cannot access 'X' before initialization`. Because this fires at parse/execute time inside a `<script>` block, the **entire block silently fails** — every function, event handler, and UI initialisation below it never runs. This was the root cause of the May 2026 regression where the welcome message, Stripe modal, and pay modal all stopped working simultaneously.
+
+- Always declare global API base URL constants (e.g. `DASH_DB_API`, `CAL_DB_API`, `EF_DB_API`) at the **very top** of the `<script>` block, before any `const` that references them in a template literal.
+- Functions that depend on these constants must never be invoked before the constants are defined.
+
+```javascript
+// ── API base URLs — must come first ──────────────────────────────────────────
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+const CAL_DB_API  = 'https://api.venuedesk.co.uk';
+const EF_DB_API   = 'https://api.venuedesk.co.uk';
+
+// ── Derived URLs — safe after base URLs are declared ─────────────────────────
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
+const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
+```
+
+---
+
+## 2. Static Site Integrity
+
+- Maintain the static site architecture. Do **not** introduce Vite, Webpack, React, Vue, or any build step or SPA framework.
+- Use vanilla JS and the existing CSS variable system (e.g. `--bg-card`, `--primary`, `--text-secondary`) for all new UI components.
+- All fixes must be edits to the existing `.html` files in `CommunityHub/`. Maintain the existing dark-theme fintech CSS layout exactly.
+
+---
+
+## 3. Security & RLS
+
+- Every authenticated `fetch` request must use the JWT body-tunnel pattern (Pattern 4 / Rule F6) — **never** add `Authorization` to frontend fetch headers (CORS will block it).
+- Tenant isolation must be maintained on every request:
+  - **GET:** append `tidParam()` to the URL → `?tenant_id=1001`
+  - **POST:** include `tenant_id: parseInt(_TID())` and `jwt: sessionStorage.getItem('vp_token')` in the JSON body
+- On the API side, `tenant_id` for write operations must always come from `req.user.tenant_id` (JWT claim) — never from the request body.
+
+---
+
+## 4. Identity Mapping
+
+Always resolve display names in this priority order to handle both new JWT payloads and legacy tokens:
+
+```javascript
+const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff Manager';
+```
+
+`auth.js` must include **both** `full_name` and `name` (alias) in every JWT payload and login response object so all pages work regardless of which field they check.
 
