@@ -203,10 +203,13 @@
     {
       "parameters": {
         "fromEmail": "bookings@venuedesk.co.uk",
-        "toEmail": "={{ $('Code: Logic + Ref').first().json.customer_email }}",
-        "subject": "Booking Confirmation",
-        "html": "={{ \n\"Dear \" + $('Code: Logic + Ref').first().json.customer_name + \",\\n\\n\" +\n\"Thank you for your payment of £\" + $('Code: Logic + Ref').first().json.payment_amount + \".\\n\" +\n\"Transaction Reference: \" + $('Code: Logic + Ref').first().json.txn_reference + \"\\n\\n\" +\n\"Your booking for the \" + $('Code: Logic + Ref').first().json.room_name + \" is successfully confirmed.\\n\\n\" +\n\"Event Details:\\n\" +\n\"Date: \" + $('Code: Logic + Ref').first().json.booking_date + \"\\n\" +\n\"Time: \" + $('Code: Logic + Ref').first().json.start_time + \" - \" + $('Code: Logic + Ref').first().json.end_time + \"\\n\\n\" +\n\"Remaining Balance: £\" + $('Code: Logic + Ref').first().json.balance_due + \"\\n\\n\" +\n\"We look forward to hosting your event!\\n\\n\" +\n\"Best regards,\\n\" +\n\"The VenueDesk Team\" \n}}",
-        "options": {}
+        "toEmail": "={{ $json.recipientEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.htmlBody }}",
+        "options": {
+          "replyTo": "bookings@venuedesk.co.uk"
+        }
       },
       "id": "a7d588fb-20d8-43b8-884d-4f93ffe025d9",
       "name": "Email: Send",
@@ -425,6 +428,19 @@
         -640,
         464
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Code: Build Email Content (Booking Confirmed) ─────────────────────────\n// Mirrors the stripe_fork architecture: defensive $('NodeName').first().json\n// lookups with optional chaining so the node never crashes when an upstream\n// node returns an unexpected shape. Returns a passthrough object containing\n// htmlBody, recipientEmail, bookingData and subject — consumed by Email: Send\n// via $json.* expressions.\n\n// ── Defensive node lookups ─────────────────────────────────────────────────\nconst webhookRaw  = $('Webhook: Receive Booking')?.first()?.json ?? {};\nconst webhookBody = webhookRaw.body ?? webhookRaw;\nconst customerWrap = $('DB: Upsert Customer')?.first()?.json ?? {};\nconst customer     = customerWrap.data ?? customerWrap;\nconst bookingWrap  = $('DB: Create Booking')?.first()?.json ?? {};\nconst booking      = bookingWrap.data ?? bookingWrap;\nconst logic        = $('Code: Logic + Ref')?.first()?.json ?? {};\nconst roomWrap     = $('DB: Get Room')?.first()?.json ?? {};\nconst room         = roomWrap.data ?? roomWrap;\n\n// ── Recipient: customer table first, webhook body as fallback ──────────────\nconst recipientEmail = customer?.email\n    || customer?.customer_email\n    || webhookBody?.customer_email\n    || webhookBody?.email\n    || '';\n\nconst customerName = customer?.full_name\n    || customer?.customer_name\n    || webhookBody?.customer_name\n    || 'Valued Customer';\n\n// ── Booking details (defensive across multiple naming conventions) ─────────\nconst bookingId   = booking?.id || booking?.booking_id || '';\nconst shortRef    = bookingId ? String(bookingId).slice(0, 8).toUpperCase() : '—';\nconst roomName    = booking?.room_name || room?.name || logic?.room_name || webhookBody?.room_name || '—';\nconst bookingDate = booking?.booking_date || booking?.date_from || webhookBody?.booking_date || webhookBody?.date_from || null;\nconst startTime   = booking?.start_time || webhookBody?.start_time || null;\nconst endTime     = booking?.end_time   || webhookBody?.end_time   || null;\nconst totalAmount = parseFloat(booking?.total_amount ?? webhookBody?.total_amount ?? 0);\nconst venueName   = webhookBody?.venue_name || logic?.venue_name || customer?.tenant_name || 'VenueDesk';\n\n// ── Formatters (mirror stripe_fork) ────────────────────────────────────────\nconst fmt = n => '£' + (parseFloat(n) || 0).toFixed(2);\nconst fmtDate = d => {\n    if (!d) return '—';\n    try {\n        const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n        return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n    } catch(e) { return String(d); }\n};\nconst fmtTime = t => t ? String(t).slice(0,5) : '—';\n\nconst subject = `Booking Confirmed ✓ — ${fmtDate(bookingDate)} | Ref: ${shortRef}`;\n\n// ── HTML body: exact structure from KHvxUBua7hi5e1x1_stripe_fork.json ──────\n// Header colour: Success Green (#10b981) — semantic for \"Booking Confirmed\".\n// Accent: Indigo Primary (#6366f1). Body bg: slate-50 (#f8fafc).\n// Font stack: Plus Jakarta Sans first (per spec), with system-font fallbacks\n// for email clients that strip web fonts.\nconst FONT = \"'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif\";\n\nconst htmlBody = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:${FONT};\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:#10b981;border-radius:12px 12px 0 0;padding:32px;text-align:center;\">\n      <p style=\"margin:0 0 6px;color:rgba(255,255,255,0.85);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;\">${venueName}</p>\n      <h1 style=\"margin:0;color:#ffffff;font-size:22px;font-weight:700;\">Booking Confirmed ✓</h1>\n    </div>\n    <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <div style=\"text-align:center;margin-bottom:24px;\">\n        <span style=\"display:inline-block;background:#ecfdf5;color:#065f46;font-size:11px;font-weight:700;letter-spacing:1.5px;padding:6px 18px;border-radius:20px;\">BOOKING CONFIRMED</span>\n      </div>\n      <p style=\"margin:0 0 16px;color:#1e293b;font-size:15px;\">Dear <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;\">Thank you — your booking at <strong>${venueName}</strong> is now <strong>confirmed</strong>. The details are below; please keep this email for your records.</p>\n      <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:16px;\">\n        <p style=\"margin:0 0 14px;color:#0f172a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Booking Details</p>\n        <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n          <tr><td style=\"padding:5px 0;color:#64748b;width:45%;\">Reference</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;font-family:monospace;\">${shortRef}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Room</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${roomName}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#64748b;\">Date</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtDate(bookingDate)}</td></tr>\n          ${(startTime || endTime) ? `<tr><td style=\"padding:5px 0;color:#64748b;\">Time</td><td style=\"padding:5px 0;color:#1e293b;font-weight:600;\">${fmtTime(startTime)} – ${fmtTime(endTime)}</td></tr>` : ''}\n          <tr style=\"border-top:1px solid #e2e8f0;\"><td style=\"padding:8px 0 5px;color:#64748b;\">Total</td><td style=\"padding:8px 0 5px;color:#10b981;font-weight:700;\">${fmt(totalAmount)}</td></tr>\n        </table>\n      </div>\n      <div style=\"background:#eef2ff;border-radius:8px;padding:14px 20px;margin-bottom:28px;text-align:center;\">\n        <p style=\"margin:0;color:#64748b;font-size:12px;\">Booking Reference</p>\n        <p style=\"margin:4px 0 0;color:#6366f1;font-size:17px;font-weight:700;letter-spacing:0.5px;font-family:monospace;\">${shortRef}</p>\n      </div>\n      <p style=\"margin:0;color:#64748b;font-size:13px;line-height:1.6;\">Questions? Reply quoting your reference or contact <a href=\"mailto:bookings@venuedesk.co.uk\" style=\"color:#6366f1;text-decoration:none;\">bookings@venuedesk.co.uk</a>.</p>\n    </div>\n    <div style=\"text-align:center;padding:20px 0 0;\">\n      <p style=\"margin:0;color:#94a3b8;font-size:11px;\">Automated message from VenueDesk Booking System.</p>\n    </div>\n  </div>\n</body></html>`;\n\n// ── Passthrough payload (spec'd shape: htmlBody + recipientEmail + bookingData) ──\nreturn {\n    json: {\n        htmlBody,\n        recipientEmail,\n        bookingData: booking,\n        subject,\n        // Convenience fields so downstream nodes (audit logs, retries, etc.)\n        // don't have to re-traverse upstream references.\n        customer_name: customerName,\n        venue_name:    venueName,\n        booking_id:    bookingId,\n        short_ref:     shortRef,\n    }\n};\n"
+      },
+      "id": "build-email-content-node-uuid",
+      "name": "Code: Build Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        -176
+      ]
     }
   ],
   "pinData": {},
@@ -493,7 +509,7 @@
             "index": 0
           },
           {
-            "node": "Email: Send",
+            "node": "Code: Build Email Content",
             "type": "main",
             "index": 0
           }
@@ -556,6 +572,17 @@
         [
           {
             "node": "Code: Logic + Ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Email Content": {
+      "main": [
+        [
+          {
+            "node": "Email: Send",
             "type": "main",
             "index": 0
           }
