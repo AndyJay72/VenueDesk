@@ -1631,7 +1631,7 @@ function renderPricingGrid() {
         <tbody>`;
 
     activeRooms.forEach(r => {
-        html += `<tr><td class="room-label">${esc(r.name)}<span class="rate-default">Default: ${fmt(r.day_rate)}</span></td>`;
+        html += `<tr><td class="room-label">${esc(r.name)}<span class="rate-default">Default: ${fmt(r.day_rate)}/hr</span></td>`;
         activeTypes.forEach(et => {
             const key = `${r.id}-${et.id}`;
             const val = priceMap[key] != null ? parseFloat(priceMap[key]) : '';

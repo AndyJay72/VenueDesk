@@ -220,10 +220,19 @@
                     <label>Preferred Room <span style="color:var(--danger)">*</span></label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-door-open icon-left"></i>
-                        <select id="roomName" onchange="checkAvailability()" required>
+                        <select id="roomName" onchange="onPrimaryRoomChange()" required>
                             <option value="" disabled selected>Loading rooms...</option>
                         </select>
                         <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                    <!-- Additional rooms (mirrors calendar.html qb-card extra-rooms tile).
+                         Populated by renderAdditionalRoomsList() once enquiryRoomsData
+                         has loaded. Hidden when zero non-primary rooms are available. -->
+                    <div id="additional-rooms-container" style="display: none; margin-top: 15px;">
+                        <div style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+                            <i class="fa-solid fa-plus" style="margin-right:6px;color:var(--primary);"></i>Add Additional Rooms
+                        </div>
+                        <div id="additional-rooms-list"></div>
                     </div>
                 </div>
                 <div class="input-group">
@@ -293,17 +302,11 @@
                         <input type="number" id="numPeople" placeholder="e.g. 50" min="1" required onchange="calcCost()">
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Hire Type <span style="color:var(--danger)">*</span></label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-tag icon-left"></i>
-                        <select id="hireType" onchange="calcCost()" required>
-                            <option value="full_day" selected>Full Day</option>
-                            <option value="hourly">Hourly</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down icon-right"></i>
-                    </div>
-                </div>
+                <!-- Hire-type selector removed: pricing is strictly hourly across
+                     the system (rooms.day_rate column is misnamed — it's an hourly
+                     rate). A hidden field preserves the 'hourly' value so any
+                     downstream consumer that still reads hire_type stays happy. -->
+                <input type="hidden" id="hireType" value="hourly">
                 <!-- Cost estimate — shown once room + dates + times are selected -->
                 <div class="input-group full-width" id="costEstimateRow" style="display:none;">
                     <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
@@ -433,11 +436,61 @@
                 const typeSel = document.getElementById('eventType');
                 typeSel.innerHTML = '<option value="" disabled selected>Select Type</option>';
                 activeTypes.forEach(t => typeSel.add(new Option(t.name, t.name)));
+                // Initial paint of the additional-rooms checkboxes (none selected
+                // yet → list shows all active rooms minus the primary placeholder).
+                renderAdditionalRoomsList();
             } catch(e) {
                 console.warn('Could not load rooms/event types:', e);
             }
         }
         loadRoomsAndTypes();
+
+        // ── Render the secondary-room checkbox grid ──────────────────────────
+        // Mirrors calendar.html qb-card extra-rooms tile. Shows every active
+        // room EXCEPT the one currently selected as primary. Checkbox state
+        // for the now-excluded primary is dropped (it can't double-count).
+        function renderAdditionalRoomsList() {
+            const container = document.getElementById('additional-rooms-container');
+            const listEl    = document.getElementById('additional-rooms-list');
+            if (!container || !listEl) return;
+            const primary = document.getElementById('roomName')?.value || '';
+            const others  = enquiryRoomsData.filter(r => r.name !== primary);
+            if (!others.length) {
+                container.style.display = 'none';
+                listEl.innerHTML = '';
+                return;
+            }
+            // Preserve checked state across re-renders by name (cheap & robust)
+            const previouslyChecked = new Set(
+                Array.from(document.querySelectorAll('.add-room-cb:checked')).map(cb => cb.dataset.name)
+            );
+            listEl.innerHTML = others.map(r => {
+                const rate = parseFloat(r.day_rate) || 0;
+                const checked = previouslyChecked.has(r.name) ? 'checked' : '';
+                return '<label class="checkbox-label" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 12px;background:rgba(0,0,0,0.18);border:1px solid var(--border);border-radius:8px;cursor:pointer;">'
+                    + '<input type="checkbox" class="add-room-cb"'
+                    +   ' value="' + (r.id || r.name) + '"'
+                    +   ' data-rate="' + rate.toFixed(2) + '"'
+                    +   ' data-name="' + r.name + '"'
+                    +   ' ' + checked
+                    +   ' onchange="calcCost()"'
+                    +   ' style="width:auto;margin:0;min-height:unset;">'
+                    + '<span style="font-size:0.88rem;color:var(--text-main);">'
+                    +   r.name + ' <span style="color:var(--text-muted);font-size:0.82em;">(+£' + rate.toFixed(2) + '/hr)</span>'
+                    + '</span>'
+                + '</label>';
+            }).join('');
+            container.style.display = '';
+        }
+
+        // Primary-room dropdown change orchestrator. Re-renders the secondary
+        // checkbox list (so the new primary is hidden from it) AND drives the
+        // availability check the previous onchange handler used to fire alone.
+        function onPrimaryRoomChange() {
+            renderAdditionalRoomsList();
+            calcCost();
+            checkAvailability();
+        }
 
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('eventDate').min = todayStr;
@@ -531,12 +584,12 @@
         }
 
         // ── Real-time cost calculator ────────────────────────────────────────
-        // Called whenever room, dates, times, hire type or guest count changes.
+        // Called whenever room, dates, times or guest count changes.
         // Updates the cost panel and recalculates efDepositAmount (20% of total,
         // clamped to £10–£500 to match server-side PUBLIC_SESSION bounds).
+        // Hire-type selector removed — pricing is always hourly (calendar-symmetric).
         function calcCost() {
             const roomName  = document.getElementById('roomName').value;
-            const hireType  = document.getElementById('hireType').value;
             const isMulti   = document.getElementById('multiDayToggle').dataset.active === 'true';
             const dateFrom  = isMulti ? document.getElementById('dateFrom').value : document.getElementById('eventDate').value;
             const dateTo    = isMulti ? document.getElementById('dateTo').value   : document.getElementById('eventDate').value;
@@ -548,43 +601,51 @@
 
             if (!roomName || !dateFrom || !start || !end) { row.style.display = 'none'; return; }
 
-            const selRoom  = enquiryRoomsData.find(r => r.name === roomName);
-            const dayRate  = selRoom ? parseFloat(selRoom.day_rate || 0) : 0;
+            const selRoom = enquiryRoomsData.find(r => r.name === roomName);
+            const dayRate = parseFloat(selRoom?.day_rate ?? 0) || 0;     // NaN → 0
             if (!dayRate) { row.style.display = 'none'; return; }
 
+            // ── Combined hourly rate: primary + Σ(checked additional rooms) ──
+            // Mirrors calendar.html qb-card multi-room pricing pattern. Sum
+            // happens BEFORE the duration multiply, so the breakdown shows
+            // the combined rate × hours × days cleanly.
+            const addCbs = Array.from(document.querySelectorAll('.add-room-cb:checked'));
+            const addRate = addCbs.reduce((sum, cb) => sum + (parseFloat(cb.dataset.rate) || 0), 0);
+            const combinedHourly = (dayRate + addRate) || 0;
+
+            // ── Strict hourly formula (mirrors calendar.html qbCalculateCost) ──
+            // rooms.day_rate column is misnamed — it is an hourly rate. The
+            // Day/Hourly selector was removed; total = combinedHourly × hours × days.
+            // Every var defaults to 0 to prevent NaN propagation.
             const msPerDay = 86400000;
-            const numDays  = Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1);
+            const dFromMs  = new Date(dateFrom).getTime() || 0;
+            const dToMs    = new Date(dateTo).getTime()   || dFromMs;
+            const numDays  = Math.max(1, Math.round((dToMs - dFromMs) / msPerDay) + 1) || 1;
+            const [sh, sm] = String(start || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const [eh, em] = String(end   || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60)) || 0;
+            const total    = Math.round((combinedHourly * hours * numDays) * 100) / 100 || 0;
+            const addNames = addCbs.map(cb => cb.dataset.name).filter(Boolean);
+            const addSuffix = addNames.length ? ` + ${addNames.length} room${addNames.length>1?'s':''}` : '';
+            const breakText = hours > 0
+                ? `£${combinedHourly.toFixed(2)}/hr${addSuffix} × ${hours.toFixed(1)}h${numDays > 1 ? ' × ' + numDays + ' days' : ''}`
+                : 'Set start & end times';
 
-            let total = 0, breakText = '';
-            if (hireType === 'hourly') {
-                // Calendar-symmetric formula: rooms.day_rate is used as hourly_rate
-                // directly (matches calendar.html qbCalculateCost line 1528 — the
-                // db schema column name is misleading; rate is per hour, not per day).
-                // Was previously dividing by 8; that produced ~1/8 of calendar's total.
-                const [sh, sm] = start.split(':').map(Number);
-                const [eh, em] = end.split(':').map(Number);
-                const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
-                const hourRate = dayRate; // ← was `dayRate / 8`; calendar uses raw value
-                total     = Math.round(hourRate * hours * numDays * 100) / 100;
-                breakText = `£${hourRate.toFixed(2)}/hr × ${hours.toFixed(1)}h${numDays > 1 ? ' × ' + numDays + ' days' : ''}`;
-            } else {
-                total     = Math.round(dayRate * numDays * 100) / 100;
-                breakText = numDays > 1 ? `£${dayRate.toFixed(2)}/day × ${numDays} days` : `Day rate`;
-            }
-
-            totalEl.textContent  = total > 0 ? `£${total.toFixed(2)}` : '£—';
-            breakEl.textContent  = breakText || 'Estimated cost';
+            totalEl.textContent  = total > 0 ? `£${total.toFixed(2)}` : '£0.00';
+            breakEl.textContent  = breakText;
             row.style.display    = total > 0 ? '' : 'none';
 
             // Update deposit amount (20% of total, bounds £10–£500)
             if (total > 0) {
-                efDepositAmount = Math.max(10, Math.min(500, Math.round(total * 0.20 * 100) / 100));
+                // NaN-safe: parseFloat guards against any upstream weirdness
+                const computed = Math.round((total || 0) * 0.20 * 100) / 100;
+                efDepositAmount = Math.max(10, Math.min(500, parseFloat(computed) || 50));
             } else {
-                // Fall back to room-level deposit_amount or 20% of day_rate
-                const rawDep = selRoom?.deposit_amount
-                    ? parseFloat(selRoom.deposit_amount)
-                    : dayRate ? Math.round(dayRate * 0.20 * 100) / 100 : 50;
-                efDepositAmount = Math.max(10, Math.min(500, rawDep || 50));
+                // Fall back to room-level deposit_amount or 20% of dayRate; if both
+                // are missing/invalid, default to £50 (within the £10–£500 bounds).
+                const roomDep = parseFloat(selRoom?.deposit_amount ?? 0) || 0;
+                const fromRoom = roomDep > 0 ? roomDep : (dayRate ? Math.round(dayRate * 0.20 * 100) / 100 : 50);
+                efDepositAmount = Math.max(10, Math.min(500, parseFloat(fromRoom) || 50));
             }
         }
 
@@ -595,39 +656,52 @@
         // enquiries. Legacy /enquiry/create-request keys (name/email/phone/
         // total_cost/event_date) are kept as dual aliases for backend compat.
         //
+        // ── Lifecycle isolation (Section 1 of the spec) ──────────────────────
+        // The boolean flag splits two flows that share the same buildEnquiryPayload:
+        //   - Free enquiry (isCardPayment=false): status='pending',
+        //     payment_method='Enquiry — Free Request', deposit_intent=false.
+        //     Surfaces in the dashboard as a normal pending request awaiting
+        //     staff conversion — no deposit expected.
+        //   - Stripe deposit (isCardPayment=true): status='pending_deposit',
+        //     payment_method='Enquiry / Stripe Pending', deposit_intent=true.
+        //     Lifecycle stays "deposit-pending" until the Stripe webhook
+        //     promotes it; prevents false-positive timeline upgrades.
+        //
         // CRITICAL FIELDS (calendar-symmetric):
         //   customer_name / customer_email / customer_phone
         //   booking_date, total_amount, balance_due, payment_amount
-        //   payment_type ('none'), payment_method ('Enquiry / Stripe Pending'),
-        //   booking_source ('enquiry'), status ('pending')
+        //   payment_type ('none'), payment_method (branch on isCardPayment),
+        //   booking_source ('enquiry'), status (branch on isCardPayment),
+        //   deposit_intent (branch on isCardPayment), additional_rooms (array)
         // Tenant is sourced from URL ?t= only (TENANT_ID); never sessionStorage.
         // JWT is intentionally omitted — public form, no auth (Rule F6 / F1).
-        function buildEnquiryPayload() {
+        function buildEnquiryPayload(isCardPayment) {
             const g      = id => document.getElementById(id).value;
             const isMulti = document.getElementById('multiDayToggle').dataset.active === 'true';
             const df     = isMulti ? g('dateFrom') : g('eventDate');
             const dt     = isMulti ? g('dateTo')   : g('eventDate');
             calcCost(); // ensure total is current
             const selRoom = enquiryRoomsData.find(r => r.name === g('roomName'));
-            const dayRate = selRoom ? parseFloat(selRoom.day_rate || 0) : 0;
-            const roomId  = selRoom ? (selRoom.id || null) : null;
-            const hireType = g('hireType') || 'full_day';
-            let totalCost = null;
-            if (dayRate) {
-                if (hireType === 'hourly') {
-                    // Calendar-symmetric: day_rate used as hourly rate (matches
-                    // calendar.html line 1528). Was previously `(dayRate / 8)`.
-                    const [sh, sm] = g('timeFrom').split(':').map(Number);
-                    const [eh, em] = g('timeTo').split(':').map(Number);
-                    const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
-                    const numDays  = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
-                    totalCost      = Math.round(dayRate * hours * numDays * 100) / 100;
-                } else {
-                    const numDays = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
-                    totalCost     = Math.round(dayRate * numDays * 100) / 100;
-                }
-            }
-            const totalAmount = totalCost || 0;
+            const dayRate = parseFloat(selRoom?.day_rate ?? 0) || 0;        // NaN → 0
+            const roomId  = selRoom?.id ?? null;
+            // hire_type fixed to 'hourly' — selector UI removed; rooms.day_rate
+            // column is always treated as an hourly rate (calendar-symmetric).
+            const hireType = 'hourly';
+            // Combined hourly rate must match the calcCost preview the user
+            // confirmed — primary + Σ(checked additional rooms).
+            const addRoomsArr = getCheckedAdditionalRooms();
+            const addRate     = addRoomsArr.reduce((s, r) => s + (parseFloat(r.day_rate) || 0), 0);
+            const combinedHourly = (dayRate + addRate) || 0;
+            const [sh, sm] = String(g('timeFrom') || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const [eh, em] = String(g('timeTo')   || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60)) || 0;
+            const dFromMs  = new Date(df).getTime() || 0;
+            const dToMs    = new Date(dt).getTime() || dFromMs;
+            const numDays  = Math.max(1, Math.round((dToMs - dFromMs) / 86400000) + 1) || 1;
+            const totalCost   = combinedHourly > 0 && hours > 0
+                ? Math.round(combinedHourly * hours * numDays * 100) / 100
+                : 0;
+            const totalAmount = parseFloat(totalCost) || 0;
 
             return {
                 // ── Calendar-symmetric customer keys ──────────────────────
@@ -669,38 +743,88 @@
                 //     the booking card. payment_method MUST be a non-empty
                 //     string or the detail card renders "Unknown".
                 payment_type:    'none',
-                payment_method:  'Enquiry / Stripe Pending',
+                payment_method:  isCardPayment ? 'Enquiry / Stripe Pending' : 'Enquiry — Free Request',
+                deposit_intent:  !!isCardPayment,
 
-                // ── Booking lifecycle ────────────────────────────────────
+                // ── Booking lifecycle (free vs. deposit-pending) ─────────
+                // 'pending_deposit' lets the dashboard / n8n distinguish
+                // enquiries awaiting Stripe redirect-return from genuinely
+                // free enquiries — prevents false-positive timeline upgrades
+                // when the Stripe path is partially completed.
                 booking_source: 'enquiry',        // calendar uses 'walk_in'
-                status:         'pending',
+                status:         isCardPayment ? 'pending_deposit' : 'pending',
+
+                // ── Additional rooms (calendar-style multi-room enquiry) ──
+                // Already computed above for the combinedHourly calc; reused
+                // here so the breakdown the user saw in the preview maps 1:1
+                // to what gets persisted.
+                additional_rooms: addRoomsArr,
 
                 // ── Multi-tenant routing — from URL only, never sessionStorage ─
                 tenant_id:      TENANT_ID,
             };
         }
 
+        // ── Collect checked .add-room-cb checkboxes into a structured array.
+        // Each entry: { id, name, day_rate }. Backend stores under
+        // additional_rooms; calendar/n8n can join against rooms table by id.
+        function getCheckedAdditionalRooms() {
+            const out = [];
+            document.querySelectorAll('.add-room-cb:checked').forEach(cb => {
+                out.push({
+                    id:       cb.value,
+                    name:     cb.dataset.name || '',
+                    day_rate: parseFloat(cb.dataset.rate) || 0,
+                });
+            });
+            return out;
+        }
+
+        // Restore a submit button after an early-exit gate. Keeps isSubmitting
+        // false so the user can re-attempt once they've fixed the form issue.
+        function _resetSubmitBtn(btn, label) {
+            isSubmitting = false;
+            if (!btn) return;
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>' + (label || 'Submit Enquiry') + '</span>';
+        }
+
         async function submitEnquiry() {
-            if (!isAvailable) return;
+            // ── State lock (FIRST line — before any other work) ──────────────
+            // Multi-click prevention: lock the button + isSubmitting flag in
+            // the same microtask the click fires, so a second click that
+            // arrives while we're still in this function body finds the
+            // gate already shut. No async work runs before the lock.
+            if (isSubmitting) return;                          // already in flight
+            const btn = document.getElementById('submitBtn');
+            if (btn?.disabled) return;                          // belt-and-braces
+            isSubmitting   = true;
+            if (btn) {
+                btn.disabled  = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
+            }
+
+            // ── Guards (run AFTER lock so duplicate clicks are still blocked) ──
+            if (!isAvailable) { _resetSubmitBtn(btn, 'Check Availability First'); return; }
             const form = document.getElementById('enquiryForm');
-            if (!form.checkValidity()) { form.reportValidity(); return; }
-            // Capacity check
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                _resetSubmitBtn(btn, 'Submit Enquiry');
+                return;
+            }
             const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
-            const guestCount   = parseInt(document.getElementById('numPeople').value, 10);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
             if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
                 alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
                 document.getElementById('numPeople').focus();
+                _resetSubmitBtn(btn, 'Submit Enquiry');
                 return;
             }
-            const btn = document.getElementById('submitBtn');
-            isSubmitting = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Sending...</span>';
-            btn.disabled  = true;
             try {
                 const res = await fetch(SUBMIT_API, {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify(buildEnquiryPayload()),
+                    body:    JSON.stringify(buildEnquiryPayload(false)),   // free-enquiry path
                 });
                 const j = await res.json().catch(() => ({}));
                 if (res.ok && j.success) {
@@ -726,21 +850,53 @@
         // Submits enquiry to db-api first (guarantees booking_request_id is returned),
         // then creates a Stripe Checkout Session using that ID in the metadata so the
         // webhook can link the payment back to the booking_request row.
+        // Helper for the deposit button — separate from _resetSubmitBtn so the
+        // label can carry the live deposit amount the user committed to.
+        function _resetDepositBtn(depBtn) {
+            isSubmitting = false;
+            if (!depBtn) return;
+            depBtn.disabled  = false;
+            depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + (parseFloat(efDepositAmount) || 0).toFixed(2) + ' Deposit by Card</span>';
+        }
+
         async function submitWithDeposit() {
-            if (!isAvailable || !efStripeEnabled) return;
+            // ── State lock (FIRST line) — same discipline as submitEnquiry.
+            // Stripe redirects are the highest-stakes path (charges a real card);
+            // double-fire here would create two booking_request rows AND two
+            // Stripe sessions, with the customer arriving back to checkout.html
+            // having paid twice.
+            if (isSubmitting) return;
+            const depBtn = document.getElementById('depositBtn');
+            if (depBtn?.disabled) return;
+            isSubmitting = true;
+            if (depBtn) {
+                depBtn.disabled  = true;
+                depBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
+            }
+
+            // ── Guards (post-lock) ──────────────────────────────────────────
+            if (!isAvailable || !efStripeEnabled) { _resetDepositBtn(depBtn); return; }
             const form = document.getElementById('enquiryForm');
-            if (!form.checkValidity()) { form.reportValidity(); return; }
+            if (!form.checkValidity()) { form.reportValidity(); _resetDepositBtn(depBtn); return; }
             const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
-            const guestCount   = parseInt(document.getElementById('numPeople').value, 10);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
             if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
                 alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
+                _resetDepositBtn(depBtn);
                 return;
             }
-            const depBtn = document.getElementById('depositBtn');
-            isSubmitting  = true;
-            depBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
-            depBtn.disabled  = true;
-            const payload = buildEnquiryPayload();
+
+            // ── Stripe amount validation (server enforces £10–£500 too, but
+            //     we want to fail fast and avoid a wasted round-trip if the
+            //     cost calc somehow produced 0 / NaN / negative).
+            const depositAmt = parseFloat(efDepositAmount) || 0;
+            if (depositAmt <= 0) {
+                showToast('Could not calculate a valid deposit amount. Pick a room + dates first.', 'error');
+                _resetDepositBtn(depBtn);
+                return;
+            }
+
+            const payload = buildEnquiryPayload(true);                          // Stripe-deposit path
             try {
                 // Step 1 — create booking_request in db-api and get its UUID back
                 const eRes = await fetch(SUBMIT_API, {
@@ -761,7 +917,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         tenant_id:          TENANT_ID,
-                        amount:             efDepositAmount,
+                        amount:             depositAmt,   // validated > 0 at top of function
                         booking_request_id: bookingRequestId,
                         description:        `Deposit — ${payload.event_type} at ${payload.room_name} on ${payload.date_from}`,
                         success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}',
@@ -769,15 +925,17 @@
                     }),
                 });
                 const sj = await sRes.json().catch(() => ({}));
+                // On success: navigate to Stripe; isSubmitting stays true so any
+                // double-click between fetch resolve and navigation start can't
+                // re-enter (browser unload will clear state).
                 if (sj.url) { window.location.href = sj.url; return; }
                 throw new Error(sj.message || 'Could not create payment session');
             } catch(e) {
-                depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
-                depBtn.disabled  = false;
                 showToast('Error: ' + e.message, 'error');
-            } finally {
-                isSubmitting = false;
+                _resetDepositBtn(depBtn);
             }
+            // No finally{ isSubmitting=false } — the success path navigates away
+            // (no return to JS land); the error path resets via _resetDepositBtn.
         }
 
         function showToast(message, type) {

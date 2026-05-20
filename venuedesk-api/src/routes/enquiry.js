@@ -42,7 +42,10 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
       start_time, end_time,
       guest_count, num_people,          // form sends both
       notes,
-      total_cost,
+      total_cost, total_amount,         // form sends both (calendar-symmetric)
+      // ── Multi-room + Stripe-isolation fields (migration 018) ─────────────
+      deposit_intent,                   // bool — true = Stripe-deposit path
+      additional_rooms,                 // array of { id, name, day_rate }
     } = req.body || {};
 
     // Required field validation
@@ -148,14 +151,42 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
         if (roomRes.rows.length > 0) roomId = roomRes.rows[0].id;
 
         // 3. Insert booking_request with status 'pending_review'
-        const costVal = total_cost ? parseFloat(total_cost) : null;
+        // Status stays 'pending_review' for both paths — deposit_intent is the
+        // signal that distinguishes Stripe-pending from free enquiries. Keeping
+        // a single canonical status preserves the existing Stripe webhook
+        // promotion path ('pending_review' → 'deposit_paid'), and avoids
+        // breaking staff dashboard queries that filter on status alone.
+        const costVal = (total_cost ?? total_amount) != null
+          ? parseFloat(total_cost ?? total_amount)
+          : null;
+
+        // ── deposit_intent: explicit boolean coercion ─────────────────────
+        // Accepts true / 'true' / 1; everything else → false (incl. missing).
+        const depositIntentVal =
+          deposit_intent === true || deposit_intent === 'true' || deposit_intent === 1;
+
+        // ── additional_rooms: normalise to JSON string for jsonb param ────
+        // Pg's parameter binder treats JS arrays as Postgres arrays unless the
+        // value is a JSON string — so stringify before passing. Accept array
+        // OR pre-stringified JSON OR anything else (falls back to []).
+        let additionalRoomsJson = '[]';
+        if (Array.isArray(additional_rooms)) {
+          additionalRoomsJson = JSON.stringify(additional_rooms);
+        } else if (typeof additional_rooms === 'string' && additional_rooms.trim().startsWith('[')) {
+          // Already JSON-stringified upstream — pass through after a parse-check
+          try { JSON.parse(additional_rooms); additionalRoomsJson = additional_rooms; }
+          catch (_e) { additionalRoomsJson = '[]'; }
+        }
+
         const reqRes  = await client.query(
           `INSERT INTO bookings.booking_requests
              (customer_id, room_id, requested_date, date_from, date_to,
               start_time, end_time, guest_count, status,
-              hire_type, total_cost, event_type, notes, tenant_id)
+              hire_type, total_cost, event_type, notes, tenant_id,
+              deposit_intent, additional_rooms)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending_review',
-                   $9, $10, $11, $12, $13)
+                   $9, $10, $11, $12, $13,
+                   $14, $15::jsonb)
            RETURNING id`,
           [
             customerId,
@@ -171,6 +202,8 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
             (event_type || '').substring(0, 100),
             (notes || '').substring(0, 2000),
             validatedTenantId,
+            depositIntentVal,
+            additionalRoomsJson,
           ]
         );
         const bookingRequestId = reqRes.rows[0].id;
@@ -184,12 +217,14 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
             validatedTenantId,
             String(bookingRequestId),
             JSON.stringify({
-              customer_id: customerId,
+              customer_id:      customerId,
               room_name,
-              date_from:   resolvedDateFrom,
-              date_to:     resolvedDateTo,
-              hire_type:   hire_type || 'full_day',
-              total_cost:  costVal,
+              date_from:        resolvedDateFrom,
+              date_to:          resolvedDateTo,
+              hire_type:        hire_type || 'full_day',
+              total_cost:       costVal,
+              deposit_intent:   depositIntentVal,
+              additional_rooms_count: Array.isArray(additional_rooms) ? additional_rooms.length : 0,
             }),
           ]
         );
