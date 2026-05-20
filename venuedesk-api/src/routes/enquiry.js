@@ -23,7 +23,11 @@
  */
 
 const { withTenantContext } = require('../db/pool');
-const { normaliseBookingRequest } = require('../lib/booking-normalize');
+const {
+  normaliseBookingRequest,
+  resolveCustomerName,
+  coerceNumeric,
+} = require('../lib/booking-normalize');
 
 module.exports = async function enquiryRoutes(fastify, _opts) {
 
@@ -35,8 +39,13 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
     }
 
     // ── Destructure + sanitise input ─────────────────────────────────────────
+    // Dual-ingestion: accept the same field under multiple names so calendar.html
+    // (legacy/admin) and enquiry-form.html (public) can hit this route without
+    // a separate adapter layer. resolveCustomerName picks the first truthy one.
     const {
-      name, email, phone,
+      name, full_name, customer_name,   // 3 possible name slots
+      email, customer_email,            // calendar uses customer_email
+      phone, customer_phone,            // calendar uses customer_phone
       room_name,
       event_type, hire_type,
       date_from, date_to, event_date,   // form sends both naming conventions
@@ -49,8 +58,13 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
       additional_rooms,                 // array of { id, name, day_rate }
     } = req.body || {};
 
-    // Required field validation
-    if (!name || !email || !phone) {
+    // Resolve name/email/phone from whichever alias the caller sent
+    const resolvedName  = resolveCustomerName(full_name, name, customer_name);
+    const resolvedEmail = (email || customer_email || '').toString().trim();
+    const resolvedPhone = (phone || customer_phone || '').toString().trim();
+
+    // Required field validation — accept ANY of the name aliases
+    if (resolvedName === 'Valued Customer' || !resolvedEmail || !resolvedPhone) {
       return reply.code(400).send({ success: false, message: 'name, email and phone are required' });
     }
     if (!room_name) {
@@ -63,7 +77,7 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
     }
 
     // Basic email format guard
-    if (!email.includes('@')) {
+    if (!resolvedEmail.includes('@')) {
       return reply.code(400).send({ success: false, message: 'Invalid email address' });
     }
 
@@ -91,8 +105,8 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
         // 1. Upsert customer by (email, tenant_id)
         //    ON CONFLICT relies on the customers_email_tenant_uq constraint
         //    added by migration 017. Falls back to SELECT if constraint missing.
-        const normalEmail = email.toLowerCase().trim().substring(0, 254);
-        const guestCount  = Math.max(1, parseInt(guest_count || num_people || 1, 10));
+        const normalEmail = resolvedEmail.toLowerCase().substring(0, 254);
+        const guestCount  = Math.max(1, coerceNumeric(guest_count || num_people, { fallback: 1, min: 1, scale: 0 }));
 
         let customerId;
         try {
@@ -106,9 +120,9 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
                    updated_at  = NOW()
              RETURNING id`,
             [
-              name.trim().substring(0, 200),
+              resolvedName,
               normalEmail,
-              (phone || '').trim().substring(0, 50),
+              resolvedPhone.substring(0, 50),
               (event_type || '').substring(0, 100),
               guestCount,
               validatedTenantId,
@@ -130,9 +144,9 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
                VALUES ($1, $2, $3, $4, $5, 'pending', $6)
                RETURNING id`,
               [
-                name.trim().substring(0, 200),
+                resolvedName,
                 normalEmail,
-                (phone || '').trim().substring(0, 50),
+                resolvedPhone.substring(0, 50),
                 (event_type || '').substring(0, 100),
                 guestCount,
                 validatedTenantId,
@@ -157,6 +171,11 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
         }
 
         // ── 2b. Normalise computed financial fields (migration 019 cols) ────
+        // Dual-ingestion-safe: coerceNumeric strips '£', ',', whitespace and
+        // accepts string|number|bool — so calendar.html (admin) submitting
+        // {total_amount: "1234.50"} produces the same numeric value as the
+        // public enquiry form's {total_amount: 1234.5}.
+        //
         // Coalesce-only: any caller-supplied non-null value passes through;
         // only nulls/zeros get filled. Wrapped in try/catch so a bad helper
         // input never breaks the enquiry-submission redirect loop — the
@@ -167,13 +186,13 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
             {
               start_time,
               end_time,
-              total_hours:     req.body?.total_hours,
-              estimated_cost:  req.body?.estimated_cost,
-              total_cost:      req.body?.total_cost ?? req.body?.total_amount,
-              deposit_amount:  req.body?.deposit_amount,
+              total_hours:     coerceNumeric(req.body?.total_hours,    { fallback: null }),
+              estimated_cost:  coerceNumeric(req.body?.estimated_cost, { fallback: null }),
+              total_cost:      coerceNumeric(req.body?.total_cost ?? req.body?.total_amount, { fallback: null }),
+              deposit_amount:  coerceNumeric(req.body?.deposit_amount, { fallback: null }),
               deposit_intent:  deposit_intent,
             },
-            { ratePerHour: roomRate, defaultDeposit: 10.00 }
+            { ratePerHour: coerceNumeric(roomRate, { fallback: null }), defaultDeposit: 10.00 }
           );
         } catch (e) {
           // Log + carry on with nulls — payment loop must not be broken by
@@ -188,9 +207,8 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
         // a single canonical status preserves the existing Stripe webhook
         // promotion path ('pending_review' → 'deposit_paid'), and avoids
         // breaking staff dashboard queries that filter on status alone.
-        const costVal = (total_cost ?? total_amount) != null
-          ? parseFloat(total_cost ?? total_amount)
-          : null;
+        // Dual-ingestion: coerceNumeric handles string|number|'£123.45' inputs.
+        const costVal = coerceNumeric(total_cost ?? total_amount, { fallback: null });
 
         // ── deposit_intent: explicit boolean coercion ─────────────────────
         // Accepts true / 'true' / 1; everything else → false (incl. missing).

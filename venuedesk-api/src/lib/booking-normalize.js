@@ -132,6 +132,61 @@ function normaliseBookingRequest(input, opts) {
     return { total_hours: hours, estimated_cost: cost, deposit_amount: dep };
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Dual-ingestion primitives — calendar.html (legacy/admin) vs enquiry-form.html
+// (public) send different field names for the same data. These helpers absorb
+// the variance so the route handler doesn't have to think about source.
+// ──────────────────────────────────────────────────────────────────────────────
+
+// resolveCustomerName(...candidates)
+// Returns the first truthy non-blank string from the candidates, trimmed,
+// capped at 200 chars (matches customers.full_name CHECK). Falls back to
+// 'Valued Customer' so the DB INSERT never fails on a NOT NULL constraint.
+// Canonical use: resolveCustomerName(body.full_name, body.name, body.customer_name)
+function resolveCustomerName(/* ...candidates */) {
+    for (let i = 0; i < arguments.length; i++) {
+        const v = arguments[i];
+        if (typeof v === 'string') {
+            const t = v.trim();
+            if (t) return t.substring(0, 200);
+        }
+    }
+    return 'Valued Customer';
+}
+
+// coerceNumeric(value, opts)
+// Robust string|number|null → number coercion sized for NUMERIC(p, scale).
+// opts.fallback — value when coercion fails (default 0).
+// opts.min      — clamp lower bound (default -Infinity).
+// opts.max      — clamp upper bound (default Infinity).
+// opts.scale    — round to N decimal places (default 2, matches NUMERIC(_,2)).
+// Strips common currency prefixes ('£', '$', ',') so '£1,234.50' → 1234.50.
+function coerceNumeric(value, opts) {
+    opts = opts || {};
+    const fallback = (opts.fallback !== undefined) ? opts.fallback : 0;
+    const min      = (opts.min      !== undefined) ? opts.min      : -Infinity;
+    const max      = (opts.max      !== undefined) ? opts.max      :  Infinity;
+    const scale    = (opts.scale    !== undefined) ? opts.scale    : 2;
+    if (value === null || value === undefined) return fallback;
+    let n;
+    if (typeof value === 'number') {
+        n = value;
+    } else if (typeof value === 'string') {
+        const cleaned = value.replace(/[£$,\s]/g, '').trim();
+        if (!cleaned) return fallback;
+        n = parseFloat(cleaned);
+    } else if (typeof value === 'boolean') {
+        n = value ? 1 : 0;
+    } else {
+        return fallback;
+    }
+    if (!Number.isFinite(n)) return fallback;
+    if (n < min) n = min;
+    if (n > max) n = max;
+    const factor = Math.pow(10, scale);
+    return Math.round(n * factor) / factor;
+}
+
 module.exports = {
     DEFAULT_HOURS,
     DEFAULT_DEPOSIT_TIER,
@@ -140,4 +195,7 @@ module.exports = {
     resolveEstimatedCost,
     resolveDepositAmount,
     normaliseBookingRequest,
+    // Dual-ingestion primitives
+    resolveCustomerName,
+    coerceNumeric,
 };

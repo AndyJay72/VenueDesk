@@ -23,7 +23,10 @@
  */
 
 const { withTenantContext } = require('../db/pool');
-const { normaliseBookingRequest } = require('../lib/booking-normalize');
+const {
+  normaliseBookingRequest,
+  coerceNumeric,
+} = require('../lib/booking-normalize');
 
 const PUBLIC_SESSION_MIN_AMOUNT = 10;   // £10 minimum deposit
 const PUBLIC_SESSION_MAX_AMOUNT = 500;  // £500 maximum deposit
@@ -81,7 +84,12 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       cancel_url,
     } = req.body || {};
 
-    if (!amount || parseFloat(amount) <= 0) {
+    // Dual-ingestion: amount may arrive as a number ("£12.50" from a sloppy
+    // legacy panel, "12.50", 12.5, or 1250 in pence). coerceNumeric strips
+    // currency symbols + commas, then we validate. Single source of truth
+    // for the rest of the function.
+    const safeAmount = coerceNumeric(amount, { fallback: 0, min: 0, scale: 2 });
+    if (safeAmount <= 0) {
       return reply.code(400).send({ success: false, message: 'amount must be > 0' });
     }
 
@@ -109,7 +117,7 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     }
 
     const stripe       = Stripe(cfg.stripe_secret_key);
-    const amountPence  = Math.round(parseFloat(amount) * 100);
+    const amountPence  = Math.round(safeAmount * 100);   // coerced above
     const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
 
     const session = await stripe.checkout.sessions.create({
@@ -142,7 +150,7 @@ module.exports = async function stripeRoutes(fastify, _opts) {
         [
           tenantId,
           booking_id || null,
-          JSON.stringify({ amount: parseFloat(amount), session_id: session.id, customer_id: customer_id || null }),
+          JSON.stringify({ amount: safeAmount, session_id: session.id, customer_id: customer_id || null }),
           staffUser,
         ]
       )
@@ -158,7 +166,9 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       return reply.code(400).send({ success: false, message: 'tenant_id required' });
     }
 
-    const amountNum = parseFloat(req.body?.amount) || 0;
+    // Dual-ingestion: amount might arrive as '£25.00' or '25.00' or 25 from
+    // legacy callers. coerceNumeric strips currency/comma/whitespace.
+    const amountNum = coerceNumeric(req.body?.amount, { fallback: 0, min: 0, scale: 2 });
     if (amountNum < PUBLIC_SESSION_MIN_AMOUNT || amountNum > PUBLIC_SESSION_MAX_AMOUNT) {
       return reply.code(400).send({
         success: false,
