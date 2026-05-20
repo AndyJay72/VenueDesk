@@ -23,6 +23,7 @@
  */
 
 const { withTenantContext } = require('../db/pool');
+const { normaliseBookingRequest } = require('../lib/booking-normalize');
 
 module.exports = async function enquiryRoutes(fastify, _opts) {
 
@@ -141,14 +142,45 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
           }
         }
 
-        // 2. Lookup room_id by name (ILIKE — room names may differ in case)
+        // 2. Lookup room_id + day_rate by name (ILIKE — names may differ in case)
+        // day_rate (hourly per schema convention) drives the estimated_cost calc.
         let roomId = null;
+        let roomRate = null;
         const roomRes = await client.query(
-          `SELECT id FROM bookings.rooms
+          `SELECT id, day_rate FROM bookings.rooms
             WHERE name ILIKE $1 AND tenant_id = $2 AND is_active = TRUE LIMIT 1`,
           [room_name, validatedTenantId]
         );
-        if (roomRes.rows.length > 0) roomId = roomRes.rows[0].id;
+        if (roomRes.rows.length > 0) {
+          roomId   = roomRes.rows[0].id;
+          roomRate = parseFloat(roomRes.rows[0].day_rate) || null;
+        }
+
+        // ── 2b. Normalise computed financial fields (migration 019 cols) ────
+        // Coalesce-only: any caller-supplied non-null value passes through;
+        // only nulls/zeros get filled. Wrapped in try/catch so a bad helper
+        // input never breaks the enquiry-submission redirect loop — the
+        // booking_request still saves, just with the columns as nulls.
+        let calcFields = { total_hours: null, estimated_cost: null, deposit_amount: null };
+        try {
+          calcFields = normaliseBookingRequest(
+            {
+              start_time,
+              end_time,
+              total_hours:     req.body?.total_hours,
+              estimated_cost:  req.body?.estimated_cost,
+              total_cost:      req.body?.total_cost ?? req.body?.total_amount,
+              deposit_amount:  req.body?.deposit_amount,
+              deposit_intent:  deposit_intent,
+            },
+            { ratePerHour: roomRate, defaultDeposit: 10.00 }
+          );
+        } catch (e) {
+          // Log + carry on with nulls — payment loop must not be broken by
+          // a helper-level exception. The columns are nullable so the row
+          // still persists; staff can backfill via the dashboard.
+          fastify.log.warn({ err: e }, '[enquiry] normaliseBookingRequest threw — persisting with nulls');
+        }
 
         // 3. Insert booking_request with status 'pending_review'
         // Status stays 'pending_review' for both paths — deposit_intent is the
@@ -183,10 +215,12 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
              (customer_id, room_id, requested_date, date_from, date_to,
               start_time, end_time, guest_count, status,
               hire_type, total_cost, event_type, notes, tenant_id,
-              deposit_intent, additional_rooms)
+              deposit_intent, additional_rooms,
+              total_hours, estimated_cost, deposit_amount)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending_review',
                    $9, $10, $11, $12, $13,
-                   $14, $15::jsonb)
+                   $14, $15::jsonb,
+                   $16, $17, $18)
            RETURNING id`,
           [
             customerId,
@@ -198,12 +232,15 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
             end_time,
             guestCount,
             (hire_type || 'full_day'),
-            costVal,
+            (costVal ?? calcFields.estimated_cost),         // coalesce total_cost ← calculated
             (event_type || '').substring(0, 100),
             (notes || '').substring(0, 2000),
             validatedTenantId,
             depositIntentVal,
             additionalRoomsJson,
+            calcFields.total_hours,
+            calcFields.estimated_cost,
+            calcFields.deposit_amount,
           ]
         );
         const bookingRequestId = reqRes.rows[0].id;
@@ -225,6 +262,10 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
               total_cost:       costVal,
               deposit_intent:   depositIntentVal,
               additional_rooms_count: Array.isArray(additional_rooms) ? additional_rooms.length : 0,
+              // ── Migration 019 calc fields (forensic trail) ─────────
+              total_hours:      calcFields.total_hours,
+              estimated_cost:   calcFields.estimated_cost,
+              deposit_amount:   calcFields.deposit_amount,
             }),
           ]
         );

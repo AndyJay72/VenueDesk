@@ -23,6 +23,7 @@
  */
 
 const { withTenantContext } = require('../db/pool');
+const { normaliseBookingRequest } = require('../lib/booking-normalize');
 
 const PUBLIC_SESSION_MIN_AMOUNT = 10;   // £10 minimum deposit
 const PUBLIC_SESSION_MAX_AMOUNT = 500;  // £500 maximum deposit
@@ -326,11 +327,56 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                 [amountPaid, bookingId, metaTenantId]
               );
             } else if (requestId) {
+              // ── Promote + backfill computed fields (idempotent) ──────
+              // COALESCE guarantees: only nulls get filled. Staff-set or
+              // already-computed values pass through untouched. Wrapped in
+              // try/catch at the outer scope so the Stripe webhook still
+              // returns 200 even if normalisation throws.
+              let calcFields = { total_hours: null, estimated_cost: null, deposit_amount: amountPaid };
+              try {
+                // Pull the row's existing times + room rate to feed the helper
+                const existing = await client.query(
+                  `SELECT br.start_time, br.end_time, br.total_hours,
+                          br.estimated_cost, br.deposit_amount, br.deposit_intent,
+                          br.total_cost, r.day_rate
+                   FROM bookings.booking_requests br
+                   LEFT JOIN bookings.rooms r ON r.id = br.room_id
+                   WHERE br.id = $1 AND br.tenant_id = $2 LIMIT 1`,
+                  [requestId, metaTenantId]
+                );
+                if (existing.rows.length > 0) {
+                  const row = existing.rows[0];
+                  calcFields = normaliseBookingRequest(
+                    {
+                      start_time:     row.start_time,
+                      end_time:       row.end_time,
+                      total_hours:    row.total_hours,
+                      estimated_cost: row.estimated_cost,
+                      total_cost:     row.total_cost,
+                      deposit_amount: row.deposit_amount,
+                      deposit_intent: true,   // we only reach this branch on a paid deposit
+                    },
+                    { ratePerHour: parseFloat(row.day_rate) || null,
+                      stripeSession: session,
+                      defaultDeposit: 10.00 }
+                  );
+                }
+              } catch (e) {
+                console.warn('[webhook] backfill normalisation threw:', e.message);
+              }
+
               await client.query(
                 `UPDATE bookings.booking_requests
-                 SET status = 'deposit_paid', updated_at = NOW()
+                 SET status         = 'deposit_paid',
+                     total_hours    = COALESCE(total_hours,    $3),
+                     estimated_cost = COALESCE(estimated_cost, $4),
+                     deposit_amount = COALESCE(deposit_amount, $5),
+                     updated_at     = NOW()
                  WHERE id = $1 AND tenant_id = $2`,
-                [requestId, metaTenantId]
+                [requestId, metaTenantId,
+                 calcFields.total_hours,
+                 calcFields.estimated_cost,
+                 calcFields.deposit_amount]
               );
             }
 
