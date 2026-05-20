@@ -738,6 +738,11 @@
                 total_cost:     totalCost,        // legacy alias
                 payment_amount: 0,                // enquiry: nothing paid up-front
                 balance_due:    totalAmount,      // entire total still owed
+                // ── Deposit amount must reach the booking_request row so the
+                //     trg_auto_promote_deposit_paid DB trigger copies the real
+                //     value (not DEFAULT_DEPOSIT_TIER) to confirmed_bookings.
+                //     Was omitted; caused £10 default to propagate everywhere.
+                deposit_amount: isCardPayment ? (parseFloat(efDepositAmount) || null) : null,
 
                 // ── Payment state — calendar modal reads these to render
                 //     the booking card. payment_method MUST be a non-empty

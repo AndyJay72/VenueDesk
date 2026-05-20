@@ -388,6 +388,54 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                  calcFields.estimated_cost,
                  calcFields.deposit_amount]
               );
+
+              // ── Backfill the confirmed_booking row the trigger just created ──
+              // The trg_auto_promote_deposit_paid trigger copies booking_request →
+              // confirmed_bookings, but it omits payment_method, deposit_paid_date,
+              // guest_count, and notes. Backfill them here from the source row so
+              // dashboards (bookings.html / customers.html / accounts.html) have
+              // the full picture without manual reconciliation.
+              // Idempotent: COALESCE-only, never overwrites staff-set values.
+              try {
+                await client.query(
+                  `UPDATE bookings.confirmed_bookings cb
+                   SET payment_method     = COALESCE(cb.payment_method, 'card'),
+                       deposit_paid_date  = COALESCE(cb.deposit_paid_date, NOW()),
+                       guest_count        = COALESCE(cb.guest_count, br.guest_count)
+                   FROM bookings.booking_requests br
+                   WHERE cb.id = $1
+                     AND br.id = $1
+                     AND cb.tenant_id = $2`,
+                  [requestId, metaTenantId]
+                );
+              } catch (e) {
+                console.warn('[webhook] confirmed_booking backfill failed:', e.message);
+              }
+
+              // ── Write the payments row (the one staff/admin would normally
+              //     create via the "Take Payment" modal). Without this, the
+              //     deposit is logged on confirmed_bookings.deposit_paid but
+              //     never appears in the ledger or on accounts.html.
+              //     Idempotent via WHERE NOT EXISTS — safe against Stripe
+              //     webhook retries.
+              try {
+                await client.query(
+                  `INSERT INTO bookings.payments
+                     (booking_id, customer_id, amount, payment_method, payment_type,
+                      reference_number, tenant_id, payment_date)
+                   SELECT $1, br.customer_id, $3, 'card', 'deposit',
+                          $4, $2, NOW()
+                   FROM bookings.booking_requests br
+                   WHERE br.id = $1 AND br.tenant_id = $2
+                     AND NOT EXISTS (
+                       SELECT 1 FROM bookings.payments
+                       WHERE booking_id = $1 AND payment_type = 'deposit'
+                     )`,
+                  [requestId, metaTenantId, amountPaid, session.id]
+                );
+              } catch (e) {
+                console.warn('[webhook] payments INSERT failed:', e.message);
+              }
             }
 
             await client.query(
