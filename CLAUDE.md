@@ -1338,3 +1338,21 @@ const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name
 
 `auth.js` must include **both** `full_name` and `name` (alias) in every JWT payload and login response object so all pages work regardless of which field they check.
 
+
+## Postgres Connection Reference
+
+| Setting              | Value         |
+|----------------------|---------------|
+| Database name        | `bookings_db` |
+| Schema (most tables) | `bookings`    |
+| Connection user      | `n8n`         |
+| Container name       | `n8n_postgres-postgres-1` |
+
+**Canonical query shape from your laptop:**
+```bash
+ssh root@72.61.19.52 "docker exec n8n_postgres-postgres-1 psql -U n8n -d bookings_db -c 'SELECT ...'"
+```
+
+Common mistakes:
+- `-d n8n` → `FATAL: database "n8n" does not exist` (n8n is the user, not the DB)
+- Omitting `bookings.` schema → `relation "booking_requests" does not exist`
