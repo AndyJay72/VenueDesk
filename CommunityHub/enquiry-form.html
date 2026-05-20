@@ -557,10 +557,14 @@
 
             let total = 0, breakText = '';
             if (hireType === 'hourly') {
+                // Calendar-symmetric formula: rooms.day_rate is used as hourly_rate
+                // directly (matches calendar.html qbCalculateCost line 1528 — the
+                // db schema column name is misleading; rate is per hour, not per day).
+                // Was previously dividing by 8; that produced ~1/8 of calendar's total.
                 const [sh, sm] = start.split(':').map(Number);
                 const [eh, em] = end.split(':').map(Number);
                 const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
-                const hourRate = dayRate / 8;
+                const hourRate = dayRate; // ← was `dayRate / 8`; calendar uses raw value
                 total     = Math.round(hourRate * hours * numDays * 100) / 100;
                 breakText = `£${hourRate.toFixed(2)}/hr × ${hours.toFixed(1)}h${numDays > 1 ? ' × ' + numDays + ' days' : ''}`;
             } else {
@@ -585,45 +589,94 @@
         }
 
         // ── Build the common enquiry payload ─────────────────────────────────
-        // Field names match the db-api /enquiry/create-request endpoint exactly.
+        // Schema mirrors calendar.html's qb-card submit body (line 1716) so the
+        // calendar detail modal — and any consumer expecting that contract —
+        // resolves fields identically for both walk-in bookings and converted
+        // enquiries. Legacy /enquiry/create-request keys (name/email/phone/
+        // total_cost/event_date) are kept as dual aliases for backend compat.
+        //
+        // CRITICAL FIELDS (calendar-symmetric):
+        //   customer_name / customer_email / customer_phone
+        //   booking_date, total_amount, balance_due, payment_amount
+        //   payment_type ('none'), payment_method ('Enquiry / Stripe Pending'),
+        //   booking_source ('enquiry'), status ('pending')
+        // Tenant is sourced from URL ?t= only (TENANT_ID); never sessionStorage.
+        // JWT is intentionally omitted — public form, no auth (Rule F6 / F1).
         function buildEnquiryPayload() {
             const g      = id => document.getElementById(id).value;
             const isMulti = document.getElementById('multiDayToggle').dataset.active === 'true';
             const df     = isMulti ? g('dateFrom') : g('eventDate');
             const dt     = isMulti ? g('dateTo')   : g('eventDate');
-            calcCost(); // ensure total_cost is current
+            calcCost(); // ensure total is current
             const selRoom = enquiryRoomsData.find(r => r.name === g('roomName'));
             const dayRate = selRoom ? parseFloat(selRoom.day_rate || 0) : 0;
+            const roomId  = selRoom ? (selRoom.id || null) : null;
             const hireType = g('hireType') || 'full_day';
             let totalCost = null;
             if (dayRate) {
                 if (hireType === 'hourly') {
+                    // Calendar-symmetric: day_rate used as hourly rate (matches
+                    // calendar.html line 1528). Was previously `(dayRate / 8)`.
                     const [sh, sm] = g('timeFrom').split(':').map(Number);
                     const [eh, em] = g('timeTo').split(':').map(Number);
                     const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60));
                     const numDays  = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
-                    totalCost      = Math.round((dayRate / 8) * hours * numDays * 100) / 100;
+                    totalCost      = Math.round(dayRate * hours * numDays * 100) / 100;
                 } else {
                     const numDays = Math.max(1, Math.round((new Date(dt) - new Date(df)) / 86400000) + 1);
                     totalCost     = Math.round(dayRate * numDays * 100) / 100;
                 }
             }
+            const totalAmount = totalCost || 0;
+
             return {
+                // ── Calendar-symmetric customer keys ──────────────────────
+                customer_name:  g('name'),
+                customer_email: g('email'),
+                customer_phone: g('phone'),
+
+                // ── Legacy aliases (db-api /enquiry/create-request consumes these) ─
                 name:         g('name'),
                 email:        g('email'),
                 phone:        g('phone'),
+
+                // ── Room / venue ─────────────────────────────────────────
+                room_id:      roomId,
                 room_name:    g('roomName'),
-                event_type:   g('eventType'),
-                hire_type:    hireType,
+
+                // ── Dates + times (booking_date is calendar's primary key;
+                //     event_date kept for /enquiry/create-request) ────────
+                booking_date: df,
                 date_from:    df,
                 date_to:      dt,
                 event_date:   df,
                 start_time:   g('timeFrom'),
                 end_time:     g('timeTo'),
+
+                // ── Event details ────────────────────────────────────────
+                event_type:   g('eventType'),
+                hire_type:    hireType,
                 guest_count:  parseInt(g('numPeople') || '1', 10),
                 notes:        g('notes') || '',
-                total_cost:   totalCost,
-                tenant_id:    TENANT_ID,
+
+                // ── Financial fields (calendar contract) ─────────────────
+                total_amount:   totalAmount,
+                total_cost:     totalCost,        // legacy alias
+                payment_amount: 0,                // enquiry: nothing paid up-front
+                balance_due:    totalAmount,      // entire total still owed
+
+                // ── Payment state — calendar modal reads these to render
+                //     the booking card. payment_method MUST be a non-empty
+                //     string or the detail card renders "Unknown".
+                payment_type:    'none',
+                payment_method:  'Enquiry / Stripe Pending',
+
+                // ── Booking lifecycle ────────────────────────────────────
+                booking_source: 'enquiry',        // calendar uses 'walk_in'
+                status:         'pending',
+
+                // ── Multi-tenant routing — from URL only, never sessionStorage ─
+                tenant_id:      TENANT_ID,
             };
         }
 
