@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Event Enquiry | VenueDesk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border: rgba(148, 163, 184, 0.1);
+            --primary: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 100%, hsla(225,39%,30%,1) 0, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        .page-wrap { width: 100%; max-width: 860px; }
+        .page-header { margin-bottom: 1.75rem; }
+        .page-header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .page-header p { color: var(--text-muted); font-size: 0.88rem; }
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .form-section-title {
+            font-size: 1.05rem; font-weight: 700; color: var(--text-main);
+            margin-bottom: 1.5rem; padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .form-section-title i { color: var(--primary); }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+        .full-width { grid-column: span 2; }
+        .input-group label {
+            display: block; color: var(--text-muted); font-size: 0.82rem;
+            margin-bottom: 0.45rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .input-wrapper { position: relative; width: 100%; }
+        .input-wrapper i.icon-left {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--primary); pointer-events: none; z-index: 2;
+        }
+        .input-wrapper i.icon-right {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); pointer-events: none; font-size: 0.8rem; z-index: 2;
+        }
+        .input-wrapper i.icon-left-top {
+            position: absolute; left: 15px; top: 15px;
+            color: var(--primary); pointer-events: none; z-index: 2;
+        }
+        input, select {
+            width: 100%; height: 50px;
+            padding: 0 15px 0 45px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: white; outline: none; font-size: 1rem;
+            transition: all 0.3s;
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+        }
+        select { padding-right: 40px; cursor: pointer; }
+        select option { background: #1e293b; color: white; }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: rgba(0,0,0,0.5); }
+        input::placeholder { color: var(--text-muted); }
+        /* Chrome date picker: restore native appearance so the calendar popup works,
+           force the indicator icon to white via brightness(0)+invert(1),
+           and apply dark colour-scheme so the popup renders in dark mode */
+        input[type="date"] {
+            appearance: auto; -webkit-appearance: auto;
+            color-scheme: dark;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: brightness(0) invert(1);
+            cursor: pointer;
+        }
+        textarea {
+            width: 100%; padding: 13px 15px 13px 45px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            border-radius: 10px; color: white; outline: none; font-size: 1rem;
+            transition: all 0.3s; resize: vertical; font-family: inherit; min-height: 90px;
+        }
+        textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: rgba(0,0,0,0.5); }
+        textarea::placeholder { color: var(--text-muted); }
+        .avail-status {
+            padding: 10px 14px; border-radius: 10px; font-size: 0.88rem;
+            font-weight: 600; display: flex; align-items: center; gap: 10px;
+            border: 1px solid; margin-bottom: 1.5rem;
+        }
+        .avail-status.checking    { background: rgba(99,102,241,0.1);  border-color: rgba(99,102,241,0.3);  color: var(--primary); }
+        .avail-status.available   { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); color: #34d399; }
+        .avail-status.unavailable { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.35);  color: #f87171; }
+        .avail-status.idle        { background: rgba(0,0,0,0.2);       border-color: var(--border);          color: var(--text-muted); }
+        .submit-btn {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #06b6d4);
+            border: none; border-radius: 10px;
+            color: white; font-size: 1rem; font-weight: 700;
+            cursor: pointer; transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 10px 20px -5px rgba(99,102,241,0.4);
+            min-height: 44px;
+        }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(99,102,241,0.5); }
+        .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+        .multi-day-btn {
+            width: 100%; padding: 0.6rem 1rem; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all 0.2s;
+            border: 1.5px solid var(--primary); background: transparent;
+            color: var(--primary); display: flex; align-items: center;
+            justify-content: center; gap: 0.45rem;
+        }
+        .multi-day-btn.active { background: var(--primary); color: #fff; }
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        .toast {
+            background: #1e293b; color: white; padding: 1rem 1.5rem;
+            border-radius: 8px; margin-top: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            border-left: 4px solid var(--success);
+            display: flex; align-items: center; gap: 12px;
+            animation: slideIn 0.3s ease; min-width: 280px;
+        }
+        .toast.error { border-color: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        button, input, select, textarea { min-height: 44px; }
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .full-width { grid-column: span 1; }
+        }
+        .venue-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 5px 14px;
+            background: rgba(99,102,241,0.13);
+            border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 20px;
+            font-size: 0.8rem; font-weight: 700;
+            color: #a5b4fc;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.75rem;
+        }
+        .venue-badge i { font-size: 0.75rem; }
+        .error-banner {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            margin-top: 2rem;
+        }
+        .error-banner i { font-size: 2rem; color: #ef4444; display: block; margin-bottom: 0.75rem; }
+        .error-banner h2 { font-size: 1.2rem; color: #f8fafc; margin-bottom: 0.5rem; }
+        .error-banner p { color: #94a3b8; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="page-header">
+            <div class="venue-badge" id="venueBadge" style="display:none">
+                <i class="fa-solid fa-building"></i>
+                <span id="venueNameDisplay"></span>
+            </div>
+            <h1 id="pageTitle">Event Enquiry</h1>
+            <p>Check availability instantly and secure your date.</p>
+        </div>
+        <div id="errorBanner" style="display:none" class="error-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <h2>Invalid Venue Link</h2>
+            <p>This enquiry form link is missing or contains an invalid venue identifier. Please use the link provided by your venue — it should look like <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:.85em;">enquiry-form.html?t=1001</code>.</p>
+        </div>
+        <form id="enquiryForm" class="form-card" onsubmit="return false;">
+
+            <!-- CONTACT DETAILS -->
+            <div class="form-section-title"><i class="fa-solid fa-user"></i> Contact Details</div>
+            <div class="form-grid">
+                <div class="input-group full-width">
+                    <label>Full Name <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user icon-left"></i>
+                        <input type="text" id="name" placeholder="e.g. Jane Smith" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Email <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope icon-left"></i>
+                        <input type="email" id="email" placeholder="jane@example.com" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Phone <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone icon-left"></i>
+                        <input type="tel" id="phone" placeholder="e.g. 07700 900000" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVENT DETAILS -->
+            <div class="form-section-title"><i class="fa-solid fa-calendar-check"></i> Event Details</div>
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>Preferred Room <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-door-open icon-left"></i>
+                        <select id="roomName" onchange="checkAvailability()" required>
+                            <option value="" disabled selected>Loading rooms...</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Event Type <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-masks-theater icon-left"></i>
+                        <select id="eventType" required>
+                            <option value="" disabled selected>Loading types...</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group" id="singleDateGroup">
+                    <label>Event Date <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-calendar icon-left"></i>
+                        <input type="date" id="eventDate" onchange="checkAvailability()" required>
+                    </div>
+                </div>
+                <div class="input-group" style="align-self:flex-end;">
+                    <button type="button" id="multiDayToggle" onclick="toggleMultiDay()" class="multi-day-btn">
+                        <i class="fa-solid fa-calendar-week"></i> Requires multiple days
+                    </button>
+                </div>
+                <div id="multiDayFields" style="display:none;grid-column:span 2;">
+                    <div class="form-grid" style="margin:0;">
+                        <div class="input-group">
+                            <label>Date From <span style="color:var(--danger)">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-calendar icon-left"></i>
+                                <input type="date" id="dateFrom" onchange="checkAvailability()">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Date To <span style="color:var(--danger)">*</span></label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-calendar icon-left"></i>
+                                <input type="date" id="dateTo" onchange="checkAvailability()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Start Time <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-clock icon-left"></i>
+                        <select id="timeFrom" onchange="checkAvailability()" required>
+                            <option value="" disabled selected>--:--</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>End Time <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-clock icon-left"></i>
+                        <select id="timeTo" onchange="checkAvailability()" required>
+                            <option value="" disabled selected>--:--</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down icon-right"></i>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Number of Guests <span style="color:var(--danger)">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-users icon-left"></i>
+                        <input type="number" id="numPeople" placeholder="e.g. 50" min="1" required onchange="calcCost()">
+                    </div>
+                </div>
+                <!-- Hire-type selector removed: pricing is strictly hourly across
+                     the system (rooms.day_rate column is misnamed — it's an hourly
+                     rate). A hidden field preserves the 'hourly' value so any
+                     downstream consumer that still reads hire_type stays happy. -->
+                <input type="hidden" id="hireType" value="hourly">
+                <!-- Cost estimate — shown once room + dates + times are selected -->
+                <div class="input-group full-width" id="costEstimateRow" style="display:none;">
+                    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                        <div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:0.85rem;font-weight:600;">
+                            <i class="fa-solid fa-calculator" style="color:var(--primary)"></i>
+                            <span id="costBreakdown">Estimated cost</span>
+                        </div>
+                        <div style="font-size:1.2rem;font-weight:700;color:#a5b4fc;" id="costTotal">£—</div>
+                    </div>
+                </div>
+                <div class="input-group full-width">
+                    <label>Notes <span style="color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">(Optional)</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-note-sticky icon-left-top"></i>
+                        <textarea id="notes" placeholder="Any special requirements, accessibility needs or additional information..." rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AVAILABILITY -->
+            <div id="availStatus" class="avail-status idle">
+                <i class="fa-solid fa-circle-info"></i>
+                <span id="availText">Select a room, dates and times to check availability</span>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn" onclick="submitEnquiry()" disabled>
+                <i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>
+            </button>
+
+            <!-- Shown only when tenant has Stripe enabled — checked on load via /stripe/config -->
+            <button type="button" class="submit-btn" id="depositBtn" onclick="submitWithDeposit()" disabled
+                style="display:none;margin-top:0.75rem;background:linear-gradient(135deg,#059669,#0d9488);box-shadow:0 10px 20px -5px rgba(5,150,105,0.4);">
+                <i class="fa-solid fa-credit-card"></i> <span>Pay Deposit by Card</span>
+            </button>
+            <p id="depositNote" style="display:none;margin-top:0.6rem;font-size:0.78rem;color:var(--text-muted);text-align:center;">
+                <i class="fa-solid fa-lock" style="color:#34d399;margin-right:4px;"></i>
+                Secure card payment via Stripe — secures your date immediately.
+            </p>
+        </form>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+        const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+        const BLOCKED_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+        const EF_DB_API   = 'https://api.venuedesk.co.uk';
+        // Enquiry submissions go directly to db-api — guarantees a booking_request_id
+        // is returned so Stripe webhook can link the payment back to the request.
+        const SUBMIT_API  = `${EF_DB_API}/enquiry/create-request`;
+
+        // ── Read tenant from URL: enquiry-form.html?t=1001 ──────────
+        // Tenant IDs for real venues are always >= 1000 (tenant_id=1 is system admin).
+        // SECURITY: TENANT_ID is used for display + availability lookup only.
+        // The enquiry submission and Stripe session endpoints validate it server-side
+        // independently — this client value is never trusted for billing or data access.
+        const TENANT_ID = (function() {
+            const p = new URLSearchParams(window.location.search);
+            const id = parseInt(p.get('t') || p.get('tenant') || '0', 10);
+            return (id >= 1000) ? id : null;
+        })();
+
+        // Stripe state — declared before initTenant so the IIFE can assign them safely
+        let isAvailable = false, isSubmitting = false, enquiryBlockedRules = [], enquiryRoomsData = [];
+        let efStripeEnabled = false, efStripeKey = '', efDepositAmount = 50;
+
+        // Show error or load venue name + Stripe config
+        // SECURITY: /stripe/config returns only is_stripe_enabled + publishable key + venue_name.
+        // BACS fields are behind auth (/stripe/bacs-details). Secret key never leaves the server.
+        (async function initTenant() {
+            if (!TENANT_ID) {
+                document.getElementById('errorBanner').style.display = 'block';
+                document.getElementById('enquiryForm').style.display = 'none';
+                return;
+            }
+            try {
+                const r = await fetch(`${EF_DB_API}/stripe/config?tenant_id=${TENANT_ID}`);
+                if (!r.ok) return;
+                const j = await r.json();
+                const d = j.data || j || {};
+
+                // Venue name
+                if (d.venue_name) {
+                    document.getElementById('venueNameDisplay').textContent = d.venue_name;
+                    document.getElementById('venueBadge').style.display     = 'inline-flex';
+                    document.getElementById('pageTitle').textContent         = 'Event Enquiry — ' + d.venue_name;
+                    document.title = 'Event Enquiry | ' + d.venue_name;
+                }
+
+                // Stripe — only show deposit button if publishable key is present
+                // (button stays disabled until availability is confirmed)
+                if (d.is_stripe_enabled && d.stripe_publishable_key) {
+                    efStripeEnabled = true;
+                    efStripeKey     = d.stripe_publishable_key;
+                    document.getElementById('depositBtn').style.display = 'flex';
+                }
+            } catch(e) { /* non-critical — form still usable without venue name */ }
+        })();
+
+        function isDateBlocked(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00'), dow = d.getDay();
+            for (const b of enquiryBlockedRules) {
+                if (b.block_type === 'recurring' && parseInt(b.day_of_week) === dow) return b.label || 'Closed';
+                if (b.block_type === 'oneoff' && b.block_date && b.block_date.split('T')[0] === dateStr) return b.label || 'Closed';
+                if (b.block_type === 'range' && b.date_from && b.date_to)
+                    if (dateStr >= b.date_from.split('T')[0] && dateStr <= b.date_to.split('T')[0]) return b.label || 'Closed';
+            }
+            return null;
+        }
+
+        async function loadRoomsAndTypes() {
+            try {
+                const tenantParam = TENANT_ID ? `?tenant_id=${TENANT_ID}` : '';
+                const [rooms, types, bRes] = await Promise.all([
+                    fetch(BASE_API + '/get-rooms' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
+                    fetch(BASE_API + '/get-event-types' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
+                    fetch(BLOCKED_API + tenantParam).catch(() => null)
+                ]);
+                if (bRes) { try { enquiryBlockedRules = (await bRes.json()).data || []; } catch(e){} }
+                const activeRooms = (rooms || []).filter(r => r.is_active || r.is_active === undefined);
+                enquiryRoomsData = activeRooms;
+                const activeTypes = (types || []).filter(t => t.is_active || t.is_active === undefined);
+                const roomSel = document.getElementById('roomName');
+                roomSel.innerHTML = '<option value="" disabled selected>Select Room</option>';
+                activeRooms.forEach(r => roomSel.add(new Option(r.name + (r.capacity ? ` (Cap: ${r.capacity})` : ''), r.name)));
+                const typeSel = document.getElementById('eventType');
+                typeSel.innerHTML = '<option value="" disabled selected>Select Type</option>';
+                activeTypes.forEach(t => typeSel.add(new Option(t.name, t.name)));
+            } catch(e) {
+                console.warn('Could not load rooms/event types:', e);
+            }
+        }
+        loadRoomsAndTypes();
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('eventDate').min = todayStr;
+        document.getElementById('dateFrom').min   = todayStr;
+        document.getElementById('dateTo').min     = todayStr;
+        ['timeFrom','timeTo'].forEach(id => {
+            const sel = document.getElementById(id);
+            for (let i = 8; i <= 23; i++) {
+                const hh = i.toString().padStart(2,'0');
+                sel.add(new Option(hh+':00', hh+':00'));
+                if (i < 23) sel.add(new Option(hh+':30', hh+':30'));
+            }
+        });
+
+        function setAvailStatus(type, text) {
+            const el = document.getElementById('availStatus');
+            const icons = { idle:'fa-circle-info', checking:'fa-circle-notch fa-spin', available:'fa-circle-check', unavailable:'fa-circle-xmark' };
+            el.className = 'avail-status ' + type;
+            el.querySelector('i').className = 'fa-solid ' + (icons[type] || 'fa-circle-info');
+            document.getElementById('availText').textContent = text;
+        }
+
+        function toggleMultiDay() {
+            const btn = document.getElementById('multiDayToggle');
+            const isMulti = btn.dataset.active !== 'true';
+            btn.dataset.active = isMulti;
+            btn.classList.toggle('active', isMulti);
+            document.getElementById('singleDateGroup').style.display = isMulti ? 'none' : '';
+            document.getElementById('multiDayFields').style.display  = isMulti ? '' : 'none';
+            const ev = document.getElementById('eventDate');
+            const df = document.getElementById('dateFrom');
+            const dt = document.getElementById('dateTo');
+            ev.required = !isMulti;
+            df.required =  isMulti;
+            dt.required =  isMulti;
+            if (!isMulti) { df.value = ''; dt.value = ''; }
+            checkAvailability();
+        }
+
+        let _availTimeout = null;
+        async function checkAvailability() {
+            if (isSubmitting) return;
+            const room     = document.getElementById('roomName').value;
+            const isMulti  = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const dateFrom = isMulti ? document.getElementById('dateFrom').value : document.getElementById('eventDate').value;
+            const dateTo   = isMulti ? document.getElementById('dateTo').value   : document.getElementById('eventDate').value;
+            const start    = document.getElementById('timeFrom').value;
+            const end      = document.getElementById('timeTo').value;
+            const btn      = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
+            isAvailable = false;
+            const dep = document.getElementById('depositBtn');
+            if (dep) { dep.disabled = true; document.getElementById('depositNote').style.display = 'none'; }
+            if (!room || !dateFrom || !start || !end) { setAvailStatus('idle','Select a room, dates and times to check availability'); return; }
+            if (!dateTo || dateTo < dateFrom) { setAvailStatus('unavailable','Please select a valid end date (on or after start date).'); return; }
+            const msPerDay = 86400000;
+            const numDays  = Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1;
+            for (let i = 0; i < numDays; i++) {
+                const ds = new Date(new Date(dateFrom).getTime() + i*msPerDay).toISOString().split('T')[0];
+                const bl = isDateBlocked(ds);
+                if (bl) { setAvailStatus('unavailable', 'Sorry, the venue is closed on ' + ds + ' (' + bl + ').'); return; }
+            }
+            if (start >= end) { setAvailStatus('unavailable','End time must be after start time.'); return; }
+            clearTimeout(_availTimeout);
+            _availTimeout = setTimeout(async () => {
+                setAvailStatus('checking', 'Checking availability for ' + (numDays > 1 ? numDays+'-day booking' : dateFrom) + '...');
+                try {
+                    const data = await (await fetch(CHECK_API, {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ roomName:room, eventDate:dateFrom, timeFrom:start, timeTo:end, tenant_id: TENANT_ID })
+                    })).json();
+                    if (data.available) {
+                        setAvailStatus('available', numDays > 1 ? 'Available for your ' + numDays + '-day booking! You can submit.' : 'Date is available - you can submit your enquiry.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
+                        isAvailable = true;
+                        // Recalculate cost and update deposit amount
+                        calcCost();
+                        // Enable deposit button once availability confirmed
+                        const dep = document.getElementById('depositBtn');
+                        const depNote = document.getElementById('depositNote');
+                        if (efStripeEnabled && efDepositAmount >= 10) {
+                            dep.disabled = false;
+                            dep.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + efDepositAmount.toFixed(2) + ' Deposit by Card</span>';
+                            depNote.style.display = 'block';
+                        }
+                    } else { setAvailStatus('unavailable','Sorry, this time slot is already booked.'); }
+                } catch(e) { setAvailStatus('unavailable','Connection error. Please try again.'); }
+            }, 500);
+        }
+
+        // ── Real-time cost calculator ────────────────────────────────────────
+        // Called whenever room, dates, times or guest count changes.
+        // Updates the cost panel and recalculates efDepositAmount (20% of total,
+        // clamped to £10–£500 to match server-side PUBLIC_SESSION bounds).
+        // Hire-type selector removed — pricing is always hourly (calendar-symmetric).
+        function calcCost() {
+            const roomName  = document.getElementById('roomName').value;
+            const isMulti   = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const dateFrom  = isMulti ? document.getElementById('dateFrom').value : document.getElementById('eventDate').value;
+            const dateTo    = isMulti ? document.getElementById('dateTo').value   : document.getElementById('eventDate').value;
+            const start     = document.getElementById('timeFrom').value;
+            const end       = document.getElementById('timeTo').value;
+            const row       = document.getElementById('costEstimateRow');
+            const totalEl   = document.getElementById('costTotal');
+            const breakEl   = document.getElementById('costBreakdown');
+
+            if (!roomName || !dateFrom || !start || !end) { row.style.display = 'none'; return; }
+
+            const selRoom = enquiryRoomsData.find(r => r.name === roomName);
+            const dayRate = parseFloat(selRoom?.day_rate ?? 0) || 0;     // NaN → 0
+            if (!dayRate) { row.style.display = 'none'; return; }
+
+            // ── Strict hourly formula (mirrors calendar.html qbCalculateCost) ──
+            // rooms.day_rate column is misnamed — it is an hourly rate. The
+            // Day/Hourly selector was removed; total = dayRate × hours × days.
+            // Every var defaults to 0 to prevent NaN propagation.
+            const msPerDay = 86400000;
+            const dFromMs  = new Date(dateFrom).getTime() || 0;
+            const dToMs    = new Date(dateTo).getTime()   || dFromMs;
+            const numDays  = Math.max(1, Math.round((dToMs - dFromMs) / msPerDay) + 1) || 1;
+            const [sh, sm] = String(start || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const [eh, em] = String(end   || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60)) || 0;
+            const total    = Math.round((dayRate * hours * numDays) * 100) / 100 || 0;
+            const breakText = hours > 0
+                ? `£${dayRate.toFixed(2)}/hr × ${hours.toFixed(1)}h${numDays > 1 ? ' × ' + numDays + ' days' : ''}`
+                : 'Set start & end times';
+
+            totalEl.textContent  = total > 0 ? `£${total.toFixed(2)}` : '£0.00';
+            breakEl.textContent  = breakText;
+            row.style.display    = total > 0 ? '' : 'none';
+
+            // Update deposit amount (20% of total, bounds £10–£500)
+            if (total > 0) {
+                // NaN-safe: parseFloat guards against any upstream weirdness
+                const computed = Math.round((total || 0) * 0.20 * 100) / 100;
+                efDepositAmount = Math.max(10, Math.min(500, parseFloat(computed) || 50));
+            } else {
+                // Fall back to room-level deposit_amount or 20% of dayRate; if both
+                // are missing/invalid, default to £50 (within the £10–£500 bounds).
+                const roomDep = parseFloat(selRoom?.deposit_amount ?? 0) || 0;
+                const fromRoom = roomDep > 0 ? roomDep : (dayRate ? Math.round(dayRate * 0.20 * 100) / 100 : 50);
+                efDepositAmount = Math.max(10, Math.min(500, parseFloat(fromRoom) || 50));
+            }
+        }
+
+        // ── Build the common enquiry payload ─────────────────────────────────
+        // Schema mirrors calendar.html's qb-card submit body (line 1716) so the
+        // calendar detail modal — and any consumer expecting that contract —
+        // resolves fields identically for both walk-in bookings and converted
+        // enquiries. Legacy /enquiry/create-request keys (name/email/phone/
+        // total_cost/event_date) are kept as dual aliases for backend compat.
+        //
+        // CRITICAL FIELDS (calendar-symmetric):
+        //   customer_name / customer_email / customer_phone
+        //   booking_date, total_amount, balance_due, payment_amount
+        //   payment_type ('none'), payment_method ('Enquiry / Stripe Pending'),
+        //   booking_source ('enquiry'), status ('pending')
+        // Tenant is sourced from URL ?t= only (TENANT_ID); never sessionStorage.
+        // JWT is intentionally omitted — public form, no auth (Rule F6 / F1).
+        function buildEnquiryPayload() {
+            const g      = id => document.getElementById(id).value;
+            const isMulti = document.getElementById('multiDayToggle').dataset.active === 'true';
+            const df     = isMulti ? g('dateFrom') : g('eventDate');
+            const dt     = isMulti ? g('dateTo')   : g('eventDate');
+            calcCost(); // ensure total is current
+            const selRoom = enquiryRoomsData.find(r => r.name === g('roomName'));
+            const dayRate = parseFloat(selRoom?.day_rate ?? 0) || 0;        // NaN → 0
+            const roomId  = selRoom?.id ?? null;
+            // hire_type fixed to 'hourly' — selector UI removed; rooms.day_rate
+            // column is always treated as an hourly rate (calendar-symmetric).
+            const hireType = 'hourly';
+            const [sh, sm] = String(g('timeFrom') || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const [eh, em] = String(g('timeTo')   || '0:0').split(':').map(n => parseInt(n, 10) || 0);
+            const hours    = Math.max(0, (eh + em / 60) - (sh + sm / 60)) || 0;
+            const dFromMs  = new Date(df).getTime() || 0;
+            const dToMs    = new Date(dt).getTime() || dFromMs;
+            const numDays  = Math.max(1, Math.round((dToMs - dFromMs) / 86400000) + 1) || 1;
+            const totalCost   = dayRate > 0 && hours > 0
+                ? Math.round(dayRate * hours * numDays * 100) / 100
+                : 0;
+            const totalAmount = parseFloat(totalCost) || 0;
+
+            return {
+                // ── Calendar-symmetric customer keys ──────────────────────
+                customer_name:  g('name'),
+                customer_email: g('email'),
+                customer_phone: g('phone'),
+
+                // ── Legacy aliases (db-api /enquiry/create-request consumes these) ─
+                name:         g('name'),
+                email:        g('email'),
+                phone:        g('phone'),
+
+                // ── Room / venue ─────────────────────────────────────────
+                room_id:      roomId,
+                room_name:    g('roomName'),
+
+                // ── Dates + times (booking_date is calendar's primary key;
+                //     event_date kept for /enquiry/create-request) ────────
+                booking_date: df,
+                date_from:    df,
+                date_to:      dt,
+                event_date:   df,
+                start_time:   g('timeFrom'),
+                end_time:     g('timeTo'),
+
+                // ── Event details ────────────────────────────────────────
+                event_type:   g('eventType'),
+                hire_type:    hireType,
+                guest_count:  parseInt(g('numPeople') || '1', 10),
+                notes:        g('notes') || '',
+
+                // ── Financial fields (calendar contract) ─────────────────
+                total_amount:   totalAmount,
+                total_cost:     totalCost,        // legacy alias
+                payment_amount: 0,                // enquiry: nothing paid up-front
+                balance_due:    totalAmount,      // entire total still owed
+
+                // ── Payment state — calendar modal reads these to render
+                //     the booking card. payment_method MUST be a non-empty
+                //     string or the detail card renders "Unknown".
+                payment_type:    'none',
+                payment_method:  'Enquiry / Stripe Pending',
+
+                // ── Booking lifecycle ────────────────────────────────────
+                booking_source: 'enquiry',        // calendar uses 'walk_in'
+                status:         'pending',
+
+                // ── Multi-tenant routing — from URL only, never sessionStorage ─
+                tenant_id:      TENANT_ID,
+            };
+        }
+
+        // Restore a submit button after an early-exit gate. Keeps isSubmitting
+        // false so the user can re-attempt once they've fixed the form issue.
+        function _resetSubmitBtn(btn, label) {
+            isSubmitting = false;
+            if (!btn) return;
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>' + (label || 'Submit Enquiry') + '</span>';
+        }
+
+        async function submitEnquiry() {
+            // ── State lock (FIRST line — before any other work) ──────────────
+            // Multi-click prevention: lock the button + isSubmitting flag in
+            // the same microtask the click fires, so a second click that
+            // arrives while we're still in this function body finds the
+            // gate already shut. No async work runs before the lock.
+            if (isSubmitting) return;                          // already in flight
+            const btn = document.getElementById('submitBtn');
+            if (btn?.disabled) return;                          // belt-and-braces
+            isSubmitting   = true;
+            if (btn) {
+                btn.disabled  = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
+            }
+
+            // ── Guards (run AFTER lock so duplicate clicks are still blocked) ──
+            if (!isAvailable) { _resetSubmitBtn(btn, 'Check Availability First'); return; }
+            const form = document.getElementById('enquiryForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                _resetSubmitBtn(btn, 'Submit Enquiry');
+                return;
+            }
+            const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
+            if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
+                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
+                document.getElementById('numPeople').focus();
+                _resetSubmitBtn(btn, 'Submit Enquiry');
+                return;
+            }
+            try {
+                const res = await fetch(SUBMIT_API, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(buildEnquiryPayload()),
+                });
+                const j = await res.json().catch(() => ({}));
+                if (res.ok && j.success) {
+                    showToast("Enquiry sent! We'll be in touch shortly.", 'success');
+                    form.reset();
+                    document.getElementById('costEstimateRow').style.display = 'none';
+                    setAvailStatus('idle', 'Select a room, dates and times to check availability');
+                    isAvailable = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
+                    btn.disabled = true;
+                } else {
+                    throw new Error(j.message || 'Server error');
+                }
+            } catch(e) {
+                setAvailStatus('unavailable', 'Submission failed — ' + e.message);
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Submit Enquiry</span>';
+                btn.disabled  = false;
+            } finally {
+                isSubmitting = false;
+            }
+        }
+
+        // Submits enquiry to db-api first (guarantees booking_request_id is returned),
+        // then creates a Stripe Checkout Session using that ID in the metadata so the
+        // webhook can link the payment back to the booking_request row.
+        // Helper for the deposit button — separate from _resetSubmitBtn so the
+        // label can carry the live deposit amount the user committed to.
+        function _resetDepositBtn(depBtn) {
+            isSubmitting = false;
+            if (!depBtn) return;
+            depBtn.disabled  = false;
+            depBtn.innerHTML = '<i class="fa-solid fa-credit-card"></i> <span>Pay £' + (parseFloat(efDepositAmount) || 0).toFixed(2) + ' Deposit by Card</span>';
+        }
+
+        async function submitWithDeposit() {
+            // ── State lock (FIRST line) — same discipline as submitEnquiry.
+            // Stripe redirects are the highest-stakes path (charges a real card);
+            // double-fire here would create two booking_request rows AND two
+            // Stripe sessions, with the customer arriving back to checkout.html
+            // having paid twice.
+            if (isSubmitting) return;
+            const depBtn = document.getElementById('depositBtn');
+            if (depBtn?.disabled) return;
+            isSubmitting = true;
+            if (depBtn) {
+                depBtn.disabled  = true;
+                depBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
+            }
+
+            // ── Guards (post-lock) ──────────────────────────────────────────
+            if (!isAvailable || !efStripeEnabled) { _resetDepositBtn(depBtn); return; }
+            const form = document.getElementById('enquiryForm');
+            if (!form.checkValidity()) { form.reportValidity(); _resetDepositBtn(depBtn); return; }
+            const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
+            const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
+            if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
+                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
+                _resetDepositBtn(depBtn);
+                return;
+            }
+
+            // ── Stripe amount validation (server enforces £10–£500 too, but
+            //     we want to fail fast and avoid a wasted round-trip if the
+            //     cost calc somehow produced 0 / NaN / negative).
+            const depositAmt = parseFloat(efDepositAmount) || 0;
+            if (depositAmt <= 0) {
+                showToast('Could not calculate a valid deposit amount. Pick a room + dates first.', 'error');
+                _resetDepositBtn(depBtn);
+                return;
+            }
+
+            const payload = buildEnquiryPayload();
+            try {
+                // Step 1 — create booking_request in db-api and get its UUID back
+                const eRes = await fetch(SUBMIT_API, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(payload),
+                });
+                const ej = await eRes.json().catch(() => ({}));
+                if (!eRes.ok || !ej.success) throw new Error(ej.message || 'Enquiry submission failed');
+                // booking_request_id is now guaranteed — endpoint always returns it
+                const bookingRequestId = ej.booking_request_id || null;
+
+                // Step 2 — create Stripe Checkout Session (public endpoint, no JWT)
+                // SECURITY: /public-session re-validates tenant server-side and enforces
+                // amount bounds (£10–£500). tenant_id is never trusted for billing directly.
+                const sRes = await fetch(`${EF_DB_API}/stripe/public-session`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tenant_id:          TENANT_ID,
+                        amount:             depositAmt,   // validated > 0 at top of function
+                        booking_request_id: bookingRequestId,
+                        description:        `Deposit — ${payload.event_type} at ${payload.room_name} on ${payload.date_from}`,
+                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}',
+                        cancel_url:  window.location.href,
+                    }),
+                });
+                const sj = await sRes.json().catch(() => ({}));
+                // On success: navigate to Stripe; isSubmitting stays true so any
+                // double-click between fetch resolve and navigation start can't
+                // re-enter (browser unload will clear state).
+                if (sj.url) { window.location.href = sj.url; return; }
+                throw new Error(sj.message || 'Could not create payment session');
+            } catch(e) {
+                showToast('Error: ' + e.message, 'error');
+                _resetDepositBtn(depBtn);
+            }
+            // No finally{ isSubmitting=false } — the success path navigates away
+            // (no return to JS land); the error path resets via _resetDepositBtn.
+        }
+
+        function showToast(message, type) {
+            type = type || 'success';
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<i class="fa-solid ' + (type==='success' ? 'fa-circle-check' : 'fa-circle-exclamation') + '"></i> ' + message;
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(function(){t.remove();},300); }, 4000);
+        }
+    </script>
+</body>
+</html>
