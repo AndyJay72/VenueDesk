@@ -323,18 +323,45 @@ module.exports = async function stripeRoutes(fastify, _opts) {
               // Update balance AND status atomically.
               // If the Stripe payment settles the full balance, move to 'confirmed'.
               // Otherwise move to 'provisional' (deposit received, balance outstanding).
+              // ── Idempotent balance recompute (Self-healing) ──────────
+              // Pure function of bookings.payments: running this 10 times
+              // produces the same result as running it once. Replaces the
+              // earlier additive `balance_due = balance_due - $1` which
+              // double-counted on Stripe webhook retries OR any other
+              // upstream double-write (e.g. n8n HTTP retry-on-glitch).
+              //
+              // Filters status <> 'cancelled' so refunded/voided payment
+              // rows are excluded from the recompute.
+              //
+              // Status logic preserves the existing two-state behaviour
+              // (confirmed when paid in full, provisional otherwise) but
+              // adds a guard that respects an already-cancelled booking —
+              // we don't want a stray webhook reviving a cancelled row.
               await client.query(
-                `UPDATE bookings.confirmed_bookings
-                 SET balance_due  = GREATEST(0, COALESCE(balance_due, 0) - $1),
-                     deposit_paid = COALESCE(deposit_paid, 0) + $1,
+                `UPDATE bookings.confirmed_bookings cb
+                 SET deposit_paid = COALESCE(
+                       (SELECT SUM(amount) FROM bookings.payments
+                        WHERE booking_id = cb.id
+                          AND payment_type = 'deposit'
+                          AND status <> 'cancelled'),
+                       0),
+                     balance_due  = GREATEST(0, cb.total_amount - COALESCE(
+                       (SELECT SUM(amount) FROM bookings.payments
+                        WHERE booking_id = cb.id
+                          AND status <> 'cancelled'),
+                       0)),
                      status       = CASE
-                                      WHEN GREATEST(0, COALESCE(balance_due, 0) - $1) <= 0
-                                      THEN 'confirmed'
+                                      WHEN cb.status = 'cancelled' THEN cb.status
+                                      WHEN cb.total_amount - COALESCE(
+                                        (SELECT SUM(amount) FROM bookings.payments
+                                         WHERE booking_id = cb.id
+                                           AND status <> 'cancelled'),
+                                        0) <= 0 THEN 'confirmed'
                                       ELSE 'provisional'
                                     END,
                      updated_at   = NOW()
-                 WHERE id = $2 AND tenant_id = $3`,
-                [amountPaid, bookingId, metaTenantId]
+                 WHERE cb.id = $1 AND cb.tenant_id = $2`,
+                [bookingId, metaTenantId]
               );
             } else if (requestId) {
               // ── Promote + backfill computed fields (idempotent) ──────

@@ -441,6 +441,39 @@
         -208,
         -176
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "card-check-cond-001",
+              "leftValue": "={{ $('Code: Logic + Ref').first().json.payment_method }}",
+              "rightValue": "card",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-card-branch-uuid-001",
+      "name": "IF: Card?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -584,
+        -368
+      ]
     }
   ],
   "pinData": {},
@@ -482,7 +515,7 @@
       "main": [
         [
           {
-            "node": "DB: Record Payment",
+            "node": "IF: Card?",
             "type": "main",
             "index": 0
           }
@@ -583,6 +616,24 @@
         [
           {
             "node": "Email: Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Card?": {
+      "main": [
+        [
+          {
+            "node": "DB: Close Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB: Record Payment",
             "type": "main",
             "index": 0
           }
