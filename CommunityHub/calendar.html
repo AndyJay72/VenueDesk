@@ -2783,7 +2783,30 @@
                 const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})});
                 const json=await res.json();
                 const raw=json.data||(Array.isArray(json)?json:[]);
-                try{const pendRes=await fetch(CAL_PENDING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})});const pd=await pendRes.json();const pending=((pd.data||pd)||[]).map(p=>({...p,customer_name:p.full_name||p.customer_name,customer_email:p.email||p.customer_email,customer_phone:p.phone||p.customer_phone,booking_date:p.requested_date,date_from:p.requested_date,date_to:p.requested_date,guest_count:p.guests_count||p.guest_count,status:p.status||'pending'}));raw.push(...pending.filter(p=>p.date_from||p.booking_date));}catch(_){}
+                try{
+                    const pendRes=await fetch(CAL_PENDING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})});
+                    const pd=await pendRes.json();
+                    const pending=((pd.data||pd)||[]).map(p=>({...p,customer_name:p.full_name||p.customer_name,customer_email:p.email||p.customer_email,customer_phone:p.phone||p.customer_phone,booking_date:p.requested_date,date_from:p.requested_date,date_to:p.requested_date,guest_count:p.guests_count||p.guest_count,status:p.status||'pending'}));
+                    // ── Dedupe against confirmed_bookings ───────────────────
+                    // trg_auto_promote_deposit_paid creates a confirmed_booking
+                    // with the SAME id as the booking_request when status flips
+                    // to deposit_paid. Without this filter, calendar renders
+                    // the booking twice — once as a pending tile (from
+                    // booking_requests) and once as a confirmed tile (from
+                    // confirmed_bookings) — causing the "pending" colour to
+                    // overlay a paid booking. Match by id (primary) and
+                    // booking_request_id (defensive).
+                    const confirmedIds = new Set();
+                    raw.forEach(b => {
+                        if (b.id)                  confirmedIds.add(String(b.id));
+                        if (b.booking_request_id)  confirmedIds.add(String(b.booking_request_id));
+                    });
+                    raw.push(...pending.filter(p =>
+                        (p.date_from || p.booking_date) &&
+                        !confirmedIds.has(String(p.id)) &&
+                        !confirmedIds.has(String(p.booking_request_id || ''))
+                    ));
+                }catch(_){}
                 const now=new Date();now.setHours(0,0,0,0);
                 const rooms=[...new Set(raw.map(e=>e.room_name).filter(Boolean))].sort();
                 const roomSel=document.getElementById('roomFilter');
