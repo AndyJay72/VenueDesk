@@ -312,11 +312,18 @@ module.exports = async function stripeRoutes(fastify, _opts) {
         try {
           await withTenantContext(metaTenantId, async (client) => {
             if (bookingId) {
+              // customer_id derived from the booking row itself (self-healing)
+              // — metadata.customer_id used only as override when present. This
+              // closes a regression where calendar QB Stripe sessions omitted
+              // customer_id from metadata, producing orphaned payment rows.
               await client.query(
                 `INSERT INTO bookings.payments
                   (booking_id, customer_id, amount, payment_method, payment_type,
                    reference_number, tenant_id)
-                 VALUES ($1, $2, $3, 'card', 'deposit', $4, $5)
+                 SELECT $1, COALESCE($2::uuid, cb.customer_id), $3, 'card', 'deposit',
+                        $4, $5
+                 FROM bookings.confirmed_bookings cb
+                 WHERE cb.id = $1 AND cb.tenant_id = $5
                  ON CONFLICT DO NOTHING`,
                 [bookingId, customerId || null, amountPaid, session.id, metaTenantId]
               );
