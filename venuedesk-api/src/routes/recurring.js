@@ -1968,7 +1968,7 @@ async function recurringRoutes(fastify) {
         type: 'object',
         required: ['rule_id'],
         properties: {
-          rule_id:          { type: 'string' },
+          rule_id:          { type: 'string', format: 'uuid' },   // explicit format → 400 on empty
           room_id:          { type: 'string' },
           day_of_week:      { type: ['string', 'number'] },
           start_time:       { type: 'string' },
@@ -1977,7 +1977,7 @@ async function recurringRoutes(fastify) {
           end_date:         { type: 'string' },
           rate_per_session: { type: ['string', 'number'] },
           active:           { type: 'boolean' },
-          customer_id:      { type: 'string' },
+          customer_id:      { type: ['string', 'null'] },
           customer_name:    { type: 'string' },
           customer_email:   { type: 'string' },
           staff_member:     { type: 'string' },
@@ -1997,11 +1997,15 @@ async function recurringRoutes(fastify) {
       end_date         = '',
       rate_per_session = '',
       active           = true,
-      customer_id      = null,
+      customer_id: rawCustomerId = null,
       customer_name    = '',
       customer_email   = '',
       staff_member     = 'system',
     } = request.body;
+
+    // Normalise empty-string UUIDs → null so we never feed '' into ::uuid cast
+    // (PostgreSQL rejects '' as a valid uuid → "invalid input syntax").
+    const customer_id = (rawCustomerId && String(rawCustomerId).trim()) || null;
 
     return withTenantContext(tenantId, async (client) => {
       const { rows, rowCount } = await client.query(

@@ -805,12 +805,17 @@ async function customersRoutes(fastify) {
       }
 
       // Step 4 — Log interaction (mirrors DB: Log Cancel Interaction)
+      // NOTE: $1..$8 used contiguously. Earlier revision had a stale
+      // booking.booking_date at position 7 that the SQL never referenced —
+      // PostgreSQL responded with "could not determine data type of parameter $7"
+      // because unused params can't be type-inferred. The booking_date interpolation
+      // moved into the subject string below, where it belongs.
       await client.query(
         `INSERT INTO bookings.customer_interactions
            (tenant_id, customer_id, customer_name, customer_email,
             booking_id, room_name, subject, interaction_type, notes, staff_member, timestamp)
          VALUES ($1, $2, $3, $4, $5, $6,
-                 $9,
+                 $7,
                  'booking_cancelled',
                  $8,
                  'VenueDesk API', NOW())`,
@@ -821,9 +826,8 @@ async function customersRoutes(fastify) {
           booking.customer_email ?? '',
           booking.id,
           booking.room_name ?? '',
-          booking.booking_date,
-          `Reason: ${reason || 'not specified'}. Cancelled by: ${cancelled_by}${refund_amount > 0 ? `. Refund: £${refund_amount} (${refund_type})` : ''}`,
           `Booking cancelled: ${booking.room_name ?? ''} | ${booking.booking_date ?? ''}`,
+          `Reason: ${reason || 'not specified'}. Cancelled by: ${cancelled_by}${refund_amount > 0 ? `. Refund: £${refund_amount} (${refund_type})` : ''}`,
         ]
       );
 
@@ -1030,36 +1034,51 @@ async function customersRoutes(fastify) {
 
   // ─── POST /bookings/get-room ──────────────────────────────────────────────
   // Replaces: eI6PSBE1TbpaRx9K → DB: Get Room
-  // Validates room UUID against the tenant and returns rate data.
+  // Validates room against the tenant and returns rate data.
+  // Accepts room_id OR room_name — callers vary (n8n upstream sometimes sends
+  // room_name only when room_id resolution races). 422 only if neither provided.
   fastify.post('/get-room', {
     preHandler: [fastify.authenticate],
     schema: {
       body: {
         type: 'object',
-        required: ['room_id'],
         properties: {
-          room_id: { type: 'string' },
-          jwt:     { type: 'string' },   // Pattern 4: body-tunnelled token (consumed by auth)
+          room_id:   { type: ['string', 'null'] },
+          room_name: { type: ['string', 'null'] },
+          jwt:       { type: 'string' },   // Pattern 4: body-tunnelled token (consumed by auth)
         },
         additionalProperties: true,
       },
     },
   }, async (request) => {
     const tenantId = request.user.tenant_id;
-    const { room_id } = request.body;
+    const room_id   = (request.body.room_id   && String(request.body.room_id).trim())   || null;
+    const room_name = (request.body.room_name && String(request.body.room_name).trim()) || null;
 
-    assertUUID(room_id, 'room_id');
+    if (!room_id && !room_name) {
+      throw unprocessable('Either room_id or room_name is required');
+    }
 
-    const { rows } = await systemQuery(
-      `SELECT id, name, day_rate, half_rate
-       FROM   bookings.rooms
-       WHERE  id        = $1::uuid
-         AND  tenant_id = $2::integer
-       LIMIT  1`,
-      [room_id, tenantId]
-    );
+    // Prefer UUID lookup when present; fall back to name. Both filtered by tenant.
+    const { rows } = room_id
+      ? await systemQuery(
+          `SELECT id, name, day_rate, half_rate
+           FROM   bookings.rooms
+           WHERE  id        = $1::uuid
+             AND  tenant_id = $2::integer
+           LIMIT  1`,
+          [room_id, tenantId]
+        )
+      : await systemQuery(
+          `SELECT id, name, day_rate, half_rate
+           FROM   bookings.rooms
+           WHERE  lower(name) = lower($1)
+             AND  tenant_id   = $2::integer
+           LIMIT  1`,
+          [room_name, tenantId]
+        );
 
-    if (!rows.length) throw notFound('Room', room_id);
+    if (!rows.length) throw notFound('Room', room_id || room_name);
     return { success: true, data: rows[0] };
   });
 
