@@ -376,6 +376,9 @@ async function recurringRoutes(fastify) {
           payment_timing: { type: 'string',  default: 'in_advance' },
           billing_type:   { type: 'string',  default: 'monthly' },
           notes:          { type: 'string',  default: '' },
+          // Feature C — cycle billing cadence. Nullable for in_full / legacy series.
+          // Constrained 1–52 weeks by recurring_series_cycle_length_chk (migration 020).
+          cycle_length_weeks: { type: ['integer', 'null'], default: null },
         },
       },
     },
@@ -395,6 +398,7 @@ async function recurringRoutes(fastify) {
       payment_timing = 'in_advance',
       billing_type   = 'monthly',
       notes          = '',
+      cycle_length_weeks = null,
     } = request.body;
 
     assertUUID(customer_id, 'customer_id');
@@ -405,6 +409,14 @@ async function recurringRoutes(fastify) {
     const cycleStr    = String(cycle_amount  || 0);
     const balanceStr  = String(balance_due);
 
+    // Feature C — cycle_length_weeks normalised to null for in_full timing
+    // (CHECK constraint allows null; only timed series carry a value).
+    const cycleLengthVal = (payment_timing === 'in_full')
+      ? null
+      : (Number.isFinite(parseInt(cycle_length_weeks, 10))
+         ? parseInt(cycle_length_weeks, 10)
+         : null);
+
     return withTenantContext(tenantId, async (client) => {
       const { rows: [series] } = await client.query(
         `INSERT INTO bookings.recurring_series
@@ -412,7 +424,8 @@ async function recurringRoutes(fastify) {
             series_name, cycle_amount, balance_due,
             start_time, end_time,
             frequency, end_date, day_of_week,
-            active, payment_timing, billing_type, notes)
+            active, payment_timing, billing_type, notes,
+            cycle_length_weeks)
          VALUES
            ($1, $2::uuid, $3::uuid,
             COALESCE(NULLIF($4,''), 'Block'),
@@ -426,14 +439,17 @@ async function recurringRoutes(fastify) {
             TRUE,
             COALESCE(NULLIF($12,''), 'in_advance'),
             COALESCE(NULLIF($13,''), 'monthly'),
-            NULLIF($14,''))
+            NULLIF($14,''),
+            $15::int)
          RETURNING
            id           AS rule_id,
            id           AS series_id,
            series_name  AS series_reference,
            series_name,
            cycle_amount,
-           balance_due`,
+           balance_due,
+           payment_timing,
+           cycle_length_weeks`,
         [
           tenantId, customer_id, room_id,
           series_name.trim(),
@@ -443,6 +459,7 @@ async function recurringRoutes(fastify) {
           day_of_week,
           payment_timing, billing_type,
           notes,
+          cycleLengthVal,
         ]
       );
 
@@ -695,6 +712,196 @@ async function recurringRoutes(fastify) {
       );
 
       return { success: true, data: rows, schedule_count: rows.length };
+    });
+  });
+
+
+  // ─── POST /recurring/seed-cycle-schedule ─────────────────────────────────
+  // Feature C — series-based cycle materialisation (NOT recurring_rule_id like
+  // the Phase 3 /insert-payment-schedule endpoint above).
+  //
+  // Given a materialised session-dates list + a cycle_length_weeks setting,
+  // this endpoint:
+  //   1. Groups dates into cycles of N weeks each (N = cycle_length_weeks).
+  //      Final cycle may be smaller if sessions don't divide evenly (accepted
+  //      per design doc §9 decision 3 — smaller final cycle bills less).
+  //   2. Computes cycle_amount = sessions_in_cycle × rate_per_session.
+  //   3. Computes due_date per cadence:
+  //        in_advance:  cycle 1 = today, cycles 2..N = period_start - 7 days
+  //        in_arrears:  ALL cycles = period_end + 7 days
+  //        in_full:     no schedule rows inserted (single Stripe Checkout instead)
+  //   4. INSERTs rows with status='pending', recurring_series_id (not rule_id),
+  //      migration_source='feature_c'.
+  //   5. UPDATEs confirmed_bookings.payment_schedule_id to tag each session
+  //      with its cycle (via join on booking_date BETWEEN period_start AND
+  //      period_end + same recurring_series_id).
+  //
+  // Idempotent: schedule rows protected by uq_rps_series_cycle UNIQUE
+  // (recurring_series_id, cycle_number) WHERE NOT NULL; ON CONFLICT DO NOTHING.
+  // Session tagging UPDATE is naturally idempotent (joins on stable keys).
+  //
+  // Body:
+  //   series_id          UUID   required  — recurring_series.id
+  //   customer_id        UUID   required  — anchor for FK on schedule rows
+  //   dates_csv          string required  — comma-separated ISO dates (sorted ASC)
+  //   rate_per_session   number required  — £/session, > 0
+  //   cycle_length_weeks integer required — number of WEEKS per cycle (1–52)
+  //   payment_timing     string required  — 'in_advance' | 'in_arrears'
+  //                                          (in_full callers should skip this endpoint)
+  //   frequency          string optional  — 'weekly'|'fortnightly'|'monthly' (default 'weekly')
+  //                                          Used to compute sessions/cycle from weeks/cycle.
+  //
+  // Returns: { success, data: { cycle_count, sessions_tagged, schedule_ids: [...] } }
+  fastify.post('/seed-cycle-schedule', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['series_id', 'customer_id', 'dates_csv', 'rate_per_session',
+                   'cycle_length_weeks', 'payment_timing'],
+        properties: {
+          series_id:          { type: 'string' },
+          customer_id:        { type: 'string' },
+          dates_csv:          { type: 'string' },
+          rate_per_session:   { type: 'number' },
+          cycle_length_weeks: { type: 'integer', minimum: 1, maximum: 52 },
+          payment_timing:     { type: 'string',  enum: ['in_advance','in_arrears'] },
+          frequency:          { type: 'string',  default: 'weekly' },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const tenantId = request.user.tenant_id;
+    const {
+      series_id,
+      customer_id,
+      dates_csv,
+      rate_per_session,
+      cycle_length_weeks,
+      payment_timing,
+      frequency = 'weekly',
+    } = request.body;
+
+    assertUUID(series_id,   'series_id');
+    assertUUID(customer_id, 'customer_id');
+
+    // ── 1. Parse + sort dates ────────────────────────────────────────────────
+    const dates = (dates_csv || '')
+      .split(',').map(s => s.trim()).filter(Boolean)
+      .map(d => new Date(d + 'T00:00:00Z'))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+
+    if (dates.length === 0) {
+      return reply.code(400).send({ success: false, message: 'dates_csv contained no valid dates' });
+    }
+
+    // ── 2. Compute sessions_per_cycle from frequency × cycle_length_weeks ────
+    // weekly = 1 session/week → cycle holds (weeks) sessions
+    // fortnightly = 1 session/2 weeks → cycle holds (weeks/2) sessions
+    // monthly = 1 session/4 weeks → cycle holds (weeks/4) sessions
+    // Math.max(1,...) protects against truncation to 0 for short cycles.
+    const freqDivisor = frequency === 'monthly'     ? 4
+                      : frequency === 'fortnightly' ? 2
+                      : 1;
+    const sessionsPerCycle = Math.max(1, Math.floor(cycle_length_weeks / freqDivisor));
+
+    // ── 3. Group dates into cycles ───────────────────────────────────────────
+    // Final cycle may be smaller (design doc §9 decision 3).
+    const cycles = [];
+    for (let i = 0; i < dates.length; i += sessionsPerCycle) {
+      const chunk = dates.slice(i, i + sessionsPerCycle);
+      const periodStart = chunk[0];
+      const periodEnd   = chunk[chunk.length - 1];
+      const sessions    = chunk.length;
+      const amount      = parseFloat((sessions * rate_per_session).toFixed(2));
+
+      // due_date per cadence
+      let dueDate;
+      if (payment_timing === 'in_arrears') {
+        // Always cycle_end + 7 days
+        const d = new Date(periodEnd); d.setUTCDate(d.getUTCDate() + 7);
+        dueDate = d;
+      } else {
+        // in_advance: cycle 1 = today, cycles 2..N = cycle_start - 7 days
+        if (cycles.length === 0) {
+          dueDate = new Date();   // today UTC
+        } else {
+          const d = new Date(periodStart); d.setUTCDate(d.getUTCDate() - 7);
+          dueDate = d;
+        }
+      }
+
+      cycles.push({
+        cycleNumber: cycles.length + 1,
+        periodStart: periodStart.toISOString().slice(0, 10),
+        periodEnd:   periodEnd.toISOString().slice(0, 10),
+        sessions,
+        amount,
+        dueDate:     dueDate.toISOString().slice(0, 10),
+      });
+    }
+
+    // ── 4. INSERT schedule rows + UPDATE session pointers ────────────────────
+    return withTenantContext(tenantId, async (client) => {
+      const scheduleIds = [];
+
+      // Insert rows one cycle at a time — small N (typically 6–12), and the
+      // per-row INSERT keeps Pattern 3 trivially safe (each $N used in one
+      // type context only). ON CONFLICT idempotency via uq_rps_series_cycle.
+      for (const c of cycles) {
+        const { rows } = await client.query(
+          `INSERT INTO bookings.recurring_payment_schedule
+             (tenant_id, recurring_series_id, customer_id,
+              cycle_number, period_start, period_end,
+              amount_due, due_date,
+              status, payment_timing, migration_source)
+           VALUES
+             ($1::int, $2::uuid, $3::uuid,
+              $4::int, $5::date, $6::date,
+              $7::numeric, $8::date,
+              'pending', $9::varchar, 'feature_c')
+           ON CONFLICT (recurring_series_id, cycle_number)
+             WHERE recurring_series_id IS NOT NULL AND cycle_number IS NOT NULL
+             DO NOTHING
+           RETURNING id::text`,
+          [
+            tenantId, series_id, customer_id,
+            c.cycleNumber, c.periodStart, c.periodEnd,
+            String(c.amount), c.dueDate,
+            payment_timing,
+          ]
+        );
+        if (rows[0]) scheduleIds.push(rows[0].id);
+      }
+
+      // Tag every confirmed_booking in this series with its cycle. Range join
+      // is single-pass — UPDATE ... FROM with a derived table. Idempotent:
+      // re-running on already-tagged sessions just rewrites the same value.
+      const { rowCount: tagged } = await client.query(
+        `UPDATE bookings.confirmed_bookings cb
+            SET payment_schedule_id = rps.id,
+                updated_at          = NOW()
+           FROM bookings.recurring_payment_schedule rps
+          WHERE cb.recurring_series_id = $1::uuid
+            AND cb.tenant_id           = $2
+            AND rps.recurring_series_id = cb.recurring_series_id
+            AND rps.tenant_id           = cb.tenant_id
+            AND cb.booking_date BETWEEN rps.period_start AND rps.period_end`,
+        [series_id, tenantId]
+      );
+
+      console.log(`[recurring] seed-cycle-schedule: series=${series_id} cycles=${cycles.length} schedule_inserted=${scheduleIds.length} sessions_tagged=${tagged}`);
+
+      return {
+        success: true,
+        data: {
+          cycle_count:     cycles.length,
+          sessions_tagged: tagged,
+          schedule_ids:    scheduleIds,
+          cycles,   // echo cycle definitions for n8n / frontend display
+        },
+      };
     });
   });
 

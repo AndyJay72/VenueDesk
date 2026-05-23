@@ -57,39 +57,48 @@ ALTER TABLE bookings.recurring_series
 
 Existing rows default to `in_full`, `cycle_length_weeks = NULL` — non-breaking.
 
-### 3.2 New table — `bookings.recurring_payment_schedule`
+### 3.2 `bookings.recurring_payment_schedule` — EXTEND existing Phase 3 table
 
+**Reality check (2026-05-23 diagnostic):** Phase 3 already shipped this table with rich columns and RLS enforced. Feature C must EXTEND it, not recreate it. Canonical column names below are the existing Phase 3 names — the design doc previously invented alternates (`cycle_start_date`, `amount`) that don't exist.
+
+**Existing columns (Phase 3, do not rename):**
+- `id UUID PK`, `tenant_id INT NOT NULL`
+- `recurring_series_id UUID` (FK to series, our anchor for Feature C — also `recurring_rule_id UUID` FK to legacy rules table)
+- `customer_id UUID NOT NULL` (FK to customers)
+- `cycle_number INT`
+- `period_start DATE NOT NULL`, `period_end DATE NOT NULL` *(Feature C "cycle dates")*
+- `amount_due NUMERIC(10,2) NOT NULL` *(Feature C "cycle amount")*
+- `due_date DATE NOT NULL`
+- `status TEXT NOT NULL DEFAULT 'pending'`
+- `paid_at TIMESTAMPTZ`, `created_at`, `updated_at`
+- `series_reference VARCHAR(255)`, `migration_source TEXT`, `billing_day INT`, `upfront_paid BOOLEAN`, `total_cycles INT`, `remaining_cycles INT`, `payment_timing VARCHAR(20)`, `reminder_sent_at TIMESTAMPTZ`, `override_by TEXT`, `override_note TEXT`
+- RLS forced ✓, policy `tenant_isolation_policy` ✓
+- UNIQUE `(recurring_series_id, cycle_number) WHERE both NOT NULL` ✓
+
+**Migration 020 ADDS (only):**
 ```sql
-CREATE TABLE bookings.recurring_payment_schedule (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  recurring_series_id UUID NOT NULL REFERENCES bookings.recurring_series(id) ON DELETE CASCADE,
-  cycle_number        INT  NOT NULL,                    -- 1, 2, 3, ...
-  cycle_start_date    DATE NOT NULL,
-  cycle_end_date      DATE NOT NULL,
-  sessions_count      INT  NOT NULL,                    -- sessions in this cycle
-  amount              NUMERIC(10,2) NOT NULL,
-  due_date            DATE NOT NULL,                    -- cycle_start - 7d (advance) or cycle_end + 7d (arrears)
-  status              TEXT NOT NULL DEFAULT 'scheduled'
-    CHECK (status IN ('scheduled','sent','paid','failed','overdue','cancelled')),
-  stripe_session_id   TEXT NULL,
-  paid_at             TIMESTAMPTZ NULL,
-  attempt_count       INT  NOT NULL DEFAULT 0,
-  last_attempt_at     TIMESTAMPTZ NULL,
-  tenant_id           INT  NOT NULL,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (recurring_series_id, cycle_number)
-);
+ALTER TABLE bookings.recurring_payment_schedule
+  ADD COLUMN IF NOT EXISTS stripe_session_id TEXT,        -- cs_... (Checkout) or pi_... (off-session)
+  ADD COLUMN IF NOT EXISTS attempt_count     INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_attempt_at   TIMESTAMPTZ;
 
-CREATE INDEX idx_rps_due_status_tenant
+CREATE INDEX IF NOT EXISTS idx_rps_due_status_tenant
   ON bookings.recurring_payment_schedule(due_date, status, tenant_id);
-
-ALTER TABLE bookings.recurring_payment_schedule ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bookings.recurring_payment_schedule FORCE  ROW LEVEL SECURITY;
-
-CREATE POLICY rps_tenant_isolation ON bookings.recurring_payment_schedule
-  FOR ALL USING (tenant_id = current_setting('app.tenant_id')::int);
 ```
+
+**Status enum (EXTENDED via DROP + ADD CHECK):**
+
+Existing: `('pending','paid','overridden','cancelled','overdue')`
+**New union**: `('pending','sent','paid','failed','overridden','cancelled','overdue')`
+
+State mapping:
+- `pending` = cron hasn't attempted yet (initial state for all newly-inserted cycles)
+- `sent` *(new)* = Stripe session/PaymentIntent created, awaiting customer / off-session confirmation
+- `paid` = customer/off-session charge completed
+- `failed` *(new)* = card declined or PaymentIntent failed
+- `overdue` = past `due_date` with status still `pending` or `failed` (escalation state)
+- `overridden` = staff manual override (existing, preserved)
+- `cancelled` = series cancelled before this cycle billed
 
 ### 3.3 `confirmed_bookings` — add cycle pointer (DRY: avoid joining through schedule for every session lookup)
 

@@ -78,19 +78,28 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     const {
       booking_id,
       customer_id,
-      recurring_series_id,   // NEW — bulk-payment path for "Create Series (Full Cycle Payment)"
+      recurring_series_id,   // bulk-payment path — "Create Series (Full Cycle Payment)"
+      cycle_id,              // Feature C — per-cycle payment path (recurring_payment_schedule.id)
+      payment_timing,        // Feature C — 'in_full' | 'in_advance' | 'in_arrears'
       amount,
       description,
       success_url,
       cancel_url,
     } = req.body || {};
 
-    // Dual-ingestion: amount may arrive as a number ("£12.50" from a sloppy
-    // legacy panel, "12.50", 12.5, or 1250 in pence). coerceNumeric strips
-    // currency symbols + commas, then we validate. Single source of truth
-    // for the rest of the function.
+    // Feature C mode selection
+    //   in_arrears  → SetupIntent (£0 card capture, no charge)
+    //   in_advance  → Checkout with setup_future_usage='off_session'
+    //                 (charges cycle 1 + saves card for cycles 2..N)
+    //   in_full     → Checkout (one-off charge, no card persistence)
+    //   <unset>     → Checkout (legacy bulk path, no card persistence)
+    const isSetupMode = payment_timing === 'in_arrears';
+    const saveCardForFuture = payment_timing === 'in_advance';
+
+    // Amount required for all Checkout modes EXCEPT setup mode (£0 SetupIntent).
+    // coerceNumeric strips £/commas, defaults to 0 — single source of truth.
     const safeAmount = coerceNumeric(amount, { fallback: 0, min: 0, scale: 2 });
-    if (safeAmount <= 0) {
+    if (!isSetupMode && safeAmount <= 0) {
       return reply.code(400).send({ success: false, message: 'amount must be > 0' });
     }
 
@@ -118,20 +127,15 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     }
 
     const stripe       = Stripe(cfg.stripe_secret_key);
-    const amountPence  = Math.round(safeAmount * 100);   // coerced above
+    const amountPence  = Math.round(safeAmount * 100);
     const frontendBase = process.env.FRONTEND_URL || 'https://andyjay72.github.io/VenueDesk';
 
-    const session = await stripe.checkout.sessions.create({
+    // Build Checkout params with Feature C branching baked in. Single .create()
+    // call across all four paths — DRY win over multiple call sites with
+    // divergent parameters.
+    const checkoutParams = {
       payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency:     'gbp',
-          unit_amount:  amountPence,
-          product_data: { name: description || 'Venue Booking Payment' },
-        },
-        quantity: 1,
-      }],
-      mode:        'payment',
+      mode:        isSetupMode ? 'setup' : 'payment',
       success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  cancel_url  || `${frontendBase}/calendar.html`,
       metadata: {
@@ -139,12 +143,67 @@ module.exports = async function stripeRoutes(fastify, _opts) {
         booking_id:          String(booking_id           || ''),
         customer_id:         String(customer_id          || ''),
         recurring_series_id: String(recurring_series_id  || ''),
-        source:              recurring_series_id ? 'calendar_recurring' : 'calendar',
+        cycle_id:            String(cycle_id             || ''),
+        payment_timing:      String(payment_timing       || ''),
+        source:              cycle_id             ? 'calendar_cycle'
+                           : recurring_series_id  ? 'calendar_recurring'
+                           : 'calendar',
       },
-    });
+    };
 
-    // Audit log — entity flips to 'recurring_series' for bulk-payment sessions
-    // so the audit ledger groups by the correct entity type for reporting.
+    if (isSetupMode) {
+      // SetupIntent — no line_items, no amount. Stripe collects card and
+      // returns a PaymentMethod attached to a (new) Customer object. The
+      // webhook reads session.customer + session.setup_intent.payment_method
+      // to persist both IDs to bookings.customers.
+      // Mirror metadata onto the SetupIntent itself so off-session cron
+      // charges later have the linkage even though the parent session is
+      // months old by then.
+      checkoutParams.setup_intent_data = {
+        metadata: {
+          tenant_id:           String(tenantId),
+          customer_id:         String(customer_id || ''),
+          recurring_series_id: String(recurring_series_id || ''),
+          payment_timing:      'in_arrears',
+        },
+      };
+    } else {
+      // Payment mode — needs line items + price.
+      checkoutParams.line_items = [{
+        price_data: {
+          currency:     'gbp',
+          unit_amount:  amountPence,
+          product_data: { name: description || 'Venue Booking Payment' },
+        },
+        quantity: 1,
+      }];
+
+      // For in_advance: also save the card on file so cycles 2..N can be
+      // billed off-session by the cron sweep. setup_future_usage='off_session'
+      // is the Stripe-native way to do this in one Checkout flow.
+      if (saveCardForFuture) {
+        checkoutParams.payment_intent_data = {
+          setup_future_usage: 'off_session',
+          metadata: {
+            tenant_id:           String(tenantId),
+            customer_id:         String(customer_id || ''),
+            recurring_series_id: String(recurring_series_id || ''),
+            cycle_id:            String(cycle_id || ''),
+            payment_timing:      'in_advance',
+          },
+        };
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(checkoutParams);
+
+    // Audit log — entity flips by specificity: cycle > series > booking.
+    // Lets reporting tools group cycle-level events independently of series
+    // events, without needing a join through metadata.
+    const auditEntity = cycle_id             ? 'recurring_payment_cycle'
+                      : recurring_series_id  ? 'recurring_series'
+                      : 'booking';
+    const auditId     = cycle_id || recurring_series_id || booking_id || null;
     await withTenantContext(tenantId, (client) =>
       client.query(
         `INSERT INTO bookings.audit_log
@@ -152,21 +211,29 @@ module.exports = async function stripeRoutes(fastify, _opts) {
          VALUES ($1, 'stripe_session_created', $2, $3, $4, $5, $6)`,
         [
           tenantId,
-          recurring_series_id ? 'recurring_series' : 'booking',
-          recurring_series_id || booking_id || null,
+          auditEntity,
+          auditId,
           JSON.stringify({
-            amount:     safeAmount,
-            session_id: session.id,
+            amount:              isSetupMode ? 0 : safeAmount,
+            mode:                checkoutParams.mode,
+            session_id:          session.id,
             customer_id:         customer_id         || null,
             recurring_series_id: recurring_series_id || null,
+            cycle_id:            cycle_id            || null,
+            payment_timing:      payment_timing      || null,
           }),
           staffUser,
-          recurring_series_id ? 'calendar_recurring' : 'calendar',
+          checkoutParams.metadata.source,
         ]
       )
     );
 
-    return reply.send({ success: true, url: session.url, session_id: session.id });
+    return reply.send({
+      success:    true,
+      url:        session.url,
+      session_id: session.id,
+      mode:       checkoutParams.mode,
+    });
   });
 
   // ── POST /stripe/public-session ─────────────────────────────────────────────
@@ -315,13 +382,174 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       const bookingId    = session.metadata?.booking_id           || null;
       const requestId    = session.metadata?.booking_request_id   || null;
       const seriesId     = session.metadata?.recurring_series_id  || null;
+      const cycleId      = session.metadata?.cycle_id             || null;   // Feature C
+      const paymentTiming = session.metadata?.payment_timing      || null;   // Feature C
       const customerId   = session.metadata?.customer_id          || null;
+      const sessionMode  = session.mode                           || 'payment';
+      const stripeCustId = session.customer                       || null;   // cus_...
       const amountPaid   = (session.amount_total || 0) / 100;
       const source       = session.metadata?.source               || 'calendar';
+
+      // For Feature C in_advance + in_arrears: extract the saved PaymentMethod
+      // from the SetupIntent or PaymentIntent. Required for off-session cycle
+      // charges via cron. setup_intent / payment_intent IDs come from Stripe;
+      // we fetch the full object to get .payment_method.
+      // Done OUTSIDE the withTenantContext block to keep the DB transaction tight.
+      let savedPaymentMethodId = null;
+      if (stripeCustId && (sessionMode === 'setup' || paymentTiming === 'in_advance')) {
+        try {
+          const Stripe = require('stripe');
+          const tenantCfg = await withTenantContext(metaTenantId, (client) =>
+            client.query('SELECT stripe_secret_key FROM bookings.tenants WHERE tenant_id=$1 LIMIT 1', [metaTenantId])
+          );
+          const sk = tenantCfg.rows[0]?.stripe_secret_key;
+          if (sk) {
+            const stripeClient = Stripe(sk);
+            if (sessionMode === 'setup' && session.setup_intent) {
+              const si = await stripeClient.setupIntents.retrieve(session.setup_intent);
+              savedPaymentMethodId = si.payment_method || null;
+            } else if (session.payment_intent) {
+              const pi = await stripeClient.paymentIntents.retrieve(session.payment_intent);
+              savedPaymentMethodId = pi.payment_method || null;
+            }
+          }
+        } catch (e) {
+          console.warn('[webhook] PaymentMethod extraction failed:', e.message);
+        }
+      }
 
       if (metaTenantId) {
         try {
           await withTenantContext(metaTenantId, async (client) => {
+            // ── Branch 0 (NEW Feature C) — PER-CYCLE PAYMENT ───────────────
+            // Triggered by metadata.cycle_id set in /stripe/session for an
+            // in_advance cycle Checkout. Flips that cycle's schedule row to
+            // 'paid', confirms only that cycle's sessions (joined via
+            // payment_schedule_id FK from migration 020), inserts payments row
+            // pinned to first session in the cycle. Most specific branch — runs
+            // before recurring_series (which would otherwise sweep all cycles).
+            //
+            // Pattern 3: $1 (cycleId) is UUID context only; reference_number
+            // ($2) is text only — no shared-param type contexts.
+            if (cycleId) {
+              // 1. Mark schedule row paid + record stripe_session_id
+              await client.query(
+                `UPDATE bookings.recurring_payment_schedule
+                    SET status            = 'paid',
+                        paid_at           = NOW(),
+                        stripe_session_id = $2::text,
+                        updated_at        = NOW()
+                  WHERE id        = $1::uuid
+                    AND tenant_id = $3`,
+                [cycleId, session.id, metaTenantId]
+              );
+
+              // 2. Confirm sessions in this cycle (via payment_schedule_id FK)
+              await client.query(
+                `UPDATE bookings.confirmed_bookings
+                    SET status       = 'confirmed',
+                        deposit_paid = total_amount,
+                        balance_due  = 0,
+                        updated_at   = NOW()
+                  WHERE payment_schedule_id = $1::uuid
+                    AND tenant_id           = $2
+                    AND status              = 'pending'`,
+                [cycleId, metaTenantId]
+              );
+
+              // 3. Insert payments row — booking_id = first session in cycle
+              // for join stability. payment_type='cycle' (new enum value).
+              // NOT EXISTS idempotency guard on reference_number.
+              await client.query(
+                `INSERT INTO bookings.payments
+                   (booking_id, recurring_series_id, customer_id, amount,
+                    payment_method, payment_type, status, reference_number, tenant_id)
+                 SELECT first_session.id, rps.recurring_series_id, rps.customer_id,
+                        rps.amount_due, 'card', 'cycle', 'received', $2::text, $3
+                 FROM bookings.recurring_payment_schedule rps
+                 LEFT JOIN LATERAL (
+                   SELECT id FROM bookings.confirmed_bookings
+                   WHERE payment_schedule_id = rps.id AND tenant_id = $3
+                   ORDER BY COALESCE(booking_date, date_from) ASC, created_at ASC
+                   LIMIT 1
+                 ) first_session ON TRUE
+                 WHERE rps.id        = $1::uuid
+                   AND rps.tenant_id = $3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM bookings.payments
+                     WHERE reference_number = $2::text AND tenant_id = $3
+                   )`,
+                [cycleId, session.id, metaTenantId]
+              );
+
+              // 4. Recompute series balance from remaining unpaid schedule rows
+              await client.query(
+                `UPDATE bookings.recurring_series rs
+                    SET balance_due = COALESCE((
+                          SELECT SUM(amount_due) FROM bookings.recurring_payment_schedule
+                          WHERE recurring_series_id = rs.id
+                            AND tenant_id           = rs.tenant_id
+                            AND status NOT IN ('paid','cancelled','overridden')
+                        ), 0),
+                        updated_at = NOW()
+                  WHERE rs.id IN (
+                    SELECT recurring_series_id FROM bookings.recurring_payment_schedule
+                    WHERE id = $1::uuid AND tenant_id = $2
+                  )
+                    AND rs.tenant_id = $2`,
+                [cycleId, metaTenantId]
+              );
+
+              // 5. Persist Stripe customer + saved PaymentMethod (in_advance
+              // saves card for cycles 2..N). customerId from metadata feeds
+              // the WHERE; stripeCustId + savedPaymentMethodId are the values.
+              if (customerId && stripeCustId) {
+                await client.query(
+                  `UPDATE bookings.customers
+                      SET stripe_customer_id        = COALESCE(stripe_customer_id, $2),
+                          default_payment_method_id = COALESCE($3, default_payment_method_id),
+                          updated_at                = NOW()
+                    WHERE id        = $1::uuid
+                      AND tenant_id = $4`,
+                  [customerId, stripeCustId, savedPaymentMethodId, metaTenantId]
+                );
+              }
+
+              console.log(`[webhook] Cycle paid: cycle_id=${cycleId} amount=£${amountPaid} session=${session.id} tenant=${metaTenantId}`);
+              return;   // done with this event — skip the legacy branches
+            }
+
+            // ── Branch 0b (NEW Feature C) — SETUP INTENT (in_arrears) ───────
+            // Triggered by sessionMode='setup' from /stripe/session for
+            // payment_timing='in_arrears'. £0 captured — purpose is to save the
+            // card for off-session cycle charges. Persist Stripe IDs + flip
+            // card_on_file_at on the series. NO payments row (no money moved).
+            if (sessionMode === 'setup') {
+              if (customerId && stripeCustId) {
+                await client.query(
+                  `UPDATE bookings.customers
+                      SET stripe_customer_id        = COALESCE(stripe_customer_id, $2),
+                          default_payment_method_id = COALESCE($3, default_payment_method_id),
+                          updated_at                = NOW()
+                    WHERE id        = $1::uuid
+                      AND tenant_id = $4`,
+                  [customerId, stripeCustId, savedPaymentMethodId, metaTenantId]
+                );
+              }
+              if (seriesId) {
+                await client.query(
+                  `UPDATE bookings.recurring_series
+                      SET card_on_file_at = COALESCE(card_on_file_at, NOW()),
+                          updated_at      = NOW()
+                    WHERE id        = $1::uuid
+                      AND tenant_id = $2`,
+                  [seriesId, metaTenantId]
+                );
+              }
+              console.log(`[webhook] SetupIntent saved: customer=${customerId} stripe_customer=${stripeCustId} pm=${savedPaymentMethodId} series=${seriesId} tenant=${metaTenantId}`);
+              return;   // done — no charge, no payments row
+            }
+
             // ── Branch 1 — RECURRING SERIES (bulk payment) ─────────────────
             // Triggered by metadata.recurring_series_id set in /stripe/session
             // for "Create Series (Full Cycle Payment)". Bulk-confirms every
@@ -364,12 +592,17 @@ module.exports = async function stripeRoutes(fastify, _opts) {
               // anchor for per-booking joins without requiring a schema change.
               // customer_id is derived from the series itself (self-healing,
               // mirrors the bookingId branch's COALESCE($2::uuid, cb.customer_id)).
+              //
+              // ⚠ Pattern 3 — $4 (session.id) is used in TWO contexts (column
+              // value in SELECT and comparison in NOT EXISTS). Explicit ::text
+              // cast on BOTH usages forces unified type inference and avoids
+              // PostgreSQL 42P08 ("inconsistent types deduced for parameter $4").
               await client.query(
                 `INSERT INTO bookings.payments
                    (booking_id, recurring_series_id, customer_id, amount,
                     payment_method, payment_type, status, reference_number, tenant_id)
                  SELECT first_session.id, $1::uuid, rs.customer_id, $3::numeric,
-                        'card', 'full', 'received', $4, $2
+                        'card', 'full', 'received', $4::text, $2
                  FROM bookings.recurring_series rs
                  LEFT JOIN LATERAL (
                    SELECT id FROM bookings.confirmed_bookings
@@ -380,17 +613,20 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                  WHERE rs.id = $1::uuid AND rs.tenant_id = $2
                    AND NOT EXISTS (
                      SELECT 1 FROM bookings.payments
-                     WHERE reference_number = $4 AND tenant_id = $2
+                     WHERE reference_number = $4::text AND tenant_id = $2
                    )`,
                 [seriesId, metaTenantId, amountPaid, session.id]
               );
 
-              await logger.info(
-                'StripeWebhook',
-                `Recurring series bulk-paid: ${seriesId} — £${amountPaid}`,
-                { recurring_series_id: seriesId, amount: amountPaid, session_id: session.id, tenant_id: metaTenantId },
-                metaTenantId
-              );
+              // Use console.log — matches the pattern used by the other 4 catch
+              // blocks in this handler (lines 494/531/556/574). Calling logger
+              // here would throw ReferenceError because LoggerService is not
+              // imported in stripe.js; that throw would bubble up to
+              // withTenantContext's transaction wrapper and ROLLBACK every
+              // preceding UPDATE/UPDATE/INSERT. The bulk webhook silently
+              // un-paying itself is exactly the failure mode that produced
+              // the Learning & Dev + Eleanor Vance stuck-series incident.
+              console.log(`[webhook] Recurring series bulk-paid: ${seriesId} — £${amountPaid} (session ${session.id}, tenant ${metaTenantId})`);
             } else if (bookingId) {
               // customer_id derived from the booking row itself (self-healing)
               // — metadata.customer_id used only as override when present. This
@@ -567,6 +803,133 @@ module.exports = async function stripeRoutes(fastify, _opts) {
           });
         } catch (e) {
           console.error('[webhook] DB error:', e.message);
+        }
+      }
+    }
+
+    // ── EVENT: payment_intent.succeeded ─────────────────────────────────────
+    // Feature C — fired when the cron sweep charges a saved card off-session
+    // via stripe.paymentIntents.create({ confirm: true, off_session: true }).
+    // The PaymentIntent carries metadata.cycle_id (planted at creation time
+    // by /stripe/cycle-session, see task #120). This handler mirrors the
+    // checkout cycle_id branch but reads from the PaymentIntent object
+    // instead of the Checkout Session.
+    //
+    // Idempotent via NOT EXISTS on reference_number — replayed webhooks
+    // never produce duplicate payments rows.
+    if (event?.type === 'payment_intent.succeeded') {
+      const pi             = event.data?.object || {};
+      const piMetaTenant   = parseInt(pi.metadata?.tenant_id || tenantId || '0', 10) || null;
+      const piCycleId      = pi.metadata?.cycle_id || null;
+      const piCustomerId   = pi.metadata?.customer_id || null;
+      const piAmount       = (pi.amount_received || pi.amount || 0) / 100;
+
+      if (piMetaTenant && piCycleId) {
+        try {
+          await withTenantContext(piMetaTenant, async (client) => {
+            // 1. Mark schedule row paid
+            await client.query(
+              `UPDATE bookings.recurring_payment_schedule
+                  SET status            = 'paid',
+                      paid_at           = NOW(),
+                      stripe_session_id = $2::text,
+                      updated_at        = NOW()
+                WHERE id        = $1::uuid
+                  AND tenant_id = $3`,
+              [piCycleId, pi.id, piMetaTenant]
+            );
+
+            // 2. Confirm sessions in this cycle (via payment_schedule_id FK)
+            await client.query(
+              `UPDATE bookings.confirmed_bookings
+                  SET status       = 'confirmed',
+                      deposit_paid = total_amount,
+                      balance_due  = 0,
+                      updated_at   = NOW()
+                WHERE payment_schedule_id = $1::uuid
+                  AND tenant_id           = $2
+                  AND status              = 'pending'`,
+              [piCycleId, piMetaTenant]
+            );
+
+            // 3. Insert payments row — pi.id as reference_number (idempotent)
+            await client.query(
+              `INSERT INTO bookings.payments
+                 (booking_id, recurring_series_id, customer_id, amount,
+                  payment_method, payment_type, status, reference_number, tenant_id)
+               SELECT first_session.id, rps.recurring_series_id, rps.customer_id,
+                      rps.amount_due, 'card', 'cycle', 'received', $2::text, $3
+               FROM bookings.recurring_payment_schedule rps
+               LEFT JOIN LATERAL (
+                 SELECT id FROM bookings.confirmed_bookings
+                 WHERE payment_schedule_id = rps.id AND tenant_id = $3
+                 ORDER BY COALESCE(booking_date, date_from) ASC, created_at ASC
+                 LIMIT 1
+               ) first_session ON TRUE
+               WHERE rps.id        = $1::uuid
+                 AND rps.tenant_id = $3
+                 AND NOT EXISTS (
+                   SELECT 1 FROM bookings.payments
+                   WHERE reference_number = $2::text AND tenant_id = $3
+                 )`,
+              [piCycleId, pi.id, piMetaTenant]
+            );
+
+            // 4. Recompute series balance
+            await client.query(
+              `UPDATE bookings.recurring_series rs
+                  SET balance_due = COALESCE((
+                        SELECT SUM(amount_due) FROM bookings.recurring_payment_schedule
+                        WHERE recurring_series_id = rs.id
+                          AND tenant_id           = rs.tenant_id
+                          AND status NOT IN ('paid','cancelled','overridden')
+                      ), 0),
+                      updated_at = NOW()
+                WHERE rs.id IN (
+                  SELECT recurring_series_id FROM bookings.recurring_payment_schedule
+                  WHERE id = $1::uuid AND tenant_id = $2
+                )
+                  AND rs.tenant_id = $2`,
+              [piCycleId, piMetaTenant]
+            );
+
+            console.log(`[webhook] Off-session cycle paid: cycle_id=${piCycleId} amount=£${piAmount} pi=${pi.id} tenant=${piMetaTenant}`);
+          });
+        } catch (e) {
+          console.error('[webhook] payment_intent.succeeded DB error:', e.message);
+        }
+      }
+    }
+
+    // ── EVENT: payment_intent.payment_failed ────────────────────────────────
+    // Feature C — off-session charge declined. Flip schedule row to 'failed',
+    // increment attempt_count, surface for staff via system_logs. Cron sweep
+    // will retry on next run (subject to attempt_count threshold — handled
+    // in cron logic, not here).
+    if (event?.type === 'payment_intent.payment_failed') {
+      const pi           = event.data?.object || {};
+      const piMetaTenant = parseInt(pi.metadata?.tenant_id || tenantId || '0', 10) || null;
+      const piCycleId    = pi.metadata?.cycle_id || null;
+      const failReason   = pi.last_payment_error?.message || 'unknown';
+
+      if (piMetaTenant && piCycleId) {
+        try {
+          await withTenantContext(piMetaTenant, async (client) => {
+            await client.query(
+              `UPDATE bookings.recurring_payment_schedule
+                  SET status            = 'failed',
+                      stripe_session_id = $2::text,
+                      attempt_count     = attempt_count + 1,
+                      last_attempt_at   = NOW(),
+                      updated_at        = NOW()
+                WHERE id        = $1::uuid
+                  AND tenant_id = $3`,
+              [piCycleId, pi.id, piMetaTenant]
+            );
+            console.warn(`[webhook] Cycle charge failed: cycle_id=${piCycleId} pi=${pi.id} reason="${failReason}"`);
+          });
+        } catch (e) {
+          console.error('[webhook] payment_intent.payment_failed DB error:', e.message);
         }
       }
     }
