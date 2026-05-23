@@ -1,0 +1,282 @@
+{
+  "name": "VenueDesk - Cycle Sweep (Daily)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "csc-schedule-001",
+      "name": "Schedule: Daily 06:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [-880, 0],
+      "notes": "Feature C cron sweep. Charges due cycles off-session against saved cards. Runs once a day before business hours so customers wake up to receipts, not failures."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/recurring/cycles/due",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CYCLE_SWEEP_SERVICE_JWT }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "days_ahead", "value": "0" },
+            { "name": "limit", "value": "200" }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "csc-get-due-001",
+      "name": "HTTP: GET /recurring/cycles/due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [-680, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the data[] array from the API envelope so Split-Out can iterate.\n// API shape: { success, data: [...], count }\n// Each cycle item becomes a separate workflow item downstream.\nconst body = $input.first().json;\nconst cycles = Array.isArray(body?.data) ? body.data : [];\n\nif (cycles.length === 0) {\n  // Emit a single marker item so the workflow doesn't dead-end with zero items\n  // (audit log node still needs to fire with the 'nothing to do' result).\n  return [{ json: { _no_cycles: true, count: 0 } }];\n}\n\nreturn cycles.map(c => ({ json: c }));"
+      },
+      "id": "csc-extract-cycles-001",
+      "name": "Code: Extract Cycles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "no-cycles-guard",
+              "leftValue": "={{ $json._no_cycles }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "csc-if-empty-001",
+      "name": "IF: No Cycles Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-280, 0]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "csc-split-batches-001",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-80, 100],
+      "notes": "One cycle per iteration. Serial processing keeps Stripe rate limits comfortable and makes per-cycle errors easier to trace in execution history."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/stripe/cycle-session",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CYCLE_SWEEP_SERVICE_JWT }}"
+            },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ cycle_id: $json.cycle_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "csc-post-cycle-session-001",
+      "name": "HTTP: POST /stripe/cycle-session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [120, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "success-check",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "csc-if-success-001",
+      "name": "IF: Charge Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [320, 100],
+      "notes": "TRUE → log success and loop. FALSE → trigger #122 email workflow (TODO) and log failure. For v1 both paths just log + loop; email branch deferred."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build summary line for audit. Combines cycle context (from Split input)\n// with the API response (from current item). The cycle context isn't on\n// $json after the HTTP node — pull it from the splitInBatches input.\nconst batch    = $('Split In Batches').item.json;\nconst response = $json;\n\nreturn [{\n  json: {\n    cycle_id:       batch.cycle_id,\n    series_name:    batch.series_name,\n    customer_name:  batch.customer_name,\n    amount_due:     batch.amount_due,\n    outcome:        response.success ? 'CHARGED' : (response.code || 'FAILED'),\n    pi_id:          response.data?.payment_intent_id || null,\n    pi_status:      response.data?.status || null,\n    requires_action: response.data?.requires_action || false,\n    error_message:  response.message || null,\n  }\n}];"
+      },
+      "id": "csc-format-result-001",
+      "name": "Code: Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/audit/log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.CYCLE_SWEEP_SERVICE_JWT }}"
+            },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ action: 'cycle_sweep_result', entity: 'recurring_payment_cycle', entity_id: $json.cycle_id, payload: $json, source: 'cron_sweep' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "csc-audit-log-001",
+      "name": "HTTP: POST /audit/log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [720, 100],
+      "notes": "Logs to bookings.audit_log via the existing audit-write endpoint. If /audit/log isn't implemented yet, neverError=true means this no-ops cleanly without breaking the sweep."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final summary — fires once after the last batch.\n// Counts outcomes across all items processed by Format Result.\nconst items = $items('Code: Format Result');\nconst charged   = items.filter(i => i.json.outcome === 'CHARGED').length;\nconst failed    = items.filter(i => i.json.outcome !== 'CHARGED').length;\nconst needs3ds  = items.filter(i => i.json.requires_action === true).length;\n\nconsole.log(`[cycle-sweep] DONE — charged=${charged} failed=${failed} requires_action=${needs3ds} total=${items.length}`);\n\nreturn [{ json: { charged, failed, requires_action: needs3ds, total: items.length, ran_at: new Date().toISOString() } }];"
+      },
+      "id": "csc-summary-001",
+      "name": "Code: Final Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-80, -120]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule: Daily 06:00 UTC": {
+      "main": [
+        [{ "node": "HTTP: GET /recurring/cycles/due", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: GET /recurring/cycles/due": {
+      "main": [
+        [{ "node": "Code: Extract Cycles", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code: Extract Cycles": {
+      "main": [
+        [{ "node": "IF: No Cycles Today?", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF: No Cycles Today?": {
+      "main": [
+        [{ "node": "Code: Final Summary", "type": "main", "index": 0 }],
+        [{ "node": "Split In Batches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [{ "node": "Code: Final Summary", "type": "main", "index": 0 }],
+        [{ "node": "HTTP: POST /stripe/cycle-session", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: POST /stripe/cycle-session": {
+      "main": [
+        [{ "node": "IF: Charge Succeeded?", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF: Charge Succeeded?": {
+      "main": [
+        [{ "node": "Code: Format Result", "type": "main", "index": 0 }],
+        [{ "node": "Code: Format Result", "type": "main", "index": 0 }]
+      ]
+    },
+    "Code: Format Result": {
+      "main": [
+        [{ "node": "HTTP: POST /audit/log", "type": "main", "index": 0 }]
+      ]
+    },
+    "HTTP: POST /audit/log": {
+      "main": [
+        [{ "node": "Split In Batches", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "cycle-sweep-v1-2026-05-24"
+}

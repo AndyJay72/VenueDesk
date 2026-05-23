@@ -1720,6 +1720,79 @@ async function recurringRoutes(fastify) {
   //                    series_reference, monthly_amount_due,
   //                    customer_id, customer_name, customer_email, customer_phone,
   //                    room_name, tenant_id}], count }
+
+
+  // ─── GET /recurring/cycles/due ───────────────────────────────────────────
+  // Feature C — read endpoint for the daily cron sweep (n8n #121).
+  // Returns schedule rows where due_date <= today + days_ahead AND status='pending',
+  // joined with parent series + customer to give the cron everything it needs
+  // to POST /stripe/cycle-session per row.
+  //
+  // Filtered to 'pending' only — 'failed'/'overdue' need explicit staff retry
+  // via force_retry=true on /stripe/cycle-session (prevents the cron from
+  // unintentionally re-billing a card that's already declined N times).
+  //
+  // Auth: server-to-server (Authorization Bearer per Pattern 4 scope). Tenant
+  // isolation enforced by JWT claim → RLS filter; for v1 the cron runs per
+  // tenant. Multi-tenant orchestration is a v2 problem (see task #126 for
+  // the broader scheduling model).
+  //
+  // Query:
+  //   days_ahead  integer  default 0   — look-ahead window (0 = due today)
+  //   limit       integer  default 200 — safety cap per sweep
+  //
+  // Returns: { success, data: [...], count }
+  fastify.get('/cycles/due', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          days_ahead: { type: 'integer', minimum: 0, maximum: 30,  default: 0   },
+          limit:      { type: 'integer', minimum: 1, maximum: 500, default: 200 },
+        },
+      },
+    },
+  }, async (request) => {
+    const tenantId = request.user.tenant_id;
+    const { days_ahead = 0, limit = 200 } = request.query;
+
+    return withTenantContext(tenantId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT
+           rps.id::text                AS cycle_id,
+           rps.recurring_series_id::text AS series_id,
+           rps.customer_id::text       AS customer_id,
+           rps.cycle_number            AS cycle_number,
+           rps.period_start::text      AS period_start,
+           rps.period_end::text        AS period_end,
+           rps.amount_due::text        AS amount_due,
+           rps.due_date::text          AS due_date,
+           rps.status                  AS status,
+           rps.attempt_count           AS attempt_count,
+           rps.payment_timing          AS payment_timing,
+           rs.series_name              AS series_name,
+           c.full_name                 AS customer_name,
+           c.email                     AS customer_email,
+           (c.stripe_customer_id IS NOT NULL
+             AND c.default_payment_method_id IS NOT NULL) AS has_card_on_file
+         FROM bookings.recurring_payment_schedule rps
+         INNER JOIN bookings.recurring_series rs ON rs.id = rps.recurring_series_id
+         INNER JOIN bookings.customers        c  ON c.id  = rps.customer_id
+         WHERE rps.tenant_id           = $1
+           AND rps.status              = 'pending'
+           AND rps.recurring_series_id IS NOT NULL
+           AND rps.due_date           <= (CURRENT_DATE + ($2::int))::date
+         ORDER BY rps.due_date ASC, rps.cycle_number ASC
+         LIMIT $3::int`,
+        [tenantId, days_ahead, limit]
+      );
+
+      return { success: true, data: rows, count: rows.length };
+    });
+  });
+
+
   fastify.get('/upcoming-reminders', {
     preHandler: [fastify.authenticate],
     schema: {
