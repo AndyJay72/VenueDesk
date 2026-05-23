@@ -236,6 +236,218 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     });
   });
 
+
+  // ── POST /stripe/cycle-session ──────────────────────────────────────────────
+  // Feature C — server-to-server, internal endpoint for the daily cron sweep
+  // (n8n workflow #121, see PER_CYCLE_PAYMENT_DESIGN.md §7 + §10).
+  //
+  // Charges a cycle's amount_due off-session against the customer's saved
+  // PaymentMethod. Pairs with the payment_intent.succeeded / payment_failed
+  // webhook handlers added in #119 — this endpoint creates the PaymentIntent;
+  // the webhook is responsible for confirming the schedule row paid + sessions
+  // confirmed + payments row inserted (single source of truth for state changes,
+  // per architectural invariant: card payments rows created EXCLUSIVELY by webhook).
+  //
+  // Auth: server-to-server only. Uses fastify.authenticate which prefers the
+  // Authorization Bearer header (per Pattern 4 scope rule — body-tunnel is for
+  // browser CORS only; n8n / cron / curl all use the header path). Tenant
+  // isolation enforced via JWT claim.
+  //
+  // Body:
+  //   cycle_id        UUID   required — recurring_payment_schedule.id
+  //   force_retry     bool   optional default false — allow retry on 'failed'/'overdue' status
+  //                                                  (default refuses unless status='pending')
+  //
+  // Flow:
+  //   1. Load schedule row + parent series + customer (single round-trip JOIN)
+  //   2. Verify customer has stripe_customer_id + default_payment_method_id
+  //      (in_arrears SetupIntent should have populated both; if not, the
+  //      customer never completed the setup → 412 PRECONDITION_FAILED)
+  //   3. Verify status retry-eligibility (pending always OK; failed/overdue
+  //      need force_retry=true to prevent unauthorised re-attempts)
+  //   4. Create off-session PaymentIntent (idempotency_key = `cycle_${id}_${attempt+1}`)
+  //   5. Stamp schedule row: status='sent', attempt_count++, last_attempt_at=NOW,
+  //      stripe_session_id=pi.id. Webhook later flips to paid/failed.
+  //   6. Return pi.id + pi.status for the cron to log
+  //
+  // Sync vs async outcomes:
+  //   • pi.status='succeeded' (sync) — webhook will also fire; idempotency
+  //     guard (NOT EXISTS on reference_number) prevents double-write.
+  //   • pi.status='requires_action' (3DS) — flips schedule to 'failed',
+  //     cron-side caller emails customer a reauth link via #122 workflow.
+  //   • Stripe SDK throws (declined, network) — flips schedule to 'failed'
+  //     with last_payment_error.message captured. Returns 200 (cron expects
+  //     200 to continue sweep; failure surfaces in response body + system_logs).
+  //
+  // Returns: { success, data: { payment_intent_id, status, requires_action } }
+  fastify.post('/cycle-session', { preHandler: fastify.authenticate }, async (req, reply) => {
+    const tenantId = req.user.tenant_id;
+    const { cycle_id, force_retry = false } = req.body || {};
+
+    if (!cycle_id || typeof cycle_id !== 'string') {
+      return reply.code(400).send({ success: false, message: 'cycle_id required' });
+    }
+
+    // ── 1. Single-pass load: schedule + series + customer + tenant config ────
+    // One round trip instead of three sequential queries. Uses INNER JOINs
+    // because all three parents are required for a chargeable cycle.
+    const row = await withTenantContext(tenantId, async (client) => {
+      const { rows } = await client.query(
+        `SELECT
+           rps.id::text                     AS cycle_id,
+           rps.status                       AS cycle_status,
+           rps.amount_due::text             AS amount_due,
+           rps.attempt_count                AS attempt_count,
+           rps.period_start::text           AS period_start,
+           rps.period_end::text             AS period_end,
+           rps.cycle_number                 AS cycle_number,
+           rs.id::text                      AS series_id,
+           rs.series_name                   AS series_name,
+           rs.payment_timing                AS payment_timing,
+           c.id::text                       AS customer_id,
+           c.full_name                      AS customer_name,
+           c.stripe_customer_id             AS stripe_customer_id,
+           c.default_payment_method_id      AS default_payment_method_id,
+           t.stripe_secret_key              AS stripe_secret_key,
+           t.is_stripe_enabled              AS is_stripe_enabled
+         FROM bookings.recurring_payment_schedule rps
+         INNER JOIN bookings.recurring_series rs ON rs.id = rps.recurring_series_id
+         INNER JOIN bookings.customers        c  ON c.id  = rps.customer_id
+         INNER JOIN bookings.tenants          t  ON t.tenant_id = rps.tenant_id
+         WHERE rps.id        = $1::uuid
+           AND rps.tenant_id = $2
+         LIMIT 1`,
+        [cycle_id, tenantId]
+      );
+      return rows[0] || null;
+    });
+
+    if (!row) return reply.code(404).send({ success: false, message: 'cycle not found' });
+
+    // ── 2. Preflight gates ───────────────────────────────────────────────────
+    if (!row.is_stripe_enabled || !row.stripe_secret_key) {
+      return reply.code(412).send({ success: false, code: 'STRIPE_DISABLED',
+        message: 'Stripe not enabled for tenant' });
+    }
+    if (!row.stripe_customer_id || !row.default_payment_method_id) {
+      return reply.code(412).send({ success: false, code: 'NO_CARD_ON_FILE',
+        message: `Customer ${row.customer_name} has no saved payment method — SetupIntent never completed`,
+        data: { customer_id: row.customer_id, series_id: row.series_id } });
+    }
+
+    // Status gate — pending is the green-path. failed/overdue need explicit
+    // force_retry to prevent accidental double-billing on cron jitter.
+    const retryEligible = (row.cycle_status === 'pending')
+                       || ((row.cycle_status === 'failed' || row.cycle_status === 'overdue') && force_retry === true);
+    if (!retryEligible) {
+      return reply.code(409).send({ success: false, code: 'NOT_RETRY_ELIGIBLE',
+        message: `cycle status '${row.cycle_status}' not eligible (use force_retry=true for failed/overdue)`,
+        data: { cycle_status: row.cycle_status, attempt_count: row.attempt_count } });
+    }
+
+    let Stripe;
+    try { Stripe = require('stripe'); } catch (e) {
+      return reply.code(500).send({ success: false, message: 'Stripe SDK not installed' });
+    }
+    const stripe     = Stripe(row.stripe_secret_key);
+    const amountPence = Math.round(parseFloat(row.amount_due) * 100);
+    if (amountPence <= 0) {
+      return reply.code(400).send({ success: false, code: 'ZERO_AMOUNT',
+        message: 'cycle amount_due is zero — nothing to charge' });
+    }
+
+    // ── 3. Create off-session PaymentIntent ──────────────────────────────────
+    // idempotency_key includes attempt number so a legitimate retry (force_retry
+    // on a 'failed' cycle) gets a fresh PaymentIntent. Without the attempt suffix,
+    // Stripe would return the original (failed) PaymentIntent and we'd never
+    // re-charge.
+    let pi;
+    let stripeError = null;
+    try {
+      pi = await stripe.paymentIntents.create({
+        amount:         amountPence,
+        currency:       'gbp',
+        customer:       row.stripe_customer_id,
+        payment_method: row.default_payment_method_id,
+        confirm:        true,
+        off_session:    true,
+        description:    `${row.series_name} — Cycle ${row.cycle_number} (${row.period_start} → ${row.period_end})`,
+        metadata: {
+          tenant_id:           String(tenantId),
+          cycle_id:            String(row.cycle_id),
+          recurring_series_id: String(row.series_id),
+          customer_id:         String(row.customer_id),
+          payment_timing:      String(row.payment_timing || ''),
+          cycle_number:        String(row.cycle_number),
+          attempt:             String(row.attempt_count + 1),
+        },
+      }, {
+        idempotencyKey: `cycle_${row.cycle_id}_attempt_${row.attempt_count + 1}`,
+      });
+    } catch (err) {
+      // Stripe SDK throws on declined / requires_action when off_session=true.
+      // The PaymentIntent still exists on Stripe's side — extract it if present.
+      stripeError = err;
+      pi = err.raw?.payment_intent || err.payment_intent || null;
+      console.warn(`[cycle-session] PaymentIntent threw: code=${err.code} type=${err.type} msg="${err.message}"`);
+    }
+
+    // ── 4. Stamp schedule row — single UPDATE, always runs regardless of outcome.
+    //     Webhook will further mutate to 'paid' on payment_intent.succeeded.
+    //     stripe_session_id field holds pi.id (column name predates Feature C —
+    //     repurposed to mean "last Stripe object touching this cycle").
+    await withTenantContext(tenantId, async (client) => {
+      await client.query(
+        `UPDATE bookings.recurring_payment_schedule
+            SET status            = $2::text,
+                attempt_count     = attempt_count + 1,
+                last_attempt_at   = NOW(),
+                stripe_session_id = COALESCE($3::text, stripe_session_id),
+                updated_at        = NOW()
+          WHERE id        = $1::uuid
+            AND tenant_id = $4`,
+        [
+          row.cycle_id,
+          // 'sent' on successful create (succeeded OR requires_action OR processing)
+          // 'failed' when Stripe threw — webhook payment_intent.payment_failed will
+          // confirm this state independently and is idempotent.
+          stripeError ? 'failed' : 'sent',
+          pi?.id || null,
+          tenantId,
+        ]
+      );
+    });
+
+    // ── 5. Response shape — cron uses this to decide next action ────────────
+    if (stripeError) {
+      return reply.code(200).send({
+        success: false,
+        code:    'CHARGE_FAILED',
+        message: stripeError.message || 'PaymentIntent failed',
+        data: {
+          payment_intent_id: pi?.id || null,
+          status:            pi?.status || 'failed',
+          decline_code:      stripeError.decline_code || null,
+          stripe_error_code: stripeError.code         || null,
+        },
+      });
+    }
+
+    const requiresAction = pi?.status === 'requires_action' || pi?.status === 'requires_confirmation';
+    console.log(`[cycle-session] cycle=${row.cycle_id} amount=£${row.amount_due} pi=${pi.id} status=${pi.status}`);
+
+    return reply.send({
+      success: true,
+      data: {
+        payment_intent_id: pi.id,
+        status:            pi.status,
+        requires_action:   requiresAction,
+        next_action:       pi.next_action || null,   // 3DS challenge URL etc.
+      },
+    });
+  });
+
+
   // ── POST /stripe/public-session ─────────────────────────────────────────────
   fastify.post('/public-session', async (req, reply) => {
     const rawTenantId = parseInt(req.body?.tenant_id || '0', 10);

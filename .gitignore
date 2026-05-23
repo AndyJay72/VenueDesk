@@ -21,3 +21,5 @@ venuedesk-spa/package-lock.json
 # Misc
 *.b64
 rebrand-*.jpeg
+.DS_Store
+outputs/
