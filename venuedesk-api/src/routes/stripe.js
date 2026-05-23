@@ -78,6 +78,7 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     const {
       booking_id,
       customer_id,
+      recurring_series_id,   // NEW — bulk-payment path for "Create Series (Full Cycle Payment)"
       amount,
       description,
       success_url,
@@ -134,24 +135,33 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       success_url: success_url || `${frontendBase}/checkout.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  cancel_url  || `${frontendBase}/calendar.html`,
       metadata: {
-        tenant_id:   String(tenantId),
-        booking_id:  String(booking_id  || ''),
-        customer_id: String(customer_id || ''),
-        source:      'calendar',
+        tenant_id:           String(tenantId),
+        booking_id:          String(booking_id           || ''),
+        customer_id:         String(customer_id          || ''),
+        recurring_series_id: String(recurring_series_id  || ''),
+        source:              recurring_series_id ? 'calendar_recurring' : 'calendar',
       },
     });
 
-    // Audit log
+    // Audit log — entity flips to 'recurring_series' for bulk-payment sessions
+    // so the audit ledger groups by the correct entity type for reporting.
     await withTenantContext(tenantId, (client) =>
       client.query(
         `INSERT INTO bookings.audit_log
           (tenant_id, action, entity, entity_id, payload, staff_user, source)
-         VALUES ($1, 'stripe_session_created', 'booking', $2, $3, $4, 'calendar')`,
+         VALUES ($1, 'stripe_session_created', $2, $3, $4, $5, $6)`,
         [
           tenantId,
-          booking_id || null,
-          JSON.stringify({ amount: safeAmount, session_id: session.id, customer_id: customer_id || null }),
+          recurring_series_id ? 'recurring_series' : 'booking',
+          recurring_series_id || booking_id || null,
+          JSON.stringify({
+            amount:     safeAmount,
+            session_id: session.id,
+            customer_id:         customer_id         || null,
+            recurring_series_id: recurring_series_id || null,
+          }),
           staffUser,
+          recurring_series_id ? 'calendar_recurring' : 'calendar',
         ]
       )
     );
@@ -302,16 +312,86 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     if (event?.type === 'checkout.session.completed') {
       const session      = event.data?.object || {};
       const metaTenantId = parseInt(session.metadata?.tenant_id || tenantId || '0', 10) || null;
-      const bookingId    = session.metadata?.booking_id          || null;
-      const requestId    = session.metadata?.booking_request_id  || null;
-      const customerId   = session.metadata?.customer_id         || null;
+      const bookingId    = session.metadata?.booking_id           || null;
+      const requestId    = session.metadata?.booking_request_id   || null;
+      const seriesId     = session.metadata?.recurring_series_id  || null;
+      const customerId   = session.metadata?.customer_id          || null;
       const amountPaid   = (session.amount_total || 0) / 100;
-      const source       = session.metadata?.source              || 'calendar';
+      const source       = session.metadata?.source               || 'calendar';
 
       if (metaTenantId) {
         try {
           await withTenantContext(metaTenantId, async (client) => {
-            if (bookingId) {
+            // ── Branch 1 — RECURRING SERIES (bulk payment) ─────────────────
+            // Triggered by metadata.recurring_series_id set in /stripe/session
+            // for "Create Series (Full Cycle Payment)". Bulk-confirms every
+            // pending session in the series + zeroes the series balance + inserts
+            // a single payments row tied to the series (booking_id NULL).
+            //
+            // Idempotent on two fronts:
+            //   1. Payment INSERT uses NOT EXISTS on reference_number, so a
+            //      replayed webhook never produces a duplicate row.
+            //   2. Booking UPDATE filters status='pending' (which the series-
+            //      creation path stamps on every row), so a second run is a
+            //      no-op on already-confirmed rows.
+            if (seriesId) {
+              await client.query(
+                `UPDATE bookings.confirmed_bookings cb
+                 SET    status       = 'confirmed',
+                        deposit_paid = cb.total_amount,
+                        balance_due  = 0,
+                        updated_at   = NOW()
+                 WHERE  cb.recurring_series_id = $1::uuid
+                   AND  cb.tenant_id           = $2
+                   AND  cb.status              = 'pending'`,
+                [seriesId, metaTenantId]
+              );
+
+              await client.query(
+                `UPDATE bookings.recurring_series
+                 SET    balance_due = 0,
+                        updated_at  = NOW()
+                 WHERE  id        = $1::uuid
+                   AND  tenant_id = $2`,
+                [seriesId, metaTenantId]
+              );
+
+              // Single payment row for the bulk charge.
+              // booking_id is pinned to the FIRST session in the series — this
+              // is a defensive choice in case payments.booking_id has NOT NULL
+              // enforcement. The semantic "owner" of the payment is the series
+              // (recurring_series_id), but tying it to session #1 gives a stable
+              // anchor for per-booking joins without requiring a schema change.
+              // customer_id is derived from the series itself (self-healing,
+              // mirrors the bookingId branch's COALESCE($2::uuid, cb.customer_id)).
+              await client.query(
+                `INSERT INTO bookings.payments
+                   (booking_id, recurring_series_id, customer_id, amount,
+                    payment_method, payment_type, status, reference_number, tenant_id)
+                 SELECT first_session.id, $1::uuid, rs.customer_id, $3::numeric,
+                        'card', 'full', 'received', $4, $2
+                 FROM bookings.recurring_series rs
+                 LEFT JOIN LATERAL (
+                   SELECT id FROM bookings.confirmed_bookings
+                   WHERE recurring_series_id = rs.id AND tenant_id = $2
+                   ORDER BY COALESCE(booking_date, date_from) ASC, created_at ASC
+                   LIMIT 1
+                 ) first_session ON TRUE
+                 WHERE rs.id = $1::uuid AND rs.tenant_id = $2
+                   AND NOT EXISTS (
+                     SELECT 1 FROM bookings.payments
+                     WHERE reference_number = $4 AND tenant_id = $2
+                   )`,
+                [seriesId, metaTenantId, amountPaid, session.id]
+              );
+
+              await logger.info(
+                'StripeWebhook',
+                `Recurring series bulk-paid: ${seriesId} — £${amountPaid}`,
+                { recurring_series_id: seriesId, amount: amountPaid, session_id: session.id, tenant_id: metaTenantId },
+                metaTenantId
+              );
+            } else if (bookingId) {
               // customer_id derived from the booking row itself (self-healing)
               // — metadata.customer_id used only as override when present. This
               // closes a regression where calendar QB Stripe sessions omitted

@@ -12,19 +12,25 @@
       "name": "Webhook: Create Recurring From Calendar",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-600, -400],
+      "position": [
+        -600,
+        -400
+      ],
       "webhookId": "crc-webhook-uuid-0001",
       "credentials": {}
     },
     {
       "parameters": {
-        "jsCode": "// Parse incoming payload (handles chunked or direct JSON)\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = 'Parsing failed: ' + e.message;\n}\n\n// Resolve monthly_fee: new 4-week cycle payloads send monthly_fee directly;\n// legacy payloads may send monthly_rate — fall back gracefully.\nconst monthlyFee = parseFloat(\n  finalResult.monthly_fee ||\n  finalResult.agreed_price ||\n  finalResult.monthly_rate ||\n  '0'\n) || 0;\n\nconst output = {\n  ...finalResult,\n  tenant_id:         parseInt(finalResult.tenant_id || 1001),\n  day_of_week:       parseInt(finalResult.day_of_week ?? -1),\n  payment_amount:    parseFloat(finalResult.payment_amount || '0') || 0,\n  rate_per_session:  parseFloat(finalResult.rate_per_session || '0') || 0,\n  monthly_fee:       monthlyFee,\n  agreed_price:      monthlyFee,\n  total_cycles:      parseInt(finalResult.total_cycles || '0') || 0,\n  remaining_cycles:  parseInt(finalResult.remaining_cycles || finalResult.total_cycles || '0') || 0,\n  billing_day:       parseInt(finalResult.billing_day || '1') || 1,\n  billing_type:      finalResult.billing_type || 'monthly',\n  interaction_type:  finalResult.interaction_type || 'RECURRING_CONTRACT_CREATED',\n  contract_notes:    finalResult.contract_notes || '',\n  status:            finalResult.status || 'confirmed',\n  booking_source:    finalResult.booking_source || 'calendar_recurring',\n  _debug_parsed:     true\n};\n\nreturn [{ json: output }];"
+        "jsCode": "// Parse incoming payload (handles chunked or direct JSON)\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = 'Parsing failed: ' + e.message;\n}\n\n// Resolve monthly_fee: new 4-week cycle payloads send monthly_fee directly;\n// legacy payloads may send monthly_rate \u2014 fall back gracefully.\nconst monthlyFee = parseFloat(\n  finalResult.monthly_fee ||\n  finalResult.agreed_price ||\n  finalResult.monthly_rate ||\n  '0'\n) || 0;\n\nconst output = {\n  ...finalResult,\n  tenant_id:         parseInt(finalResult.tenant_id || 1001),\n  day_of_week:       parseInt(finalResult.day_of_week ?? -1),\n  payment_amount:    parseFloat(finalResult.payment_amount || '0') || 0,\n  rate_per_session:  parseFloat(finalResult.rate_per_session || '0') || 0,\n  monthly_fee:       monthlyFee,\n  agreed_price:      monthlyFee,\n  total_cycles:      parseInt(finalResult.total_cycles || '0') || 0,\n  remaining_cycles:  parseInt(finalResult.remaining_cycles || finalResult.total_cycles || '0') || 0,\n  billing_day:       parseInt(finalResult.billing_day || '1') || 1,\n  billing_type:      finalResult.billing_type || 'monthly',\n  interaction_type:  finalResult.interaction_type || 'RECURRING_CONTRACT_CREATED',\n  contract_notes:    finalResult.contract_notes || '',\n  status:            finalResult.status || 'confirmed',\n  booking_source:    finalResult.booking_source || 'calendar_recurring',\n  _debug_parsed:     true\n};\n\nreturn [{ json: output }];"
       },
       "id": "crc-parse-001",
       "name": "Parse: Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-380, -400]
+      "position": [
+        -380,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -33,7 +39,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
@@ -46,17 +55,23 @@
       "name": "API: Upsert Customer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-160, -400]
+      "position": [
+        -160,
+        -400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Flatten adapter — preserves $('DB: Upsert Customer') named references in Code: Validate\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
+        "jsCode": "// Flatten adapter \u2014 preserves $('DB: Upsert Customer') named references in Code: Validate\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
       },
       "id": "crc-flatten-upsert-cust-001",
       "name": "DB: Upsert Customer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [60, -400]
+      "position": [
+        60,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -66,7 +81,10 @@
       "name": "Code: Generate Dates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [280, -400]
+      "position": [
+        280,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -76,7 +94,10 @@
       "name": "Code: Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, -400]
+      "position": [
+        500,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -85,51 +106,72 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ dates: $('Code: Validate').first().json.dates || '', room_id: $('Code: Validate').first().json.room_id, start_time: $('Parse: Input').first().json?.start_time || '09:00', end_time: $('Parse: Input').first().json?.end_time || '23:59' }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "crc-api-clash-001",
       "name": "API: Check Clashes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, -400]
+      "position": [
+        720,
+        -400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Flatten adapter — Code: Filter Dates reads $input.first().json.clashed_dates\nconst resp = $input.first().json;\nconst data = resp.data || resp;\nreturn [{ json: { clashed_dates: data.clashed_dates || [] } }];"
+        "jsCode": "// Flatten adapter \u2014 Code: Filter Dates reads $input.first().json.clashed_dates\nconst resp = $input.first().json;\nconst data = resp.data || resp;\nreturn [{ json: { clashed_dates: data.clashed_dates || [] } }];"
       },
       "id": "crc-flatten-clash-001",
       "name": "DB: Check Room Clashes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [940, -400]
+      "position": [
+        940,
+        -400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const validate = $('Code: Validate').first().json;\nconst allDates = (validate.dates || '').split(',').filter(Boolean).sort();\nconst clashRow = $input.first().json;\nconst clashed = new Set((clashRow.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count: allDates.length,\n    has_conflict: false,\n    blocked: false,\n    warning: null\n  }}];\n}\n\nconst sortedClashed = [...clashed].sort();\nconst firstConflict = sortedClashed[0];\nconst safeDates = allDates.filter(d => d < firstConflict);\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});\n};\n\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates: '',\n    dates_count: 0,\n    has_conflict: true,\n    blocked: true,\n    first_conflict_date: firstConflict,\n    warning: 'The first session date (' + fmtDate(firstConflict) + ') is already booked for this room at this time. Please choose a different start date or room.'\n  }}];\n}\n\nreturn [{ json: {\n  filtered_dates: safeDates.join(','),\n  dates_count: safeDates.length,\n  has_conflict: true,\n  blocked: false,\n  first_conflict_date: firstConflict,\n  clashed_count: clashed.size,\n  warning: 'Recurring series created for ' + safeDates.length + ' session(s) up to ' + fmtDate(safeDates[safeDates.length-1]) + '. Bookings stop before ' + fmtDate(firstConflict) + ' — that date is already taken by an existing booking.'\n}}];"
+        "jsCode": "// Skip-on-clash filter \u2014 drops ONLY clashed dates, preserves all others\n// (including those AFTER a clash). Earlier revision used `d < firstConflict`\n// which truncated the entire series from the first conflict onwards, losing\n// legitimate non-clashed sessions later in the schedule.\nconst validate = $('Code: Validate').first().json;\nconst allDates = (validate.dates || '').split(',').filter(Boolean).sort();\nconst clashRow = $input.first().json;\nconst clashed  = new Set((clashRow.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count:    allDates.length,\n    skipped_count:  0,\n    has_conflict:   false,\n    blocked:        false,\n    warning:        null\n  }}];\n}\n\nconst safeDates    = allDates.filter(d => !clashed.has(d));\nconst sortedClashed = [...clashed].sort();\nconst firstConflict = sortedClashed[0];\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});\n};\n\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates:      '',\n    dates_count:         0,\n    skipped_count:       allDates.length,\n    has_conflict:        true,\n    blocked:             true,\n    first_conflict_date: firstConflict,\n    warning: 'All ' + allDates.length + ' requested dates are already booked for this room. Please choose different dates or a different room.'\n  }}];\n}\n\nreturn [{ json: {\n  filtered_dates:      safeDates.join(','),\n  dates_count:         safeDates.length,\n  skipped_count:       clashed.size,\n  has_conflict:        true,\n  blocked:             false,\n  first_conflict_date: firstConflict,\n  clashed_count:       clashed.size,\n  warning: 'Recurring series created for ' + safeDates.length + ' non-clashing session(s). ' + clashed.size + ' clashed date(s) skipped (first: ' + fmtDate(firstConflict) + ').'\n}}];"
       },
       "id": "crc-filter-001",
       "name": "Code: Filter Dates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1160, -400]
+      "position": [
+        1160,
+        -400
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "avail-cond-001",
               "leftValue": "={{ $('Code: Filter Dates').first().json.blocked }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "notEquals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
             }
           ],
           "combinator": "and"
@@ -139,7 +181,10 @@
       "name": "IF: Room Available?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1380, -400]
+      "position": [
+        1380,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -148,7 +193,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
@@ -161,17 +209,23 @@
       "name": "API: Insert Series Calendar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1600, -400]
+      "position": [
+        1600,
+        -400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Flatten adapter — named 'DB: Insert Rule' to preserve ALL downstream references:\n// DB: Insert Bookings body reads $('DB: Insert Rule').first().json.series_id / .series_name\n// Respond: Created reads $('DB: Insert Rule').first().json.cycle_amount / .balance_due / .series_reference\n// API: Log Interaction body reads $('DB: Insert Rule').first().json.series_reference\n// create-series-calendar returns: { rule_id, series_id, series_reference, series_name, cycle_amount, balance_due }\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
+        "jsCode": "// Flatten adapter \u2014 named 'DB: Insert Rule' to preserve ALL downstream references:\n// DB: Insert Bookings body reads $('DB: Insert Rule').first().json.series_id / .series_name\n// Respond: Created reads $('DB: Insert Rule').first().json.cycle_amount / .balance_due / .series_reference\n// API: Log Interaction body reads $('DB: Insert Rule').first().json.series_reference\n// create-series-calendar returns: { rule_id, series_id, series_reference, series_name, cycle_amount, balance_due }\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
       },
       "id": "crc-flatten-rule-001",
       "name": "DB: Insert Rule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1820, -400]
+      "position": [
+        1820,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -180,7 +234,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
@@ -193,7 +250,10 @@
       "name": "API: Insert Bookings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2040, -400]
+      "position": [
+        2040,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -202,20 +262,28 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, payment_type: $('Parse: Input').first().json?.payment_type || 'none', payment_method: $('Parse: Input').first().json?.payment_method || 'cash', series_reference: $('DB: Insert Rule').first().json.series_reference || '', series_id: $('DB: Insert Rule').first().json.series_id || null }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "crc-api-record-payment-001",
       "name": "API: Record Initial Payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2260, -400]
+      "position": [
+        2260,
+        -400
+      ]
     },
     {
       "parameters": {
@@ -224,20 +292,28 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}" }
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, series_reference: $('DB: Insert Rule').first().json.series_reference || '', room_name: $('Parse: Input').first().json?.room_name || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', date_count: $('Code: Generate Dates').first().json?.date_count || 0, staff_member: $('Parse: Input').first().json?.performed_by || 'Staff', interaction_type: $('Parse: Input').first().json?.interaction_type || 'RECURRING_CONTRACT_CREATED', notes: $('Parse: Input').first().json?.contract_notes || '' }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "crc-api-log-interaction-001",
       "name": "API: Log Interaction",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2040, -180]
+      "position": [
+        2040,
+        -180
+      ]
     },
     {
       "parameters": {
@@ -246,7 +322,12 @@
         "options": {
           "responseCode": 201,
           "responseHeaders": {
-            "entries": [{ "name": "Access-Control-Allow-Origin", "value": "*" }]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -254,79 +335,328 @@
       "name": "Respond: Created",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2480, -400]
+      "position": [
+        2480,
+        -400
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, status: 'unavailable', message: $('Code: Filter Dates').first().json.warning || 'Room not available for the requested dates.' }) }}",
-        "options": { "responseCode": 409 }
+        "options": {
+          "responseCode": 409
+        }
       },
       "id": "crc-respond-blocked-001",
       "name": "Respond: Not Available",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1600, -180]
+      "position": [
+        1600,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "crfc-card-cond-001",
+              "leftValue": "={{ $('Parse: Input').first().json?.payment_method || '' }}",
+              "rightValue": "card",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "crfc-if-card-001",
+      "name": "IF: Card?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/stripe/session",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({  amount: parseFloat($('Parse: Input').first().json?.rate_per_session || 0) * parseInt($('Code: Filter Dates').first().json?.dates_count || 0),  recurring_series_id: $('DB: Insert Rule').first().json.series_id,  customer_id: $('Code: Validate').first().json.customer_id,  description: 'Recurring series \u2014 ' + ($('DB: Insert Rule').first().json.series_name || 'Block') + ' (' + ($('Code: Filter Dates').first().json?.dates_count || 0) + ' sessions)',  success_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/checkout.html?session_id={CHECKOUT_SESSION_ID}',  cancel_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/calendar.html'}) }}",
+        "options": {}
+      },
+      "id": "crfc-api-stripe-001",
+      "name": "API: Create Stripe Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({  success: true,  status: 'pending_payment',  stripe_url: $input.first().json?.url || $input.first().json?.data?.url || null,  series_id: $('DB: Insert Rule').first().json.series_id,  series_name: $('DB: Insert Rule').first().json.series_name || null,  series_reference: $('DB: Insert Rule').first().json.series_reference || null,  customer_id: $('Code: Validate').first().json.customer_id,  customer_name: $('Code: Validate').first().json.customer_name,  booking_count: $('Code: Filter Dates').first().json.dates_count,  cycle_amount: $('DB: Insert Rule').first().json.cycle_amount || null,  frequency: $('Parse: Input').first().json.frequency || null,  booking_source: $('Parse: Input').first().json.booking_source || 'calendar_recurring',  partial_booking: $('Code: Filter Dates').first().json.has_conflict || false,  skipped_count: $('Code: Filter Dates').first().json.skipped_count || 0,  warning: $('Code: Filter Dates').first().json.warning || null,  first_conflict_date: $('Code: Filter Dates').first().json.first_conflict_date || null}) }}",
+        "options": {
+          "responseCode": 201,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "crfc-respond-stripe-001",
+      "name": "Respond: Stripe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2700,
+        -640
+      ]
     }
   ],
   "connections": {
     "Webhook: Create Recurring From Calendar": {
-      "main": [[{ "node": "Parse: Input",               "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse: Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse: Input": {
-      "main": [[{ "node": "API: Upsert Customer",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "API: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API: Upsert Customer": {
-      "main": [[{ "node": "DB: Upsert Customer",         "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Upsert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Upsert Customer": {
-      "main": [[{ "node": "Code: Generate Dates",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code: Generate Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Generate Dates": {
-      "main": [[{ "node": "Code: Validate",              "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code: Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Validate": {
-      "main": [[{ "node": "API: Check Clashes",          "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "API: Check Clashes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API: Check Clashes": {
-      "main": [[{ "node": "DB: Check Room Clashes",      "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Check Room Clashes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Check Room Clashes": {
-      "main": [[{ "node": "Code: Filter Dates",          "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Code: Filter Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Filter Dates": {
-      "main": [[{ "node": "IF: Room Available?",         "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: Room Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: Room Available?": {
       "main": [
-        [{ "node": "API: Insert Series Calendar",        "type": "main", "index": 0 }],
-        [{ "node": "Respond: Not Available",             "type": "main", "index": 0 }]
+        [
+          {
+            "node": "API: Insert Series Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Not Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "API: Insert Series Calendar": {
-      "main": [[{ "node": "DB: Insert Rule",             "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "DB: Insert Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Insert Rule": {
-      "main": [[{ "node": "API: Insert Bookings",        "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "API: Insert Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API: Insert Bookings": {
-      "main": [[
-        { "node": "API: Record Initial Payment",         "type": "main", "index": 0 },
-        { "node": "API: Log Interaction",                "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "API: Log Interaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF: Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API: Record Initial Payment": {
-      "main": [[{ "node": "Respond: Created",            "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond: Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API: Log Interaction": {
       "main": []
+    },
+    "IF: Card?": {
+      "main": [
+        [
+          {
+            "node": "API: Create Stripe Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "API: Record Initial Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Create Stripe Session": {
+      "main": [
+        [
+          {
+            "node": "Respond: Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
   "active": true,
-  "settings": { "executionOrder": "v1" },
-  "versionId": "crfc-v3-http-2026-04-27",
-  "meta": { "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93" },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "crfc-v4-bulk-stripe-2026-05-22",
+  "meta": {
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
   "id": "CreateRecurringFromCalendar",
   "tags": []
 }

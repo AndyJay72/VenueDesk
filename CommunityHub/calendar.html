@@ -1986,13 +1986,26 @@
                 const res=await fetch(RECURRING_CAL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
                 const rj=await res.json().catch(()=>({}));
                 if(!res.ok||rj.success===false) throw new Error(rj.message||('HTTP '+res.status));
+
+                // ── Bulk-payment Stripe redirect ─────────────────────────────
+                // When payment_method === 'card' on a "Create Series (Full Cycle
+                // Payment)" submission, the backend creates pending rows and
+                // returns a Stripe Checkout URL. Send the user there immediately;
+                // the webhook flips rows to 'confirmed' on payment success.
+                if(rj.stripe_url){
+                    closeQbModal();
+                    window.location.href = rj.stripe_url;
+                    return;
+                }
+
                 closeQbModal();
                 // If the backend detected a clash and trimmed the series, show the clash modal
                 // with full details so the user knows what happened BEFORE the page reloads.
-                if(rj.partial_booking && rj.first_conflict_date){
+                if(rj.partial_booking && (rj.first_conflict_date || rj.skipped_count)){
                     const fmtD=d=>{const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});};
-                    let detail='<p style="margin:0 0 8px"><strong style="color:#fbbf24">Series created but cut short.</strong></p>';
-                    detail+='<p style="margin:0 0 8px">'+fmtD(rj.first_conflict_date)+' was already booked — sessions from that date onwards were skipped.</p>';
+                    const skipN = rj.skipped_count || ((payload.total_sessions||0) - (rj.booking_count||0));
+                    let detail='<p style="margin:0 0 8px"><strong style="color:#fbbf24">Series created — '+skipN+' conflicting session(s) skipped.</strong></p>';
+                    if(rj.first_conflict_date) detail+='<p style="margin:0 0 8px">First conflict: '+fmtD(rj.first_conflict_date)+'. Remaining non-clashing sessions were booked.</p>';
                     detail+='<p style="margin:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)"><strong style="color:#34d399">'+(rj.booking_count||'?')+' session(s) booked</strong> out of the '+payload.total_sessions+' requested.</p>';
                     document.getElementById('qb-clash-detail').innerHTML=detail;
                     // Replace Proceed button with an OK / close button
@@ -2094,11 +2107,15 @@
             }
 
             // ── Step 3: Compute safe dates ────────────────────────────────────
+            // Skip ONLY the clashed dates — keep all others, including those AFTER
+            // a clash. Earlier revision truncated the entire series from the first
+            // clash onwards (`d < firstClash`), which lost legitimate non-clashed
+            // sessions later in the schedule. Per architecture: conditional skip,
+            // not halt-on-first.
             let safeDates = nonBlockedDates;
             if(clashedDates.length > 0){
-                const sorted = [...clashedDates].sort();
-                const firstClash = sorted[0];
-                safeDates = nonBlockedDates.filter(d => d < firstClash);
+                const clashedSet = new Set(clashedDates);
+                safeDates = nonBlockedDates.filter(d => !clashedSet.has(d));
             }
 
             if(safeDates.length === 0){
@@ -2116,7 +2133,12 @@
             const perSessionCost=parseFloat((cyclePrice/_sessPerCycle).toFixed(2));
             const totalAmount=parseFloat((cyclePrice*totalCycles).toFixed(2));
             const paymentType=type==='recurring_full'?'full':type==='recurring_deposit'?'deposit':'none';
-            const status=type==='recurring_pending'?'pending':'confirmed';
+            // Card + bulk-payment flow: rows start as 'pending' and only flip
+            // to 'confirmed' when the Stripe webhook (stripe.js recurring branch)
+            // fires. Mirrors the make-booking single-card pattern — DB never
+            // shows a card booking as confirmed before payment lands.
+            const isCardBulk = (type==='recurring_full' && payMethod==='card');
+            const status=type==='recurring_pending'?'pending':(isCardBulk?'pending':'confirmed');
             const balance=parseFloat(Math.max(0,cyclePrice-payAmt).toFixed(2));
             const startDateObj=new Date(from+'T12:00:00');
             const endDateStr=safeDates[safeDates.length-1]||from;
@@ -2167,8 +2189,11 @@
                             + '</p>';
                 }
                 if(hasClashedDates){
-                    const firstClash = [...clashedDates].sort()[0];
-                    detail += `<p style="margin:0 0 8px"><strong style="color:#fbbf24">Series cut short — ${fmtD(firstClash)} is already booked at this time.</strong></p>`;
+                    const sortedClashes = [...clashedDates].sort();
+                    detail += `<p style="margin:0 0 8px"><strong style="color:#fbbf24">${clashedDates.length} conflicting session(s) skipped:</strong><br>`
+                            + sortedClashes.slice(0,5).map(fmtD).join(', ')
+                            + (sortedClashes.length>5?' … and '+(sortedClashes.length-5)+' more':'')
+                            + '</p>';
                 }
                 detail += `<p style="margin:0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08)">`
                         + `<strong style="color:#34d399">${safeDates.length} session(s)</strong> can be booked `
