@@ -1121,9 +1121,20 @@
                             </div>
                             <div>
                                 <label class="qb-label">Payment Terms</label>
-                                <select id="qb-rec-payterms" class="qb-select">
-                                    <option value="in_advance">In Advance</option>
-                                    <option value="in_arrears">In Arrears</option>
+                                <select id="qb-rec-payterms" class="qb-select" onchange="qbOnPayTermsChange()">
+                                    <option value="in_full">Pay In Full (one Stripe charge)</option>
+                                    <option value="in_advance" selected>Per Cycle — In Advance</option>
+                                    <option value="in_arrears">Per Cycle — In Arrears (card on file)</option>
+                                </select>
+                            </div>
+                            <div id="qb-rec-cyclelen-wrap">
+                                <label class="qb-label">Cycle Length</label>
+                                <select id="qb-rec-cyclelen" class="qb-select">
+                                    <option value="1">1 week</option>
+                                    <option value="2">2 weeks</option>
+                                    <option value="4" selected>4 weeks</option>
+                                    <option value="8">8 weeks</option>
+                                    <option value="12">12 weeks</option>
                                 </select>
                             </div>
                             <div>
@@ -1143,7 +1154,7 @@
                             </div>
                         </div>
                         <div id="qb-recurring-btns" style="display:none;flex-direction:column;gap:0.6rem">
-                            <button class="qb-btn-full" id="qb-rec-btn-full" onclick="qbSubmitBooking('recurring_full')" disabled><i class="fa-solid fa-rotate"></i> Create Series (Full Cycle Payment)</button>
+                            <button class="qb-btn-full" id="qb-rec-btn-full" onclick="qbSubmitBooking('recurring_full')" disabled><i class="fa-solid fa-rotate"></i> <span id="qb-rec-btn-full-label">Create Series (Pay Cycle 1 Now)</span></button>
                             <!-- Deposit hidden for recurring contracts — cycles must be paid in full -->
                             <button class="qb-btn-pending" id="qb-rec-btn-pending" onclick="qbSubmitBooking('recurring_pending')"><i class="fa-solid fa-paper-plane"></i> Submit as Pending</button>
                         </div>
@@ -1891,6 +1902,29 @@
             qbCalculateCost();
         }
 
+        // Feature C — called when payment terms select changes. Toggles the
+        // cycle-length picker visibility (only shown for cadenced timings)
+        // and updates the primary action button's label so the staff member
+        // sees the actual financial outcome of clicking it.
+        //   in_full     → "Pay In Full Now" — full series total via Stripe Checkout
+        //   in_advance  → "Pay Cycle 1 Now" — first cycle charged, card saved
+        //                                     for cron-driven cycles 2..N
+        //   in_arrears  → "Save Card On File" — £0 SetupIntent, billed after
+        //                                       each cycle ends via cron
+        function qbOnPayTermsChange(){
+            const timing = document.getElementById('qb-rec-payterms')?.value || 'in_advance';
+            const cycleWrap = document.getElementById('qb-rec-cyclelen-wrap');
+            if (cycleWrap) cycleWrap.style.display = (timing === 'in_full') ? 'none' : '';
+            const lbl = document.getElementById('qb-rec-btn-full-label');
+            if (lbl) {
+                lbl.textContent = timing === 'in_full'    ? 'Create Series (Pay In Full Now)'
+                                : timing === 'in_advance' ? 'Create Series (Pay Cycle 1 Now)'
+                                : /* in_arrears */          'Create Series (Save Card On File)';
+            }
+            // Recompute preview so any timing-dependent copy refreshes too
+            qbUpdateRecurrencePreview();
+        }
+
         // Preview box: "Total: X Sessions | End Date: … | Billing: N Cycles of £Y per 4 weeks"
         function qbUpdateRecurrencePreview(){
             const prev=document.getElementById('qb-rec-preview');
@@ -2159,6 +2193,10 @@
                 sessions_per_cycle:_sessPerCycle,total_cycles:totalCycles,remaining_cycles:totalCycles,
                 billing_type:'4_week_cycle',
                 payment_timing:document.getElementById('qb-rec-payterms')?.value||'in_advance',
+                // Feature C — cycle length in weeks. null for in_full (full series paid in one Stripe txn).
+                cycle_length_weeks:(document.getElementById('qb-rec-payterms')?.value==='in_full')
+                                   ? null
+                                   : (parseInt(document.getElementById('qb-rec-cyclelen')?.value||'4')||4),
                 billing_day:parseInt(document.getElementById('qb-rec-billingDay')?.value||'1')||1,
                 event_type:eventType||null,notes:notes||null,
                 total_sessions:safeDates.length,total_amount:totalAmount,
