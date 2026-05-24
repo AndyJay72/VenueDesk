@@ -410,7 +410,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({  amount: parseFloat($('Parse: Input').first().json?.rate_per_session || 0) * parseInt($('Code: Filter Dates').first().json?.dates_count || 0),  recurring_series_id: $('DB: Insert Rule').first().json.series_id,  customer_id: $('Code: Validate').first().json.customer_id,  description: 'Recurring series \u2014 ' + ($('DB: Insert Rule').first().json.series_name || 'Block') + ' (' + ($('Code: Filter Dates').first().json?.dates_count || 0) + ' sessions)',  success_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/checkout.html?session_id={CHECKOUT_SESSION_ID}',  cancel_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/calendar.html'}) }}",
+        "jsonBody": "={{ JSON.stringify((function(){\n  const parse    = $('Parse: Input').first().json || {};\n  const rule     = $('DB: Insert Rule').first().json || {};\n  const valid    = $('Code: Validate').first().json || {};\n  const filtered = $('Code: Filter Dates').first().json || {};\n  const timing   = parse.payment_timing || 'in_full';\n  const seriesTotal = parseFloat(parse.rate_per_session || 0) * parseInt(filtered.dates_count || 0);\n  let cycle1 = null;\n  try { cycle1 = $('Code: Pick Cycle 1').first().json; } catch(e) { cycle1 = null; }\n  const isCadenced = timing !== 'in_full' && cycle1 && !cycle1._seed_failed;\n  const amount = isCadenced ? parseFloat(cycle1.cycle_amount || 0) : seriesTotal;\n  const descParts = [];\n  descParts.push('Recurring series \u2014 ' + (rule.series_name || 'Block'));\n  if (isCadenced && timing === 'in_advance') descParts.push('(Cycle ' + (cycle1.cycle_number||1) + ' / ' + cycle1.sessions_count + ' sessions)');\n  else if (isCadenced && timing === 'in_arrears') descParts.push('(Card on file \u2014 billed after each cycle)');\n  else descParts.push('(' + (filtered.dates_count || 0) + ' sessions)');\n  return {\n    amount,\n    recurring_series_id: rule.series_id,\n    cycle_id:            isCadenced ? cycle1.cycle_id : '',\n    payment_timing:      timing,\n    customer_id:         valid.customer_id,\n    description:         descParts.join(' '),\n    success_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/checkout.html?session_id={CHECKOUT_SESSION_ID}',\n    cancel_url:  'https://andyjay72.github.io/VenueDesk/CommunityHub/calendar.html'\n  };\n})()) }}",
         "options": {}
       },
       "id": "crfc-api-stripe-001",
@@ -445,6 +445,93 @@
       "position": [
         2700,
         -640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cadenced-check",
+              "leftValue": "={{ ($('Parse: Input').first().json?.payment_timing || 'in_advance').toLowerCase() }}",
+              "rightValue": "in_full",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "crfc-if-cadenced-001",
+      "name": "IF: Cadenced?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        200
+      ],
+      "notes": "Feature C \u2014 splits cadenced (in_advance/in_arrears) from in_full. TRUE materialises schedule rows; FALSE falls through to existing bulk Stripe."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/recurring/seed-cycle-schedule",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Parse: Input').first().json?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ series_id: $('DB: Insert Rule').first().json.series_id, customer_id: $('Code: Validate').first().json.customer_id, dates_csv: $('Code: Filter Dates').first().json.safe_dates_csv, rate_per_session: parseFloat($('Parse: Input').first().json?.rate_per_session || 0), cycle_length_weeks: parseInt($('Parse: Input').first().json?.cycle_length_weeks || 4), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', frequency: $('Parse: Input').first().json?.frequency || 'weekly' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "crfc-seed-cycle-schedule-001",
+      "name": "API: Seed Cycle Schedule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const seedResp = $input.first().json;\nconst cycles   = seedResp?.data?.cycles || [];\nconst ids      = seedResp?.data?.schedule_ids || [];\n\nif (cycles.length === 0 || ids.length === 0) {\n  return [{ json: { _seed_failed: true, seedResp } }];\n}\n\nconst cycle1 = cycles[0];\nconst cycle1Id = ids[0];\n\nconst parse  = $('Parse: Input').first().json || {};\nconst rule   = $('DB: Insert Rule').first().json || {};\nconst valid  = $('Code: Validate').first().json || {};\n\nreturn [{\n  json: {\n    cycle_id:            cycle1Id,\n    cycle_amount:        parseFloat(cycle1.amount || 0),\n    cycle_number:        cycle1.cycleNumber || 1,\n    period_start:        cycle1.periodStart,\n    period_end:          cycle1.periodEnd,\n    payment_timing:      parse.payment_timing || 'in_advance',\n    recurring_series_id: rule.series_id,\n    series_name:         rule.series_name || 'Block',\n    customer_id:         valid.customer_id,\n    sessions_count:      cycle1.sessions || 0,\n  }\n}];"
+      },
+      "id": "crfc-pick-cycle1-001",
+      "name": "Code: Pick Cycle 1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        200
       ]
     }
   ],
@@ -597,7 +684,7 @@
             "index": 0
           },
           {
-            "node": "IF: Card?",
+            "node": "IF: Cadenced?",
             "type": "main",
             "index": 0
           }
@@ -646,6 +733,46 @@
           }
         ]
       ]
+    },
+    "IF: Cadenced?": {
+      "main": [
+        [
+          {
+            "node": "API: Seed Cycle Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Seed Cycle Schedule": {
+      "main": [
+        [
+          {
+            "node": "Code: Pick Cycle 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Pick Cycle 1": {
+      "main": [
+        [
+          {
+            "node": "IF: Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -653,7 +780,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "crfc-v4-bulk-stripe-2026-05-22",
+  "versionId": "crfc-v5-feature-c-2026-05-24",
   "meta": {
     "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
   },
