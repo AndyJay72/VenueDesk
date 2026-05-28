@@ -166,7 +166,7 @@ async function start() {
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`[server] venuedesk-api listening on port ${PORT}`);
   } catch (err) {
-    fastify.log.error(err);
+    console.error('[server] startup failed:', err);
     process.exit(1);
   }
 }
