@@ -1139,7 +1139,7 @@ async function mpLoadSeries() {
     grid.innerHTML = '<div class="mp-empty"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.4rem;margin-bottom:8px;display:block;"></i>Loading series…</div>';
     try {
         // Load series first — this is the critical data for the page
-        const seriesRes  = await fetch(REC_MANAGE_URL + '?tenant_id=' + _TID(), { headers: getAuthHeaders() });
+        const seriesRes  = await fetch(REC_MANAGE_URL + '?tenant_id=' + _TID() + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token') || ''), { headers: getAuthHeaders() });
         const seriesJson = await seriesRes.json();
         const series     = seriesJson.data || (Array.isArray(seriesJson) ? seriesJson : []);
 
