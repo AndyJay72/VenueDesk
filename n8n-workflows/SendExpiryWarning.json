@@ -1,0 +1,76 @@
+{
+  "id": "xblsMSE6cmLojANg",
+  "name": "VenueDesk - Send Expiry Warning (Webhook)",
+  "active": true,
+  "nodes": [
+    {
+      "id": "8de02634-1790-4b24-98ff-9e0ed8b66671",
+      "name": "Webhook: POST send-expiry-warning",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-expiry-warning",
+        "responseMode": "responseNode"
+      },
+      "webhookId": "b65ccbd1-d162-43f3-a3f4-87dfa8607cfb"
+    },
+    {
+      "id": "e4643c43-4904-4096-a9c8-1c62c5ac4891",
+      "name": "Email: Send Expiry Warning",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [224, 0],
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.body.customer_email }}",
+        "subject": "=Your venue enquiry expires in {{ $json.body.days_left }} day(s) — VenueDesk",
+        "emailFormat": "html",
+        "html": "=<p>Hi {{ $json.body.customer_name }},</p><p>Your venue enquiry expires in <strong>{{ $json.body.days_left }} day(s)</strong>. Please contact us to confirm your booking before it expires.</p><p><strong>Event:</strong> {{ $json.body.event_type }}<br><strong>Room:</strong> {{ $json.body.room_name || \"TBC\" }}<br><strong>Date:</strong> {{ $json.body.event_date }}</p><p>The VenueDesk Team</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "J0qWHzypu4SvoXyg",
+          "name": "Hostinger SMTP"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "9a0bcc3f-b416-4bb4-bcc6-8948a5d50a19",
+      "name": "Respond: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [448, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": {
+          "success": true,
+          "message": "Expiry warning sent"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: POST send-expiry-warning": {
+      "main": [[{ "node": "Email: Send Expiry Warning", "type": "main", "index": 0 }]]
+    },
+    "Email: Send Expiry Warning": {
+      "main": [[{ "node": "Respond: Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
+  },
+  "description": "Webhook handler for dashboard-triggered expiry warnings. Receives customer details (name, email, days_left, event info) from the dashboard frontend and sends a warning email via Hostinger SMTP, then responds with { success: true }.",
+  "tags": []
+}
