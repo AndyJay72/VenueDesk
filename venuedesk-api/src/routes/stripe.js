@@ -153,9 +153,65 @@ module.exports = async function stripeRoutes(fastify, _opts) {
 
     if (isSetupMode) {
       // SetupIntent — no line_items, no amount. Stripe collects card and
-      // returns a PaymentMethod attached to a (new) Customer object. The
-      // webhook reads session.customer + session.setup_intent.payment_method
-      // to persist both IDs to bookings.customers.
+      // attaches the PaymentMethod to a Customer object.
+      //
+      // CRITICAL — for mode=setup, customer_creation='always' is NOT supported
+      // (it's mode=payment only). If we don't pre-pass a `customer` parameter,
+      // Stripe creates the SetupIntent + PaymentMethod with NO Customer attached
+      // (verified 2026-05-27 during Test 3 V3: session.customer was null AND
+      // si.customer was null, only si.payment_method had a value).
+      //
+      // Fix: look up or create a Stripe Customer first, then pass `customer: cus_xxx`
+      // into the Checkout. This guarantees session.customer is populated AND the
+      // saved PaymentMethod is attached to a durable Customer for off-session
+      // cron charges later.
+      if (customer_id) {
+        try {
+          // Look up existing stripe_customer_id (might already exist from a prior
+          // SetupIntent or in_advance flow for this customer).
+          const { rows: [custRow] } = await withTenantContext(tenantId, (client) =>
+            client.query(
+              `SELECT stripe_customer_id, full_name, email
+               FROM bookings.customers
+               WHERE id = $1::uuid AND tenant_id = $2 LIMIT 1`,
+              [customer_id, tenantId]
+            )
+          );
+
+          let stripeCustId = custRow?.stripe_customer_id;
+
+          if (!stripeCustId) {
+            // No existing Stripe Customer — create one with the customer's
+            // name + email for Stripe Dashboard identification.
+            const newCust = await stripe.customers.create({
+              name:  custRow?.full_name || undefined,
+              email: custRow?.email     || undefined,
+              metadata: {
+                tenant_id:   String(tenantId),
+                customer_id: String(customer_id),
+              },
+            });
+            stripeCustId = newCust.id;
+
+            // Persist immediately so a retry on this same /session call doesn't
+            // create a second Stripe Customer for the same DB customer.
+            await withTenantContext(tenantId, (client) =>
+              client.query(
+                `UPDATE bookings.customers
+                    SET stripe_customer_id = $1, updated_at = NOW()
+                  WHERE id = $2::uuid AND tenant_id = $3`,
+                [stripeCustId, customer_id, tenantId]
+              )
+            );
+            console.log(`[stripe/session] Stripe Customer created for setup-mode: ${stripeCustId} (db_customer ${customer_id})`);
+          }
+
+          checkoutParams.customer = stripeCustId;
+        } catch (e) {
+          console.warn(`[stripe/session] Stripe Customer lookup/create failed: ${e.message} — proceeding without pre-attached customer`);
+        }
+      }
+
       // Mirror metadata onto the SetupIntent itself so off-session cron
       // charges later have the linkage even though the parent session is
       // months old by then.
@@ -181,7 +237,14 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       // For in_advance: also save the card on file so cycles 2..N can be
       // billed off-session by the cron sweep. setup_future_usage='off_session'
       // is the Stripe-native way to do this in one Checkout flow.
+      //
+      // customer_creation='always' is required because mode='payment' otherwise
+      // attaches the saved PaymentMethod to a guest with no Customer object.
+      // Without it, session.customer is null in the webhook → webhook's
+      // UPDATE customers SET stripe_customer_id = ... is gated off and skips.
+      // This is the Stripe-native fix (verified 2026-05-27 during Test 2 V2 smoke).
       if (saveCardForFuture) {
+        checkoutParams.customer_creation = 'always';
         checkoutParams.payment_intent_data = {
           setup_future_usage: 'off_session',
           metadata: {
@@ -392,10 +455,27 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       console.warn(`[cycle-session] PaymentIntent threw: code=${err.code} type=${err.type} msg="${err.message}"`);
     }
 
-    // ── 4. Stamp schedule row — single UPDATE, always runs regardless of outcome.
-    //     Webhook will further mutate to 'paid' on payment_intent.succeeded.
-    //     stripe_session_id field holds pi.id (column name predates Feature C —
-    //     repurposed to mean "last Stripe object touching this cycle").
+    // ── 4. Stamp schedule row + synchronous-success fallback ─────────────────
+    //
+    // Three possible outcomes:
+    //   (a) pi.status === 'succeeded' — money has moved. Webhook event MAY
+    //       arrive separately to flip status→paid, BUT some Stripe test-mode
+    //       webhook configs only subscribe to checkout.session.completed and
+    //       not payment_intent.succeeded. Without a synchronous fallback the
+    //       schedule row would be stuck at 'sent' forever (verified 2026-05-28).
+    //       So we do the full webhook-style update inline here: schedule→paid,
+    //       confirm sessions, insert payment row, recompute series balance,
+    //       persist Stripe customer + PM. The webhook handler stays as a
+    //       backup — its NOT EXISTS guards on reference_number make double
+    //       fires harmless.
+    //   (b) pi.status === 'requires_action' (3DS) OR 'processing' — schedule
+    //       stays 'sent', webhook (when it eventually fires) is responsible.
+    //   (c) Stripe threw (off_session decline) — schedule→failed.
+    const synchronousSuccess = pi?.status === 'succeeded' && !stripeError;
+    const newStatus = stripeError       ? 'failed'
+                    : synchronousSuccess ? 'paid'
+                    :                      'sent';
+
     await withTenantContext(tenantId, async (client) => {
       await client.query(
         `UPDATE bookings.recurring_payment_schedule
@@ -403,19 +483,70 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                 attempt_count     = attempt_count + 1,
                 last_attempt_at   = NOW(),
                 stripe_session_id = COALESCE($3::text, stripe_session_id),
+                paid_at           = CASE WHEN $2::text = 'paid' THEN NOW() ELSE paid_at END,
                 updated_at        = NOW()
           WHERE id        = $1::uuid
             AND tenant_id = $4`,
-        [
-          row.cycle_id,
-          // 'sent' on successful create (succeeded OR requires_action OR processing)
-          // 'failed' when Stripe threw — webhook payment_intent.payment_failed will
-          // confirm this state independently and is idempotent.
-          stripeError ? 'failed' : 'sent',
-          pi?.id || null,
-          tenantId,
-        ]
+        [row.cycle_id, newStatus, pi?.id || null, tenantId]
       );
+
+      // Synchronous-success path mirrors stripe.js webhook Branch 0 + the
+      // payment_intent.succeeded handler. NOT EXISTS on reference_number
+      // means if a webhook fires later, the INSERT no-ops cleanly.
+      if (synchronousSuccess) {
+        // Confirm cycle sessions
+        await client.query(
+          `UPDATE bookings.confirmed_bookings
+              SET status       = 'confirmed',
+                  deposit_paid = total_amount,
+                  balance_due  = 0,
+                  updated_at   = NOW()
+            WHERE payment_schedule_id = $1::uuid
+              AND tenant_id           = $2
+              AND status              = 'pending'`,
+          [row.cycle_id, tenantId]
+        );
+
+        // Insert payment row — payment_type='cycle' per migration 021
+        await client.query(
+          `INSERT INTO bookings.payments
+             (booking_id, recurring_series_id, customer_id, amount,
+              payment_method, payment_type, status, reference_number, tenant_id)
+           SELECT first_session.id, $1::uuid, $2::uuid,
+                  $3::numeric, 'card', 'cycle', 'received', $4::text, $5
+           FROM bookings.recurring_payment_schedule rps
+           LEFT JOIN LATERAL (
+             SELECT id FROM bookings.confirmed_bookings
+             WHERE payment_schedule_id = rps.id AND tenant_id = $5
+             ORDER BY COALESCE(booking_date, date_from) ASC, created_at ASC
+             LIMIT 1
+           ) first_session ON TRUE
+           WHERE rps.id        = $6::uuid
+             AND rps.tenant_id = $5
+             AND NOT EXISTS (
+               SELECT 1 FROM bookings.payments
+               WHERE reference_number = $4::text AND tenant_id = $5
+             )`,
+          [row.series_id, row.customer_id, row.amount_due, pi.id, tenantId, row.cycle_id]
+        );
+
+        // Recompute series balance from remaining unpaid cycles
+        await client.query(
+          `UPDATE bookings.recurring_series rs
+              SET balance_due = COALESCE((
+                    SELECT SUM(amount_due) FROM bookings.recurring_payment_schedule
+                    WHERE recurring_series_id = rs.id
+                      AND tenant_id           = rs.tenant_id
+                      AND status NOT IN ('paid','cancelled','overridden')
+                  ), 0),
+                  updated_at = NOW()
+            WHERE rs.id        = $1::uuid
+              AND rs.tenant_id = $2`,
+          [row.series_id, tenantId]
+        );
+
+        console.log(`[cycle-session] Sync success: cycle=${row.cycle_id} pi=${pi.id} amount=£${row.amount_due} — schedule/sessions/payment/balance all updated`);
+      }
     });
 
     // ── 5. Response shape — cron uses this to decide next action ────────────
@@ -603,12 +734,20 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       const source       = session.metadata?.source               || 'calendar';
 
       // For Feature C in_advance + in_arrears: extract the saved PaymentMethod
-      // from the SetupIntent or PaymentIntent. Required for off-session cycle
-      // charges via cron. setup_intent / payment_intent IDs come from Stripe;
-      // we fetch the full object to get .payment_method.
+      // AND the Stripe Customer ID from the SetupIntent or PaymentIntent.
+      // Required for off-session cycle charges via cron.
+      //
+      // 2026-05-27 — Test 3 V2 revealed session.customer is unreliable for
+      // mode=setup Checkout sessions (sometimes populated late, sometimes
+      // null). The authoritative source is the SetupIntent/PaymentIntent
+      // itself, which is directly attached to the Customer and PaymentMethod.
+      // Retrieve unconditionally for cadenced flows so the downstream UPDATE
+      // gates don't skip on a momentarily-null session.customer.
+      //
       // Done OUTSIDE the withTenantContext block to keep the DB transaction tight.
       let savedPaymentMethodId = null;
-      if (stripeCustId && (sessionMode === 'setup' || paymentTiming === 'in_advance')) {
+      let resolvedStripeCustomerId = stripeCustId;
+      if (sessionMode === 'setup' || paymentTiming === 'in_advance') {
         try {
           const Stripe = require('stripe');
           const tenantCfg = await withTenantContext(metaTenantId, (client) =>
@@ -620,15 +759,20 @@ module.exports = async function stripeRoutes(fastify, _opts) {
             if (sessionMode === 'setup' && session.setup_intent) {
               const si = await stripeClient.setupIntents.retrieve(session.setup_intent);
               savedPaymentMethodId = si.payment_method || null;
+              resolvedStripeCustomerId = resolvedStripeCustomerId || si.customer || null;
             } else if (session.payment_intent) {
               const pi = await stripeClient.paymentIntents.retrieve(session.payment_intent);
               savedPaymentMethodId = pi.payment_method || null;
+              resolvedStripeCustomerId = resolvedStripeCustomerId || pi.customer || null;
             }
           }
         } catch (e) {
-          console.warn('[webhook] PaymentMethod extraction failed:', e.message);
+          console.warn('[webhook] PaymentMethod/Customer extraction failed:', e.message);
         }
       }
+      // Use the resolved value downstream — falls back to session.customer if
+      // SetupIntent/PaymentIntent retrieval also failed.
+      const finalStripeCustId = resolvedStripeCustomerId;
 
       if (metaTenantId) {
         try {
@@ -643,7 +787,15 @@ module.exports = async function stripeRoutes(fastify, _opts) {
             //
             // Pattern 3: $1 (cycleId) is UUID context only; reference_number
             // ($2) is text only — no shared-param type contexts.
-            if (cycleId) {
+            //
+            // IMPORTANT GUARD (added 2026-05-27): for in_arrears flows the n8n
+            // workflow sends BOTH cycle_id AND mode=setup. We MUST NOT treat
+            // setup-mode events as cycle payments — no money moved, no payment
+            // row should land. Verified during Test 3: a £0 SetupIntent for
+            // 'Test 3 In Arrears Block' incorrectly produced a £160 payments
+            // row before this guard was added. The Branch 0b setup handler
+            // below is the correct path for these events.
+            if (cycleId && sessionMode !== 'setup') {
               // 1. Mark schedule row paid + record stripe_session_id
               await client.query(
                 `UPDATE bookings.recurring_payment_schedule
@@ -714,8 +866,10 @@ module.exports = async function stripeRoutes(fastify, _opts) {
 
               // 5. Persist Stripe customer + saved PaymentMethod (in_advance
               // saves card for cycles 2..N). customerId from metadata feeds
-              // the WHERE; stripeCustId + savedPaymentMethodId are the values.
-              if (customerId && stripeCustId) {
+              // the WHERE; finalStripeCustId + savedPaymentMethodId are the values.
+              // finalStripeCustId resolves from the PaymentIntent (authoritative)
+              // when session.customer isn't yet populated (Stripe timing quirk).
+              if (customerId && finalStripeCustId) {
                 await client.query(
                   `UPDATE bookings.customers
                       SET stripe_customer_id        = COALESCE(stripe_customer_id, $2),
@@ -723,21 +877,26 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                           updated_at                = NOW()
                     WHERE id        = $1::uuid
                       AND tenant_id = $4`,
-                  [customerId, stripeCustId, savedPaymentMethodId, metaTenantId]
+                  [customerId, finalStripeCustId, savedPaymentMethodId, metaTenantId]
                 );
               }
 
-              console.log(`[webhook] Cycle paid: cycle_id=${cycleId} amount=£${amountPaid} session=${session.id} tenant=${metaTenantId}`);
+              console.log(`[webhook] Cycle paid: cycle_id=${cycleId} amount=£${amountPaid} session=${session.id} stripe_cust=${finalStripeCustId} pm=${savedPaymentMethodId} tenant=${metaTenantId}`);
               return;   // done with this event — skip the legacy branches
             }
 
             // ── Branch 0b (NEW Feature C) — SETUP INTENT (in_arrears) ───────
             // Triggered by sessionMode='setup' from /stripe/session for
             // payment_timing='in_arrears'. £0 captured — purpose is to save the
-            // card for off-session cycle charges. Persist Stripe IDs + flip
-            // card_on_file_at on the series. NO payments row (no money moved).
+            // card for off-session cycle charges. Persist Stripe IDs, flip
+            // card_on_file_at on the series, and flip ALL pending sessions for
+            // this series to 'confirmed' (in_arrears trust model: customer
+            // gets the sessions immediately, paid in arrears each cycle).
+            // NO payments row (no money moved).
             if (sessionMode === 'setup') {
-              if (customerId && stripeCustId) {
+              // finalStripeCustId resolves from SetupIntent (authoritative)
+              // when session.customer isn't yet populated.
+              if (customerId && finalStripeCustId) {
                 await client.query(
                   `UPDATE bookings.customers
                       SET stripe_customer_id        = COALESCE(stripe_customer_id, $2),
@@ -745,7 +904,7 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                           updated_at                = NOW()
                     WHERE id        = $1::uuid
                       AND tenant_id = $4`,
-                  [customerId, stripeCustId, savedPaymentMethodId, metaTenantId]
+                  [customerId, finalStripeCustId, savedPaymentMethodId, metaTenantId]
                 );
               }
               if (seriesId) {
@@ -757,8 +916,24 @@ module.exports = async function stripeRoutes(fastify, _opts) {
                       AND tenant_id = $2`,
                   [seriesId, metaTenantId]
                 );
+
+                // Trust-model session confirmation: in_arrears flips ALL pending
+                // sessions to 'confirmed' the moment the card is on file. Cycle
+                // billing happens after each cycle ends via cron + off-session
+                // PaymentIntents; the customer gets the sessions immediately.
+                // Mirrors the bulk in_full pattern but without the deposit_paid
+                // mutation (no money has moved yet).
+                await client.query(
+                  `UPDATE bookings.confirmed_bookings
+                      SET status     = 'confirmed',
+                          updated_at = NOW()
+                    WHERE recurring_series_id = $1::uuid
+                      AND tenant_id           = $2
+                      AND status              = 'pending'`,
+                  [seriesId, metaTenantId]
+                );
               }
-              console.log(`[webhook] SetupIntent saved: customer=${customerId} stripe_customer=${stripeCustId} pm=${savedPaymentMethodId} series=${seriesId} tenant=${metaTenantId}`);
+              console.log(`[webhook] SetupIntent saved: customer=${customerId} stripe_customer=${finalStripeCustId} pm=${savedPaymentMethodId} series=${seriesId} tenant=${metaTenantId}`);
               return;   // done — no charge, no payments row
             }
 

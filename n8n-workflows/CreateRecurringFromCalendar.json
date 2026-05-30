@@ -202,7 +202,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id: $('Code: Validate').first().json.room_id, series_name: $('Parse: Input').first().json?.series_name || ($('Code: Validate').first().json.customer_name + ' Block'), cycle_amount: parseFloat($('Parse: Input').first().json?.monthly_fee || $('Parse: Input').first().json?.agreed_price || $('Parse: Input').first().json?.monthly_rate || $('Parse: Input').first().json?.rate_per_session || 0) || 0, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, start_time: $('Parse: Input').first().json?.start_time || '', end_time: $('Parse: Input').first().json?.end_time || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', end_date: $('Parse: Input').first().json?.end_date || '', day_of_week: parseInt($('Parse: Input').first().json?.day_of_week ?? 1), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', billing_type: $('Parse: Input').first().json?.billing_type || $('Parse: Input').first().json?.billing_frequency || 'monthly', notes: $('Parse: Input').first().json?.notes || '' }) }}",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id: $('Code: Validate').first().json.room_id, series_name: $('Parse: Input').first().json?.series_name || ($('Code: Validate').first().json.customer_name + ' Block'), cycle_amount: parseFloat($('Parse: Input').first().json?.monthly_fee || $('Parse: Input').first().json?.agreed_price || $('Parse: Input').first().json?.monthly_rate || $('Parse: Input').first().json?.rate_per_session || 0) || 0, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, start_time: $('Parse: Input').first().json?.start_time || '', end_time: $('Parse: Input').first().json?.end_time || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', end_date: $('Parse: Input').first().json?.end_date || '', day_of_week: parseInt($('Parse: Input').first().json?.day_of_week ?? 1), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', billing_type: $('Parse: Input').first().json?.billing_type || $('Parse: Input').first().json?.billing_frequency || 'monthly', cycle_length_weeks: ($('Parse: Input').first().json?.payment_timing === 'in_full') ? null : (parseInt($('Parse: Input').first().json?.cycle_length_weeks || 4) || 4), notes: $('Parse: Input').first().json?.notes || '' }) }}",
         "options": {}
       },
       "id": "crc-api-insert-series-cal-001",
@@ -500,7 +500,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ series_id: $('DB: Insert Rule').first().json.series_id, customer_id: $('Code: Validate').first().json.customer_id, dates_csv: $('Code: Filter Dates').first().json.safe_dates_csv, rate_per_session: parseFloat($('Parse: Input').first().json?.rate_per_session || 0), cycle_length_weeks: parseInt($('Parse: Input').first().json?.cycle_length_weeks || 4), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', frequency: $('Parse: Input').first().json?.frequency || 'weekly' }) }}",
+        "jsonBody": "={{ JSON.stringify({ series_id: $('DB: Insert Rule').first().json.series_id, customer_id: $('Code: Validate').first().json.customer_id, dates_csv: $('Code: Filter Dates').first().json.filtered_dates, rate_per_session: parseFloat($('Parse: Input').first().json?.rate_per_session || 0), cycle_length_weeks: parseInt($('Parse: Input').first().json?.cycle_length_weeks || 4), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', frequency: $('Parse: Input').first().json?.frequency || 'weekly' }) }}",
         "options": {
           "response": {
             "response": {
@@ -780,7 +780,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "crfc-v5-feature-c-2026-05-24",
+  "versionId": "crfc-v6-field-fix-2026-05-24",
   "meta": {
     "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
   },

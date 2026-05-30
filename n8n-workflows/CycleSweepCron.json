@@ -16,7 +16,10 @@
       "name": "Schedule: Daily 06:00 UTC",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [-880, 0],
+      "position": [
+        -880,
+        0
+      ],
       "notes": "Feature C cron sweep. Charges due cycles off-session against saved cards. Runs once a day before business hours so customers wake up to receipts, not failures."
     },
     {
@@ -35,8 +38,14 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "days_ahead", "value": "0" },
-            { "name": "limit", "value": "200" }
+            {
+              "name": "days_ahead",
+              "value": "0"
+            },
+            {
+              "name": "limit",
+              "value": "200"
+            }
           ]
         },
         "options": {
@@ -54,7 +63,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "continueOnFail": true,
-      "position": [-680, 0]
+      "position": [
+        -680,
+        0
+      ]
     },
     {
       "parameters": {
@@ -64,7 +76,10 @@
       "name": "Code: Extract Cycles",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-480, 0]
+      "position": [
+        -480,
+        0
+      ]
     },
     {
       "parameters": {
@@ -79,7 +94,10 @@
               "id": "no-cycles-guard",
               "leftValue": "={{ $json._no_cycles }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -90,7 +108,10 @@
       "name": "IF: No Cycles Today?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-280, 0]
+      "position": [
+        -280,
+        0
+      ]
     },
     {
       "parameters": {
@@ -101,7 +122,10 @@
       "name": "Split In Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [-80, 100],
+      "position": [
+        -80,
+        100
+      ],
       "notes": "One cycle per iteration. Serial processing keeps Stripe rate limits comfortable and makes per-cycle errors easier to trace in execution history."
     },
     {
@@ -115,7 +139,10 @@
               "name": "Authorization",
               "value": "={{ 'Bearer ' + $env.CYCLE_SWEEP_SERVICE_JWT }}"
             },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -137,7 +164,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "continueOnFail": true,
-      "position": [120, 100]
+      "position": [
+        120,
+        100
+      ]
     },
     {
       "parameters": {
@@ -152,7 +182,10 @@
               "id": "success-check",
               "leftValue": "={{ $json.success }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -163,18 +196,24 @@
       "name": "IF: Charge Succeeded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [320, 100],
-      "notes": "TRUE → log success and loop. FALSE → trigger #122 email workflow (TODO) and log failure. For v1 both paths just log + loop; email branch deferred."
+      "position": [
+        320,
+        100
+      ],
+      "notes": "TRUE \u2192 log success and loop. FALSE \u2192 trigger #122 email workflow (TODO) and log failure. For v1 both paths just log + loop; email branch deferred."
     },
     {
       "parameters": {
-        "jsCode": "// Build summary line for audit. Combines cycle context (from Split input)\n// with the API response (from current item). The cycle context isn't on\n// $json after the HTTP node — pull it from the splitInBatches input.\nconst batch    = $('Split In Batches').item.json;\nconst response = $json;\n\nreturn [{\n  json: {\n    cycle_id:       batch.cycle_id,\n    series_name:    batch.series_name,\n    customer_name:  batch.customer_name,\n    amount_due:     batch.amount_due,\n    outcome:        response.success ? 'CHARGED' : (response.code || 'FAILED'),\n    pi_id:          response.data?.payment_intent_id || null,\n    pi_status:      response.data?.status || null,\n    requires_action: response.data?.requires_action || false,\n    error_message:  response.message || null,\n  }\n}];"
+        "jsCode": "// Build summary line for audit. Combines cycle context (from Split input)\n// with the API response (from current item). The cycle context isn't on\n// $json after the HTTP node \u2014 pull it from the splitInBatches input.\nconst batch    = $('Split In Batches').item.json;\nconst response = $json;\n\nreturn [{\n  json: {\n    cycle_id:       batch.cycle_id,\n    series_name:    batch.series_name,\n    customer_name:  batch.customer_name,\n    amount_due:     batch.amount_due,\n    outcome:        response.success ? 'CHARGED' : (response.code || 'FAILED'),\n    pi_id:          response.data?.payment_intent_id || null,\n    pi_status:      response.data?.status || null,\n    requires_action: response.data?.requires_action || false,\n    error_message:  response.message || null,\n  }\n}];"
       },
       "id": "csc-format-result-001",
       "name": "Code: Format Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 100]
+      "position": [
+        520,
+        100
+      ]
     },
     {
       "parameters": {
@@ -187,7 +226,10 @@
               "name": "Authorization",
               "value": "={{ 'Bearer ' + $env.CYCLE_SWEEP_SERVICE_JWT }}"
             },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -209,74 +251,154 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "continueOnFail": true,
-      "position": [720, 100],
+      "position": [
+        720,
+        100
+      ],
       "notes": "Logs to bookings.audit_log via the existing audit-write endpoint. If /audit/log isn't implemented yet, neverError=true means this no-ops cleanly without breaking the sweep."
     },
     {
       "parameters": {
-        "jsCode": "// Final summary — fires once after the last batch.\n// Counts outcomes across all items processed by Format Result.\nconst items = $items('Code: Format Result');\nconst charged   = items.filter(i => i.json.outcome === 'CHARGED').length;\nconst failed    = items.filter(i => i.json.outcome !== 'CHARGED').length;\nconst needs3ds  = items.filter(i => i.json.requires_action === true).length;\n\nconsole.log(`[cycle-sweep] DONE — charged=${charged} failed=${failed} requires_action=${needs3ds} total=${items.length}`);\n\nreturn [{ json: { charged, failed, requires_action: needs3ds, total: items.length, ran_at: new Date().toISOString() } }];"
+        "jsCode": "// Defensive read \u2014 $items() throws ExpressionError if the referenced node\n// hasn't executed (n8n 1.85.4 behaviour; documented in CLAUDE.md anti-patterns).\n// Wrap in try/catch so the empty-cycles branch (where Format Result never\n// runs) doesn't blow up on the final summary.\nlet items = [];\ntry { items = $items('Code: Format Result'); } catch(e) { items = []; }\n\nconst charged   = items.filter(i => i.json.outcome === 'CHARGED').length;\nconst failed    = items.filter(i => i.json.outcome !== 'CHARGED').length;\nconst needs3ds  = items.filter(i => i.json.requires_action === true).length;\n\nconsole.log('[cycle-sweep] DONE \u2014 charged=' + charged + ' failed=' + failed + ' requires_action=' + needs3ds + ' total=' + items.length);\n\nreturn [{ json: { charged, failed, requires_action: needs3ds, total: items.length, ran_at: new Date().toISOString() } }];"
       },
       "id": "csc-summary-001",
       "name": "Code: Final Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-80, -120]
+      "position": [
+        -80,
+        -120
+      ]
     }
   ],
   "pinData": {},
   "connections": {
     "Schedule: Daily 06:00 UTC": {
       "main": [
-        [{ "node": "HTTP: GET /recurring/cycles/due", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "HTTP: GET /recurring/cycles/due",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "HTTP: GET /recurring/cycles/due": {
       "main": [
-        [{ "node": "Code: Extract Cycles", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Extract Cycles",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Code: Extract Cycles": {
       "main": [
-        [{ "node": "IF: No Cycles Today?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF: No Cycles Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF: No Cycles Today?": {
       "main": [
-        [{ "node": "Code: Final Summary", "type": "main", "index": 0 }],
-        [{ "node": "Split In Batches", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Split In Batches": {
       "main": [
-        [{ "node": "Code: Final Summary", "type": "main", "index": 0 }],
-        [{ "node": "HTTP: POST /stripe/cycle-session", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Final Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP: POST /stripe/cycle-session",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "HTTP: POST /stripe/cycle-session": {
       "main": [
-        [{ "node": "IF: Charge Succeeded?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF: Charge Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF: Charge Succeeded?": {
       "main": [
-        [{ "node": "Code: Format Result", "type": "main", "index": 0 }],
-        [{ "node": "Code: Format Result", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code: Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Code: Format Result": {
       "main": [
-        [{ "node": "HTTP: POST /audit/log", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "HTTP: POST /audit/log",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "HTTP: POST /audit/log": {
       "main": [
-        [{ "node": "Split In Batches", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
-  "versionId": "cycle-sweep-v1-2026-05-24"
+  "versionId": "cycle-sweep-v2-2026-05-24"
 }

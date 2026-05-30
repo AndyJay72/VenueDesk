@@ -1,8 +1,8 @@
 # VenueDesk — Technical Specifications
 
-**Version:** 1.0  
-**Date:** April 2026  
-**Status:** Active Development (Pre-Production)
+**Version:** 2.0  
+**Date:** May 2026  
+**Status:** Active Development — Phases 1–3 Complete, Phase 4 (RLS) In Progress
 
 ---
 
@@ -11,20 +11,23 @@
 1. [System Overview](#1-system-overview)
 2. [Architecture](#2-architecture)
 3. [Frontend](#3-frontend)
-4. [Backend — n8n Workflows](#4-backend--n8n-workflows)
-5. [Database Schema](#5-database-schema)
-6. [API Endpoints](#6-api-endpoints)
-7. [Authentication & Security](#7-authentication--security)
-8. [Booking Logic & Data Flows](#8-booking-logic--data-flows)
-9. [Multi-Tenancy](#9-multi-tenancy)
-10. [Configuration & Environment](#10-configuration--environment)
-11. [Migration Roadmap](#11-migration-roadmap)
+4. [Backend — db-api (Fastify)](#4-backend--db-api-fastify)
+5. [Backend — n8n Workflows (Legacy / Recurring)](#5-backend--n8n-workflows-legacy--recurring)
+6. [Database Schema](#6-database-schema)
+7. [API Endpoints](#7-api-endpoints)
+8. [Authentication & Security](#8-authentication--security)
+9. [Stripe Integration](#9-stripe-integration)
+10. [Booking Logic & Data Flows](#10-booking-logic--data-flows)
+11. [Multi-Tenancy](#11-multi-tenancy)
+12. [Configuration & Environment](#12-configuration--environment)
+13. [Migration Roadmap](#13-migration-roadmap)
+14. [Development Rules & Guardrails](#14-development-rules--guardrails)
 
 ---
 
 ## 1. System Overview
 
-VenueDesk is a multi-tenant venue booking and CRM platform built for community halls, sports centres, and event spaces. It manages:
+VenueDesk is a multi-tenant venue booking and CRM platform for community halls, sports centres, and event spaces. It manages:
 
 - Single and recurring room bookings
 - Customer records and interaction history
@@ -32,270 +35,408 @@ VenueDesk is a multi-tenant venue booking and CRM platform built for community h
 - Automated payment chasing and billing cycles
 - Staff user management and audit logging
 - Lead generation and enquiry capture
+- Stripe-powered online payments (card + BACS)
 
-The platform is currently in a transition phase, moving from a direct database / n8n architecture towards a secure db-api layer with JWT authentication and PostgreSQL Row-Level Security (RLS).
+As of May 2026, the platform has completed the migration from a direct-database n8n architecture to a secure db-api layer. JWT authentication is now issued and verified exclusively by `venuedesk-api` (Fastify). PostgreSQL Row-Level Security is enabled on key tables. n8n is retained for recurring booking orchestration and legacy automation workflows only — it no longer executes raw SQL for the core booking/payment/auth paths.
 
 ---
 
 ## 2. Architecture
 
-### 2.1 Current Architecture
+### 2.1 Current Architecture (Post Phase 1–3 Migration)
 
 ```
-Client (Browser)
-      │ HTTP / JSON
-      ▼
-n8n Webhooks
-(Orchestration + SQL execution)
-      │ pg / SQL
-      ▼
-PostgreSQL
-(bookings schema)
+Client (Browser — GitHub Pages)
+         │ HTTP / JSON
+         │ JWT via body tunnel (POST) or query param (GET)
+         ▼
+  venuedesk-api  ──────────────────────────────────────────
+  (Node.js / Fastify — https://api.venuedesk.co.uk)       │
+  Auth + Validation + Tenant Context + Audit Logging       │
+         │ set_config('app.tenant_id', <from JWT>, true)   │
+         ▼                                                  │
+    PostgreSQL                                              │
+    (bookings schema — RLS enforced on core tables)        │
+                                                            │
+  n8n Webhooks  ◄─────────────────────────────────────────
+  (Orchestration only — recurring bookings, automation)
+  https://n8n.srv1090894.hstgr.cloud/webhook
+         │
+         ▼
+    PostgreSQL (legacy recurring workflows — migration pending)
 ```
 
-Requests flow from the browser directly to n8n webhook endpoints. n8n workflows handle both business logic and raw SQL execution. Tenant isolation is applied at the application level by including `tenant_id` in request bodies.
+**Key routing split:**
 
-### 2.2 Target Architecture (Post-Migration)
+| Route category | Handler |
+|---|---|
+| Auth (`/auth/login`) | db-api |
+| Dashboard data | db-api |
+| Bookings CRUD | db-api |
+| Payments (manual + Stripe) | db-api |
+| Enquiry form submission | db-api |
+| Staff user management | db-api |
+| Customers | db-api |
+| Config / rooms | db-api |
+| Blocked dates | db-api |
+| Recurring series creation | n8n (legacy — migration pending) |
+| Payment chasing automation | n8n (scheduled) |
 
-```
-Client / n8n
-      │ JWT (Authorization: Bearer)
-      ▼
-db-api (Node.js / Fastify)
-(Auth + Validation + Audit logging)
-      │ SET LOCAL app.tenant_id = <from JWT>
-      ▼
-PostgreSQL
-(RLS enforced — bookings schema)
-      │
-      ▼
-n8n
-(Orchestration only — no SQL)
-      │
-      ▼
-AI Agents
-```
+### 2.2 Infrastructure
+
+| Service | URL / Location |
+|---|---|
+| **db-api** (Fastify) | `https://api.venuedesk.co.uk` |
+| **n8n** (workflow editor) | `https://n8n.srv1090894.hstgr.cloud` |
+| **Frontend** (GitHub Pages) | `https://andyjay72.github.io/VenueDesk` |
+| **GitHub repository** | `https://github.com/AndyJay72/VenueDesk` |
+| **VPS IP** | `72.61.19.52` |
+| **db-api container** | `venuedesk-api` (Docker) |
+| **Postgres container** | `n8n_postgres-postgres-1` (Docker) |
+| **Host source path** | `/opt/n8n_postgres/venuedesk-api/` |
 
 ### 2.3 Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | Vanilla JavaScript, FullCalendar 6, HTML5/CSS3 |
-| Orchestration | n8n (self-hosted, webhook-driven) |
-| Database | PostgreSQL (bookings schema) |
-| Auth | JWT (HS256 / RS256), Bearer tokens |
-| Hosting (n8n) | `https://n8n.srv1090894.hstgr.cloud` |
+| API layer | Node.js 20 / Fastify 4, `@fastify/jwt`, `@fastify/cors` |
+| Orchestration (legacy) | n8n (self-hosted, webhook-driven) |
+| Database | PostgreSQL 15 (`bookings` schema) |
+| Auth | JWT HS256, signed by `venuedesk-api` |
+| Payments | Stripe Checkout (card) + BACS |
+| Hosting — frontend | GitHub Pages (static) |
+| Hosting — API + DB | VPS (Docker Compose — Traefik proxy) |
 | Fonts / Icons | Plus Jakarta Sans (Google Fonts), Font Awesome 6 |
 
 ---
 
 ## 3. Frontend
 
-### 3.1 Application Structure
+### 3.1 Architecture — Static HTML (Not SPA)
+
+The frontend is **static HTML/CSS/JS** served via GitHub Pages. There is no build step, no bundler, no SPA framework. All pages are standalone `.html` files in `CommunityHub/`. Each page manages its own state and API calls via embedded `<script>` blocks and vanilla JavaScript.
+
+**Do not introduce Vite, Webpack, React, Vue, or any build tooling.** All fixes and features must be vanilla JS edits to existing `.html` files.
 
 ```
 CommunityHub/
-├── spa/                          Single Page Application (current)
-│   ├── index.html                Entry point / shell
-│   ├── login.html                Auth page
-│   ├── js/
-│   │   ├── app.js                Bootstrap / init
-│   │   ├── auth.js               JWT handling, session management
-│   │   ├── api.js                HTTP client wrapper (50+ methods)
-│   │   ├── router.js             Hash-based SPA router
-│   │   ├── ui.js                 Shared UI utilities
-│   │   └── pages/                15 page modules (dynamic imports)
-│   └── css/                      Theme + shared styles
-├── recurring-bookings.html       Dedicated recurring booking interface
-├── manual-booking.html           Single booking form
-├── venuepro_booking.html         VenuePro booking flow
-├── enquiry-form.html             Public enquiry capture
-├── calendar.html                 FullCalendar day/week/month view
-├── tenants.json                  Multi-tenant configuration
-├── event-types-data.json         Event category list
-└── rooms-data.json               Room catalogue
+├── index.html                 Main dashboard (KPIs, bookings, payments)
+├── login.html                 Auth page → POST /auth/login on db-api
+├── calendar.html              FullCalendar day/week/month view
+├── accounts.html              Financial overview
+├── users.html                 Staff user management (list, create, edit, delete)
+├── admin-config.html          Venue settings, rooms, Stripe config
+├── enquiry-form.html          Public enquiry capture → db-api /enquiry/create-request
+├── checkout.html              Stripe payment return URL handler
+├── recurring-bookings.html    Recurring contract creation (1,200+ lines)
+├── manual-booking.html        Single booking form
+├── leadgen-dashboard.html     Lead generation dashboard
+└── tenants.json               Multi-tenant configuration
 ```
 
-### 3.2 SPA Routing
+### 3.2 Global JavaScript Contract
 
-Routes are hash-based (`#/path`) and map to dynamically imported page modules:
+Every page script must open with API base URL constants **before** any `const` that references them in a template literal. This is a hard rule — a `const` referencing an undeclared `const` in a template literal throws a silent `ReferenceError` that kills the entire `<script>` block.
 
-| Route | Module | Description |
+```javascript
+// ── API base URLs — MUST be declared first ───────────────────────────────────
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+const CAL_DB_API  = 'https://api.venuedesk.co.uk';
+const EF_DB_API   = 'https://api.venuedesk.co.uk';
+
+// ── Derived URLs — safe after base URLs are declared ─────────────────────────
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
+const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
+```
+
+### 3.3 Session Storage Keys
+
+All pages read from `sessionStorage` (not `localStorage`). Login must set all keys on successful authentication.
+
+| Key | Value | Used for |
 |---|---|---|
-| `#/` | dashboard.js | KPIs, pending requests, outstanding payments |
-| `#/bookings` | bookings.js | Booking list with filters and payment modal |
-| `#/calendar` | calendar.js | FullCalendar integration |
-| `#/customers` | customers.js | Customer CRUD and interaction history |
-| `#/manual-booking` | manual-booking.js | Create single bookings |
-| `#/final-payment` | final-payment.js | Payment processing |
-| `#/accounts` | accounts.js | Financial overview, invoice history |
-| `#/audit-log` | audit-log.js | Activity log, customer interactions |
-| `#/users` | users.js | Staff user management |
-| `#/admin-config` | admin-config.js | Venue settings, rooms, event types |
-| `#/leadgen` | leadgen.js | Lead generation dashboard |
-| `#/onboarding` | onboarding.js | Venue setup wizard |
-| `#/enquiry` | enquiry-form.js | Enquiry submission form |
+| `vp_token` | JWT string | Body-tunnel in all POST requests, query param in GET |
+| `vp_tenant_id` | Numeric string (e.g., `"1001"`) | Tenant isolation on all queries |
+| `vp_user_name` | User display name | `staff_member` field on interactions |
+| `vp_venue_name` | Venue display name | Sidebar display |
+| `vp_user` | `JSON.stringify(user)` | Full user context object |
 
-### 3.3 Core JavaScript Modules
+### 3.4 Auth Pattern (CORS Constraint — Body Tunnel)
 
-**auth.js**
-Handles all session management. Key methods:
-- `Auth.getToken()` — Retrieves JWT from `localStorage['vp_token']`
-- `Auth.getTenantId()` — Gets tenant ID from `localStorage['vp_tenant_id']`
-- `Auth.headers()` — Builds request headers with Bearer token
-- `Auth.requireAuth()` — Guards page access, redirects to login if expired
+The db-api CORS config allows only `Content-Type` in `allowedHeaders`. Sending an `Authorization: Bearer` header triggers a CORS preflight that the browser blocks. **Never add `Authorization` to frontend `fetch` calls.**
 
-**api.js**
-Thin HTTP client wrapping all n8n webhook calls. Appends auth headers on every request and exposes typed methods for each endpoint (e.g., `api.createBooking()`, `api.getCustomers()`).
+JWT travels via the request body for POST calls and the query string for GET calls:
 
-**router.js**
-Hash-based SPA router. Dynamically imports page modules on navigation and tears down the previous page.
+```javascript
+// Helper functions used across all pages
+function getAuthHeaders() { return {}; }           // always empty — no auth headers
+function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+function tidParam(sep = '?') { return sep + 'tenant_id=' + _TID(); }
 
-### 3.4 Recurring Bookings Interface (`recurring-bookings.html`)
+// GET with tenant isolation
+fetch(`${DB_API}/some/endpoint${tidParam()}`)
 
-A standalone 1,200+ line page with its own embedded state machine for recurring contract creation. Key features:
+// GET with auth (authenticated GET endpoints)
+const tok = sessionStorage.getItem('vp_token') || '';
+fetch(`${DB_API}/stripe/bacs-details?jwt=${encodeURIComponent(tok)}`)
 
-- Day-of-week selector grid (Sun–Sat checkboxes, each with independent start/end times)
-- Specific-dates mode (click to pick individual dates from mini monthly calendars)
+// POST with JWT body-tunnel
+fetch(SOME_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    jwt:       sessionStorage.getItem('vp_token') || '',
+    tenant_id: parseInt(_TID()),
+    // ... request fields
+  })
+});
+```
+
+### 3.5 Page-Load JWT Validation
+
+Every authenticated page must validate JWT claims at load time. Add as the **first** `<script>` block:
+
+```javascript
+(function () {
+  const _t = sessionStorage.getItem('vp_token');
+  if (!_t) { window.location.href = 'login.html'; return; }
+  try {
+    const _p = JSON.parse(atob(_t.split('.')[1]));
+    if (_p.exp && _p.exp * 1000 < Date.now()) {
+      sessionStorage.clear(); window.location.href = 'login.html'; return;
+    }
+    const uid = _p.user_id || _p.id;
+    if (!uid || !_p.tenant_id) {
+      console.warn('[auth] stale token — missing claims', _p);
+      sessionStorage.clear(); window.location.href = 'login.html';
+    }
+  } catch (e) { /* non-JWT, skip */ }
+})();
+```
+
+### 3.6 Identity Resolution
+
+Always resolve display names in this priority order:
+
+```javascript
+const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff Manager';
+```
+
+### 3.7 Recurring Bookings Interface (`recurring-bookings.html`)
+
+A standalone 1,200+ line page with its own embedded state machine for recurring contract creation.
+
+- Day-of-week selector grid (Sun–Sat checkboxes with independent start/end times per day)
+- Specific-dates mode (individual dates from mini monthly calendars)
 - Real-time cost preview (cycle price, total contract value)
-- Pre-flight availability check before submission (calls `check-recurring-clashes` webhook)
-- Clash modal: shows blocked/conflicting dates with option to proceed with available sessions or cancel
-- Payment summary sidebar
-
-**Key client-side functions:**
+- Pre-flight availability check before submission
+- Clash modal: blocked/conflicting dates with option to proceed or cancel
 
 | Function | Purpose |
 |---|---|
 | `qbSubmitRecurringBooking(type)` | Orchestrates full pre-flight + submission flow |
-| `qbIsDateBlocked(dateStr)` | Checks date against blocked_dates rules (oneoff / recurring / recurring-weekday / range) |
-| `qbDoSubmitRecurring(payload, btns)` | POSTs to Create Recurring webhook, handles partial_booking response |
-| `qbProceedWithSafeDates()` | User confirms modal — triggers submission with conflict-free dates |
-| `qbCloseClashModal()` | Cancels and re-enables booking buttons |
+| `qbIsDateBlocked(dateStr)` | Checks date against `blocked_dates` rules |
+| `qbDoSubmitRecurring(payload, btns)` | POSTs to Create Recurring webhook |
+| `qbProceedWithSafeDates()` | User confirms clash modal — submits conflict-free dates |
 | `qbUpdateRecurrencePreview()` | Refreshes date list and cost preview in real time |
 
-### 3.5 Design System
+**Deferred feature:** Multi-date array drag-select / specific-date mode extension — scheduled for next development session.
 
-CSS custom properties used across all pages:
+### 3.8 Design System
 
 ```css
---bg-dark:    #0f172a        /* Page background */
---bg-card:    rgba(30,41,59,0.7)  /* Card surfaces */
---border:     rgba(148,163,184,0.1)
---primary:    #6366f1        /* Indigo — primary actions */
---success:    #10b981        /* Emerald */
---warning:    #f59e0b        /* Amber */
---danger:     #ef4444        /* Red */
---text-main:  #f8fafc        /* Slate-50 */
---text-muted: #94a3b8        /* Slate-400 */
+--bg-dark:       #0f172a               /* Page background */
+--bg-card:       rgba(30,41,59,0.7)    /* Card surfaces */
+--border:        rgba(148,163,184,0.1)
+--primary:       #6366f1               /* Indigo — primary actions */
+--success:       #10b981               /* Emerald */
+--warning:       #f59e0b               /* Amber */
+--danger:        #ef4444               /* Red */
+--text-main:     #f8fafc               /* Slate-50 */
+--text-muted:    #94a3b8               /* Slate-400 */
 --sidebar-width: 260px
 ```
 
 ---
 
-## 4. Backend — n8n Workflows
+## 4. Backend — db-api (Fastify)
 
 ### 4.1 Overview
 
-All business logic and database access currently lives inside n8n workflows, triggered via HTTP webhooks. There are 80+ workflow files covering booking management, payment chasing, reporting, and administration.
+`venuedesk-api` is a Node.js / Fastify service that owns all authenticated database access, JWT issuance, and Stripe integration. It runs in a Docker container on the VPS behind Traefik.
+
+**Source:** `venue_desk_backup/venuedesk-api/src/`
+
+```
+venuedesk-api/src/
+├── server.js                  Entry point — plugins, routes, boot
+├── db/
+│   ├── pool.js                pg Pool instance
+│   ├── migrate.js             Auto-migration runner on boot
+│   ├── migrations/            Numbered .sql files (001–017+)
+│   └── withTenantContext.js   Transaction wrapper — sets RLS tenant context
+├── middleware/
+│   └── errorHandler.js        Global Fastify error handler
+└── routes/
+    ├── auth.js                POST /auth/login — issues JWT
+    ├── dashboard.js           GET  /dashboard/* — KPIs, bookings, revenue
+    ├── bookings.js            Booking lifecycle endpoints
+    ├── payments.js            Payment read endpoints
+    ├── payments-manual.js     POST /payments/pay — atomic balance settlement
+    ├── customers.js           Customer CRUD
+    ├── accounts.js            Financial overview
+    ├── recurring.js           Recurring series + payments
+    ├── leads.js               Lead generation
+    ├── users.js               GET /users — staff list
+    ├── users-update.js        POST /users/update — staff write ops
+    ├── admin.js               Venue settings, payment config
+    ├── config.js              Room/event-type config
+    ├── onboarding.js          Venue setup wizard
+    ├── stripe.js              Stripe Checkout + webhook
+    ├── enquiry.js             POST /enquiry/create-request (public)
+    ├── audit.js               POST /audit/log — write audit entries
+    └── blocked-dates.js       Blocked date rules CRUD
+```
+
+### 4.2 Key Fastify Configuration
+
+**Raw body capture** — required for Stripe webhook HMAC verification:
+
+```javascript
+fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+  req.rawBody = body;   // exact bytes Stripe signed
+  try { done(null, JSON.parse(body.toString('utf8'))); }
+  catch (err) { err.statusCode = 400; done(err, undefined); }
+});
+```
+
+**CORS** — `allowedHeaders: ['Content-Type']` only. `Authorization` excluded intentionally — JWT travels via body/query.
+
+**JWT** — `@fastify/jwt`, HS256, expiry from `JWT_EXPIRY` env var (default `60m`).
+
+**`fastify.authenticate` decorator** — tries `Authorization` header first (n8n/Postman), falls back to `body.jwt` / `query.jwt`. Validates `user_id || id` and `tenant_id`; rejects with 401 if either missing.
+
+### 4.3 `withTenantContext` Pattern
+
+```javascript
+async function withTenantContext(tenantId, fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId.toString()]);
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+```
+
+`set_config(..., true)` scopes the setting to the current transaction (= `SET LOCAL`). **Never use `SET LOCAL $1`** — PostgreSQL does not accept parameterised SET commands (error `42601`).
+
+`tenant_id` for write operations always comes from `req.user.tenant_id` (JWT claim) — never from the request body.
+
+### 4.4 Password Hashing
+
+```
+hash = SHA512('vp-pepper-change-me' + plaintext_password)  →  128-char hex string
+```
+
+Pepper is baked in (not from env var) to maintain compatibility with the original n8n Crypto node hashes. **Do not change the pepper** — it invalidates all existing passwords.
+
+### 4.5 Migrations
+
+Files `001_*.sql` through `017_*.sql` run automatically at container start.
+
+| Migration | Description |
+|---|---|
+| `001–015` | Core schema — all tables, indexes, triggers |
+| `016_tenants_rls_policy.sql` | RLS policy on `bookings.tenants` |
+| `017_booking_requests_enquiry_fields.sql` | `hire_type`, `total_cost`, `event_type`, `notes` + UNIQUE `(email, tenant_id)` |
+
+---
+
+## 5. Backend — n8n Workflows (Legacy / Recurring)
+
+### 5.1 Current Role
+
+n8n is **orchestration-only**. The core auth/booking/payment/user paths have migrated to db-api. n8n retains:
+
+- Recurring booking series creation and management
+- Scheduled payment chasing automation
+- Email notifications
+- Legacy read/reporting endpoints not yet migrated
 
 **Base webhook URL:** `https://n8n.srv1090894.hstgr.cloud/webhook`
 
-### 4.2 Workflow Categories
+### 5.2 Active Workflow Index
 
-**Booking Management**
-
-| Workflow | ID | Description |
+| File | Workflow Name | Key Paths |
 |---|---|---|
-| CreateRecurringBooking | — | Creates parent series + child sessions |
-| CreateRecurringFromCalendar | y1zkERdFOULI8aUY | Quick-book from calendar drag |
-| CreateRecurringBookingFixed | bkD0FkR1MtXvcm59 | Alternate recurring creation path |
-| CheckRecurringClashes | WNEiyn2bRdoBK20U | Pre-flight conflict detection |
-| RecurringMakeBooking | — | Generate individual sessions from series |
-| RecurringWalkInBooking | — | Walk-in session creation |
-| CancelBooking | — | Single booking cancellation with refund |
-| CancelRecurringSeries | — | Cancel entire series + all children |
+| `hBclMCxbgmz7f3Za.json` | Complete System API | `staff-dashboard`, `all-customers`, `accounts-data`, `get-pending-requests`, `update-status`, `cancel-pending`, `get-monthly-revenue` |
+| `7ZXOI73BhHLXkyOc.json` | Confirm Booking | `confirm-booking` |
+| `AGkUe3zjjFDD0wOL.json` | Cancellation Manager | `cancel-booking` |
+| `KHvxUBua7hi5e1x1.json` | Financial Operations | `pay-balance` (superseded by db-api `/payments/pay`) |
+| `nW4p6cg3l7OHwjQP.json` | Customer Interactions | `customer-interactions` |
+| `baGN4RUcgtsDTISA.json` | Config Manager | `get-rooms`, `create-room`, `update-room`, etc. |
+| `3JqHCjua5lKZGpeB.json` | Blocked Dates API | `blocked-dates` |
+| `kB5xoIh4gcaRsCpW.json` | Create Customer (Upsert) | `create-customer` |
+| `eI6PSBE1TbpaRx9K.json` | Make Booking | `make-booking`, `check-availability` |
+| `UpdateCustomerWF.json` | Update Customer | `update-customer` |
+| `ServicesWF.json` | Services API | `get-service-data`, `save-service`, `delete-service` |
 
-**Payment Processing**
-
-| Workflow | Description |
-|---|---|
-| RecordRecurringPayment | Log payment against recurring series parent |
-| RecurringPaymentChaser | Automated payment reminder emails |
-| RecurringPaymentReminder | Advance payment notices |
-| RecurringAutoCancel | Auto-cancel non-paying series (60+ days overdue) |
-| RecurringPaymentOverride | Manual payment override |
-| BillingCycleTrigger | Scheduled monthly billing trigger |
-
-**Customer & Reporting**
-
-| Workflow | Description |
-|---|---|
-| UpdateCustomerWF | Customer record updates |
-| GetRecurringBookings | Fetch active recurring series |
-| GetRepeatClients | Identify repeat customers |
-| GetOutstandingPayments | Billing dashboard query |
-| CustomerInteractions | Activity log entries |
-
-### 4.3 Typical Workflow Node Structure
-
-A standard Create/Update workflow follows this node pattern:
+### 5.3 Recurring Booking Workflow Structure
 
 ```
-Webhook (trigger)
-  → Code: Parse Input        (extract + sanitise request body)
-  → Code: Validate           (check required fields, types, UUIDs)
-  → DB: Check Clashes        (PostgreSQL — availability query)
-  → Code: Filter Dates       (remove clashing/blocked dates, build response metadata)
-  → DB: Upsert Customer      (INSERT ... ON CONFLICT DO UPDATE)
+Webhook
+  → Code: Parse + Validate
+  → DB: Check Clashes        (overlap query)
+  → Code: Filter Dates       (remove clashing/blocked)
+  → DB: Upsert Customer
   → DB: Insert Series        (parent record)
-  → DB: Insert Bookings      (bulk INSERT child sessions)
+  → DB: Insert Bookings      (bulk INSERT — NOT EXISTS guard)
   → DB: Insert Payment Schedule
-  → Respond: Created         (JSON response)
-  → Respond: Not Available   (if fully blocked)
+  → Respond: Created / Not Available
 ```
 
-### 4.4 Clash Detection SQL
-
-The canonical overlap detection query used across all recurring booking workflows:
+### 5.4 Clash Detection SQL
 
 ```sql
-SELECT COALESCE(
-  ARRAY_AGG(d::text ORDER BY d),
-  ARRAY[]::text[]
-) AS clashed_dates
+SELECT COALESCE(ARRAY_AGG(d::text ORDER BY d), ARRAY[]::text[]) AS clashed_dates
 FROM unnest(string_to_array($1, ',')) AS d
 WHERE $1 <> ''
   AND (
     EXISTS (
       SELECT 1 FROM bookings.confirmed_bookings cb
-      WHERE cb.room_id    = NULLIF($2, '')::uuid
-        AND cb.tenant_id  = $3::integer
+      WHERE cb.room_id   = NULLIF($2, '')::uuid
+        AND cb.tenant_id = $3::integer
         AND cb.status NOT IN ('cancelled')
         AND d::date BETWEEN COALESCE(cb.date_from::date, cb.booking_date)
                         AND COALESCE(cb.date_to::date,   cb.booking_date)
-        AND cb.start_time < $5::time   -- correct interval overlap
+        AND cb.start_time < $5::time
         AND cb.end_time   > $4::time
     )
     OR EXISTS (
       SELECT 1 FROM bookings.blocked_dates bd
       WHERE bd.tenant_id = $3::integer
         AND (
-          (bd.block_type = 'oneoff'
-            AND bd.block_date::date = d::date)
+          (bd.block_type = 'oneoff'            AND bd.block_date::date = d::date)
           OR (bd.block_type IN ('recurring', 'recurring-weekday')
-            AND bd.day_of_week = EXTRACT(DOW FROM d::date)::int)
-          OR (bd.block_type = 'range'
-            AND d::date BETWEEN bd.date_from::date AND bd.date_to::date)
+                                               AND bd.day_of_week = EXTRACT(DOW FROM d::date)::int)
+          OR (bd.block_type = 'range'          AND d::date BETWEEN bd.date_from::date AND bd.date_to::date)
         )
     )
   )
 ```
 
-Parameters: `$1` = comma-separated date list, `$2` = room_id, `$3` = tenant_id, `$4` = start_time, `$5` = end_time.
+Parameters: `$1` = comma-separated dates, `$2` = room_id, `$3` = tenant_id, `$4` = start_time, `$5` = end_time.
 
-### 4.5 Duplicate Guard on INSERT
-
-All bulk INSERT workflows include a `NOT EXISTS` guard to prevent race-condition duplicates at the database level:
+### 5.5 Duplicate Guard on Bulk INSERT
 
 ```sql
 INSERT INTO bookings.confirmed_bookings (...)
@@ -316,130 +457,95 @@ RETURNING booking_date::text, id;
 
 ---
 
-## 5. Database Schema
+## 6. Database Schema
 
-### 5.1 Schema
+### 6.1 Schema Overview
 
-All tables live in the `bookings` schema. Every table includes `tenant_id INT NOT NULL` for multi-tenancy (RLS enforcement pending Phase 4).
+All tables in the `bookings` schema. Every table has `tenant_id INT NOT NULL`. RLS active on `bookings.tenants` (migration 016). Full FORCE RLS rollout is Phase 4.
 
-### 5.2 Core Tables
+### 6.2 Core Tables
 
-#### `bookings.recurring_series` — Parent record for recurring contracts
-
-| Column | Type | Notes |
-|---|---|---|
-| id | UUID | Primary key |
-| tenant_id | INT | RLS isolation key |
-| customer_id | UUID | FK → customers |
-| room_id | UUID | FK → rooms |
-| series_name | TEXT | Human label (e.g., "Yoga Mon 9am") |
-| frequency | TEXT | weekly \| fortnightly \| monthly \| daily |
-| day_of_week | INT | 0 = Sunday … 6 = Saturday |
-| start_time | TIME | Session start |
-| end_time | TIME | Session end |
-| start_date | DATE | Contract start |
-| end_date | DATE | Contract end |
-| rate_per_session | NUMERIC | £ per session (frozen at contract signing) |
-| sessions_per_cycle | INT | 4 (weekly), 2 (fortnightly), 1 (monthly) |
-| total_sessions | INT | Total sessions over contract life |
-| sessions_completed | INT | Audit count |
-| cycle_amount | NUMERIC | Price per billing cycle |
-| agreed_price | NUMERIC | Total contract value |
-| balance_due | NUMERIC | **Debt lives on parent only** |
-| payment_timing | TEXT | in_advance \| in_arrears |
-| billing_type | TEXT | monthly \| per_session \| upfront |
-| active | BOOLEAN | |
-| notes | TEXT | |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
-
-#### `bookings.confirmed_bookings` — Individual sessions (child records)
+#### `bookings.staff_users`
 
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | Primary key |
-| tenant_id | INT | RLS isolation key |
-| customer_id | UUID | FK → customers |
-| room_id | UUID | FK → rooms |
-| booking_date | DATE | Session date |
-| date_from | DATE | Inclusive range start (for multi-day) |
-| date_to | DATE | Inclusive range end |
-| start_time | TIME | |
-| end_time | TIME | |
-| guest_count | INT | |
-| balance_due | NUMERIC | **Always 0 when recurring_series_id IS NOT NULL** (trigger enforced) |
-| payment_status | TEXT | pending \| paid \| overdue \| cancelled |
-| status | TEXT | confirmed \| cancelled \| pending |
-| is_recurring | BOOLEAN | True for ghost/recurring markers |
-| recurring_series_id | UUID | FK → recurring_series (NULL for standalone) |
-| recurring_rule_id | UUID | FK → recurring_rules (membership path) |
-| membership_id | UUID | FK → memberships |
-| series_label | TEXT | Display label for the series |
-| cancellation_reason | TEXT | |
-| cancelled_by | TEXT | |
-| cancelled_at | TIMESTAMPTZ | |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
+| tenant_id | INT | `1` = master/super-admin, `1001` = venue |
+| username | TEXT | Login identifier |
+| full_name | TEXT | Display name |
+| role | TEXT | `admin` \| `staff` |
+| hashed_password | TEXT | SHA512(PEPPER + plaintext) — 128-char hex |
+| is_active | BOOLEAN | |
 
-**Key constraint:** Trigger `fn_zero_child_balance()` automatically sets `balance_due = 0` on any child INSERT where `recurring_series_id IS NOT NULL`. All debt tracking is on the parent `recurring_series` row.
+`admin` → `tenant_id = 1` (intentional — sees no venue data). Venue staff → `tenant_id = 1001`.
 
 #### `bookings.customers`
-
-| Column | Type |
-|---|---|
-| id | UUID |
-| tenant_id | INT |
-| full_name | TEXT |
-| email | TEXT |
-| phone | TEXT |
-| company | TEXT |
-| created_at | TIMESTAMPTZ |
-| updated_at | TIMESTAMPTZ |
-
-#### `bookings.rooms`
 
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | |
 | tenant_id | INT | |
-| name | TEXT | Display name |
-| capacity | INT | Max occupancy |
-| rate_per_hour | NUMERIC | Default hourly rate |
-| available_from | TIME | Venue open time |
-| available_to | TIME | Venue close time |
-| is_active | BOOLEAN | |
+| full_name | TEXT | |
+| email | TEXT | |
+| phone | TEXT | |
+| event_type | TEXT | |
+| event_date | DATE | |
+| guests_count | INT | |
+| status | TEXT | `pending` \| `contacted` \| `booked` \| `cancelled` |
+| notes | TEXT | |
+| warning_sent | BOOLEAN | |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
-#### `bookings.memberships`
+#### `bookings.booking_requests` — Enquiry submissions
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Returned to frontend before any Stripe session |
+| tenant_id | INT | |
+| customer_id | UUID | FK → customers |
+| room_id | UUID | FK → rooms |
+| requested_date | DATE | |
+| date_from | DATE | |
+| date_to | DATE | |
+| start_time | TIME | |
+| end_time | TIME | |
+| guest_count | INT | |
+| hire_type | TEXT | `half_day` \| `full_day` \| `hourly` |
+| total_cost | NUMERIC | |
+| event_type | TEXT | |
+| notes | TEXT | |
+| status | TEXT | `pending_review` \| `deposit_paid` \| `booked` \| `cancelled` |
+
+UNIQUE constraint on `(email, tenant_id)` via customer upsert path.
+
+#### `bookings.confirmed_bookings`
 
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | |
 | tenant_id | INT | |
 | customer_id | UUID | |
-| plan_name | TEXT | |
-| policy_template | TEXT | A \| B \| C (for policy letter generation) |
-| monthly_rate | NUMERIC | Headline monthly fee |
-| status | TEXT | active \| paused \| cancelled |
-| start_date | DATE | |
-| end_date | DATE | |
-| notice_period_days | INT | Default: 30 |
-| notes | TEXT | |
-
-#### `bookings.recurring_rules` — Room/timeslot within a membership
-
-| Column | Type | Notes |
-|---|---|---|
-| id | UUID | |
-| tenant_id | INT | |
-| membership_id | UUID | FK → memberships |
 | room_id | UUID | |
-| day_of_week | INT | 0–6 |
+| booking_date | DATE | |
+| date_from | DATE | |
+| date_to | DATE | |
 | start_time | TIME | |
 | end_time | TIME | |
-| rate_per_session | NUMERIC | NULL = derive from membership |
-| frequency | TEXT | weekly \| fortnightly \| monthly |
-| end_date | DATE | NULL = indefinite |
-| active | BOOLEAN | |
+| guest_count | INT | |
+| total_amount | NUMERIC | |
+| balance_due | NUMERIC | **Always 0 when `recurring_series_id IS NOT NULL`** (trigger) |
+| deposit_paid | NUMERIC | |
+| payment_status | TEXT | `pending` \| `paid` \| `overdue` \| `cancelled` |
+| status | TEXT | `confirmed` \| `provisional` \| `cancelled` \| `pending` |
+| is_recurring | BOOLEAN | |
+| recurring_series_id | UUID | FK → recurring_series (NULL for standalone) |
+| google_event_id | TEXT | |
+| cancellation_reason | TEXT | |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+Trigger `fn_zero_child_balance()` sets `balance_due = 0` on child INSERTs where `recurring_series_id IS NOT NULL`. All debt lives on the parent.
 
 #### `bookings.payments`
 
@@ -448,46 +554,79 @@ All tables live in the `bookings` schema. Every table includes `tenant_id INT NO
 | id | UUID | |
 | tenant_id | INT | |
 | booking_id | UUID | FK → confirmed_bookings |
-| amount_paid | NUMERIC | |
-| payment_method | TEXT | card \| bank \| cash \| cheque |
-| payment_date | TIMESTAMPTZ | |
-| cancellation_booking_ref | TEXT | |
-| cancellation_reason | TEXT | |
-| refund_type | TEXT | |
+| amount | NUMERIC | |
+| payment_type | TEXT | `deposit` \| `balance` |
+| payment_method | TEXT | `card` \| `bank_transfer` \| `cash` \| `cheque` |
+| reference_number | TEXT | Stripe session ID, BACS ref, etc. |
+| status | TEXT | `completed` \| `pending` \| `refunded` |
 
-#### `bookings.blocked_dates` — Venue closures and recurring blocks
+#### `bookings.recurring_series` — Parent records
 
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | |
 | tenant_id | INT | |
-| block_type | TEXT | oneoff \| recurring \| recurring-weekday \| range |
-| block_date | DATE | For block_type = 'oneoff' |
-| day_of_week | INT | For recurring types (0–6) |
-| date_from | DATE | For block_type = 'range' |
-| date_to | DATE | For block_type = 'range' |
-| reason | TEXT | |
+| customer_id | UUID | |
+| room_id | UUID | |
+| series_name | TEXT | |
+| frequency | TEXT | `weekly` \| `fortnightly` \| `monthly` \| `daily` |
+| day_of_week | INT | 0–6 (Sun–Sat) |
+| start_time | TIME | |
+| end_time | TIME | |
+| start_date | DATE | |
+| end_date | DATE | |
+| rate_per_session | NUMERIC | Frozen at contract signing |
+| sessions_per_cycle | INT | |
+| total_sessions | INT | |
+| cycle_amount | NUMERIC | |
+| agreed_price | NUMERIC | Total contract value |
+| balance_due | NUMERIC | **Debt lives here — never on children** |
+| payment_timing | TEXT | `in_advance` \| `in_arrears` |
+| billing_type | TEXT | `monthly` \| `per_session` \| `upfront` |
+| active | BOOLEAN | |
+| notes | TEXT | |
 
-#### `bookings.settings` — Venue configuration
+#### `bookings.rooms`
 
 | Column | Type | Notes |
 |---|---|---|
-| key | TEXT | Setting name |
-| value | TEXT | Setting value |
+| id | UUID | |
+| tenant_id | INT | |
+| name | TEXT | |
+| capacity | INT | |
+| day_rate | NUMERIC | |
+| rate_per_hour | NUMERIC | |
+| available_from | TIME | |
+| available_to | TIME | |
+| is_active | BOOLEAN | |
 
-Current settings in use:
+#### `bookings.blocked_dates`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | |
+| tenant_id | INT | |
+| block_type | TEXT | `oneoff` \| `recurring` \| `recurring-weekday` \| `range` |
+| block_date | DATE | For `oneoff` |
+| day_of_week | INT | For recurring types (0–6) |
+| date_from | DATE | For `range` |
+| date_to | DATE | For `range` |
+| reason | TEXT | |
+
+#### `bookings.settings`
 
 | Key | Default | Description |
 |---|---|---|
-| cancel_full_refund_days | 14 | Days before booking for full refund |
-| cancel_partial_refund_days | 7 | Days before booking for partial refund |
-| cancel_partial_refund_pct | 50 | Percentage refunded in partial window |
+| `cancel_full_refund_days` | `14` | Full refund threshold |
+| `cancel_partial_refund_days` | `7` | Partial refund threshold |
+| `cancel_partial_refund_pct` | `50` | Partial refund percentage |
+| `booking_buffer_minutes` | `60` | Buffer between bookings — always `COALESCE` in SQL |
 
 #### `bookings.audit_logs`
 
-Tracks all write operations. Every entry includes `tenant_id`, `action` (CREATE / UPDATE / CANCEL), `entity`, `entity_id`, `payload` (JSON), `performed_by`, and `created_at`.
+All write operations log here. Columns: `tenant_id`, `action` (CREATE/UPDATE/CANCEL), `entity`, `entity_id`, `payload` (JSONB), `performed_by`, `created_at`.
 
-### 5.3 Key Indexes
+### 6.3 Key Indexes
 
 ```sql
 CREATE INDEX idx_confirmed_bookings_tenant    ON bookings.confirmed_bookings(tenant_id);
@@ -495,225 +634,215 @@ CREATE INDEX idx_confirmed_bookings_room_date ON bookings.confirmed_bookings(roo
 CREATE INDEX idx_confirmed_bookings_series    ON bookings.confirmed_bookings(recurring_series_id);
 CREATE INDEX idx_recurring_series_tenant      ON bookings.recurring_series(tenant_id, active);
 CREATE INDEX idx_customers_tenant             ON bookings.customers(tenant_id);
+CREATE INDEX idx_booking_requests_tenant      ON bookings.booking_requests(tenant_id);
 ```
 
 ---
 
-## 6. API Endpoints
+## 7. API Endpoints
 
-All endpoints are n8n webhook URLs under `https://n8n.srv1090894.hstgr.cloud/webhook`.
+### 7.1 db-api (`https://api.venuedesk.co.uk`)
 
-### 6.1 Authentication
+#### Authentication
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/onboarding/login` | POST | JWT generation — returns token + user + tenant_id |
-| `/onboarding/venues` | GET | List user's venues |
-| `/onboarding/create-venue` | POST | Venue registration |
-| `/onboarding/reset-password` | POST | Password reset |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/login` | Public | Verify credentials, issue JWT |
 
-### 6.2 Bookings
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/create-booking` | POST | Single booking creation |
-| `/confirm-booking` | POST | Confirm a pending booking |
-| `/cancel-booking` | POST | Cancel with refund calculation |
-| `/cancel-pending` | POST | Cancel pending approval requests |
-| `/create-recurring-booking` | POST | Create parent series + child sessions |
-| `/create-recurring-from-calendar` | POST | Quick-book from calendar drag |
-| `/check-recurring-clashes` | POST | Pre-flight availability check |
-| `/recurring-make-booking` | POST | Create individual session from series |
-| `/recurring-walk-in-booking` | POST | Walk-in session on a series |
-
-### 6.3 Customers
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/create-customer` | POST | New customer record |
-| `/update-customer` | POST | Update customer details |
-| `/get-customers` | GET | Paginated customer list |
-
-### 6.4 Recurring Series Management
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/get-recurring-bookings` | GET | Active recurring series for tenant |
-| `/update-recurring-rule` | POST | Modify series parameters |
-| `/cancel-recurring-series` | POST | Cancel entire series and children |
-
-### 6.5 Rooms
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/create-room` | POST | Add new room |
-| `/update-room` | POST | Modify room details |
-| `/delete-room` | POST | Remove room |
-| `/get-rooms` | GET | List rooms for tenant |
-| `/vp-rooms-chk-a1` | POST | Real-time room availability check |
-
-### 6.6 Event Types & Services
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/add-event-type` | POST | Create event category |
-| `/update-event-type` | POST | Modify event type |
-| `/delete-event-type` | POST | Remove event type |
-| `/get-event-types` | GET | List event types |
-| `/add-service` | POST | Add bookable service |
-| `/update-service` | POST | Modify service |
-| `/delete-service` | POST | Remove service |
-| `/get-service-data` | GET | Service catalogue |
-
-### 6.7 Payments
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/get-outstanding-payments` | GET | Billing summary |
-| `/pay-balance` | POST | Record a payment |
-| `/record-recurring-payment` | POST | Log payment on recurring series |
-| `/override-recurring-payment` | POST | Manual payment override |
-| `/get-accounts-data` | GET | Financial dashboard data |
-
-### 6.8 Calendar & Availability
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/calendar-all-bookings` | GET | All events for FullCalendar render |
-| `/get-all-bookings` | GET | Booking list with filters |
-| `/get-pending-requests` | GET | Pending approval queue |
-| `/check-availability` | POST | Real-time slot availability |
-
-### 6.9 Blocked Dates
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/blocked-dates` | GET | List venue closures for tenant |
-| `/add-blocked-date` | POST | Block a date or range |
-| `/delete-blocked-date` | POST | Unblock a date |
-
-### 6.10 Reporting
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/get-repeat-clients` | GET | Customer frequency analysis |
-| `/customer-interactions` | GET | Activity log |
-| `/get-monthly-revenue` | GET | Revenue trend data |
-| `/staff-dashboard` | GET | Staff KPI dashboard |
-
-### 6.11 Staff & Admin
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/create-user` | POST | Add staff member |
-| `/update-status` | POST | Update user status |
-| `/delete-user` | POST | Remove user |
-| `/get-users` | GET | List staff |
-| `/get-settings` | GET | Fetch venue settings |
-| `/update-setting` | POST | Modify a setting |
-
-### 6.12 Standard Request / Response Pattern
-
-**Request headers:**
-```
-Authorization: Bearer <JWT>
-X-Tenant-ID: <tenant_id>
-Content-Type: application/json
-```
-
-**Successful booking response:**
+Login response:
 ```json
 {
-  "status": "created",
-  "booking_count": 24,
-  "series_id": "uuid",
-  "customer_id": "uuid",
-  "customer_name": "Jane Smith",
-  "agreed_price": 480.00,
-  "amount_due": 120.00,
-  "partial_booking": false,
-  "warning": null,
-  "first_conflict_date": null
+  "success": true,
+  "token": "<JWT>",
+  "user": {
+    "id": "uuid", "user_id": "uuid",
+    "username": "arj72", "role": "admin",
+    "full_name": "Andrew Johnson", "name": "Andrew Johnson",
+    "tenant_id": 1001
+  }
 }
 ```
 
-**Partial booking response (when some dates are clashing):**
-```json
+#### Dashboard
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/dashboard/data` | JWT | KPIs, bookings, pending requests |
+| GET | `/dashboard/pending` | JWT | Pending approval queue |
+| GET | `/dashboard/revenue` | JWT | Monthly revenue trend |
+
+#### Bookings
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/bookings` | JWT | Booking list with filters |
+| POST | `/bookings/create` | JWT | Create single booking |
+| POST | `/bookings/confirm` | JWT | Confirm a pending booking |
+| POST | `/bookings/cancel` | JWT | Cancel with refund calculation |
+| GET | `/bookings/calendar` | JWT | All events for FullCalendar |
+
+#### Payments
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/payments/pay` | JWT | Atomic settlement — INSERT payment + UPDATE booking in one transaction |
+| GET | `/payments/outstanding` | JWT | Outstanding payment summary |
+
+#### Enquiry (Public)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/enquiry/create-request` | Public | Upsert customer + insert booking_requests row. Returns `booking_request_id` |
+
+#### Customers
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/customers` | JWT | Paginated customer list |
+| POST | `/customers/update` | JWT | Update customer fields |
+| GET | `/customers/:id` | JWT | Single customer |
+
+#### Staff Users
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/users` | JWT | Staff list for tenant |
+| POST | `/users/create` | JWT | Create staff user (SHA512+PEPPER hash) |
+| POST | `/users/update` | JWT | Update name, role, optional password |
+| POST | `/users/delete` | JWT | Remove staff user |
+
+#### Config & Admin
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/config/rooms` | JWT | Room list |
+| POST | `/config/rooms/create` | JWT | Add room |
+| POST | `/config/rooms/update` | JWT | Modify room |
+| GET | `/admin/payment-settings` | JWT | Stripe config for tenant |
+| POST | `/admin/payment-settings` | JWT | Save Stripe keys |
+
+#### Recurring
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/recurring` | JWT | Active recurring series |
+| POST | `/recurring/pay` | JWT | Record payment on series parent |
+| POST | `/recurring/cancel` | JWT | Cancel series + all children |
+
+#### Blocked Dates
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/blocked-dates` | JWT | Blocked date rules for tenant |
+| POST | `/blocked-dates/create` | JWT | Add block rule |
+| POST | `/blocked-dates/delete` | JWT | Remove block rule |
+
+#### Audit
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/audit/log` | JWT | Write audit entry |
+| GET | `/audit/log` | JWT | Read audit history |
+
+#### Stripe
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/stripe/config` | Public | `is_stripe_enabled`, `stripe_publishable_key` |
+| GET | `/stripe/bacs-details` | JWT (query) | BACS account details |
+| POST | `/stripe/session` | JWT | Create Checkout session (dashboard) |
+| POST | `/stripe/public-session` | Public | Create Checkout session (enquiry — £10–£500) |
+| POST | `/stripe/webhook` | Stripe sig | Payment confirmation |
+
+#### Health
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/health` | Public | `{ status: "ok", ts: "..." }` |
+
+### 7.2 Standard POST Pattern
+
+```javascript
 {
-  "status": "created",
-  "booking_count": 16,
-  "partial_booking": true,
-  "warning": "Series cut short — 2026-06-09 is already booked.",
-  "first_conflict_date": "2026-06-09"
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    jwt:       sessionStorage.getItem('vp_token') || '',
+    tenant_id: parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+    // ... fields
+  })
 }
 ```
 
-**Not available response:**
+### 7.3 n8n Webhook Endpoints (Legacy — Pending Migration)
+
+Base: `https://n8n.srv1090894.hstgr.cloud/webhook`
+
+| Path | Method | Description |
+|---|---|---|
+| `confirm-booking` | POST | Confirm pending request |
+| `cancel-booking` | POST | Cancel with refund calc |
+| `create-customer` | POST | Legacy customer upsert |
+| `update-customer` | POST | Legacy customer update |
+| `create-recurring-booking` | POST | Recurring series creation |
+| `check-recurring-clashes` | POST | Pre-flight availability |
+| `get-recurring-bookings` | GET | Active series list |
+| `customer-interactions` | GET | Activity log |
+| `accounts-data` | GET | Accounts overview |
+| `get-monthly-revenue` | GET | Revenue trend |
+
+### 7.4 Standard Response Shapes
+
 ```json
-{
-  "status": "not_available",
-  "message": "The first session date (9 June 2026) is already booked for this room."
-}
+// Successful booking
+{ "status": "created", "booking_count": 24, "series_id": "uuid", "partial_booking": false }
+
+// Partial booking (some dates clashed)
+{ "status": "created", "booking_count": 16, "partial_booking": true,
+  "warning": "Series cut short — 2026-06-09 is already booked.", "first_conflict_date": "2026-06-09" }
+
+// Not available
+{ "status": "not_available", "message": "The first session date is already booked." }
 ```
 
 ---
 
-## 7. Authentication & Security
+## 8. Authentication & Security
 
-### 7.1 JWT Storage (Current)
-
-| Key | Value |
-|---|---|
-| `localStorage['vp_token']` | JWT Bearer token |
-| `localStorage['vp_user']` | User object (JSON) |
-| `localStorage['vp_tenant_id']` | Tenant ID (numeric string) |
-| `localStorage['vp_venue_name']` | Display name |
-| `localStorage['vp_venue_id']` | Venue reference |
-
-### 7.2 Current JWT Payload
+### 8.1 JWT Payload (Issued by `auth.js`)
 
 ```json
 {
-  "user_id": "uuid",
-  "exp": 1735689600,
-  "iat": 1700001234
-}
-```
-
-Note: `tenant_id` is currently passed in the request body, not the JWT. This is a security gap addressed in Phase 3 of the migration plan.
-
-### 7.3 Target JWT Payload (Phase 3)
-
-```json
-{
-  "user_id": "uuid",
+  "id":        "uuid",
+  "user_id":   "uuid",
+  "username":  "arj72",
+  "role":      "admin",
+  "full_name": "Andrew Johnson",
+  "name":      "Andrew Johnson",
   "tenant_id": 1001,
-  "role": "admin",
-  "exp": 1735689600,
-  "iat": 1700001234
+  "iat":       1747000000,
+  "exp":       1747003600
 }
 ```
 
-### 7.4 Request Authentication
+Both `id` and `user_id` are set for backward compatibility. `name` is an alias for `full_name`. `fastify.authenticate` normalises `id` → `user_id` and rejects with 401 if `user_id` or `tenant_id` is missing.
 
-Every API request includes:
+### 8.2 Security Status
 
-```
-Authorization: Bearer <JWT>
-X-Tenant-ID: <tenant_id>
-```
+| Concern | Status |
+|---|---|
+| JWT issuance | db-api `auth.js` — n8n no longer in auth path |
+| `tenant_id` source | JWT claim only — never from request body for writes |
+| CORS | `Content-Type` only — `Authorization` excluded |
+| JWT body-tunnel | All browser calls embed token in body or query string |
+| Stripe HMAC | `req.rawBody` (Buffer) + `.trim()`'d secret |
+| RLS | `set_config('app.tenant_id', ...)` in every transaction |
+| Password hashing | SHA512 + PEPPER — 128-char hex |
+| Token expiry | 60 minutes (`JWT_EXPIRY` env var) |
+| Rate limiting | **Pending Phase 5** |
+| Token refresh | **Pending Phase 5** — re-login on expiry |
+| Postgres host port | **Pending Phase 5** — `5432:5432` exposes DB; remove `ports:` block in production |
 
-### 7.5 Current Security Gaps
-
-- `tenant_id` is passed in the request body and can theoretically be forged
-- No PostgreSQL Row-Level Security — tenant filtering is application-level only
-- No token refresh mechanism — expired tokens require re-login
-- No rate limiting on webhook endpoints
-- JWT secret stored in n8n credential system (not externalised to a vault)
-
-### 7.6 Cancellation Refund Policy
-
-Refund logic applied by the `CancelBooking` workflow:
+### 8.3 Cancellation Refund Policy
 
 | Days Until Booking | Refund |
 |---|---|
@@ -721,221 +850,290 @@ Refund logic applied by the `CancelBooking` workflow:
 | ≥ `cancel_partial_refund_days` (default: 7) | `cancel_partial_refund_pct`% (default: 50%) |
 | < 7 days | 0% (forfeit) |
 
-Values are configurable per tenant via the `bookings.settings` table.
-
 ---
 
-## 8. Booking Logic & Data Flows
+## 9. Stripe Integration
 
-### 8.1 Single Booking Creation
-
-```
-1. User fills booking form (customer, room, date, time, payment)
-2. Frontend calls POST /create-booking
-3. n8n workflow:
-   a. Parse and validate input
-   b. Check availability (SELECT WHERE room_id + date + overlapping time + status != cancelled)
-   c. If unavailable → Respond: Not Available
-   d. Upsert customer (INSERT ... ON CONFLICT DO UPDATE)
-   e. INSERT INTO confirmed_bookings
-   f. Record payment if paid upfront
-   g. Create audit log entry
-4. Frontend shows confirmation
-```
-
-### 8.2 Recurring Booking Creation
-
-The recurring system uses a **parent-child architecture**. One `recurring_series` row holds the contract metadata and all debt. N child `confirmed_bookings` rows hold individual sessions with `balance_due = 0`.
+### 9.1 Dashboard Card Payment
 
 ```
-1. User configures recurring form:
-   - Room, frequency, start/end date, day-of-week, times
-   - Payment timing (in_advance / in_arrears / per_session)
-
-2. Frontend pre-flight:
-   a. Generate all candidate dates client-side
-   b. Filter against blocked_dates (oneoff, recurring, recurring-weekday, range)
-   c. If blocked dates exist → pause and show clash modal with details
-   d. POST to /check-recurring-clashes with non-blocked dates + broadest time window
-   e. Backend returns clashed_dates[]
-   f. If clashes detected → show clash modal: "Series cut short — X is already booked"
-   g. User can Proceed (with safe dates) or Cancel (go back)
-
-3. Submission (safe dates only):
-   a. POST to /create-recurring-from-calendar or /create-recurring-booking
-   b. n8n workflow:
-      i.   Parse + validate
-      ii.  Re-check clashes server-side (race condition guard)
-      iii. Filter dates: remove all dates from first clash onwards
-      iv.  Upsert customer
-      v.   INSERT INTO recurring_series (1 parent row)
-      vi.  Bulk INSERT INTO confirmed_bookings (NOT EXISTS guard prevents duplicates)
-      vii. INSERT INTO payment schedule
-      viii. Return: booking_count, partial_booking, first_conflict_date
-
-4. Frontend response handling:
-   - partial_booking: false → success toast, reload calendar
-   - partial_booking: true → informational modal showing how many sessions booked
-                             and why the series was cut short
+Staff selects "Card" in pay modal
+  → GET /stripe/config         (publishable key + enabled flag)
+  → Button swaps to "Generate Payment Link"
+  → POST /stripe/session       (JWT body-tunnel)
+  → Redirect to Stripe Checkout
+  → Return URL → checkout.html?session_id=<id>
+  → POST /stripe/webhook       (signature verified)
+  → UPDATE confirmed_bookings.balance_due + status
 ```
 
-### 8.3 Availability Check Logic
-
-Time overlap is detected using the standard interval overlap formula:
+### 9.2 Enquiry Form Deposit
 
 ```
-existing.start_time < requested.end_time
-AND
-existing.end_time   > requested.start_time
+POST /enquiry/create-request   →  { booking_request_id, customer_id }
+POST /stripe/public-session    →  Checkout URL (includes booking_request_id)
+Stripe webhook                 →  booking_requests.status = 'deposit_paid'
 ```
 
-This correctly catches all overlap cases:
-- Exact match (same start and end)
-- Requested session starts during existing
-- Requested session ends during existing
-- Requested session fully contains existing
+`booking_request_id` must be captured before creating the Stripe session — the webhook uses it to link the payment to the correct request.
 
-### 8.4 Payment Chasing Automation
+### 9.3 BACS Payment
 
 ```
-BillingCycleTrigger (scheduled — daily)
-  → Query: SELECT * FROM recurring_series
-           WHERE tenant_id = ? AND active = true AND balance_due > 0
-
-For each overdue series:
-  • 1–30 days overdue  → RecurringPaymentChaser (reminder email)
-  • 30–60 days overdue → RecurringPaymentReminder (escalation email)
-  • 60+ days overdue   → RecurringAutoCancel:
-      - series.active = false
-      - All child bookings → status = 'cancelled'
-      - Send cancellation notice to customer
+Staff selects "Bank Transfer"
+  → GET /stripe/bacs-details?jwt=<token>
+  → POST /payments/pay   (atomic settlement)
 ```
 
-### 8.5 Cancellation Flow
+### 9.4 Webhook Integrity
 
-```
-User cancels booking (booking_id)
-  → POST /cancel-booking
-  → n8n CancelBooking workflow:
-      1. Fetch booking details
-      2. Calculate refund (days_until_booking vs. settings thresholds)
-      3a. If child booking (recurring_series_id IS NOT NULL):
-            - Reduce parent.balance_due by refund amount
-            - confirmed_bookings.status = 'cancelled'
-      3b. If standalone booking:
-            - Reverse payment record
-            - Issue refund
-      4. Create audit log entry
-      5. Return: refund_amount, refund_type
+```javascript
+const secret = process.env.STRIPE_WEBHOOK_SECRET.trim();  // strip Docker \n
+event = stripe.webhooks.constructEvent(req.rawBody, sig, secret);
+// Never pass JSON.stringify(req.body) — breaks HMAC
 ```
 
 ---
 
-## 9. Multi-Tenancy
+## 10. Booking Logic & Data Flows
 
-### 9.1 Current Implementation
+### 10.1 Single Booking (db-api)
 
-Every database table includes `tenant_id INT NOT NULL`. All n8n workflows receive `tenant_id` in the request body and include it in every SQL `WHERE` clause.
-
-**Tenant configuration file (`tenants.json`):**
-```json
-{
-  "tenants": [
-    { "tenant_id": 1001, "venue_id": 1001, "name": "Village Hall A" },
-    { "tenant_id": 1002, "venue_id": 1002, "name": "Community Centre B" },
-    { "tenant_id": 1003, "venue_id": 1003, "name": "Sports Hall C" }
-  ]
-}
+```
+POST /bookings/create → withTenantContext transaction:
+  1. Validate input
+  2. Check availability (start < req.end AND end > req.start)
+  3. Upsert customer by email
+  4. INSERT confirmed_bookings
+  5. INSERT payments (if deposit)
+  6. INSERT audit_logs
+  HTTP 200 only after COMMIT
 ```
 
-### 9.2 Target Implementation (Phase 3 + 4)
+### 10.2 Recurring Booking (n8n — pending migration)
 
-Once the migration is complete, tenant isolation will be enforced at two layers:
+Parent-child architecture: one `recurring_series` row holds all debt; N `confirmed_bookings` children have `balance_due = 0`.
 
-**JWT layer:** `tenant_id` extracted from the verified JWT payload, never from the request body.
+```
+1. Frontend: generate candidate dates, filter blocked_dates client-side
+2. POST /check-recurring-clashes → clashed_dates[]
+3. Clash modal if needed (proceed with safe dates or cancel)
+4. POST create-recurring-booking:
+   - Re-check clashes server-side
+   - INSERT recurring_series (1 parent)
+   - Bulk INSERT confirmed_bookings (NOT EXISTS guard)
+   - Returns { booking_count, partial_booking, first_conflict_date }
+```
 
-**Database layer (RLS):**
+### 10.3 Atomic Payment Settlement
+
+`POST /payments/pay` — both writes commit or both roll back:
+
 ```sql
--- Session context set by db-api before every query
-SET LOCAL app.tenant_id = '<tenant_id_from_jwt>';
+INSERT INTO bookings.payments (...) VALUES (...);
 
--- RLS policy on every table
-CREATE POLICY tenant_isolation ON bookings.confirmed_bookings
-  FOR ALL
-  USING (tenant_id = current_setting('app.tenant_id')::int);
-
-ALTER TABLE bookings.confirmed_bookings FORCE ROW LEVEL SECURITY;
+UPDATE bookings.confirmed_bookings
+SET balance_due  = GREATEST(0, COALESCE(balance_due, 0) - $amount),
+    deposit_paid = COALESCE(deposit_paid, 0) + $amount,
+    status       = CASE
+                     WHEN GREATEST(0, COALESCE(balance_due, 0) - $amount) <= 0 THEN 'confirmed'
+                     ELSE COALESCE(NULLIF(status, 'pending'), 'provisional')
+                   END,
+    updated_at   = NOW()
+WHERE id = $booking_id AND tenant_id = $tenant_id;
 ```
 
-If `app.tenant_id` is not set, all queries return zero rows — data never leaks across tenants.
+### 10.4 Payment Chasing (n8n — scheduled)
+
+```
+BillingCycleTrigger (daily)
+  1–30 days overdue  → reminder email
+  30–60 days overdue → escalation email
+  60+ days overdue   → auto-cancel: series.active = false, children status = 'cancelled'
+```
 
 ---
 
-## 10. Configuration & Environment
+## 11. Multi-Tenancy
 
-### 10.1 Frontend Constants
+Every table has `tenant_id INT NOT NULL`. Two layers enforce isolation:
+
+**JWT layer:** `tenant_id` from verified JWT, injected via `withTenantContext`.
+
+**DB layer (Phase 4):**
+```sql
+SELECT set_config('app.tenant_id', '1001', true);
+
+CREATE POLICY tenant_isolation ON bookings.<table>
+  FOR ALL USING (tenant_id = current_setting('app.tenant_id')::int);
+
+ALTER TABLE bookings.<table> FORCE ROW LEVEL SECURITY;
+```
+
+Missing `app.tenant_id` → zero rows returned (safe failure, no data leak).
+
+### Tenant Reference
+
+| Username | tenant_id | Notes |
+|---|---|---|
+| `admin` | `1` | Super-admin — sees no venue data (intentional) |
+| `arj72` | `1001` | Primary venue administrator |
+| `sun80` | `1001` | Venue staff |
+
+---
+
+## 12. Configuration & Environment
+
+### 12.1 Frontend Constants
 
 | Constant | Value |
 |---|---|
-| n8n webhook base | `https://n8n.srv1090894.hstgr.cloud/webhook` |
-| FullCalendar version | 6.1.10 |
-| Font Awesome version | 6.4.0 |
+| `DASH_DB_API` / `CAL_DB_API` / `EF_DB_API` | `https://api.venuedesk.co.uk` |
+| n8n base (legacy) | `https://n8n.srv1090894.hstgr.cloud/webhook` |
+| FullCalendar | 6.1.10 |
+| Font Awesome | 6.4.0 |
 
-### 10.2 Database Settings (`bookings.settings`)
+### 12.2 db-api Environment Variables
 
-| Key | Default | Description |
-|---|---|---|
-| `cancel_full_refund_days` | `14` | Full refund threshold (days before booking) |
-| `cancel_partial_refund_days` | `7` | Partial refund threshold |
-| `cancel_partial_refund_pct` | `50` | Partial refund percentage |
+Secrets in `/opt/n8n_postgres/docker-compose.yml` on VPS.
 
-### 10.3 n8n Environment
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | HS256 signing key |
+| `JWT_EXPIRY` | Default `60m` |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `STRIPE_SECRET_KEY` | Stripe API key |
+| `STRIPE_WEBHOOK_SECRET` | Always `.trim()` before use |
+| `PASSWORD_PEPPER` | Fallback: `'vp-pepper-change-me'` |
+| `PORT` | Default `3000` |
 
-- PostgreSQL connection: managed via n8n credential system
-- JWT secret: managed via n8n credential system
-- Workflow activation: manual per-workflow via n8n UI
+### 12.3 Deployment Procedures
+
+**Frontend:**
+```bash
+git add CommunityHub/<file>.html && git commit -m "..." && git push origin main
+# Test in incognito window after 2–5 min CDN propagation
+```
+
+**db-api route:**
+```bash
+scp <file> root@72.61.19.52:/opt/n8n_postgres/venuedesk-api/src/routes/<file>
+ssh root@72.61.19.52 "docker cp /opt/.../routes/<file> venuedesk-api:/app/src/routes/<file> && docker restart venuedesk-api"
+curl -s -o /dev/null -w "%{http_code}" -X POST https://api.venuedesk.co.uk/<route>  # expect 401
+```
+
+**server.js** — SCP lands in `routes/`; always `mv` first:
+```bash
+ssh root@72.61.19.52 "mv /opt/.../routes/server.js /opt/.../src/server.js"
+```
+
+**n8n workflow:** Deactivate → Delete → Import JSON → Activate. Patch both `nodes` AND `activeVersion.nodes`.
 
 ---
 
-## 11. Migration Roadmap
+## 13. Migration Roadmap
 
-The system is planned to evolve through four phases. **Phases 1 and 2 are prerequisites for all security hardening.**
+### Phase 1 — Introduce db-api ✅ Complete
 
-### Phase 1 — Introduce db-api
+Fastify service live at `api.venuedesk.co.uk`. All SQL moved out of n8n into typed route handlers.
 
-Create a Node.js / Fastify service as the sole gateway between n8n and PostgreSQL. All SQL moves into this service. n8n workflows switch from Postgres nodes to HTTP calls.
+### Phase 2 — Move n8n to db-api ✅ Substantially Complete
 
-### Phase 2 — Move n8n to db-api (Critical)
+Migrated: auth, bookings, payments, enquiry, users, customers, blocked dates, Stripe, admin config.
+**Remaining:** recurring booking creation, payment chasing automation.
 
-Eliminate all direct SQL from n8n. Every database operation becomes a typed HTTP call to db-api. This is the gating phase — Phases 3 and 4 cannot begin until n8n has zero Postgres nodes.
+### Phase 3 — JWT Implementation ✅ Complete
 
-**Migration order:** customer updates → booking creation → booking updates → reads / reporting.
+- `auth.js` issues JWT with all required claims
+- All pages use `sessionStorage`, body-tunnel pattern, page-load claim validation
+- `tenant_id` from JWT only for all write operations
 
-**Exit criteria:** No SQL exists in n8n. All DB calls go through the API. All endpoints validated. Audit logs created.
+### Phase 4 — Row-Level Security 🔄 In Progress
 
-### Phase 3 — JWT Implementation
+RLS active on `bookings.tenants`. `withTenantContext` injects tenant context on every transaction.
 
-Move `tenant_id` into the JWT payload. Remove it from all request bodies. db-api middleware verifies the token on every request and injects tenant context into the PostgreSQL session (`SET LOCAL app.tenant_id`).
+**Remaining rollout order:**
+`customers` → `confirmed_bookings` → `booking_requests` → `recurring_series` → `payments` → `audit_logs` → `rooms` → `blocked_dates`
 
-**Exit criteria:** All endpoints protected. `tenant_id` removed from request bodies. n8n passes only the Authorization header.
+Per table: `ENABLE` → add policy → test → `FORCE`.
+Rollback: `ALTER TABLE bookings.<table> DISABLE ROW LEVEL SECURITY;`
 
-### Phase 4 — Row-Level Security (Zero Downtime Rollout)
+### Phase 5 — Production Hardening (Planned)
 
-Enable RLS on tables in this order: `customers` → `confirmed_bookings` → `recurring_series` → `rooms` → `payments` → `audit_logs`. Each table is enabled, tested, and enforced before moving to the next.
-
-**Rollback plan:** `ALTER TABLE <t> DISABLE ROW LEVEL SECURITY;`
-
-**Exit criteria:** RLS enabled and forced on all tenant tables. No cross-tenant access possible. System fully functional.
+- Remove PostgreSQL `ports: - "5432:5432"` from Docker Compose
+- JWT refresh tokens
+- Rate limiting on public endpoints
+- CORS origin allowlist (replace `true` with explicit domain list)
+- Externalise secrets to Docker secrets / vault
+- Multi-date array feature for `recurring-bookings.html`
 
 ### Non-Negotiable Architectural Rules
 
 - No Postgres nodes executing SQL in n8n
-- No `tenant_id` passed manually from n8n or request bodies
-- No business logic inside n8n — orchestration only
-- `tenant_id` must come exclusively from verified JWT
-- All write operations must create an audit log entry
-- Input validation (UUID format, required fields, data types) at the API layer on every endpoint
+- `tenant_id` from JWT only — never request body for writes
+- n8n = orchestration only, no business logic
+- All writes produce an audit log entry
+- Input validation (UUID, required fields, types) on every endpoint
+- Tenant injection via `set_config()` — never `SET LOCAL $1`
 
 ---
 
-*Document generated from live codebase analysis. Last updated: April 2026.*
+## 14. Development Rules & Guardrails
+
+### Rule 1 — Variable Declaration Order (Critical)
+
+All API base URL constants at the **top** of every `<script>` block before any derived `const`.
+
+```javascript
+// WRONG — ReferenceError kills entire script silently
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+
+// CORRECT
+const DASH_DB_API     = 'https://api.venuedesk.co.uk';
+const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
+```
+
+### Rule 2 — JWT Body-Tunnel (No Auth Headers)
+
+CORS blocks `Authorization` header from browser. JWT in `body.jwt` (POST) or `query.jwt` (GET).
+
+### Rule 3 — Tenant Isolation
+
+GET: `?tenant_id=${_TID()}` — POST: `tenant_id: parseInt(_TID())` in body — API writes: `req.user.tenant_id` only.
+
+### Rule 4 — Identity Priority
+
+```javascript
+user.full_name || user.name || sessionStorage.getItem('vp_user_name') || user.username || 'Staff Manager'
+```
+
+`auth.js` must include both `full_name` and `name` alias in every JWT.
+
+### Rule 5 — Stripe Webhook
+
+`req.rawBody` (never re-serialised) + `webhookSecret.trim()`.
+
+### Rule 6 — SQL Type Safety (42P08)
+
+Never reuse `$N` in two type contexts. Build composite strings in JS, pass as a separate parameter.
+
+### Rule 7 — Settings Subquery Resilience
+
+Always `COALESCE` with hardcoded fallback when reading from `bookings.settings` — missing rows must not throw.
+
+### Rule 8 — Static Site Integrity
+
+No build tools. Vanilla JS only. Existing dark-theme CSS layout must be preserved.
+
+### Rule 9 — GitHub Pages Cache
+
+Test in **incognito window**, 2–5 minutes after push.
+
+### Rule 10 — Docker Updates
+
+`scp` → `docker cp` → `docker restart`. Do not rely on `docker-compose build` alone.
+
+---
+
+*Document updated from live codebase and session audit. Last updated: May 2026 — Version 2.0.*
