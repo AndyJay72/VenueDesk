@@ -24,7 +24,7 @@
 
 const { withTenantContext, systemQuery } = require('../db/pool');
 const logger                             = require('../services/LoggerService');
-const { notFound, conflict, unprocessable } = require('../utils/errors');
+const { notFound, conflict, unprocessable, badRequest } = require('../utils/errors');
 const { assertUUID, assertRequired, assertNumber, isUUID } = require('../utils/validators');
 
 // ── Overlap guard ─────────────────────────────────────────────────────────────
@@ -194,10 +194,18 @@ async function customersRoutes(fastify) {
           total_amount:        { type: 'number', default: 0 },
           balance_due:         { type: 'number' },
           deposit_amount:      { type: 'number', default: 0 },
-          payment_method:      { type: 'string', default: 'cash' },
-          status:              { type: 'string', default: 'confirmed' },
-          booking_request_id:  { type: 'string' },
-          check_clashes:       { type: 'boolean', default: true },
+          payment_method: { type: 'string', default: 'cash' },
+          status: {
+            type: 'string',
+            default: 'confirmed',
+            enum: ['confirmed', 'pending', 'provisional', 'deposit_paid',
+                   'cancelled', 'fully_paid', 'paid', 'overridden'],
+          },
+          guest_count: {
+            anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }],
+          },
+          booking_request_id: { type: 'string' },
+          check_clashes:      { type: 'boolean', default: true },
         },
       },
     },
@@ -214,9 +222,10 @@ async function customersRoutes(fastify) {
       total_amount     = 0,
       deposit_amount   = 0,
       payment_method   = 'cash',
-      status           = 'confirmed',
+      status             = 'confirmed',
+      guest_count        = null,
       booking_request_id,
-      check_clashes    = true,
+      check_clashes      = true,
     } = request.body;
 
     // Derive balance_due: explicit value wins, fallback = total − deposit
@@ -233,8 +242,33 @@ async function customersRoutes(fastify) {
     }
 
     return withTenantContext(tenantId, async (client) => {
-      // ── Clash guard ───────────────────────────────────────────────────────
       if (check_clashes) {
+        // ── Pessimistic room lock ─────────────────────────────────────────
+        // FOR UPDATE serialises concurrent requests on the same room row.
+        // A concurrent transaction attempting to book the same room blocks
+        // here until this transaction commits, then re-runs the clash check
+        // and sees the now-committed booking — eliminating the TOCTOU window.
+        const { rows: [room] } = await client.query(
+          `SELECT id, capacity
+           FROM   bookings.rooms
+           WHERE  id        = $1::uuid
+             AND  tenant_id = $2::integer
+             AND  is_active IS NOT FALSE
+           FOR UPDATE`,
+          [room_id, tenantId]
+        );
+
+        if (!room) throw notFound('Room', room_id);
+
+        // ── Capacity ceiling ──────────────────────────────────────────────
+        // capacity = 0 means unconstrained (legacy rooms with no limit set).
+        if (guest_count !== null && room.capacity > 0 && guest_count > room.capacity) {
+          throw badRequest(
+            `guest_count ${guest_count} exceeds room capacity of ${room.capacity}`
+          );
+        }
+
+        // ── Overlap clash check ───────────────────────────────────────────
         const { rows: clashRows } = await client.query(
           `SELECT id
            FROM   bookings.confirmed_bookings
@@ -261,20 +295,20 @@ async function customersRoutes(fastify) {
             booking_date, date_from, date_to,
             start_time, end_time,
             total_amount, deposit_paid, balance_due,
-            status)
+            status, guest_count)
          VALUES ($1, $2::uuid, $3::uuid,
                  $4::date, $5::date, $6::date,
                  $7::time, $8::time,
                  $9, $10, $11,
-                 $12)
+                 $12, $13)
          RETURNING id, booking_date, date_from, date_to, start_time, end_time,
-                   total_amount, balance_due, deposit_paid, status`,
+                   total_amount, balance_due, deposit_paid, status, guest_count`,
         [
           tenantId, customer_id, room_id,
           booking_date, date_from, date_to,
           start_time, end_time,
           total_amount, deposit_amount, balance_due,
-          status,
+          status, guest_count,
         ]
       );
 
@@ -523,8 +557,12 @@ async function customersRoutes(fastify) {
         type: 'object',
         required: ['booking_id'],
         properties: {
-          booking_id:   { type: 'string' },
-          status:       { type: 'string' },
+          booking_id: { type: 'string' },
+          status: {
+            type: 'string',
+            enum: ['confirmed', 'pending', 'provisional', 'deposit_paid',
+                   'cancelled', 'fully_paid', 'paid', 'overridden'],
+          },
           total_amount: { type: 'number' },
           balance_due:  { type: 'number' },
           notes:        { type: 'string' },
