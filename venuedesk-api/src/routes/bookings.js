@@ -269,12 +269,12 @@ async function customersRoutes(fastify) {
            WHERE  room_id    = $1::uuid
              AND  tenant_id  = $2::integer
              AND  status    NOT IN ('cancelled')
-             AND  COALESCE(date_from::date, booking_date) <= $5::date
-             AND  COALESCE(date_to::date,   booking_date) >= $4::date
-             AND  start_time < $7::time
-             AND  end_time   > $6::time
+             AND  COALESCE(date_from::date, booking_date) <= $4::date
+             AND  COALESCE(date_to::date,   booking_date) >= $3::date
+             AND  start_time < $6::time
+             AND  end_time   > $5::time
            LIMIT 1`,
-          [room_id, tenantId, booking_date, date_from, date_to, start_time, end_time]
+          [room_id, tenantId, date_from, date_to, start_time, end_time]
         );
 
         if (clashRows.length) {
