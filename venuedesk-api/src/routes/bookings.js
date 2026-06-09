@@ -243,19 +243,7 @@ async function customersRoutes(fastify) {
 
     return withTenantContext(tenantId, async (client) => {
       if (check_clashes) {
-        // ── Advisory lock (prevents TOCTOU race condition) ────────────────
-        // pg_advisory_xact_lock serialises concurrent booking requests for
-        // the same room without triggering RLS UPDATE policy checks, which
-        // FOR UPDATE requires but our FOR ALL USING policy doesn't fully
-        // satisfy (no WITH CHECK clause). The lock is scoped to this
-        // transaction and released automatically on COMMIT or ROLLBACK.
-        // Namespace 42601 distinguishes booking locks from any other advisory
-        // locks the system may use.
-        await client.query(
-          `SELECT pg_advisory_xact_lock(hashtext($1), 42601)`,
-          [room_id]
-        );
-
+        // ── Room lookup (capacity validation) ────────────────────────────
         const { rows: [room] } = await client.query(
           `SELECT id, capacity
            FROM   bookings.rooms
