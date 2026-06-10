@@ -301,6 +301,11 @@ async function customersRoutes(fastify) {
       }
 
       // ── Insert confirmed_booking ──────────────────────────────────────────
+      // 23505 = unique_violation: two concurrent requests raced past the clash
+      // check and both attempted the INSERT. The unique index on
+      // (room_id, booking_date, start_time, end_time) makes the second one
+      // fail atomically. Convert to 409 so callers see the same shape as a
+      // normal clash-check rejection.
       const { rows: [booking] } = await client.query(
         `INSERT INTO bookings.confirmed_bookings
            (tenant_id, customer_id, room_id,
@@ -322,7 +327,12 @@ async function customersRoutes(fastify) {
           total_amount, deposit_amount, balance_due,
           status, guest_count,
         ]
-      );
+      ).catch(err => {
+        if (err.code === '23505') {
+          throw conflict('Booking', `room ${room_id} is already booked for this date/time`);
+        }
+        throw err;
+      });
 
       // ── Record deposit in payments (skip card — Stripe webhook owns it) ──
       if (deposit_amount > 0 && payment_method !== 'card') {
