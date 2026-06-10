@@ -85,6 +85,19 @@ systemPool  — n8n superuser — bypasses RLS intentionally
 | `withServiceContext(fn)` | systemPool | Cross-tenant scheduled jobs |
 | `systemQuery(text, params)` | systemPool | Migrations, DDL, system_logs |
 
+### Pool size configuration (source: `src/db/pool.js`)
+
+| Pool | `max` | `idleTimeoutMillis` | `connectionTimeoutMillis` | Notes |
+|------|-------|---------------------|---------------------------|-------|
+| `systemPool` | **5** | 30 000 ms | 5 000 ms | Superuser — migrations, DDL, cross-tenant jobs only. Low cap is intentional: exhaustion here stalls migrations, not user traffic. |
+| `appPool` | **20** | 30 000 ms | 5 000 ms | RLS-restricted role — all user-facing routes. 20 connections is the primary exhaustion ceiling under concurrent load. |
+
+**Exhaustion profiles:**
+- Under normal load a single Fastify instance holds roughly `concurrency × avg_query_ms / 1000` connections at any moment. 20 concurrent requests each holding a 50 ms query ≈ 1 connection in use.
+- The QA 5-thread race peaks at 5 simultaneous clients; `connectionTimeoutMillis: 5_000` means requests queue for up to 5 s before throwing a pool timeout error.
+- If logs show `Error: timeout exceeded when trying to connect`, appPool is exhausted — either increase `max` (Postgres default `max_connections` is 100 on this VPS) or identify the route holding a client past its transaction.
+- `systemPool` max 5 is deliberately low: migrations are sequential and DDL must never compete with user traffic for connection slots.
+
 **Always use `set_config()` for tenant injection (never parameterised SET):**
 ```javascript
 // CORRECT — Pattern 2 from parent CLAUDE.md

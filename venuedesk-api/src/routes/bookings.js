@@ -242,15 +242,22 @@ async function customersRoutes(fastify) {
     }
 
     // ── Historical booking protection ─────────────────────────────────────
-    const today = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD server date
+    // Date.UTC() anchors "today" to UTC midnight, preventing server-local
+    // timezone drift from shifting the boundary during BST/DST transitions.
+    const _now    = new Date();
+    const todayMs = Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth(), _now.getUTCDate());
+    const today   = new Date(todayMs).toISOString().slice(0, 10);  // YYYY-MM-DD UTC
     const effectiveFrom = date_from || booking_date;
     if (booking_date < today || effectiveFrom < today) {
       throw badRequest('Cannot create or register a venue reservation block in the past.');
     }
 
     // ── Maximum booking duration (90-day ceiling) ─────────────────────────
+    // parseUTC builds explicit UTC midnight timestamps — avoids any implicit
+    // local-TZ offset; months are 0-indexed in Date.UTC().
+    const parseUTC     = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
     const msPerDay     = 86_400_000;
-    const durationDays = Math.round((new Date(date_to) - new Date(date_from)) / msPerDay);
+    const durationDays = Math.round((parseUTC(date_to) - parseUTC(date_from)) / msPerDay);
     if (durationDays > 90) {
       throw badRequest('Booking duration exceeds maximum allowed limit of 90 days.');
     }
