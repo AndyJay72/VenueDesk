@@ -1356,3 +1356,202 @@ ssh root@72.61.19.52 "docker exec n8n_postgres-postgres-1 psql -U n8n -d booking
 Common mistakes:
 - `-d n8n` → `FATAL: database "n8n" does not exist` (n8n is the user, not the DB)
 - Omitting `bookings.` schema → `relation "booking_requests" does not exist`
+
+---
+
+# 🧪 QA Integration Test Harness
+
+**Script:** `venuedesk-api/tests/qa_integration.py`
+
+Tests business logic, edge cases, concurrency, and auth boundaries against the live API.
+
+## Running the suite
+
+```bash
+pip install requests
+export VD_JWT_TOKEN="<service_jwt>"   # use CYCLE_SWEEP_SERVICE_JWT from docker-compose.yml
+python3 venuedesk-api/tests/qa_integration.py
+```
+
+Exit codes: `0` = all pass, `1` = non-critical failures, `2` = CRITICAL failures (API accepted dangerous input).
+
+## Service JWT for testing
+
+The `CYCLE_SWEEP_SERVICE_JWT` in `/opt/n8n_postgres/docker-compose.yml` is the correct token for QA:
+- `tenant_id: 1001`, `role: admin`, long expiry (~2027)
+- Contains all required claims for the `fastify.authenticate` middleware
+
+Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-compose.yml"`
+
+## Known test limitations (not API bugs)
+
+| Test | Finding | Status |
+|------|---------|--------|
+| 3c Historical date | API accepts bookings in the past | Design decision — no past-date guard |
+| 3d 3-year duration | API accepts unlimited date spans | Design decision — no max-duration ceiling |
+| 5a Double-cancel | Seed booking skipped ("?") | 3d's 3-year booking blocks 2027-01-10; test ordering artefact |
+| 6a/6b Race condition | All 5 threads timeout (status 0) | 3d's booking also spans 2027-03-01, so all get 409; harness misreads as timeout |
+| 7a No auth header | Returns 400 not 401 | Test script POSTs to a GET endpoint; 400 is correct |
+
+---
+
+# 🐛 Backend Bug Patterns — /bookings/create (June 2026 Audit)
+
+These bugs were discovered during the QA integration audit. Apply these lessons to any new or refactored parameterised SQL.
+
+---
+
+## Pattern 7 — Dead Parameters in pg Parameterised Queries
+
+**Problem:** PostgreSQL's extended query protocol requires type-inference for ALL parameter slots `$1`–`$N` (where N is the highest `$N` referenced). If `$3` is passed in the values array but **not referenced** in the SQL text, PostgreSQL cannot infer its type and throws:
+
+```
+error: could not determine data type of parameter $3
+```
+
+**Classic failure (pre-existing bug in /bookings/create clash check):**
+```javascript
+// WRONG — booking_date passed as $3 but the SQL uses the TABLE COLUMN,
+// not the parameter. PostgreSQL sees $1–$7 but $3 has no type context.
+await client.query(
+  `SELECT id FROM bookings.confirmed_bookings
+   WHERE  COALESCE(date_from::date, booking_date) <= $5::date ...`,
+  [room_id, tenantId, booking_date, date_from, date_to, start_time, end_time]
+);
+```
+
+**Rule:** Every `$N` slot in the values array MUST be referenced in the SQL body with at least one type-providing cast. If a parameter is dead (never referenced), remove it from the array and renumber the remaining parameters.
+
+```javascript
+// CORRECT — booking_date removed; params renumbered $4→$3, $5→$4, $6→$5, $7→$6
+await client.query(
+  `SELECT id FROM bookings.confirmed_bookings
+   WHERE  COALESCE(date_from::date, booking_date) <= $4::date
+     AND  COALESCE(date_to::date,   booking_date) >= $3::date
+     AND  start_time < $6::time
+     AND  end_time   > $5::time`,
+  [room_id, tenantId, date_from, date_to, start_time, end_time]
+);
+```
+
+---
+
+## Pattern 8 — AJV coerceTypes + anyOf null branch silently coerces integers
+
+**Problem:** Fastify 4 enables `coerceTypes: true` in its AJV configuration by default. When a schema uses `anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }]` and a falsy integer like `0` is submitted, AJV fails the integer branch (minimum check), then coerces `0` to `null` to match the `{ type: 'null' }` branch. The request is **accepted** with the field silently transformed to `null`.
+
+**Consequence:** A `guest_count: 0` booking was accepted with `guest_count: null` stored in the DB. Handler-level runtime checks that test `guest_count !== null` also failed to catch it because the value was already coerced before the handler ran.
+
+**Rule:** Never use `anyOf: [{ type: 'integer/number', minimum: N }, { type: 'null' }]` for optional numeric fields in Fastify schemas. Use the plain type instead and let the JS destructuring default handle the absent-field case:
+
+```javascript
+// WRONG — AJV coerces 0 to null via the null branch
+guest_count: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] }
+
+// CORRECT — plain integer; absent field handled by JS default (= null)
+guest_count: { type: 'integer' }
+// In destructuring:
+const { guest_count = null } = request.body;
+// Then guard at handler level:
+if (guest_count !== null && guest_count !== undefined && guest_count < 1) {
+  throw badRequest('guest_count must be at least 1');
+}
+```
+
+---
+
+## Pattern 9 — FOR UPDATE / Advisory Locks on FORCE RLS Tables
+
+**Problem:** `SELECT ... FOR UPDATE` on a FORCE RLS table requires the row to pass BOTH the SELECT policy (USING clause) AND the UPDATE policy check. A `FOR ALL USING (...)` policy without a `WITH CHECK` clause is not sufficient for the UPDATE direction — PostgreSQL evaluates the USING clause as both check and WITH CHECK for `FOR UPDATE`, but the `venuedesk_app` restricted role triggers additional privilege validation that causes 500 errors.
+
+Similarly, `pg_advisory_xact_lock` is a `pg_catalog` function. While PostgreSQL grants PUBLIC EXECUTE on most built-in functions, the `venuedesk_app` role as configured does not have access, causing 500 errors.
+
+**Rule:** Do NOT use `FOR UPDATE` or `pg_advisory_xact_lock` in routes that run under `withTenantContext` (appPool / `venuedesk_app` role).
+
+**Correct approach for concurrency protection:** Use a DB-level unique constraint on `confirmed_bookings(room_id, booking_date, start_time, end_time)` — enforced atomically by PostgreSQL during INSERT without any application-level lock. This is tracked as a **pending migration** (see Pending Items below).
+
+---
+
+## Pattern 10 — Deploy Sequence: SCP Before docker cp
+
+**Problem:** The VPS deployment workflow requires two steps:
+1. `scp` the local file to the VPS host path
+2. `docker cp` from the VPS host path into the running container
+
+If you skip the `scp` step and only run `docker cp`, the container receives the **old file** from the VPS host path (the file you previously SCPed), not your latest local changes. This silently deploys stale code.
+
+**Rule:** Always run both commands in order. Never skip the SCP:
+
+```bash
+# Step 1 — update VPS host file
+scp ~/Downloads/venue_desk_backup/venuedesk-api/src/routes/<file>.js \
+    root@72.61.19.52:/opt/n8n_postgres/venuedesk-api/src/routes/<file>.js
+
+# Step 2 — inject into running container
+ssh root@72.61.19.52 \
+  "docker cp /opt/n8n_postgres/venuedesk-api/src/routes/<file>.js \
+              venuedesk-api:/app/src/routes/<file>.js && \
+   docker restart venuedesk-api && sleep 6 && docker logs venuedesk-api --tail 5"
+```
+
+**Verification:** Check `docker logs` for `[server] venuedesk-api listening on port 3000` — if the log appears immediately (< 2s), the container was already running and the restart didn't take. Wait the full 6 seconds.
+
+---
+
+# ⚠️ Pending Items — Security & Correctness
+
+## 1. Race Condition — Missing Unique Constraint on confirmed_bookings
+
+The `/bookings/create` clash check uses a SELECT-then-INSERT pattern with no database-level unique constraint. Under concurrent load, two bookings for the same room/date/time can both pass the clash check before either commits.
+
+**Status:** Application-level locking (`FOR UPDATE`, advisory locks) is not viable with the current `venuedesk_app` role and RLS configuration.
+
+**Required fix (migration):**
+```sql
+-- Migration 022 (pending)
+CREATE UNIQUE INDEX CONCURRENTLY idx_confirmed_bookings_room_slot
+  ON bookings.confirmed_bookings (room_id, booking_date, start_time, end_time)
+  WHERE status NOT IN ('cancelled');
+```
+The `WHERE` partial index excludes cancelled bookings so the same slot can be rebooked after cancellation.
+
+## 2. No Past-Date Guard on booking_date
+
+`/bookings/create` accepts `booking_date` values in the past (including year 2000). No validation exists at the API layer.
+
+**Required fix:** Add to the handler before `withTenantContext`:
+```javascript
+if (new Date(booking_date) < new Date(new Date().toISOString().slice(0, 10))) {
+  throw badRequest('booking_date cannot be in the past');
+}
+```
+This is a business-rule decision — implement only when confirmed with stakeholders.
+
+## 3. No Maximum Booking Duration Ceiling
+
+`date_from`/`date_to` spans of any length are accepted (tested: 3 years accepted). Consider a maximum ceiling (e.g. 1 year) as a sanity guard against data entry errors.
+
+---
+
+# 📋 /bookings/create Route — Field Reference (Post-Audit)
+
+| Field | Schema type | Validation | Notes |
+|-------|-------------|------------|-------|
+| `customer_id` | string (UUID) | assertUUID | Required |
+| `room_id` | string (UUID) | assertUUID | Required |
+| `booking_date` | string | DATE cast by PG | Required |
+| `start_time` | string | TIME cast by PG; must be < end_time | Required |
+| `end_time` | string | TIME cast by PG | Required |
+| `status` | string enum | AJV enum: confirmed/pending/provisional/deposit_paid/cancelled/fully_paid/paid/overridden | Default: confirmed |
+| `guest_count` | integer | Handler: must be >= 1 if provided; must not exceed room.capacity | Optional; null = unconstrained |
+| `total_amount` | number | — | Default: 0 |
+| `deposit_amount` | number | — | Default: 0 |
+| `balance_due` | number | Derived: total − deposit if not provided | Optional |
+| `payment_method` | string | — | Default: cash |
+| `booking_request_id` | string (UUID) | assertUUID if present | Optional |
+| `check_clashes` | boolean | — | Default: true; false bypasses clash check (internal use only) |
+
+**When `check_clashes: true` (default):**
+1. Room lookup: `SELECT id, capacity FROM bookings.rooms WHERE id = $1 AND tenant_id = $2`
+2. Capacity check: `guest_count > room.capacity` → 400 (only if room.capacity > 0)
+3. Clash check: SQL overlap query — returns 409 if existing booking overlaps date+time range
