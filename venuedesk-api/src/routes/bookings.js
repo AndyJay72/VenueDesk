@@ -201,9 +201,7 @@ async function customersRoutes(fastify) {
             enum: ['confirmed', 'pending', 'provisional', 'deposit_paid',
                    'cancelled', 'fully_paid', 'paid', 'overridden'],
           },
-          guest_count: {
-            anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }],
-          },
+          guest_count: { type: 'integer' },
           booking_request_id: { type: 'string' },
           check_clashes:      { type: 'boolean', default: true },
         },
