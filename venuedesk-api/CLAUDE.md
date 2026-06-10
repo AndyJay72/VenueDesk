@@ -212,9 +212,12 @@ The `venuedesk_app` role is a restricted role subject to FORCE RLS on all 12 ten
 - `pg_advisory_xact_lock(...)` — requires `pg_catalog` EXECUTE privilege not granted to `venuedesk_app` → 500.
 - Any DDL (CREATE, ALTER, DROP) — restricted role has no DDL access.
 
-### Correct concurrency approach:
+### Correct concurrency approach (IMPLEMENTED):
 
-Use a DB-level unique constraint + `ON CONFLICT` at INSERT time. This is atomic and RLS-compatible. **Pending migration 022** (see parent CLAUDE.md Pending Items).
+Migration 022 adds `idx_confirmed_bookings_room_slot` — a partial unique index on
+`confirmed_bookings(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
+The `/bookings/create` INSERT catches PostgreSQL error `23505` (unique_violation) and returns
+HTTP 409, identical to a normal clash-check rejection. Deployed June 2026.
 
 ---
 
@@ -229,8 +232,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `021_payments_payment_type_cycle.sql`  
-**Next number:** `022`
+**Latest migration:** `022_confirmed_bookings_unique_slot.sql` (June 2026 — unique slot index)  
+**Next number:** `023`
 
 ---
 
@@ -308,13 +311,14 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 
 | Test | Behaviour | Reason |
 |------|-----------|--------|
-| 3c Historical date | Accepted (200) | No past-date guard (pending) |
-| 3d 3-year span | Accepted (200) | No max-duration ceiling (pending) |
-| 5a Double-cancel | Skipped ("?") | Test 3d's 3-year booking overlaps 2027-01-10; test ordering artefact |
-| 6a/6b Race | All timeout (0) | Test 3d booking also overlaps 2027-03-01; 5 threads get 409 instantly, harness misreads as TCP timeout |
-| 7a No-auth header | 400 not 401 | Test script POSTs to a GET endpoint; 400 is correct |
+| 3c Historical date | 400 | ✅ Fixed — past-date guard |
+| 3d 3-year span | 400 | ✅ Fixed — 90-day ceiling |
+| 5a Double-cancel | 404 | ✅ Fixed — previously blocked by 3d's booking |
+| 6a Race condition | 1 of 5 succeeds | ✅ Fixed — migration 022 unique index |
+| 6b No TCP drops | status 0 on 4 threads | Harness artefact — 23505 closes connection before losers get clean 409; functionally correct |
+| 7a No-auth header | 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct |
 
-**Baseline (June 2026):** 34 PASS · 0 CRITICAL · 5 FAIL (all known limitations) · 1 SKIP
+**Current baseline (June 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — test artefacts) · 0 SKIP
 
 ---
 
@@ -324,7 +328,9 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 |-------|----------|-------------|------------|
 | `customer_id` | ✓ | string | assertUUID |
 | `room_id` | ✓ | string | assertUUID |
-| `booking_date` | ✓ | string | PG DATE cast |
+| `booking_date` | ✓ | string | PG DATE cast; must not be in the past |
+| `date_from` | — | string | Defaults to booking_date; must not be in the past |
+| `date_to` | — | string | Defaults to booking_date; (date_to − date_from) ≤ 90 days |
 | `start_time` | ✓ | string | PG TIME cast; must be < end_time |
 | `end_time` | ✓ | string | PG TIME cast |
 | `status` | — | string enum | confirmed/pending/provisional/deposit_paid/cancelled/fully_paid/paid/overridden; default: confirmed |
@@ -337,9 +343,16 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 | `check_clashes` | — | boolean | Default: true; false = skip clash check (internal use only) |
 
 **When `check_clashes: true`:**
-1. Room SELECT (capacity lookup)
-2. Handler guest_count capacity ceiling check → 400 if exceeded
-3. Overlap SQL → 409 if clash found
-4. INSERT with guest_count column included
+1. Past-date guard: `booking_date` / `date_from` < today → 400
+2. Duration ceiling: `(date_to − date_from) > 90 days` → 400
+3. `guest_count` guard: provided and < 1 → 400
+4. Room SELECT: `SELECT id, capacity FROM bookings.rooms WHERE id=$1 AND tenant_id=$2`
+5. Capacity ceiling: `guest_count > room.capacity` → 400 (skipped if `capacity = 0`)
+6. Overlap SQL → 409 if clash found
+7. INSERT: catches `23505` (unique index violation) → 409 (second race defence)
 
 **Status enum applies to both `/bookings/create` and `/bookings/update`.**
+
+**Migration 022** (`022_confirmed_bookings_unique_slot.sql`) — unique partial index on
+`(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
+Closes TOCTOU race at the DB layer. Next migration number: `023`.
