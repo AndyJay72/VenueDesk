@@ -237,6 +237,12 @@ async function customersRoutes(fastify) {
     assertUUID(room_id, 'room_id');
     if (booking_request_id) assertUUID(booking_request_id, 'booking_request_id');
 
+    // Runtime guard — AJV's anyOf+minimum combo can pass 0 in strict mode;
+    // defend at the handler level so the DB never receives an invalid count.
+    if (guest_count !== null && guest_count !== undefined && guest_count < 1) {
+      throw badRequest('guest_count must be at least 1');
+    }
+
     if (start_time >= end_time) {
       throw unprocessable('end_time must be after start_time');
     }
