@@ -241,6 +241,20 @@ async function customersRoutes(fastify) {
       throw badRequest('guest_count must be at least 1');
     }
 
+    // ── Historical booking protection ─────────────────────────────────────
+    const today = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD server date
+    const effectiveFrom = date_from || booking_date;
+    if (booking_date < today || effectiveFrom < today) {
+      throw badRequest('Cannot create or register a venue reservation block in the past.');
+    }
+
+    // ── Maximum booking duration (90-day ceiling) ─────────────────────────
+    const msPerDay     = 86_400_000;
+    const durationDays = Math.round((new Date(date_to) - new Date(date_from)) / msPerDay);
+    if (durationDays > 90) {
+      throw badRequest('Booking duration exceeds maximum allowed limit of 90 days.');
+    }
+
     if (start_time >= end_time) {
       throw unprocessable('end_time must be after start_time');
     }
