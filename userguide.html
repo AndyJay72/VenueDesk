@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VenueDesk Staff User Guide & Training Interactive Portal</title>
+    
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Modern Design System Tokens */
+        :root {
+            /* Light Theme Palette (Default) */
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-sidebar: #ffffff;
+            --bg-input: #f1f5f9;
+            --bg-muted: #f8fafc;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-inverse: #ffffff;
+            
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: #e0e7ff;
+            --primary-glow: rgba(79, 70, 229, 0.15);
+            
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --success-text: #065f46;
+            
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --warning-text: #78350f;
+            
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+            --danger-text: #991b1b;
+            
+            --info: #3b82f6;
+            --info-bg: #dbeafe;
+            --info-text: #1e40af;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+            --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
+            
+            --radius-lg: 1rem;
+            --radius-md: 0.75rem;
+            --radius-sm: 0.5rem;
+            
+            --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-fast: all 0.15s ease;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme Palette */
+            --bg-page: #0b0f19;
+            --bg-card: #131b2e;
+            --bg-sidebar: #131b2e;
+            --bg-input: #1e293b;
+            --bg-muted: #1e293b;
+            --border-color: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-inverse: #0f172a;
+            
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: #1e1b4b;
+            --primary-glow: rgba(99, 102, 241, 0.25);
+            
+            --success: #34d399;
+            --success-bg: #064e3b;
+            --success-text: #a7f3d0;
+            
+            --warning: #fbbf24;
+            --warning-bg: #78350f;
+            --warning-text: #fde68a;
+            
+            --danger: #f87171;
+            --danger-bg: #7f1d1d;
+            --danger-text: #fca5a5;
+            
+            --info: #60a5fa;
+            --info-bg: #1e3a8a;
+            --info-text: #bfdbfe;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Basic Resets & Scrollbars */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.6;
+            transition: var(--transition-all);
+        }
+
+        /* Custom Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-page);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Utilities */
+        .highlight {
+            background-color: rgba(253, 224, 71, 0.4);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 2px;
+            font-weight: bold;
+        }
+
+        /* Container & Layout Grid */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styling */
+        aside.sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 100;
+            transition: var(--transition-all);
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .sidebar-logo-icon {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: var(--text-inverse);
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        nav.sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition-fast);
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--primary);
+            background-color: var(--bg-muted);
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            background-color: var(--primary-light);
+            border-color: rgba(79, 70, 229, 0.15);
+            font-weight: 600;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Top Header Actions */
+        header.top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            background-color: rgba(248, 250, 252, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+            transition: var(--transition-all);
+        }
+
+        [data-theme="dark"] header.top-bar {
+            background-color: rgba(11, 15, 25, 0.8);
+        }
+
+        .search-container {
+            position: relative;
+            flex-grow: 1;
+            max-width: 500px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            font-size: 0.9rem;
+            transition: var(--transition-all);
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            transition: var(--transition-fast);
+            outline: none;
+        }
+
+        .btn-action:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: var(--bg-muted);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: var(--text-inverse);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+            color: var(--text-inverse);
+        }
+
+        /* Toggle switches */
+        .theme-toggle-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-fast);
+            width: 2.25rem;
+            height: 2.25rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-toggle-btn:hover {
+            color: var(--primary);
+            background-color: var(--bg-muted);
+        }
+
+        .theme-toggle-btn svg {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        /* Main Content Layout */
+        main.main-content {
+            padding: 2rem 2.5rem;
+            overflow-x: hidden;
+        }
+
+        /* Header Card */
+        .hero-banner {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+            color: white;
+            border-radius: var(--radius-lg);
+            padding: 3rem 2.5rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Decorative Background Orbs */
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: 20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-banner-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-banner h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.75rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .hero-banner p {
+            color: #c7d2fe;
+            font-size: 1.15rem;
+            max-width: 700px;
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+        }
+
+        .metadata-badge-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .meta-badge {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.825rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #e0e7ff;
+            text-decoration: none;
+            transition: var(--transition-fast);
+        }
+
+        .meta-badge:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        /* Card System */
+        .section-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 2.5rem;
+            overflow: hidden;
+            transition: var(--transition-all);
+        }
+
+        .section-card:hover {
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+        }
+
+        .card-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .card-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .card-body > p {
+            margin-bottom: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        /* Interactive Section Actions */
+        .header-anchor {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-sm);
+            border: 1px dashed var(--border-color);
+            transition: var(--transition-fast);
+        }
+
+        .header-anchor:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+        }
+
+        /* Responsive Grid Formats */
+        .grid-3-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .sub-card {
+            background-color: var(--bg-muted);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            transition: var(--transition-all);
+            position: relative;
+        }
+
+        .sub-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        .sub-card h4 {
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Quick Reference Layout */
+        .quick-ref-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .quick-ref-item {
+            background-color: var(--bg-muted);
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--primary);
+            transition: var(--transition-all);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+
+        .quick-ref-item:hover {
+            transform: translateX(4px);
+            background-color: var(--primary-light);
+        }
+
+        .quick-ref-item strong {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .quick-ref-item span.path {
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+
+        .quick-ref-item small {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-top: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 500;
+        }
+
+        /* Beautiful Tables */
+        .table-container {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            background-color: var(--bg-card);
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem 1.25rem;
+            background-color: var(--bg-muted);
+            font-weight: 600;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: var(--bg-muted);
+        }
+
+        /* Styled Step Lists */
+        .custom-step-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .custom-step-list li {
+            background-color: var(--bg-muted);
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            transition: var(--transition-fast);
+        }
+
+        .custom-step-list li:hover {
+            border-color: var(--primary);
+        }
+
+        .step-bubble {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+        }
+
+        /* Order Lists formatting inside Cards */
+        ol.styled-ol {
+            padding-left: 0;
+            list-style: none;
+            counter-reset: my-counter;
+        }
+
+        ol.styled-ol li {
+            counter-increment: my-counter;
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        ol.styled-ol li::before {
+            content: counter(my-counter);
+            position: absolute;
+            left: 0;
+            top: 0.15rem;
+            background-color: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.75rem;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        ol.styled-ol li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .status-badge.green {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .status-badge.amber {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        .status-badge.red {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .status-badge.blue {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border-color: rgba(59, 130, 246, 0.2);
+        }
+
+        .badge-warning-text {
+            font-size: 0.8rem;
+            color: var(--danger);
+            background-color: var(--danger-bg);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--danger);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        /* Interactive Filter Chips for Troubleshooting */
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .chip {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            background-color: var(--bg-muted);
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: var(--transition-fast);
+        }
+
+        .chip:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .chip.active {
+            background-color: var(--primary);
+            color: var(--text-inverse);
+            border-color: var(--primary);
+        }
+
+        /* Glossary Grid */
+        .glossary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .glossary-term-card {
+            background-color: var(--bg-muted);
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            transition: var(--transition-all);
+        }
+
+        .glossary-term-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .glossary-term-card strong {
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .glossary-term-card p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* TRAINING SIMULATOR */
+        .simulator-grid {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background-color: var(--bg-card);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sim-sidebar {
+            background-color: var(--bg-muted);
+            border-right: 1px solid var(--border-color);
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sim-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: none;
+            border-radius: var(--radius-sm);
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .sim-nav-btn:hover {
+            color: var(--primary);
+            background-color: rgba(79, 70, 229, 0.05);
+        }
+
+        .sim-nav-btn.active {
+            background-color: var(--primary);
+            color: var(--text-inverse);
+        }
+
+        .sim-content {
+            padding: 1.5rem;
+            min-height: 380px;
+        }
+
+        .sim-view {
+            display: none;
+        }
+
+        .sim-view.active {
+            display: block;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sim-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .sim-title-row h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* Calendar Grid inside Simulator */
+        .sim-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            text-align: center;
+        }
+
+        .sim-calendar-header {
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            padding-bottom: 0.25rem;
+        }
+
+        .sim-day-btn {
+            aspect-ratio: 1;
+            background-color: var(--bg-muted);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            padding: 0.25rem;
+        }
+
+        .sim-day-btn:hover:not(.disabled) {
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+        }
+
+        .sim-day-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .sim-day-btn .num {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .sim-day-btn .indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+
+        .sim-day-btn.booked .indicator { background-color: var(--danger); }
+        .sim-day-btn.available .indicator { background-color: var(--success); }
+        .sim-day-btn.pending .indicator { background-color: var(--warning); }
+
+        /* Simulator Form Elements */
+        .sim-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .sim-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .sim-form-group.full-width {
+            grid-column: span 2;
+        }
+
+        .sim-form-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .sim-input, .sim-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            outline: none;
+            font-size: 0.875rem;
+        }
+
+        .sim-input:focus, .sim-select:focus {
+            border-color: var(--primary);
+        }
+
+        /* Simulator List Action Buttons */
+        .sim-action-btn {
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition-fast);
+        }
+
+        .sim-action-btn.pay {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+        }
+
+        .sim-action-btn.pay:hover {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .sim-action-btn.cancel {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+        }
+
+        .sim-action-btn.cancel:hover {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        /* Toast notifications inside Simulator */
+        .sim-toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .sim-toast.show {
+            transform: translateY(0);
+        }
+
+        .sim-toast.success { border-left-color: var(--success); }
+        .sim-toast.error { border-left-color: var(--danger); }
+        .sim-toast.warning { border-left-color: var(--warning); }
+
+        /* Modal inside simulator */
+        .sim-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sim-modal-overlay.active {
+            display: flex;
+        }
+
+        .sim-modal {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 480px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: modalSlideUp 0.3s ease-out;
+        }
+
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sim-modal-header {
+            padding: 1.25rem 1.5rem;
+            background-color: var(--bg-muted);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sim-modal-header h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .sim-modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1.25rem;
+        }
+
+        .sim-modal-body {
+            padding: 1.5rem;
+        }
+
+        .sim-modal-footer {
+            padding: 1.25rem 1.5rem;
+            background-color: var(--bg-muted);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Footer */
+        footer.main-footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* PRINT STYLING FOR PDF */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .app-container {
+                display: block;
+            }
+            aside.sidebar, header.top-bar, .filter-chips, .action-buttons, .theme-toggle-btn, .header-anchor, .sim-container-card {
+                display: none !important;
+            }
+            main.main-content {
+                padding: 0;
+            }
+            .hero-banner {
+                background: #1e1b4b !important;
+                color: white !important;
+                padding: 1.5in 0.5in 0.5in 0.5in;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            .hero-banner p {
+                color: #ddd !important;
+            }
+            .section-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #ccc;
+                margin-bottom: 2rem;
+            }
+            .card-header {
+                background-color: #f3f4f6 !important;
+                border-bottom: 1px solid #ccc;
+            }
+            .sub-card {
+                border: 1px solid #ccc !important;
+                background-color: transparent !important;
+            }
+            .status-badge {
+                border: 1px solid #999;
+                color: black !important;
+                background: transparent !important;
+            }
+            .custom-step-list li {
+                border: 1px solid #ccc !important;
+                background-color: transparent !important;
+            }
+            .step-bubble {
+                background: #1e1b4b !important;
+                color: white !important;
+            }
+            .table-container {
+                border: 1px solid #ccc;
+            }
+            th {
+                background-color: #f3f4f6 !important;
+                border-bottom: 1px solid #ccc;
+            }
+            td {
+                border-bottom: 1px solid #ccc;
+            }
+        }
+
+        /* RESPONSIVE BREAKPOINTS */
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+            aside.sidebar {
+                display: none; /* In production: a toggle drawer. For simple reference guide, we make it responsive */
+            }
+            header.top-bar {
+                padding: 1rem 1.5rem;
+            }
+            main.main-content {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-banner h1 {
+                font-size: 1.85rem;
+            }
+            .hero-banner p {
+                font-size: 1rem;
+            }
+            .grid-2-col, .grid-3-col, .simulator-grid {
+                grid-template-columns: 1fr;
+            }
+            .sim-sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 0.75rem;
+            }
+            .sim-nav-btn {
+                white-space: nowrap;
+                width: auto;
+            }
+            .sim-form-grid {
+                grid-template-columns: 1fr;
+            }
+            .sim-form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main App Layout Wrapper -->
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation Drawer -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">V</div>
+                <span>VenueDesk</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#quick-ref" class="nav-item active">
+                    <span>⚡</span> Quick Reference
+                </a>
+                <a href="#sidebar-nav-ref" class="nav-item">
+                    <span>🧭</span> Sidebar Guide
+                </a>
+                <a href="#making-booking" class="nav-item">
+                    <span>1️⃣</span> Make Booking
+                </a>
+                <a href="#customer-notes" class="nav-item">
+                    <span>2️⃣</span> Customer Notes
+                </a>
+                <a href="#viewing-bookings" class="nav-item">
+                    <span>3️⃣</span> View Bookings
+                </a>
+                <a href="#recurring-payments" class="nav-item">
+                    <span>4️⃣</span> Recurring Series
+                </a>
+                <a href="#cancelling" class="nav-item">
+                    <span>5️⃣</span> Cancelling
+                </a>
+                <a href="#manual-payments" class="nav-item">
+                    <span>💰</span> Manual Payments
+                </a>
+                <a href="#troubleshooting" class="nav-item">
+                    <span>⚠️</span> Troubleshooting
+                </a>
+                <a href="#glossary" class="nav-item">
+                    <span>📖</span> Key Concepts
+                </a>
+                <a href="#interactive-simulator" class="nav-item" style="border-top: 1px solid var(--border-color); margin-top: 0.5rem; padding-top: 1rem; color: var(--primary); font-weight: 600;">
+                    <span>🎮</span> Training Simulator
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div>📅 Updated: June 2026</div>
+                <div>v1.4.2 · Staff Guide</div>
+            </div>
+        </aside>
+
+        <!-- Main Body Content -->
+        <div style="display: flex; flex-direction: column;">
+            
+            <!-- Floating Navigation & Action Bar -->
+            <header class="top-bar">
+                <div class="search-container">
+                    <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="global-search" class="search-input" placeholder="Search the user guide (e.g. walk-in, Stripe, offline)..." aria-label="Search User Guide">
+                </div>
+                
+                <div class="action-buttons">
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
+                        <svg class="sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.364l-.707-.707M12 7a5 5 0 100 10 5 5 0 000-10z"></path>
+                        </svg>
+                    </button>
+                    <!-- Print PDF -->
+                    <button class="btn-action" onclick="window.print()">
+                        <span>🖨️</span> Print PDF Reference
+                    </button>
+                    <!-- Launch Simulator shortcut -->
+                    <a href="#interactive-simulator" class="btn-action btn-primary">
+                        <span>🎮</span> Try Simulator
+                    </a>
+                </div>
+            </header>
+
+            <main class="main-content">
+                
+                <!-- Hero Banner Header -->
+                <div class="hero-banner">
+                    <div class="hero-banner-content">
+                        <h1>📘 VenueDesk Staff User Guide</h1>
+                        <p>Learn how to manage bookings, process payments, and support venue customers. Tailored specifically for on-site staff and administrators.</p>
+                        <div class="metadata-badge-group">
+                            <span class="meta-badge">🗓️ Last Updated: June 2026</span>
+                            <a href="https://andyjay72.github.io/VenueDesk" class="meta-badge" target="_blank">🔗 Web Portal &rarr;</a>
+                            <span class="meta-badge">⚡ Interactive Mode</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Reference -->
+                <section id="quick-ref" class="section-card">
+                    <div class="card-header">
+                        <h2>⚡ Quick Reference Routes</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('quick-ref')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="quick-ref-grid">
+                            <div class="quick-ref-item" onclick="scrollToId('making-booking')">
+                                <strong>📅 Make a Booking (Enquiry)</strong>
+                                <span class="path">Calendar &rarr; Click date &rarr; Save Booking</span>
+                                <small>📍 Target: Calendar Panel</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('making-booking')">
+                                <strong>🚪 Walk-in Booking</strong>
+                                <span class="path">Walk-In Booking page &rarr; Confirm Booking</span>
+                                <small>📍 Target: Walk-In Page</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('customer-notes')">
+                                <strong>📝 Add Customer Notes</strong>
+                                <span class="path">Customers &rarr; Profile Modal &rarr; Log Interaction</span>
+                                <small>📍 Target: CRM / Customers</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('viewing-bookings')">
+                                <strong>🗓️ View Bookings</strong>
+                                <span class="path">Calendar or Bookings sidebar &rarr; Choose tabs</span>
+                                <small>📍 Target: Navigation Sidebar</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('recurring-payments')">
+                                <strong>🔄 Recurring Payments</strong>
+                                <span class="path">Recurring &rarr; Series Card &rarr; Record Payment</span>
+                                <small>📍 Target: Recurring Panel</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('cancelling')">
+                                <strong>❌ Cancel Booking</strong>
+                                <span class="path">Bookings list &rarr; Cancel Button &rarr; Confirm popup</span>
+                                <small>📍 Target: Bookings List</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('manual-payments')">
+                                <strong>💰 Manual Payment</strong>
+                                <span class="path">Bookings &rarr; Pay Button &rarr; Select Cash/BACS</span>
+                                <small>📍 Target: Payments Page</small>
+                            </div>
+                            <div class="quick-ref-item" onclick="scrollToId('viewing-bookings')">
+                                <strong>🧾 Payment History</strong>
+                                <span class="path">Accounts sidebar &rarr; Click transaction row</span>
+                                <small>📍 Target: Accounts / Ledger</small>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sidebar Reference -->
+                <section id="sidebar-nav-ref" class="section-card">
+                    <div class="card-header">
+                        <h2>🧭 Sidebar Navigation Reference</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('sidebar-nav-ref')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Icon</th>
+                                        <th style="width: 200px;">Section / Tab</th>
+                                        <th>Primary Purpose & Contents</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>📊</td>
+                                        <td><strong>Dashboard</strong></td>
+                                        <td>Main workspace overview. Tracks pending requests, upcoming daily events, and quick notes.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>📆</td>
+                                        <td><strong>Calendar</strong></td>
+                                        <td>Full venue room scheduling calendar with visual clash-checking and quick booking trigger.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>📋</td>
+                                        <td><strong>Bookings</strong></td>
+                                        <td>Central searchable ledger of all historical, current, and canceled reservations.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>🔄</td>
+                                        <td><strong>Recurring</strong></td>
+                                        <td>Manage block bookings, repeat sessions, and record ongoing installment payments.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>💳</td>
+                                        <td><strong>Accounts</strong></td>
+                                        <td>View cash drawer status, invoice details, Stripe payments, and general system ledger.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>👥</td>
+                                        <td><strong>Customers</strong></td>
+                                        <td>Venue CRM database to lookup contact details, check payment histories, and log notes.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>🚪</td>
+                                        <td><strong>Walk-In Booking</strong></td>
+                                        <td>Simplified, fast-access interface designed for on-site visitors requesting rooms immediately.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>✍️</td>
+                                        <td><strong>New Booking</strong></td>
+                                        <td>External customer inquiry booking portal (opens in external tab).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>🕒</td>
+                                        <td><strong>Audit Log</strong></td>
+                                        <td>Security compliance logs recording which staff members made or edited specific records.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Making a Booking -->
+                <section id="making-booking" class="section-card">
+                    <div class="card-header">
+                        <h2>1️⃣ Making a Booking — Three Ways</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('making-booking')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-3-col">
+                            <div class="sub-card">
+                                <h4>✅ Option A — Calendar Booking</h4>
+                                <ol class="styled-ol">
+                                    <li>Navigate to <strong>Calendar</strong> sidebar.</li>
+                                    <li>Click date box to open the <strong>Quick Booking</strong> drawer.</li>
+                                    <li>Fill details: Customer, Room, Timings, Guests.</li>
+                                    <li>Review indicator: 🟢 Available / 🔴 Clash alert.</li>
+                                    <li>Optionally check <strong>Multi-day</strong> event or add internal staff notes.</li>
+                                    <li>Choose payment: <span class="status-badge green">Record Deposit</span>, <span class="status-badge blue">Full Payment</span>, or <span class="status-badge amber">Save as Pending</span>.</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="sub-card">
+                                <h4>🚪 Option B — Walk-In Booking</h4>
+                                <ol class="styled-ol">
+                                    <li>Select <strong>Walk-In Booking</strong> sidebar.</li>
+                                    <li>Enter Customer details (Name, Contact).</li>
+                                    <li>Input Event parameters: Date, Duration, Guest Count.</li>
+                                    <li>Select offline payout choice: Cash, Card, or BACS.</li>
+                                    <li>Click <span class="status-badge green">Confirm Booking</span>.</li>
+                                </ol>
+                                <span class="badge-warning-text">⚠️ Walk-ins cannot be booked on past dates.</span>
+                            </div>
+                            
+                            <div class="sub-card">
+                                <h4>📨 Option C — Enquiry Form</h4>
+                                <ol class="styled-ol">
+                                    <li>Provide customer with <strong>New Booking</strong> link.</li>
+                                    <li>Customer enters requirements and optional card details via Stripe.</li>
+                                    <li>Enquiry goes to <strong>Dashboard &rarr; Pending Requests</strong>.</li>
+                                    <li>Staff checks details and hits <strong>Confirm & Record Deposit</strong>.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Customer Notes -->
+                <section id="customer-notes" class="section-card">
+                    <div class="card-header">
+                        <h2>2️⃣ Adding Customer Notes & Interaction Records</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('customer-notes')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>Customer Interaction Logs help keep track of telephone calls, agreements, or site visits relative to bookings.</p>
+                        <ul class="custom-step-list">
+                            <li>
+                                <div class="step-bubble">1</div>
+                                <div>Click <strong>Customers</strong> in the sidebar menu.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">2</div>
+                                <div>Type customer's name, email, or telephone number in search bar.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">3</div>
+                                <div>Click the customer row to launch the profile information panel.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">4</div>
+                                <div>Find the <strong>Interactions</strong> section and press the <strong>Log Interaction</strong> button.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">5</div>
+                                <div>Select Type (Call, Email, SMS, In-Person) and input notes. Click <strong>Save Interaction</strong>.</div>
+                            </li>
+                        </ul>
+                        <p style="margin-top: 1.5rem; font-size: 0.9rem;">
+                            💡 <strong>Shortcut:</strong> You can also log interactions directly from any active booking card by clicking the inline <strong>Log Interaction</strong> button.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Viewing Bookings -->
+                <section id="viewing-bookings" class="section-card">
+                    <div class="card-header">
+                        <h2>3️⃣ Viewing Existing Bookings</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('viewing-bookings')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>There are multiple ways to inspect scheduling status depending on the context of your inquiries:</p>
+                        <div class="table-container" style="margin-bottom: 1.5rem;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 200px;">Workspace View</th>
+                                        <th>Optimized For</th>
+                                        <th>Instructions to Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>📆 <strong>Calendar Layout</strong></td>
+                                        <td>Spotting gaps, resolving overlaps, scheduling dates.</td>
+                                        <td>Sidebar <strong>Calendar</strong> &rarr; Filter tabs (Month/Week/Day).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>📋 <strong>Bookings List Ledger</strong></td>
+                                        <td>Searching records, filter status, bulk edits.</td>
+                                        <td>Sidebar <strong>Bookings</strong> &rarr; Filter lists (Paid/Pending/Due).</td>
+                                    </tr>
+                                    <tr>
+                                        <td>📊 <strong>Dashboard Snapshot</strong></td>
+                                        <td>Checking daily tasks, check-ins, new requests.</td>
+                                        <td>Sidebar <strong>Dashboard</strong> &rarr; Scroll down widgets.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="font-size: 0.9rem;">
+                            🎨 <strong>Calendar Legend Guide:</strong> 🟢 Green = Entirely Available · 🟡 Amber = Partially Reserved Room Hours · 🔵 Indigo = Venue Fully Reserved
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Recurring Payments -->
+                <section id="recurring-payments" class="section-card">
+                    <div class="card-header">
+                        <h2>4️⃣ Setting Up Recurring Payments & Series</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('recurring-payments')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-2-col">
+                            <div class="sub-card">
+                                <h4>Create a Recurring Series</h4>
+                                <ol class="styled-ol">
+                                    <li>Begin custom booking on Calendar.</li>
+                                    <li>Toggle <strong>Recurring Booking</strong> (activates purple status).</li>
+                                    <li>Specify Frequency: Weekly, Bi-weekly, or Monthly.</li>
+                                    <li>Select matching days of the week.</li>
+                                    <li>Establish an <strong>End Date</strong> (or keep open for ongoing rolling bookings).</li>
+                                    <li>Double check preview of all calculated occurrences before saving.</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="sub-card">
+                                <h4>Process / Record Series Payment</h4>
+                                <ol class="styled-ol">
+                                    <li>Go to <strong>Recurring</strong> in sidebar.</li>
+                                    <li>Locate target customer series card.</li>
+                                    <li>Inspect the badge status: <span class="status-badge green">Paid</span>, <span class="status-badge amber">Due</span>, or <span class="status-badge red">Overdue</span>.</li>
+                                    <li>Click <strong>Record Payment</strong> (available when payment cycle is active).</li>
+                                    <li>Confirm cash/card amount and select <strong>Confirm Payment</strong>.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Cancelling Bookings -->
+                <section id="cancelling" class="section-card">
+                    <div class="card-header">
+                        <h2>5️⃣ Cancelling Bookings & Series</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('cancelling')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container" style="margin-bottom: 1.5rem;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 250px;">Scenario</th>
+                                        <th>Cancellation Flow</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Single standard booking</strong></td>
+                                        <td>Bookings list &rarr; Press red <strong>Cancel</strong> button &rarr; Confirm confirmation popup.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>From Calendar Directly</strong></td>
+                                        <td>Double-click Calendar event bubble &rarr; Select <strong>Cancel Booking</strong> &rarr; Save.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Single session in Recurring Series</strong></td>
+                                        <td>Open <strong>Bookings &rarr; Recurring Series</strong> &rarr; Click expand sessions &rarr; Cancel specific session only.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Entire future series</strong></td>
+                                        <td>Locate series card &rarr; Choose cancel future dates, or manually remove each session.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <span class="badge-warning-text">
+                            ⚠️ Warning: Cancellations are irreversible. If Stripe is connected, this action may auto-trigger a credit card refund. Confirm policies before saving.
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Manual Payments -->
+                <section id="manual-payments" class="section-card">
+                    <div class="card-header">
+                        <h2>💰 Recording a Manual Payment</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('manual-payments')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>Process manual payments (BACS, cash, offline card terminals) using these instructions:</p>
+                        <ul class="custom-step-list">
+                            <li>
+                                <div class="step-bubble">1</div>
+                                <div>Find the reservation on the <strong>Bookings</strong> page flagged with <span class="status-badge amber">Payment Due</span>.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">2</div>
+                                <div>Click the action button labeled <strong>Pay</strong>.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">3</div>
+                                <div>Review details: total value, remaining balance, and amount slider field.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">4</div>
+                                <div>Choose payment type: Cash, Card Terminal, Bank Transfer (BACS), Cheque, or other.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">5</div>
+                                <div>If choosing Stripe Card, click <strong>Generate Payment Link</strong> to email/SMS customer.</div>
+                            </li>
+                            <li>
+                                <div class="step-bubble">6</div>
+                                <div>Press <strong>Confirm Payment</strong>. The balance ledger will update immediately.</div>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Troubleshooting -->
+                <section id="troubleshooting" class="section-card">
+                    <div class="card-header">
+                        <h2>⚠️ Troubleshooting Common Problems</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('troubleshooting')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <!-- Filter Chips for troubleshooting -->
+                        <div class="filter-chips">
+                            <button class="chip active" onclick="filterTrouble('all')">All Problems</button>
+                            <button class="chip" onclick="filterTrouble('booking')">📅 Bookings & Clashes</button>
+                            <button class="chip" onclick="filterTrouble('payment')">💳 Payments & Stripe</button>
+                            <button class="chip" onclick="filterTrouble('system')">🔄 System & Errors</button>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table id="troubleshoot-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 250px;">Problem / Warning Message</th>
+                                        <th style="width: 250px;">Likely Root Cause</th>
+                                        <th>Actionable Solution</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr data-cat="booking">
+                                        <td><strong>🔴 Unavailable / Red Bar</strong></td>
+                                        <td>Double-booking detected on room or hour selection.</td>
+                                        <td>Select an alternative time, change rooms, or verify overlaps in Calendar view.</td>
+                                    </tr>
+                                    <tr data-cat="booking">
+                                        <td><strong>⚠️ Guest Count Warning</strong></td>
+                                        <td>Guests exceed capacity limits of selected room.</td>
+                                        <td>Reduce guests size or change space selection to a larger room.</td>
+                                    </tr>
+                                    <tr data-cat="booking">
+                                        <td><strong>❌ Cannot book past date</strong></td>
+                                        <td>Date chosen has already passed.</td>
+                                        <td>Modify scheduling details to current date or future.</td>
+                                    </tr>
+                                    <tr data-cat="system">
+                                        <td><strong>📄 Page blank / list empty</strong></td>
+                                        <td>Staff authentication token has expired.</td>
+                                        <td>Refresh page and log back in to reload session.</td>
+                                    </tr>
+                                    <tr data-cat="system">
+                                        <td><strong>🔄 "Something went wrong" popup</strong></td>
+                                        <td>API network connection timed out.</td>
+                                        <td>Click <strong>Refresh</strong> in top-right of main control bar.</td>
+                                    </tr>
+                                    <tr data-cat="booking">
+                                        <td><strong>👤 Customer not found</strong></td>
+                                        <td>Contact details not added to the database yet.</td>
+                                        <td>Fill walk-in form (which auto-registers profiles) or click Add Customer in CRM.</td>
+                                    </tr>
+                                    <tr data-cat="payment">
+                                        <td><strong>💳 Balance still showing</strong></td>
+                                        <td>Confirmed Payment was not clicked after entering details.</td>
+                                        <td>Re-open booking profile, press pay and ensure you complete the ledger submission.</td>
+                                    </tr>
+                                    <tr data-cat="payment">
+                                        <td><strong>🔄 Recurring payment button missing</strong></td>
+                                        <td>Current period has already been paid or date is too early.</td>
+                                        <td>Inspect series details and review status badge in recurring widget.</td>
+                                    </tr>
+                                    <tr data-cat="system">
+                                        <td><strong>🚪 Logged out unexpectedly</strong></td>
+                                        <td>Token security timeout expired (1 hour).</td>
+                                        <td>Re-authenticate credentials. No unsaved database entries will be lost.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Glossary -->
+                <section id="glossary" class="section-card">
+                    <div class="card-header">
+                        <h2>📖 Key Concepts Glossary</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('glossary')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="glossary-grid">
+                            <div class="glossary-term-card">
+                                <strong>Pending Request</strong>
+                                <p>An online booking inquiry submitted by a client awaiting review and formal confirmation by staff.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Confirmed</strong>
+                                <p>Booking verified, date reserved, block active on Calendar, and client notified.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Deposit Paid</strong>
+                                <p>Partial payment registered to book date. Balance remains outstanding until event check-in.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Fully Paid</strong>
+                                <p>Zero balance remains. All venue hire fees and extras have been successfully processed.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Overridden</strong>
+                                <p>Manual scheduling completed by senior staff that intentionally bypassed typical room clash checks.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Interaction</strong>
+                                <p>A timestamped record logging communications (calls, email notes, face-to-face meetings) in the CRM.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Recurring Series</strong>
+                                <p>A block booking sequence linked together repeating at weekly, bi-weekly, or monthly intervals.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>BACS</strong>
+                                <p>Direct bank-to-bank electronic transfer system common for invoice payouts in the UK.</p>
+                            </div>
+                            <div class="glossary-term-card">
+                                <strong>Outstanding Balance</strong>
+                                <p>Any remaining portion of the venue invoice that has not been confirmed via cash, card, or BACS ledger.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Interactive Training Simulator -->
+                <section id="interactive-simulator" class="section-card sim-container-card">
+                    <div class="card-header">
+                        <h2>🎮 Interactive Training Simulator</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('interactive-simulator')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Practice VenueDesk operations live!</strong> Test booking dates, recording payments, and resolving clashes in this sandbox playground without modifying live records.</p>
+                        
+                        <div class="simulator-grid" style="margin-top: 1.5rem;">
+                            <!-- Simulator Sidebar -->
+                            <div class="sim-sidebar">
+                                <button class="sim-nav-btn active" onclick="switchSimView('sim-cal')">📆 Mini Calendar</button>
+                                <button class="sim-nav-btn" onclick="switchSimView('sim-bookings')">📋 Booking List (<span id="sim-count">2</span>)</button>
+                                <button class="sim-nav-btn" onclick="switchSimView('sim-new')">✍️ Create Booking</button>
+                            </div>
+                            
+                            <!-- Simulator Main Content Panels -->
+                            <div class="sim-content">
+                                <!-- Calendar Panel -->
+                                <div id="sim-cal" class="sim-view active">
+                                    <div class="sim-title-row">
+                                        <h3>Simulated Venue Calendar</h3>
+                                        <span class="status-badge blue">Interactive Playground</span>
+                                    </div>
+                                    <p style="font-size: 0.85rem; margin-bottom: 1rem;">Click a date to trigger a new booking or view daily slots. Red dots indicate booked dates.</p>
+                                    <div class="sim-calendar-grid">
+                                        <!-- Header row -->
+                                        <div class="sim-calendar-header">Mon</div>
+                                        <div class="sim-calendar-header">Tue</div>
+                                        <div class="sim-calendar-header">Wed</div>
+                                        <div class="sim-calendar-header">Thu</div>
+                                        <div class="sim-calendar-header">Fri</div>
+                                        <div class="sim-calendar-header">Sat</div>
+                                        <div class="sim-calendar-header">Sun</div>
+                                        <!-- Days (Mock calendar month starting June 2026) -->
+                                        <div class="sim-day-btn disabled"><span class="num">25</span></div>
+                                        <div class="sim-day-btn disabled"><span class="num">26</span></div>
+                                        <div class="sim-day-btn disabled"><span class="num">27</span></div>
+                                        <div class="sim-day-btn disabled"><span class="num">28</span></div>
+                                        <div class="sim-day-btn disabled"><span class="num">29</span></div>
+                                        <div class="sim-day-btn disabled"><span class="num">30</span></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(1)"><span class="num">1</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn booked" onclick="simSelectDate(2)"><span class="num">2</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(3)"><span class="num">3</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(4)"><span class="num">4</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(5)"><span class="num">5</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(6)"><span class="num">6</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(7)"><span class="num">7</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn booked" onclick="simSelectDate(8)"><span class="num">8</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(9)"><span class="num">9</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(10)"><span class="num">10</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(11)"><span class="num">11</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(12)"><span class="num">12</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(13)"><span class="num">13</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(14)"><span class="num">14</span><div class="indicator"></div></div>
+                                        <div class="sim-day-btn available" onclick="simSelectDate(15)"><span class="num">15</span><div class="indicator"></div></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Booking List Panel -->
+                                <div id="sim-bookings" class="sim-view">
+                                    <div class="sim-title-row">
+                                        <h3>Simulated Booking Database</h3>
+                                        <span style="font-size: 0.8rem; color: var(--text-muted);">Manage ledger records below</span>
+                                    </div>
+                                    <div class="table-container">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Customer</th>
+                                                    <th>Room</th>
+                                                    <th>Date</th>
+                                                    <th>Balance</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="sim-booking-rows">
+                                                <!-- Dynamic simulator rows will load here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- Create Booking Panel -->
+                                <div id="sim-new" class="sim-view">
+                                    <div class="sim-title-row">
+                                        <h3>Create Simulated Booking</h3>
+                                    </div>
+                                    <form id="sim-booking-form" onsubmit="handleSimBookingSubmit(event)">
+                                        <div class="sim-form-grid">
+                                            <div class="sim-form-group">
+                                                <label for="sim-cust-name">Customer Name</label>
+                                                <input type="text" id="sim-cust-name" class="sim-input" placeholder="e.g. John Doe" required>
+                                            </div>
+                                            <div class="sim-form-group">
+                                                <label for="sim-room-select">Room / Space</label>
+                                                <select id="sim-room-select" class="sim-select">
+                                                    <option value="Main Hall">Main Hall (Cap: 200)</option>
+                                                    <option value="Conference Room A">Conference Room A (Cap: 30)</option>
+                                                    <option value="Rooftop Terrace">Rooftop Terrace (Cap: 75)</option>
+                                                </select>
+                                            </div>
+                                            <div class="sim-form-group">
+                                                <label for="sim-date-val">Select Date (June 2026)</label>
+                                                <select id="sim-date-val" class="sim-select">
+                                                    <option value="1">June 1, 2026</option>
+                                                    <option value="2">June 2, 2026</option>
+                                                    <option value="3">June 3, 2026</option>
+                                                    <option value="4">June 4, 2026</option>
+                                                    <option value="5">June 5, 2026</option>
+                                                    <option value="6">June 6, 2026</option>
+                                                    <option value="7">June 7, 2026</option>
+                                                    <option value="8">June 8, 2026</option>
+                                                    <option value="9">June 9, 2026</option>
+                                                    <option value="10">June 10, 2026</option>
+                                                </select>
+                                            </div>
+                                            <div class="sim-form-group">
+                                                <label for="sim-guests">Guest Count</label>
+                                                <input type="number" id="sim-guests" class="sim-input" value="15" min="1" required>
+                                            </div>
+                                            <div class="sim-form-group">
+                                                <label for="sim-total-cost">Total Charge (£)</label>
+                                                <input type="number" id="sim-total-cost" class="sim-input" value="250" min="0" required>
+                                            </div>
+                                            <div class="sim-form-group">
+                                                <label for="sim-pay-status">Booking Status</label>
+                                                <select id="sim-pay-status" class="sim-select">
+                                                    <option value="Pending">Save as Pending</option>
+                                                    <option value="Deposit Paid">Deposit Paid</option>
+                                                    <option value="Fully Paid">Fully Paid</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn-action btn-primary" style="width: 100%;">Create Booking &rarr;</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer Details -->
+            <footer class="main-footer">
+                <div>🛠️ For technical inquiries, API tokens, or server maintenance, reach out to your VenueDesk Administrator.</div>
+                <div>VenueDesk Staff Portal &copy; 2026. All rights reserved.</div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Simulator Modal for Manual Payment Processing -->
+    <div id="sim-payment-modal" class="sim-modal-overlay">
+        <div class="sim-modal">
+            <div class="sim-modal-header">
+                <h4>Record Payout Ledger</h4>
+                <button class="sim-modal-close" onclick="closeSimModal()">&times;</button>
+            </div>
+            <div class="sim-modal-body">
+                <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Confirm the offline transaction methods details. Verify that money has been received before saving.</p>
+                <div class="sim-form-group" style="margin-bottom: 1rem;">
+                    <label>Amount to Pay (£)</label>
+                    <input type="text" id="modal-amount-input" class="sim-input" readonly>
+                </div>
+                <div class="sim-form-group">
+                    <label>Transaction Method</label>
+                    <select id="modal-method-select" class="sim-select">
+                        <option value="Cash">Cash drawer</option>
+                        <option value="Card Terminal">Offline Card Terminal</option>
+                        <option value="BACS">BACS Bank Transfer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sim-modal-footer">
+                <button class="btn-action" onclick="closeSimModal()">Cancel</button>
+                <button class="btn-action btn-primary" onclick="submitSimPayment()">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Component for Simulator notifications -->
+    <div id="sim-toast-box" class="sim-toast">
+        <span id="toast-icon">ℹ️</span>
+        <span id="toast-message">Notification details here.</span>
+    </div>
+
+    <!-- JavaScript logic: Themes, Navigation highlight, Filters, Simulator Sandbox -->
+    <script>
+        // --- 1. THEME TOGGLE LOGIC ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        // Load saved theme preference
+        const savedTheme = localStorage.getItem('venuedesk-theme') || 'light';
+        htmlElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('venuedesk-theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+
+        function updateThemeIcon(theme) {
+            if (theme === 'dark') {
+                themeToggleBtn.innerHTML = `
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.364l-.707-.707M12 7a5 5 0 100 10 5 5 0 000-10z"></path>
+                    </svg>
+                `;
+            } else {
+                themeToggleBtn.innerHTML = `
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                `;
+            }
+        }
+
+        // --- 2. DYNAMIC NAVIGATION HIGHLIGHTING (Intersection Observer) ---
+        const sections = document.querySelectorAll('section');
+        const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '-20% 0px -60% 0px',
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    updateActiveNavItem(id);
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => observer.observe(section));
+
+        function updateActiveNavItem(activeId) {
+            navItems.forEach(item => {
+                const href = item.getAttribute('href');
+                if (href === `#${activeId}`) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        function scrollToId(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+                updateActiveNavItem(id);
+            }
+        }
+
+        // --- 3. GLOBAL REAL-TIME SEARCH & HIGHLIGHT ---
+        const searchInput = document.getElementById('global-search');
+        
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase().trim();
+            const allCards = document.querySelectorAll('.section-card');
+            
+            allCards.forEach(card => {
+                // Skip filtering the training simulator card
+                if (card.classList.contains('sim-container-card')) return;
+                
+                const cardText = card.textContent.toLowerCase();
+                if (cardText.includes(query) || query === '') {
+                    card.style.display = 'block';
+                    removeHighlights(card);
+                    if (query.length >= 2) {
+                        highlightText(card, query);
+                    }
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        function highlightText(node, query) {
+            if (node.nodeType === 3) { // Text Node
+                const text = node.nodeValue;
+                const index = text.toLowerCase().indexOf(query);
+                if (index >= 0) {
+                    const parent = node.parentNode;
+                    // Don't highlight inside script/style tags or already highlighted marks
+                    if (['SCRIPT', 'STYLE', 'MARK', 'INPUT', 'SELECT', 'TEXTAREA'].includes(parent.tagName) || parent.classList.contains('highlight')) {
+                        return;
+                    }
+                    const matchText = text.substring(index, index + query.length);
+                    const remainingText = text.substring(index + query.length);
+                    
+                    const beforeNode = document.createTextNode(text.substring(0, index));
+                    const markNode = document.createElement('mark');
+                    markNode.className = 'highlight';
+                    markNode.textContent = matchText;
+                    const afterNode = document.createTextNode(remainingText);
+                    
+                    parent.insertBefore(beforeNode, node);
+                    parent.insertBefore(markNode, node);
+                    parent.insertBefore(afterNode, node);
+                    parent.removeChild(node);
+                    
+                    // Recurse for the remainder of the text in afterNode
+                    highlightText(afterNode, query);
+                }
+            } else if (node.nodeType === 1 && node.childNodes && !['SCRIPT', 'STYLE', 'MARK', 'INPUT', 'SELECT', 'TEXTAREA'].includes(node.tagName)) {
+                // Element Node: traverse children using copy of array to support tree modification
+                const children = Array.from(node.childNodes);
+                children.forEach(child => highlightText(child, query));
+            }
+        }
+
+        function removeHighlights(element) {
+            const marks = element.querySelectorAll('mark.highlight');
+            marks.forEach(mark => {
+                const textNode = document.createTextNode(mark.textContent);
+                mark.replaceWith(textNode);
+            });
+            element.normalize();
+        }
+
+        // --- 4. TROUBLESHOOTING CATEGORY FILTERS ---
+        function filterTrouble(category) {
+            const chips = document.querySelectorAll('.filter-chips .chip');
+            chips.forEach(c => c.classList.remove('active'));
+            
+            // Activate selected chip
+            event.target.classList.add('active');
+            
+            const rows = document.querySelectorAll('#troubleshoot-table tbody tr');
+            rows.forEach(row => {
+                const cat = row.getAttribute('data-cat');
+                if (category === 'all' || cat === category) {
+                    row.style.display = 'table-row';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // --- 5. CLIPBOARD ANCHOR LINKS ---
+        function copyAnchorLink(id) {
+            const link = `${window.location.origin}${window.location.pathname}#${id}`;
+            navigator.clipboard.writeText(link).then(() => {
+                showToast('🔗 Section link copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('❌ Failed to copy link', 'error');
+            });
+        }
+
+        // --- 6. TRAINING SIMULATOR SANDBOX ---
+        let simBookings = [
+            { id: 1, customer: "Sarah Jenkins", room: "Main Hall", date: "June 2, 2026", balance: 120, status: "Deposit Paid" },
+            { id: 2, customer: "Alex Mercer", room: "Conference Room A", date: "June 8, 2026", balance: 0, status: "Fully Paid" }
+        ];
+        
+        let activePaymentBookingId = null;
+
+        // Initialize Simulator
+        updateSimBookingList();
+
+        function switchSimView(viewId) {
+            // Update Tab Active styles
+            const btns = document.querySelectorAll('.sim-sidebar .sim-nav-btn');
+            btns.forEach(btn => {
+                if (btn.getAttribute('onclick').includes(viewId)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Toggle view visibility
+            const views = document.querySelectorAll('.sim-content .sim-view');
+            views.forEach(v => {
+                if (v.id === viewId) {
+                    v.classList.add('active');
+                } else {
+                    v.classList.remove('active');
+                }
+            });
+        }
+
+        // Calendar Date Interaction
+        function simSelectDate(dateNum) {
+            const clashBooking = simBookings.find(b => b.date === `June ${dateNum}, 2026`);
+            if (clashBooking) {
+                showToast(`🔴 Room clash! Date is reserved by ${clashBooking.customer}.`, 'warning');
+            } else {
+                showToast(`🟢 Date June ${dateNum} is available! Opening form.`, 'success');
+                // Select date in creator drop-down
+                document.getElementById('sim-date-val').value = dateNum.toString();
+                switchSimView('sim-new');
+            }
+        }
+
+        // Redraw table rows
+        function updateSimBookingList() {
+            const tbody = document.getElementById('sim-booking-rows');
+            const countSpan = document.getElementById('sim-count');
+            
+            tbody.innerHTML = '';
+            countSpan.textContent = simBookings.length;
+            
+            simBookings.forEach(booking => {
+                let statusClass = 'amber';
+                if (booking.status === 'Fully Paid') statusClass = 'green';
+                if (booking.status === 'Pending') statusClass = 'blue';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${booking.customer}</strong></td>
+                    <td>${booking.room}</td>
+                    <td>${booking.date}</td>
+                    <td>£${booking.balance}</td>
+                    <td><span class="status-badge ${statusClass}">${booking.status}</span></td>
+                    <td>
+                        ${booking.balance > 0 ? `<button class="sim-action-btn pay" onclick="openSimPaymentModal(${booking.id}, ${booking.balance})">Pay</button>` : ''}
+                        <button class="sim-action-btn cancel" onclick="cancelSimBooking(${booking.id})">Cancel</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Update Calendar indicators based on current lists
+            updateCalendarIndicators();
+        }
+
+        function updateCalendarIndicators() {
+            // Find all days and reset them to available
+            const days = document.querySelectorAll('.sim-calendar-grid .sim-day-btn:not(.disabled)');
+            days.forEach((day, index) => {
+                const dateNum = index + 1; // Since we started June calendar on 1st day index
+                day.className = 'sim-day-btn';
+                
+                const booking = simBookings.find(b => b.date === `June ${dateNum}, 2026`);
+                if (booking) {
+                    if (booking.status === 'Pending') {
+                        day.classList.add('pending');
+                    } else {
+                        day.classList.add('booked');
+                    }
+                } else {
+                    day.classList.add('available');
+                }
+            });
+        }
+
+        // Form Payout Submission
+        function handleSimBookingSubmit(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('sim-cust-name').value;
+            const room = document.getElementById('sim-room-select').value;
+            const dateVal = document.getElementById('sim-date-val').value;
+            const guests = parseInt(document.getElementById('sim-guests').value);
+            const cost = parseInt(document.getElementById('sim-total-cost').value);
+            const status = document.getElementById('sim-pay-status').value;
+            
+            const dateStr = `June ${dateVal}, 2026`;
+            
+            // Clash checks
+            const clash = simBookings.find(b => b.date === dateStr && b.room === room);
+            if (clash) {
+                showToast(`❌ Booking clash detected! ${room} is already booked for ${dateStr}.`, 'error');
+                return;
+            }
+            
+            // Guest capacity check
+            let maxCap = 200;
+            if (room === 'Conference Room A') maxCap = 30;
+            if (room === 'Rooftop Terrace') maxCap = 75;
+            
+            if (guests > maxCap) {
+                showToast(`⚠️ Warning: Guest size of ${guests} exceeds capacity limit of ${maxCap} for ${room}! Please select a larger space.`, 'warning');
+                return;
+            }
+            
+            // Calculate starting balance
+            let balance = cost;
+            if (status === 'Deposit Paid') balance = cost / 2; // 50% deposit
+            if (status === 'Fully Paid') balance = 0;
+            
+            // Add new booking
+            const newId = simBookings.length > 0 ? Math.max(...simBookings.map(b => b.id)) + 1 : 1;
+            simBookings.push({
+                id: newId,
+                customer: name,
+                room: room,
+                date: dateStr,
+                balance: balance,
+                status: status
+            });
+            
+            showToast(`🎉 Booking successfully recorded for ${name}!`, 'success');
+            document.getElementById('sim-booking-form').reset();
+            updateSimBookingList();
+            switchSimView('sim-bookings');
+        }
+
+        // Cancel bookings in Simulator
+        function cancelSimBooking(id) {
+            simBookings = simBookings.filter(b => b.id !== id);
+            showToast('❌ Simulated booking has been canceled.', 'error');
+            updateSimBookingList();
+        }
+
+        // Payment modal operations
+        function openSimPaymentModal(id, balance) {
+            activePaymentBookingId = id;
+            document.getElementById('modal-amount-input').value = `£${balance}`;
+            document.getElementById('sim-payment-modal').classList.add('active');
+        }
+
+        function closeSimModal() {
+            document.getElementById('sim-payment-modal').classList.remove('active');
+            activePaymentBookingId = null;
+        }
+
+        function submitSimPayment() {
+            if (activePaymentBookingId !== null) {
+                const booking = simBookings.find(b => b.id === activePaymentBookingId);
+                if (booking) {
+                    booking.balance = 0;
+                    booking.status = 'Fully Paid';
+                    showToast(`💰 Payment recorded successfully via ${document.getElementById('modal-method-select').value}!`, 'success');
+                }
+            }
+            closeSimModal();
+            updateSimBookingList();
+        }
+
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('sim-toast-box');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            
+            let iconText = 'ℹ️';
+            if (type === 'success') iconText = '🟢';
+            if (type === 'error') iconText = '🔴';
+            if (type === 'warning') iconText = '⚠️';
+            
+            icon.textContent = iconText;
+            msg.textContent = message;
+            
+            toast.className = `sim-toast show ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
