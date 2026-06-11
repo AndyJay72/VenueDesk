@@ -855,7 +855,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.venuedesk.co.uk/dashboard/monthly-revenue?month={{ $json.query?.month || '' }}&year={{ $json.query?.year || '' }}",
+        "url": "=https://api.venuedesk.co.uk/dashboard/monthly-revenue?month={{ $json.body?.month || $json.month }}&year={{ $json.body?.year || $json.year }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
