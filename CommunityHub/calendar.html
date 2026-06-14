@@ -2950,6 +2950,12 @@
                     headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay,listWeek'},
                     events:[...allEvents,...blockedBgEvents],
                     height:'auto',
+                    slotMinTime:'07:00:00',
+                    slotMaxTime:'23:00:00',
+                    scrollTime:'08:00:00',
+                    slotDuration:'00:30:00',
+                    slotLabelInterval:'01:00:00',
+                    nowIndicator:true,
                     dayMaxEvents:4,
                     moreLinkContent:function(arg){return{html:`<span class="fc-more-link-inner">+${arg.num} more</span>`};},
                     moreLinkClick:function(arg){
@@ -3006,9 +3012,15 @@
                     eventContent:function(arg){
                         if(arg.event.display==='background')return;
                         const p=arg.event.extendedProps;
-                        const isMonthView=arg.view.type==='dayGridMonth';
+                        const viewType=arg.view.type;
+                        const isMonthView=viewType==='dayGridMonth';
+                        const isTimeGrid=viewType==='timeGridWeek'||viewType==='timeGridDay';
                         const rc=p.roomColor||'#6366f1';
                         const sc=arg.event.backgroundColor;
+                        if(isTimeGrid){
+                            const guestLine=p.guest_count?`<div class="fc-tgblock-guests"><i class="fa-solid fa-users"></i> ${p.guest_count}</div>`:'';
+                            return{html:`<div class="fc-tgblock" style="border-left-color:${sc}"><div class="fc-tgblock-name">${svcEsc(arg.event.title)}</div><div class="fc-tgblock-room" style="color:${rc}">${svcEsc(p.room_name||'')}</div><div class="fc-tgblock-time">${p.time||''}</div>${guestLine}</div>`};
+                        }
                         const roomTxt=p.room_name?`<span class="fc-chip-room" style="color:${rc}">${svcEsc(p.room_name)}</span>`:'';
                         const timeTxt=!isMonthView?`<span class="fc-chip-time">${p.time||''}</span>`:'';
                         return{html:`<div class="fc-chip"><span class="fc-chip-dot" style="background:${sc};box-shadow:0 0 5px ${sc}80"></span><span class="fc-chip-name">${svcEsc(arg.event.title)}</span>${isMonthView?roomTxt:timeTxt}</div>`};
@@ -3292,6 +3304,21 @@
     body.light-mode .fc-chip{background:rgba(248,250,252,0.92);box-shadow:0 2px 6px rgba(0,0,0,0.10),inset 0 1px 0 rgba(255,255,255,0.9);border:1px solid rgba(0,0,0,0.08);}
     body.light-mode .fc-chip-name{color:#1e293b;}
     body.light-mode .fc-chip-time{color:#64748b;}
+
+    /* ── Time-Grid Block Events ── */
+    .fc-timegrid-event.fc-v-event{padding:0 !important;border-radius:6px !important;overflow:hidden !important;box-shadow:0 2px 8px rgba(0,0,0,0.35) !important;border:none !important;}
+    .fc-timegrid-event .fc-event-main{height:100% !important;padding:0 !important;overflow:hidden !important;}
+    .fc-tgblock{height:100%;display:flex;flex-direction:column;justify-content:flex-start;padding:5px 8px 4px 10px;background:rgba(15,23,42,0.84);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);overflow:hidden;gap:2px;border-left:3px solid #6366f1;}
+    .fc-tgblock-name{font-weight:700;font-size:0.8rem;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;letter-spacing:0.01em;}
+    .fc-tgblock-room{font-size:0.69rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.9;line-height:1.2;}
+    .fc-tgblock-time{font-size:0.66rem;color:rgba(241,245,249,0.55);line-height:1.2;margin-top:auto;}
+    .fc-tgblock-guests{font-size:0.66rem;color:rgba(241,245,249,0.5);line-height:1.2;}
+    .fc-tgblock-guests .fa-users{font-size:0.6rem;margin-right:2px;}
+    body.light-mode .fc-timegrid-event.fc-v-event{box-shadow:0 2px 8px rgba(99,102,241,0.18) !important;}
+    body.light-mode .fc-tgblock{background:rgba(255,255,255,0.93);border-left-color:#6366f1;}
+    body.light-mode .fc-tgblock-name{color:#1e293b;}
+    body.light-mode .fc-tgblock-time{color:#64748b;}
+    body.light-mode .fc-tgblock-guests{color:#94a3b8;}
 
     /* ── Event Hover Tooltip ── */
     .vd-tooltip{position:fixed;z-index:9900;pointer-events:none;max-width:270px;min-width:190px;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border-accent);border-radius:12px;padding:12px 14px;box-shadow:0 20px 60px rgba(0,0,0,0.55);font-size:0.81rem;opacity:0;transition:opacity 0.12s;line-height:1.5;}
