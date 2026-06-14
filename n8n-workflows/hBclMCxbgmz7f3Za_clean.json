@@ -20,130 +20,6 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://api.venuedesk.co.uk/dashboard/metrics",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": false,
-              "neverError": true
-            }
-          },
-          "timeout": 15000
-        }
-      },
-      "id": "http-dash-metrics-001",
-      "name": "DB: Dash Metrics",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        15360,
-        9264
-      ]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "https://api.venuedesk.co.uk/dashboard/recent",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": false,
-              "neverError": true
-            }
-          },
-          "timeout": 15000
-        }
-      },
-      "id": "http-dash-recent-001",
-      "name": "DB: Recent",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        15584,
-        9264
-      ]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "https://api.venuedesk.co.uk/dashboard/upcoming",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": false,
-              "neverError": true
-            }
-          },
-          "timeout": 15000
-        }
-      },
-      "id": "http-dash-upcoming-001",
-      "name": "DB: Upcoming",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        15808,
-        9264
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const getSafeData = (nodeName, key) => {\n  try {\n    const resp = $(nodeName).first().json;\n    const arr = resp.data || resp;\n    if (key) return Array.isArray(arr) ? arr : (arr[key] || []);\n    return Array.isArray(arr) ? arr : [];\n  } catch (e) { return []; }\n};\n\nconst metricsResp = $('DB: Dash Metrics').first().json;\nconst metrics = metricsResp.data || metricsResp;\n\nconst outstandingResp = $('DB: Outstanding (Dashboard)').first().json;\nconst outstandingArr = Array.isArray(outstandingResp.data) ? outstandingResp.data : [];\n\nreturn {\n  json: {\n    data: {\n      metrics: {\n        total_revenue_month: metrics.total_revenue_month || 0,\n        outstanding: metrics.outstanding || 0,\n        pending_requests: metrics.pending_requests || 0\n      },\n      recent_customers: getSafeData('DB: Recent'),\n      upcoming_bookings: getSafeData('DB: Upcoming'),\n      outstanding: outstandingArr\n    }\n  }\n};"
-      },
-      "id": "58a8c67a-9419-4212-b977-6be9f63bb092",
-      "name": "Code: Merge Dash",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        16176,
-        9264
-      ]
-    },
-    {
-      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
         "options": {
@@ -162,7 +38,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        16368,
+        15616,
         9264
       ]
     },
@@ -914,19 +790,23 @@
       ]
     },
     {
+      "id": "http-dashboard-all-001",
+      "name": "DB: Dashboard All",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        15376,
+        9264
+      ],
       "parameters": {
         "method": "GET",
-        "url": "https://api.venuedesk.co.uk/accounts/outstanding",
+        "url": "https://api.venuedesk.co.uk/dashboard/all",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
               "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
             }
           ]
         },
@@ -939,16 +819,7 @@
           },
           "timeout": 15000
         }
-      },
-      "id": "http-dash-outstanding-001",
-      "name": "DB: Outstanding (Dashboard)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "continueOnFail": true,
-      "position": [
-        15984,
-        9264
-      ]
+      }
     }
   ],
   "pinData": {},
@@ -957,51 +828,7 @@
       "main": [
         [
           {
-            "node": "DB: Dash Metrics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Dash Metrics": {
-      "main": [
-        [
-          {
-            "node": "DB: Recent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Recent": {
-      "main": [
-        [
-          {
-            "node": "DB: Upcoming",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DB: Upcoming": {
-      "main": [
-        [
-          {
-            "node": "DB: Outstanding (Dashboard)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Merge Dash": {
-      "main": [
-        [
-          {
-            "node": "Respond: Dashboard",
+            "node": "DB: Dashboard All",
             "type": "main",
             "index": 0
           }
@@ -1261,11 +1088,11 @@
         ]
       ]
     },
-    "DB: Outstanding (Dashboard)": {
+    "DB: Dashboard All": {
       "main": [
         [
           {
-            "node": "Code: Merge Dash",
+            "node": "Respond: Dashboard",
             "type": "main",
             "index": 0
           }
