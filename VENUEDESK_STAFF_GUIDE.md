@@ -1,0 +1,386 @@
+# VenueDesk Staff User Guide – How to Manage Bookings, Customers & Payments
+
+> **Last updated:** June 2026 · **Audience:** Non-technical venue staff  
+> **Live site:** https://andyjay72.github.io/VenueDesk
+
+---
+
+## Quick Reference Table
+
+| Task | Where to go | Key button / action |
+|------|-------------|---------------------|
+| Make a booking (planned enquiry) | **Calendar** → click a day | **Record Deposit / Full Payment / Save as Pending** |
+| Make a booking (walk-in / on-site) | **Walk-In Booking** page | **Confirm Booking** button |
+| Add notes to a customer or booking | **Customers** → click customer → Log Interaction | **Save Interaction** |
+| View bookings (calendar view) | **Calendar** in sidebar | Month (chips) / Week & Day (time-block grid) / List tabs |
+| View bookings (filterable list) | **Bookings** in sidebar | Filter buttons at top |
+| Set up recurring payments | **Recurring** in sidebar | **Record Payment** on a series card |
+| Cancel a booking | **Bookings** → Cancel button | Confirm in the pop-up dialog |
+| Cancel a full recurring series | **Bookings → Recurring Series** tab | **Cancel** on individual sessions |
+| Record a manual payment | **Bookings** → **Pay** button | Choose method → **Confirm Payment** |
+| View payment history / invoices | **Accounts** in sidebar | Click any transaction row |
+
+---
+
+## Getting Started
+
+After logging in you will land on the **Dashboard**. The left-hand sidebar is your main navigation. On desktop the sidebar is always visible; on tablets and phones tap the **☰ menu icon** in the top-left corner to open it.
+
+**Sidebar links:**
+
+| Icon | Link | What it does |
+|------|------|--------------|
+| Chart-pie | **Dashboard** | Overview: pending requests, upcoming events, recent interactions |
+| Calendar-alt | **Calendar** | Full venue calendar + quick booking modal |
+| Chart-line | **Bookings** | Filterable list of all bookings |
+| Repeat | **Recurring** | Manage recurring series and record monthly payments |
+| Invoice | **Accounts** | Transaction history and invoices |
+| Users | **Customers** | Full customer CRM |
+| Walk-in arrow | **Walk-In Booking** | Fast form for on-site bookings |
+| File-pen | **New Booking** | Online enquiry form (opens in new tab) |
+| Clock | **Audit Log** | System audit trail |
+
+---
+
+## 1. Making a Booking
+
+There are **three ways** to create a booking depending on the situation.
+
+---
+
+### Option A — Quick Booking via the Calendar (most common)
+
+Use this when a customer contacts you in advance and you want to check availability and book in one step.
+
+1. Click **Calendar** in the sidebar.
+2. The calendar loads showing all current bookings colour-coded by room.
+3. **Click on the date** you want to book. A **Quick Booking** panel slides open on the right.
+4. Fill in the form:
+   - **Customer** – type the customer's name and phone number (email optional).
+   - **Room** – select from the dropdown. Available rooms for that date are shown.
+   - **Event Type** – select from the dropdown (e.g. Meeting, Party, Workshop).
+   - **Start Time / End Time** – pick from the dropdowns. The **availability status** bar updates automatically:
+     - 🟢 **Available** – slot is free, you can proceed.
+     - 🔴 **Unavailable** – another booking exists. Choose different times.
+   - **Number of Guests** – enter the expected guest count. A warning appears if it exceeds the room's capacity.
+   - **Notes** – optional, e.g. "requires projector".
+   - **Multi-day event?** – click **"Requires multiple days"** to reveal **Date From / Date To** fields. Maximum span is 90 days.
+5. The **Total Cost** calculates automatically based on room, event type, and duration.
+6. Choose how to record the booking:
+   - **Record Deposit** – takes a partial payment now; balance remains due.
+   - **Full Payment** – marks the booking as fully paid.
+   - **Save as Pending** – saves the booking without any payment (staff to follow up later).
+7. The booking appears on the calendar immediately.
+
+> **Tip:** You can also use the calendar to set up a **recurring booking** (see Section 4).
+
+---
+
+### Option B — Walk-In Booking (customer is on-site right now)
+
+Use this for drop-in customers who need to be booked quickly at the front desk.
+
+1. Click **Walk-In Booking** in the sidebar.
+2. Under **Customer Details**, enter:
+   - **Full Name** *(required)*
+   - **Phone** *(required)*
+   - **Email** *(optional)*
+3. Under **Event Details**, fill in:
+   - **Room** *(required)*
+   - **Event Type** *(optional – for pricing)*
+   - **Event Date** *(required – today or future dates only)*
+   - **Number of Guests** *(required)*
+   - **Start Time / End Time** *(required)*
+   - **Notes** *(optional)*
+4. The **availability status bar** shows whether the slot is free.
+5. The **Total Cost** box calculates automatically.
+6. Under **Payment**, select the payment method (Cash, Card, Bank Transfer, etc.).
+7. Choose an action:
+   - **Cash Payment** (amber button) – records a cash payment and confirms the booking.
+   - **Confirm Booking** (green button) – confirms with card/bank payment.
+
+> **Walk-in bookings cannot be made for past dates.** If you try, a red error message will appear.
+
+---
+
+### Option C — New Booking Enquiry Form
+
+Use this to send the online enquiry form link to a customer, or to open it yourself for a telephone enquiry.
+
+1. Click **New Booking** in the sidebar (opens in a new tab) or share the link directly with the customer.
+2. The form captures: contact details, room preference, dates, hire type, and optional deposit payment via Stripe.
+3. Once submitted, the enquiry appears on your **Dashboard** under the **Pending Requests** tab, waiting for staff review.
+4. To action a pending request, go to the **Dashboard**, find the request in the list, and use the **Confirm & Record Deposit** button inside the booking detail panel.
+
+---
+
+## 2. Adding Customer Notes to a Booking or Customer Profile
+
+Customer notes (called **Interactions**) let you record phone calls, emails, in-person conversations, and any other contact with a customer.
+
+### Adding a note from the Customers page
+
+1. Click **Customers** in the sidebar.
+2. Find the customer using the **search bar** at the top (search by name, email, or phone).
+3. **Click the customer's row** to open their profile modal.
+4. Scroll down to the **Interactions** section at the bottom of the modal.
+5. Click the **Log Interaction** button.
+6. Fill in the **Log Interaction** form:
+   - **Subject** – a short title for the note (e.g. "Deposit follow-up call").
+   - **Type** – select the type: Call, Email, In-Person, SMS, Other.
+   - **Date** – defaults to today; change if logging a past interaction.
+   - **Staff Member** – auto-filled with your name from your login.
+   - **Notes** – the full detail of what was discussed or agreed.
+7. Click **Save Interaction**.
+
+The note appears immediately in the Interactions history on the customer's profile, most recent first.
+
+---
+
+### Adding a note from the Dashboard
+
+1. On the **Dashboard**, go to the **Pending Requests** or **Upcoming Events** tab.
+2. Click a booking row to open the booking detail panel on the right.
+3. Scroll down to **Booking Interactions**.
+4. Click **Log Note** (or **Log Interaction**) to open the same interaction form described above.
+5. Fill in the details and click **Save Interaction**.
+
+---
+
+### Adding a note from the Bookings list
+
+1. Click **Bookings** in the sidebar.
+2. Find the booking in the list.
+3. Click the booking card or the **Log Note** icon on the row.
+4. The interaction form opens — fill in and save as above.
+
+---
+
+### Viewing past notes
+
+- On the **Customers** page: open any customer's profile and scroll to **Interactions** — all past notes are shown newest first.
+- On the **Dashboard**: click **Customer Interactions** tab to see a searchable list of all recent interactions across all customers.
+
+---
+
+## 3. Viewing Existing Bookings
+
+There are three places to view bookings, each suited to different purposes.
+
+---
+
+### The Calendar (best for day-to-day view)
+
+1. Click **Calendar** in the sidebar.
+2. Use the **room filter** dropdown at the top left to show only a specific room, or leave on **All Rooms**.
+3. Switch between views using the toolbar buttons:
+   - **Month** – full month grid with coloured booking chips. Best for a high-level overview.
+   - **Week** – time-slotted week grid (07:00–23:00). Bookings appear as **full vertical blocks** spanning their exact start-to-end time — a 9:00–17:00 booking fills the 9am–5pm column space. Best for spotting gaps and overlaps across the week.
+   - **Day** – single day version of the same time-slotted block view. Best for managing a busy day.
+   - **List** – plain chronological list of upcoming events.
+4. Use **← Today →** to navigate between months/weeks/days.
+5. In **Week** and **Day** views, each booking block shows:
+   - **Customer name** (bold, top of block)
+   - **Room name** (coloured to match the room legend)
+   - **Time range** (e.g. 09:00 – 17:00, pinned to the bottom of the block)
+   - **Guest count** (if recorded, shown with a person icon)
+   - A **purple line** moves in real time to show the current time of day.
+6. **Click any booking block or chip** to open a detail popup showing customer name, room, times, payment status, and action buttons (Pay / Cancel).
+7. **Colour legend** (bottom of filter bar):
+   - Green = Available
+   - Amber = Partial bookings
+   - Indigo = Fully booked day
+
+> **Tip:** Use **Week** or **Day** view when resolving scheduling queries — the block layout makes it immediately obvious whether a room is free in a specific time slot without having to click into individual bookings.
+
+---
+
+### The Bookings List (best for filtering and bulk views)
+
+1. Click **Bookings** in the sidebar.
+2. Use the **filter tabs** along the top to narrow the list:
+   - **All Bookings** – shows everything.
+   - **Payment Due** – bookings with an outstanding balance.
+   - **Paid** – fully settled bookings.
+   - **Completed** – past events.
+   - **Cancelled** – cancelled bookings (shown with a strikethrough status badge).
+   - **Recurring Series** – groups all recurring bookings by series.
+3. Use the **search bar** to find a specific customer name, room, or date.
+4. Click the **Clear** button to reset filters and search.
+5. Each booking card shows: customer name, room, date/time, status badge, total amount, and action buttons (**Pay** / **Cancel**).
+
+---
+
+### The Dashboard (best for quick overview)
+
+1. On the **Dashboard**, use the four tab buttons below the KPI cards:
+   - **Pending Requests** – new enquiries awaiting confirmation.
+   - **Upcoming Events** – confirmed future bookings.
+   - **Customer Interactions** – recent staff notes and contact history.
+   - **Customers** – searchable customer directory.
+2. The **Outstanding Payments** panel (right side of dashboard) shows all bookings with a balance still owed.
+
+---
+
+## 4. Setting Up Recurring Payments for Regular Customers
+
+Recurring bookings are for customers who hire a room on a regular schedule (e.g. a weekly dance class, a monthly board meeting).
+
+---
+
+### Creating a recurring booking
+
+1. Click **Calendar** in the sidebar.
+2. Click the date of the **first session**.
+3. In the Quick Booking panel, fill in the customer and booking details as normal (see Section 1A).
+4. Click the **"Recurring booking"** toggle button (it turns purple/active when enabled).
+5. The **Recurring Options** section appears:
+   - **Frequency** – choose: **Weekly**, **Fortnightly**, or **Monthly**.
+   - **Days of the week** – tick the day tiles for which days apply (e.g. Mon + Wed for a twice-weekly class).
+   - **End date** – set the date the series should finish (or leave open-ended if unsure).
+   - **Per-session price** and agreed monthly/cycle fee are calculated from the room rate.
+6. A **preview** at the bottom shows the list of dates that will be booked.
+7. Click **Record Deposit** or **Full Payment** (or **Save as Pending**) to create the series.
+
+The series appears in the **Bookings** list under the **Recurring Series** tab, and each session appears on the **Calendar**.
+
+---
+
+### Recording a recurring payment
+
+Recurring customers typically pay monthly or per cycle. To record a payment:
+
+1. Click **Recurring** in the sidebar.
+2. Find the customer's series card (search by name or scroll the list).
+3. Each card shows:
+   - Series name and customer name
+   - Frequency and schedule (e.g. "Weekly · Every Monday")
+   - Session count and cancelled sessions
+   - Monthly rate and per-session rate
+   - **Payment status badge**: 🟢 Paid · 🟡 Due · 🔴 Overdue
+4. If a payment is due, a **Record Payment** button appears on the card.
+5. Click **Record Payment**.
+6. In the payment modal:
+   - **Amount** – auto-filled with the amount due; adjust if a partial payment.
+   - **Payment Method** – Cash, Card, Bank Transfer, BACS, etc.
+7. Click **Confirm Payment**.
+8. The series card updates to **Paid** status and the payment appears in **Accounts**.
+
+---
+
+### Viewing recurring series sessions
+
+1. In **Bookings**, click the **Recurring Series** filter tab.
+2. Find the series card and click **Sessions** (chevron button) to expand the list of individual sessions.
+3. Each session shows its own date, time, status, and action buttons (Pay / Cancel).
+
+---
+
+> **Note:** To adjust a recurring series (change price, end date, or room), this currently requires an admin to update the series record. Contact your system administrator.
+
+---
+
+## 5. Cancelling Bookings
+
+> **Important:** Cancelling a booking is **permanent**. If Stripe payments are connected, cancellation may trigger a refund. Always confirm with the customer before cancelling.
+
+---
+
+### Cancelling a single booking from the Bookings list
+
+1. Click **Bookings** in the sidebar.
+2. Find the booking you want to cancel (use filters or search).
+3. Click the red **Cancel** button on the booking card.
+4. A confirmation dialog appears:
+   > *"Are you sure you want to CANCEL the booking for [Customer Name]? This will refund payments and remove it from the calendar."*
+5. Click **OK** to confirm. Click **Cancel** to abort.
+6. The booking status changes to **Cancelled** (shown with a red strikethrough badge).
+
+---
+
+### Cancelling a booking from the Calendar
+
+1. Click **Calendar** in the sidebar.
+2. Click on the booking event on the calendar.
+3. In the booking detail popup, click the **Cancel Booking** button (shown in red).
+4. Confirm in the dialog that appears.
+
+---
+
+### Cancelling a single session within a recurring series
+
+1. Click **Bookings** in the sidebar.
+2. Click the **Recurring Series** filter tab.
+3. Find the series and click **Sessions** to expand the session list.
+4. Find the specific session and click its **Cancel** button.
+5. Confirm in the dialog. Only that one session is cancelled — the rest of the series continues.
+
+---
+
+### Cancelling an entire recurring series
+
+1. Click **Bookings → Recurring Series** tab.
+2. Expand the series and cancel each remaining future session individually using the **Cancel** button.
+
+> **Tip:** Cancelled sessions stay visible in the list with a strikethrough so you have a record of what was booked.
+
+---
+
+## Recording a Manual Payment (Balance or Partial Payment)
+
+When a customer pays a remaining balance by cash, card, or bank transfer:
+
+1. Go to **Bookings** and find the booking (it will show a **Payment Due** or amber status badge).
+2. Click the **Pay** button on the booking card.
+3. The **Payment** modal opens showing:
+   - Booking reference and customer name
+   - Total booking value
+   - Balance due
+   - A **slider / amount field** to set the payment amount
+4. Choose the **Payment Method**: Cash, Card, Bank Transfer, BACS, Cheque, Other.
+5. If **Stripe is enabled** and you select **Card**: click **Generate Payment Link** to create a Stripe Checkout link you can send to the customer or open on a card reader.
+6. Click **Confirm Payment**.
+7. A receipt summary appears. Click **Done** to close.
+
+The payment is recorded in **Accounts** and the booking status updates automatically.
+
+---
+
+## Troubleshooting
+
+| Problem | Likely cause | What to do |
+|---------|-------------|------------|
+| **"Unavailable" / red availability bar** | Another booking already exists in that slot | Choose a different time or room. Check the **Calendar** to see the conflict. |
+| **Guest count warning appears** | Guest number exceeds the room's capacity | Reduce the guest count or select a larger room. |
+| **"Cannot create a booking in the past"** | The date entered is before today | Change the date to today or a future date. |
+| **Booking duration exceeds limit** | Multi-day span is more than 90 days | Shorten the booking period or create two separate bookings. |
+| **Page shows nothing / blank list** | Session may have expired | Refresh the page. If redirected to login, log back in and try again. |
+| **"Something went wrong" toast** | API or network error | Wait a few seconds and click **Refresh** (top-right button on Dashboard). If it persists, contact your administrator. |
+| **Customer not found in search** | Customer hasn't been added yet | Add them via the walk-in form or enquiry form — the system creates a customer record automatically. |
+| **"Balance Due" still showing after payment** | Payment not yet saved | Ensure you clicked **Confirm Payment** in the payment modal, not just closed it. Check **Accounts** for the transaction. |
+| **Calendar not loading** | Browser cache or connectivity issue | Hard-refresh the page (Ctrl+Shift+R on Windows / Cmd+Shift+R on Mac). Try an incognito/private window. |
+| **Week/Day view shows no blocks** | Bookings exist but times weren't recorded | Bookings without a start/end time fall back to all-day events and appear at the very top of the time grid as a banner, not a block. Check the booking's recorded times. |
+| **Booking block appears very short** | End time is close to start time | A 30-minute booking produces a small block — zoom in or switch to Day view for clarity. |
+| **Logged out unexpectedly** | Session token expired (tokens last up to 1 hour) | Log back in. Your data is safe — nothing is lost. |
+| **Recurring payment button missing** | No payment is currently due for this period | The **Record Payment** button only appears when a payment period is due or overdue. Check the series card's payment status badge. |
+
+---
+
+## Key Concepts Glossary
+
+| Term | Meaning |
+|------|---------|
+| **Pending Request** | A booking enquiry submitted via the online form, not yet confirmed by staff |
+| **Confirmed** | A booking that has been accepted and is on the calendar |
+| **Deposit Paid** | A partial payment has been made; balance still owed |
+| **Fully Paid** | No balance remaining |
+| **Overridden** | A booking manually placed by staff that bypassed the normal clash check |
+| **Interaction** | A logged note about contact with a customer (call, email, in-person, etc.) |
+| **Recurring Series** | A set of regular bookings linked together (e.g. weekly class) |
+| **BACS** | Bank Automated Clearing System – UK bank-to-bank payment method |
+| **Outstanding balance** | Amount a customer still owes on a booking |
+| **Tenant** | Your venue's isolated data space in the system |
+
+---
+
+*For technical issues or system administration, contact your VenueDesk administrator.*

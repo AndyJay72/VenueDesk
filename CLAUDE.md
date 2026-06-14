@@ -1338,6 +1338,99 @@ const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name
 
 `auth.js` must include **both** `full_name` and `name` (alias) in every JWT payload and login response object so all pages work regardless of which field they check.
 
+---
+
+## 5. FullCalendar v6 — calendar.html Implementation Reference
+
+### Time-grid configuration (FullCalendar init, June 2026)
+
+```javascript
+slotMinTime: '07:00:00',      // grid starts 07:00 (one hour before venue open)
+slotMaxTime: '23:00:00',      // grid ends 23:00 (one hour after venue close 22:00)
+scrollTime:  '08:00:00',      // auto-scrolls to 08:00 on load
+slotDuration: '00:30:00',     // 30-minute slot rows
+slotLabelInterval: '01:00:00',// hour labels on left axis only
+nowIndicator: true,           // purple line at current time (matches --primary)
+```
+
+**Do not lower `slotMaxTime` below `23:00:00`** — some bookings run until 22:00; FullCalendar clips events that exceed the grid boundary and they become invisible.
+
+---
+
+### Event rendering — view-aware `eventContent`
+
+`eventContent` branches on `arg.view.type`:
+
+| View type | Renderer | Layout |
+|-----------|----------|--------|
+| `dayGridMonth` | `.fc-chip` | Horizontal chip with coloured dot + customer name + room |
+| `timeGridWeek` / `timeGridDay` | `.fc-tgblock` | Full vertical block spanning start→end, left-border coloured by status |
+| `listWeek` | `.fc-chip` (with time) | Same chip, time appended |
+
+```javascript
+const isTimeGrid = viewType === 'timeGridWeek' || viewType === 'timeGridDay';
+if (isTimeGrid) {
+    return { html: `<div class="fc-tgblock" style="border-left-color:${sc}">
+        <div class="fc-tgblock-name">${customerName}</div>
+        <div class="fc-tgblock-room" style="color:${roomColor}">${roomName}</div>
+        <div class="fc-tgblock-time">${startTime} – ${endTime}</div>
+        ${guestCountLine}   // only rendered if guest_count is set
+    </div>` };
+}
+```
+
+**The block height is set by FullCalendar from `event.start` → `event.end`** — do not set a fixed height in CSS. The event object mapper at `allEvents=raw.map(...)` already builds ISO 8601 datetimes:
+```javascript
+// Single-day timed event — correct format
+eventObj.start = `${startDateStr}T${startT}:00`;   // e.g. 2026-06-14T09:00:00
+eventObj.end   = `${startDateStr}T${endT}:00`;     // e.g. 2026-06-14T17:00:00
+
+// Multi-day event — falls back to allDay = true (no time grid span)
+eventObj.start = startDateStr;   // date-only string
+eventObj.end   = endExclDateStr; // exclusive end date
+eventObj.allDay = true;
+```
+
+---
+
+### CSS rules for time-grid blocks
+
+```css
+/* Strip FC-managed padding so fc-tgblock fills flush */
+.fc-timegrid-event.fc-v-event { padding: 0 !important; border-radius: 6px; overflow: hidden; }
+.fc-timegrid-event .fc-event-main { height: 100% !important; padding: 0 !important; }
+
+/* Block layout — height:100% flows from .fc-event-main */
+.fc-tgblock {
+    height: 100%;
+    display: flex; flex-direction: column;
+    padding: 5px 8px 4px 10px;
+    background: rgba(15,23,42,0.84);
+    border-left: 3px solid #6366f1;   /* overridden inline by status colour */
+    overflow: hidden;
+}
+.fc-tgblock-time { margin-top: auto; }   /* pins time to bottom of block */
+```
+
+**Do not add `height` to `.fc-tgblock` children** — let flexbox fill the available space. `margin-top:auto` on `.fc-tgblock-time` pins the time string to the bottom when the block is tall enough.
+
+**Light-mode variants** exist for all `.fc-tgblock-*` classes — ensure any new sub-elements get a corresponding `body.light-mode .fc-tgblock-*` rule.
+
+---
+
+### Venue operating window constants
+
+Defined in `calendar.html` — used by availability logic AND multi-day date-status-map population:
+
+```javascript
+const VENUE_OPEN_MINS  = 8  * 60;  // 08:00
+const VENUE_CLOSE_MINS = 22 * 60;  // 22:00
+const MIN_SLOT_MINS    = 60;        // shortest bookable slot
+```
+
+`slotMinTime`/`slotMaxTime` are intentionally set 1 hour outside this window so the grid doesn't clip events that start/end exactly at the venue boundary.
+
+---
 
 ## Postgres Connection Reference
 
@@ -1347,6 +1440,7 @@ const name = user.full_name || user.name || sessionStorage.getItem('vp_user_name
 | Schema (most tables) | `bookings`    |
 | Connection user      | `n8n`         |
 | Container name       | `n8n_postgres-postgres-1` |
+| n8n internal DB      | `n8ndb`       |
 
 **Canonical query shape from your laptop:**
 ```bash
@@ -1355,6 +1449,7 @@ ssh root@72.61.19.52 "docker exec n8n_postgres-postgres-1 psql -U n8n -d booking
 
 Common mistakes:
 - `-d n8n` → `FATAL: database "n8n" does not exist` (n8n is the user, not the DB)
+- `-d n8n` for n8n internals → use `-d n8ndb` instead
 - Omitting `bookings.` schema → `relation "booking_requests" does not exist`
 
 ---
@@ -1524,6 +1619,36 @@ ssh root@72.61.19.52 "docker restart venuedesk-api"
 
 ---
 
+## Pattern 12 — UTC-Anchored Date Guards (BST/DST Boundary Fix)
+
+**Problem:** `new Date().toISOString().slice(0, 10)` and `new Date(dateStr)` both use the
+Node.js process's local timezone when converting to/from wall-clock dates. On a VPS running
+`Europe/London`, the process shifts 1 hour forward during BST. This means "today" as computed
+at 23:00 UTC in summer is actually tomorrow in local time — the past-date guard rejects valid
+same-day bookings made in the evening, and the 90-day ceiling miscounts by one day at DST
+transition boundaries.
+
+**Rule:** Always use `Date.UTC()` to anchor "today" and to parse date strings for duration
+arithmetic. Never construct a `Date` from a bare `YYYY-MM-DD` string (implicitly local TZ).
+
+```javascript
+// ── Past-date guard ──────────────────────────────────────────────────────────
+const _now    = new Date();
+const todayMs = Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth(), _now.getUTCDate());
+const today   = new Date(todayMs).toISOString().slice(0, 10);  // YYYY-MM-DD UTC
+
+// ── Duration ceiling ─────────────────────────────────────────────────────────
+// parseUTC: explicit UTC midnight — months are 0-indexed in Date.UTC()
+const parseUTC     = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const msPerDay     = 86_400_000;
+const durationDays = Math.round((parseUTC(date_to) - parseUTC(date_from)) / msPerDay);
+```
+
+**Deployed:** June 2026. Confirmed by QA suite: 38 PASS · 0 CRITICAL · 0 regressions.
+Both `3c` (historical date) and `3d` (3-year span) continue to return 400 correctly.
+
+---
+
 # ✅ Completed Security & Correctness Items (June 2026)
 
 ## 1. Race Condition — Unique Constraint on confirmed_bookings ✅ DONE
@@ -1540,9 +1665,12 @@ The `/bookings/create` INSERT catches PostgreSQL `23505` (unique_violation) and 
 
 ## 2. Past-Date Guard on booking_date ✅ DONE
 
-Implemented June 2026 in `/bookings/create`:
+Implemented June 2026, hardened to UTC June 2026 in `/bookings/create`:
 ```javascript
-const today = new Date().toISOString().slice(0, 10);
+// Date.UTC() anchors "today" to UTC midnight — prevents BST/DST drift shifting the boundary.
+const _now   = new Date();
+const todayMs = Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth(), _now.getUTCDate());
+const today   = new Date(todayMs).toISOString().slice(0, 10);  // YYYY-MM-DD UTC
 const effectiveFrom = date_from || booking_date;
 if (booking_date < today || effectiveFrom < today) {
   throw badRequest('Cannot create or register a venue reservation block in the past.');
@@ -1551,9 +1679,12 @@ if (booking_date < today || effectiveFrom < today) {
 
 ## 3. Maximum Booking Duration Ceiling (90 days) ✅ DONE
 
-Implemented June 2026 in `/bookings/create`:
+Implemented June 2026, hardened to UTC June 2026 in `/bookings/create`:
 ```javascript
-const durationDays = Math.round((new Date(date_to) - new Date(date_from)) / 86_400_000);
+// parseUTC avoids implicit local-TZ offset; months are 0-indexed in Date.UTC().
+const parseUTC     = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const msPerDay     = 86_400_000;
+const durationDays = Math.round((parseUTC(date_to) - parseUTC(date_from)) / msPerDay);
 if (durationDays > 90) {
   throw badRequest('Booking duration exceeds maximum allowed limit of 90 days.');
 }
@@ -1595,3 +1726,60 @@ See original pending item — `ports: "5432:5432"` in docker-compose.yml exposes
 5. Capacity ceiling: `guest_count > room.capacity` → 400 (skipped if `room.capacity = 0`)
 6. Clash check: SQL overlap query → 409 if existing booking overlaps
 7. INSERT: catches PostgreSQL `23505` (unique index violation) → 409 (second defence against race condition)
+
+---
+
+# 🔍 n8n Startup Diagnostics
+
+## Startup Burst Pattern (Expected Behaviour)
+
+When n8n restarts with many active workflows, all workflows activate simultaneously. With 28+ workflows, this causes a transient CPU spike on PostgreSQL (observed: 350% for ~60s), a brief "Database connection timed out / recovered" in n8n logs, and a flood of "Task rejected by Runner — Offer expired" messages.
+
+**This is normal and self-resolving.** CPU returns to <1% within ~60 seconds. No workflows are lost.
+
+**Root cause:** n8n does not stagger workflow activation on startup. All scheduling timers and trigger registrations hit the DB at once.
+
+**"Offer expired" errors specifically:** These occur when n8n queues internal tasks (not user Code nodes) during startup before the task runner has finished initialising. Confirmed June 2026: 0 active workflows use Code nodes (`n8n-nodes-base.code`), so no user workflow execution is affected.
+
+---
+
+## n8n Diagnostics Cheat Sheet
+
+**Check restart count (0 = no crashes since last manual start):**
+```bash
+docker inspect n8n_postgres-n8n-1 --format '{{.RestartCount}} restarts, StartedAt: {{.State.StartedAt}}'
+```
+
+**Check recent executions per workflow (use n8ndb, not n8n):**
+```bash
+docker exec n8n_postgres-postgres-1 psql -U n8n -d n8ndb -c \
+"SELECT \"workflowId\", status, count(*) FROM execution_entity \
+ WHERE \"startedAt\" > now() - interval '15 minutes' \
+ GROUP BY \"workflowId\", status ORDER BY count DESC LIMIT 10;"
+```
+
+**Check for stuck running/waiting executions:**
+```bash
+docker exec n8n_postgres-postgres-1 psql -U n8n -d n8ndb -c \
+"SELECT \"workflowId\", status, count(*) FROM execution_entity \
+ WHERE status IN ('running', 'waiting') GROUP BY \"workflowId\", status;"
+```
+
+**Check active Postgres queries (flood detection):**
+```bash
+docker exec n8n_postgres-postgres-1 psql -U n8n -d bookings_db -c \
+"SELECT pid, round(extract(epoch from now()-query_start)) AS secs, state, left(query,120) AS query \
+ FROM pg_stat_activity WHERE state != 'idle' AND query_start IS NOT NULL ORDER BY secs DESC LIMIT 20;"
+```
+
+**Check which active workflows use Code nodes (task runner scope):**
+```bash
+docker exec n8n_postgres-postgres-1 psql -U n8n -d n8ndb -c \
+"SELECT id, name FROM workflow_entity WHERE active = true AND nodes::text LIKE '%\"type\":\"n8n-nodes-base.code\"%';"
+```
+
+## Known Historical Failures (not current)
+
+| Workflow | ID | Last error | Status |
+|----------|----|------------|--------|
+| Form entry workflow | `4iA8B7MCIejoTo5T` | Dec 2025 (16 errors) | Deactivated — not a live issue |
