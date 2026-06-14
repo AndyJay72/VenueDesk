@@ -98,19 +98,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const resp = $input.first().json; return { json: { data: Array.isArray(resp.data) ? resp.data : (resp || []) } };"
-      },
-      "id": "3ddbff63-82ad-4cbd-a9d8-03421a954c83",
-      "name": "Code: Agg Cust",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15584,
-        9472
-      ]
-    },
-    {
-      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
         "options": {
@@ -184,19 +171,6 @@
       "continueOnFail": true,
       "position": [
         15360,
-        9664
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const resp = $input.first().json; return { json: { data: Array.isArray(resp.data) ? resp.data : [] } };"
-      },
-      "id": "0cd99545-9c28-4873-a025-d4342e0c00f1",
-      "name": "Code: Agg Book",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15584,
         9664
       ]
     },
@@ -408,19 +382,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const resp = $input.first().json; return { json: { data: Array.isArray(resp.data) ? resp.data : [] } };"
-      },
-      "id": "c616a613-d47f-4f1e-ae08-c4c9976ac927",
-      "name": "Code: Agg Pending",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15584,
-        10064
-      ]
-    },
-    {
-      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
         "options": {
@@ -494,19 +455,6 @@
       "continueOnFail": true,
       "position": [
         15360,
-        10272
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const resp = $input.first().json; return { json: { data: Array.isArray(resp.data) ? resp.data : [] } };"
-      },
-      "id": "7c336f87-54be-43b4-8fdc-f20effcc2a64",
-      "name": "Code: Agg Outstanding",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15584,
         10272
       ]
     },
@@ -850,17 +798,6 @@
       "main": [
         [
           {
-            "node": "Code: Agg Cust",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Agg Cust": {
-      "main": [
-        [
-          {
             "node": "Respond: Customers",
             "type": "main",
             "index": 0
@@ -880,17 +817,6 @@
       ]
     },
     "DB: Bookings": {
-      "main": [
-        [
-          {
-            "node": "Code: Agg Book",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Agg Book": {
       "main": [
         [
           {
@@ -960,17 +886,6 @@
       "main": [
         [
           {
-            "node": "Code: Agg Pending",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Agg Pending": {
-      "main": [
-        [
-          {
             "node": "Respond: Pending",
             "type": "main",
             "index": 0
@@ -990,17 +905,6 @@
       ]
     },
     "DB: Outstanding": {
-      "main": [
-        [
-          {
-            "node": "Code: Agg Outstanding",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code: Agg Outstanding": {
       "main": [
         [
           {
