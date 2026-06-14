@@ -3409,8 +3409,9 @@
             try {
                 const res = await fetch(CUST_INTERACTIONS_API, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        jwt:              sessionStorage.getItem('vp_token') || '',
                         customer_id:      customer.id,
                         customer_name:    customer.name,
                         customer_email:   customer.email,
@@ -3426,16 +3427,19 @@
                         tenant_id:        parseInt(_TID())
                     })
                 });
-                if (!res.ok) throw new Error('Save failed');
+                if (!res.ok) {
+                    let detail = `${res.status} ${res.statusText}`;
+                    try { const body = await res.json(); detail = body.message || body.error || detail; } catch(_) {}
+                    throw new Error(detail);
+                }
                 saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
                 setTimeout(() => {
                     document.getElementById('logIntModal').classList.remove('open');
                     _logIntBooking = null;
-                    // Reload interactions panel so new entry shows immediately
                     loadCustInteractions(customer.id, customer.email);
                 }, 800);
             } catch(err) {
-                alert('Failed to save interaction. Please try again.');
+                showToast('Failed to save interaction: ' + err.message, 'error');
                 saveBtn.innerHTML = origHTML;
                 saveBtn.disabled = false;
             }
