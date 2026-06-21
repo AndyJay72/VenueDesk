@@ -1690,6 +1690,136 @@ if (durationDays > 90) {
 }
 ```
 
+---
+
+## Pattern 13 — n8n `neverError: true` Silently Masks db-api Failures
+
+**Problem:** n8n HTTP Request nodes that call db-api often have `neverError: true` set,
+which prevents the node from failing even when the db-api returns a 400 or 500. Downstream
+Code aggregator nodes then unconditionally return `{ success: true, ... }` to the frontend.
+The result: the frontend shows "Saved!" while nothing was written to the database.
+
+This was the root cause of the customer interactions silent failure (June 2026):
+- Workflow called `/recurring/log-interaction` (wrong endpoint, CRFC-only) instead of
+  `POST /customers/log-interaction`
+- `neverError: true` swallowed the 400 validation error
+- Code aggregator returned `{ success: true }` regardless
+- Frontend showed success; nothing was inserted
+
+**Rule:** When debugging a "saves but nothing appears" symptom:
+1. Check the **n8n execution data** for the relevant workflow (not the frontend error state)
+2. Look at the HTTP Request node's actual response body — `neverError` hides HTTP failures but the response body still contains the error
+3. Verify the endpoint URL in the HTTP Request node is correct and exists in db-api
+4. Check the Code aggregator — if it returns `{ success: true }` unconditionally it is masking errors
+
+**Diagnosis pattern:**
+```bash
+# Check if route exists
+curl -s -o /dev/null -w "%{http_code}" -X POST https://api.venuedesk.co.uk/<route>
+# 404 = route missing, 401 = route exists (auth required)
+```
+
+---
+
+## Pattern 14 — n8n Code Aggregator Double-Wrapping
+
+**Problem:** When a Code node does `$input.all().map(i => i.json)` on the output of an HTTP
+Request node that returned `{ success: true, data: [...] }`, the map produces:
+```
+[ { success: true, data: [...] } ]   // array of one wrapper object
+```
+Then wrapping that in another return: `{ success: true, data: rows }` produces:
+```
+{ success: true, data: [ { success: true, data: [...actual rows...] } ] }
+```
+The frontend reads `json.data` and gets the **wrapper object**, not the actual rows. The array
+appears non-empty (length 1) so "no results" guards don't fire — the list renders garbled data.
+
+**Rule:** Code aggregators that relay HTTP Request responses must unwrap correctly:
+```javascript
+// WRONG — double-wraps the db-api response
+const rows = $input.all().map(i => i.json).filter(r => r && Object.keys(r).length > 0);
+return [{ json: { success: true, data: rows } }];
+
+// CORRECT — passes through the db-api data array directly
+const response = $input.first().json;
+const data = (response && response.data) || [];
+return [{ json: { success: true, data: data } }];
+```
+
+---
+
+## Pattern 15 — Sentinel Values in API Filter Parameters
+
+**Problem:** Legacy code sometimes passes sentinel strings (e.g. `?email=all`) to mean
+"no filter — return everything". If the db-api has no special handling for the sentinel,
+it is passed literally to the SQL: `WHERE customer_email ILIKE 'all'` — which matches
+nothing and returns zero rows silently.
+
+**Example (June 2026):** `loadAllInteractions()` in `index.html` called:
+```javascript
+fetch(INTERACTIONS_API + '?email=all' + tidParam('&'), ...)
+```
+The db-api `/customers/interactions` has no `email=all` guard, so it returned 0 rows.
+The Customer Interactions tab appeared permanently empty.
+
+**Rule:** To fetch all records with no filter, simply omit the parameter entirely:
+```javascript
+// WRONG — sentinel treated literally by SQL
+fetch(INTERACTIONS_API + '?email=all' + tidParam('&'), ...)
+
+// CORRECT — no email param = no filter = all rows for tenant
+fetch(INTERACTIONS_API + tidParam(), ...)
+```
+If a sentinel is ever needed for backward compatibility, handle it explicitly in the route:
+```javascript
+const email = request.query.email;
+const emailFilter = (email && email !== 'all') ? email : null;
+```
+
+---
+
+## Customer Interactions — Endpoint & Workflow Reference (June 2026)
+
+### db-api endpoints
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `POST` | `/customers/log-interaction` | JWT | Insert a new interaction from the dashboard modal |
+| `GET` | `/customers/interactions` | JWT | List interactions for a customer (by `customer_id` or `email`) |
+
+**`POST /customers/log-interaction` body:**
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `customer_id` | ✓ (UUID) | assertUUID enforced |
+| `subject` | ✓ | Short title |
+| `interaction_type` | ✓ | Phone Call / Email / In Person / SMS / WhatsApp / Other |
+| `notes` | — | Full detail |
+| `staff_member` | — | Defaults to 'Staff' |
+| `booking_id` | — | UUID, nullable |
+| `booking_date` | — | YYYY-MM-DD or ISO string, sliced to date |
+| `room_name` | — | String |
+| `customer_name/email/phone` | — | Denormalised for display without joins |
+
+### n8n workflow
+
+**Live workflow ID:** `WPG6q8AOrs9ooxbB` (name: "Customer Interactions API")
+**Backup file:** `n8n-workflows/nW4p6cg3l7OHwjQP_clean.json`
+
+The live ID differs from the backup filename — this is expected after re-import. The live workflow is the authoritative version; update it via n8n MCP tools for quick fixes and sync the backup file afterward.
+
+**Webhook paths (both on `/webhook/customer-interactions`):**
+- `GET` → `PG - Get Interactions` → `GET /customers/interactions`
+- `POST` → `PG - Insert Interaction` → `POST /customers/log-interaction`
+
+**Key n8n node settings:**
+- Both HTTP Request nodes have `neverError: true` — errors are absorbed silently
+- Auth for POST: `Authorization: Bearer $json.body?.jwt` (JWT body-tunnel from browser)
+- Auth for GET: `Authorization: Bearer $env.N8N_SERVICE_JWT` (service JWT — server-to-server)
+
+---
+
 # ⚠️ Pending Items — Security & Correctness
 
 ## 1. Remove PostgreSQL host port binding (pre-existing)

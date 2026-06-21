@@ -123,17 +123,16 @@ Customer notes (called **Interactions**) let you record phone calls, emails, in-
 1. Click **Customers** in the sidebar.
 2. Find the customer using the **search bar** at the top (search by name, email, or phone).
 3. **Click the customer's row** to open their profile modal.
-4. Scroll down to the **Interactions** section at the bottom of the modal.
-5. Click the **Log Interaction** button.
-6. Fill in the **Log Interaction** form:
-   - **Subject** – a short title for the note (e.g. "Deposit follow-up call").
-   - **Type** – select the type: Call, Email, In-Person, SMS, Other.
-   - **Date** – defaults to today; change if logging a past interaction.
-   - **Staff Member** – auto-filled with your name from your login.
-   - **Notes** – the full detail of what was discussed or agreed.
+4. The modal shows the customer's details, then their **Booking History** below.
+5. **Click any booking row** in the Booking History table — this opens the **Log Interaction** panel for that booking.
+6. Fill in the form:
+   - **Subject** *(required)* – a short title for the note (e.g. "Payment follow-up call").
+   - **Interaction Type** *(required)* – Phone Call, Email, In Person, SMS, WhatsApp, or Other.
+   - **Notes** *(required)* – the full detail of what was discussed or agreed.
+   - Date and staff member are recorded automatically from the current time and your login.
 7. Click **Save Interaction**.
 
-The note appears immediately in the Interactions history on the customer's profile, most recent first.
+The note appears immediately in the **Customer Interactions** section below the booking history on that customer's profile, most recent first. It also appears in the global **Customer Interactions** tab on the dashboard.
 
 ---
 
@@ -158,8 +157,8 @@ The note appears immediately in the Interactions history on the customer's profi
 
 ### Viewing past notes
 
-- On the **Customers** page: open any customer's profile and scroll to **Interactions** — all past notes are shown newest first.
-- On the **Dashboard**: click **Customer Interactions** tab to see a searchable list of all recent interactions across all customers.
+- On the **Customers** page: open any customer's profile and scroll to **Customer Interactions** — all past notes for that customer are shown newest first.
+- On the **Dashboard**: click the **Customer Interactions** filter tab to see a searchable, sortable table of all interactions across every customer. Click any row to open a full interaction detail view. Use the search box to filter by customer name, email, subject, type, staff member, or notes text.
 
 ---
 
@@ -216,7 +215,7 @@ There are three places to view bookings, each suited to different purposes.
 1. On the **Dashboard**, use the four tab buttons below the KPI cards:
    - **Pending Requests** – new enquiries awaiting confirmation.
    - **Upcoming Events** – confirmed future bookings.
-   - **Customer Interactions** – recent staff notes and contact history.
+   - **Customer Interactions** – searchable table of all staff notes and contact history across all customers. Click any row to see full interaction details.
    - **Customers** – searchable customer directory.
 2. The **Outstanding Payments** panel (right side of dashboard) shows all bookings with a balance still owed.
 

@@ -51,7 +51,7 @@ tests/
 | `/auth` | `auth.js` | Login, JWT issuance |
 | `/bookings` | `bookings.js` | Booking lifecycle (create, cancel, list, update) |
 | `/config` | `config.js` | Rooms, event types, pricing, settings |
-| `/customers` | `customers.js` | CRM — upsert, update, list, interactions |
+| `/customers` | `customers.js` | CRM — upsert, update, list, `GET /interactions`, `POST /log-interaction` |
 | `/recurring` | `recurring.js` | Recurring series, rules, payment schedule |
 | `/stripe` | `stripe.js` | Checkout sessions, cycle-session, webhook handler |
 | `/payments` | `payments.js` | Payment reads and balance queries |
@@ -296,6 +296,33 @@ The stack trace is at `detail->>'stack'`.
 
 ---
 
+## Pattern 12 — UTC-Anchored Date Guards (BST/DST Boundary Fix)
+
+**Problem:** `new Date().toISOString().slice(0, 10)` and `new Date(dateStr)` use the Node.js
+process's local timezone. On a VPS running `Europe/London`, the clock shifts +1 h during BST.
+At 23:00 UTC in summer the process's "today" is already tomorrow — the past-date guard rejects
+valid same-day bookings made in the evening, and the 90-day ceiling miscounts by one day at
+DST transition boundaries.
+
+**Rule:** Use `Date.UTC()` to anchor "today" and `parseUTC()` for duration arithmetic.
+Never construct a `Date` from a bare `YYYY-MM-DD` string (implicit local TZ).
+
+```javascript
+// Past-date guard
+const _now    = new Date();
+const todayMs = Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth(), _now.getUTCDate());
+const today   = new Date(todayMs).toISOString().slice(0, 10);  // YYYY-MM-DD UTC
+
+// Duration ceiling — months are 0-indexed in Date.UTC()
+const parseUTC     = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const msPerDay     = 86_400_000;
+const durationDays = Math.round((parseUTC(date_to) - parseUTC(date_from)) / msPerDay);
+```
+
+**Deployed:** June 11 2026. QA confirmed: 38 PASS · 0 CRITICAL · 0 regressions.
+
+---
+
 ## QA Integration Test Suite
 
 **Script:** `tests/qa_integration.py`
@@ -331,7 +358,7 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 | 6b No TCP drops | status 0 on 4 threads | Harness artefact — 23505 closes connection before losers get clean 409; functionally correct |
 | 7a No-auth header | 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct |
 
-**Current baseline (June 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — test artefacts) · 0 SKIP
+**Current baseline (June 2026, UTC patch deployed June 11 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — test artefacts) · 0 SKIP
 
 ---
 
@@ -356,8 +383,8 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 | `check_clashes` | — | boolean | Default: true; false = skip clash check (internal use only) |
 
 **When `check_clashes: true`:**
-1. Past-date guard: `booking_date` / `date_from` < today → 400
-2. Duration ceiling: `(date_to − date_from) > 90 days` → 400
+1. Past-date guard: `booking_date` / `date_from` < today → 400 (today anchored to UTC midnight via `Date.UTC()` — see Pattern 12)
+2. Duration ceiling: `(date_to − date_from) > 90 days` → 400 (duration computed via `parseUTC()` — see Pattern 12)
 3. `guest_count` guard: provided and < 1 → 400
 4. Room SELECT: `SELECT id, capacity FROM bookings.rooms WHERE id=$1 AND tenant_id=$2`
 5. Capacity ceiling: `guest_count > room.capacity` → 400 (skipped if `capacity = 0`)
