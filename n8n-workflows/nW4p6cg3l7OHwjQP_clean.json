@@ -121,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn [{ json: { success: true, message: 'Interaction logged successfully', data: rows[0] || {} } }];"
+        "jsCode": "const response = $input.first().json;\nreturn [{ json: { success: true, message: \"Interaction logged successfully\", data: response.data || {} } }];"
       },
       "id": "code-agg-post",
       "name": "Code - Agg POST",
@@ -134,7 +134,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst rows = items.map(i => i.json).filter(r => r && Object.keys(r).length > 0);\nreturn [{ json: { success: true, data: rows } }];"
+        "jsCode": "const response = $input.first().json;\nconst interactions = (response && response.data) || [];\nreturn [{ json: { success: true, data: interactions } }];"
       },
       "id": "code-agg-get",
       "name": "Code - Agg GET",
