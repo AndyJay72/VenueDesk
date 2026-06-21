@@ -1720,6 +1720,16 @@ Pattern 4 JWT auth (`?jwt=` for GET, `jwt` in body for POST).
 took 4–6s; any navigation mid-save left the policy partially written in DB. Fixed:
 `await Promise.all([save(k1,v1), save(k2,v2), save(k3,v3)])` — one round-trip ~1–2s.
 
+**f) Pricing grid × button missing after inline save** — `savePricingCell()` saved to DB and
+refreshed the `pricing[]` JS array but never updated the DOM. The `del-price-btn` only
+appeared after `renderPricingGrid()` ran on a full tab switch. A user who set a rate and
+immediately wanted to remove it had no visible way to do so. Fixed: after a successful save,
+`savePricingCell()` now checks whether the cell already has a `del-price-btn` and, if not,
+creates and appends one with the correct `onclick` referencing the captured `room_id` and
+`event_type_id`. `deletePricingCell` already removes the button when clicked — no further
+changes needed there. Verified via Playwright: × button DOM count goes 1 → 2 after save,
+cell clears and button removes on click, back to 1.
+
 ---
 
 ## Pattern 13 — n8n `neverError: true` Silently Masks db-api Failures
@@ -1976,6 +1986,7 @@ One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spi
 | Services not persisted to DB | `svc_` + timestamp IDs failed UUID validation silently | `crypto.randomUUID()` + error surfacing in `.catch` |
 | Services vanish after browser close | n8n `get-service-data` proxy returned flat object; `d.data` always undefined | Bypassed n8n proxy; now calls db-api `/config/services` directly |
 | Cancellation policy partially saved | 3 sequential `await save()` calls; page reload aborted in-flight requests | `Promise.all([...])` makes saves atomic from the UI's perspective |
+| Pricing grid × button missing after save | `savePricingCell()` refreshed JS array but not DOM; × only appeared after tab switch | Inject `del-price-btn` into the cell immediately after successful save |
 
 ---
 
