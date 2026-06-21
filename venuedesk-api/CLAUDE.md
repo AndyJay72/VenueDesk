@@ -87,6 +87,8 @@ tests/
 | GET | `/config/services` | List add-on services (`bookings.add_on_services`) |
 | POST | `/config/services/upsert` | Insert or update a service (UUID id required if updating) |
 | POST | `/config/services/delete` | Delete a service by UUID |
+| GET | `/config/policy-templates` | List saved policy templates for tenant (0–3 rows, one per code A/B/C) |
+| POST | `/config/policy-templates/upsert` | Upsert a policy template keyed by `(tenant_id, code)` |
 
 **Services auth note:** `/config/services*` endpoints support both staff JWT (`tenant_id` from token)
 and service JWT (`tenant_id` from `?tenant_id` query param on GET, or `body.tenant_id` on POST).
@@ -273,8 +275,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `022_confirmed_bookings_unique_slot.sql` (June 2026 — unique slot index)  
-**Next number:** `023`
+**Latest migration:** `023_policy_templates.sql` (June 2026 — policy_templates table + RLS)  
+**Next number:** `024`
 
 ---
 
@@ -423,4 +425,4 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 
 **Migration 022** (`022_confirmed_bookings_unique_slot.sql`) — unique partial index on
 `(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
-Closes TOCTOU race at the DB layer. Next migration number: `023`.
+Closes TOCTOU race at the DB layer. Next migration number: `024`.

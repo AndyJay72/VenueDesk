@@ -1730,6 +1730,16 @@ creates and appends one with the correct `onclick` referencing the captured `roo
 changes needed there. Verified via Playwright: × button DOM count goes 1 → 2 after save,
 cell clears and button removes on click, back to 1.
 
+**g) Policy Templates tab — unimplemented backend built** — The UI existed but both n8n
+webhooks (`get-policy-templates`, `save-policy-template`) returned 404 with no CORS headers.
+All saves failed with `ERR_FAILED`. Templates always loaded empty.
+Fixed end-to-end: migration 023 creates `bookings.policy_templates (tenant_id, code)` with
+UNIQUE (tenant_id, code) key, RLS enforced + forced, `venuedesk_app` granted CRUD.
+`GET /config/policy-templates` and `POST /config/policy-templates/upsert` added to
+`config.js`. Frontend wired directly to db-api: `loadPolicyTemplates` uses `?jwt=` query
+param and reads `json.data[]`; `savePolicyTemplate` sends `jwt: _TOKEN()` in body.
+Verified: all three templates (A/B/C) save and reload correctly; empty-base guard works.
+
 ---
 
 ## Pattern 13 — n8n `neverError: true` Silently Masks db-api Failures
@@ -1937,10 +1947,10 @@ The live ID differs from the backup filename — this is expected after re-impor
 | Settings (buffer) | n8n webhook | `get-settings`, `update-setting` |
 | Services | **db-api direct** | `GET /config/services`, `POST /config/services/upsert`, `POST /config/services/delete` |
 | Cancellation Policy | n8n webhook | `update-setting` (3× per save, now parallel) |
-| Policy Templates | n8n webhook | `get-policy-templates`, `save-policy-template` |
+| Policy Templates | **db-api direct** | `GET /config/policy-templates`, `POST /config/policy-templates/upsert` |
 | Payments | **db-api direct** | `POST /admin/payment-settings/load`, `POST /admin/payment-settings/save` |
 
-Services and Payments call db-api directly — all others go via n8n. See Pattern 16 for why Services was moved.
+Services, Policy Templates, and Payments call db-api directly — all others go via n8n. See Pattern 16 for why Services was moved (same reasoning applied to Policy Templates).
 
 ## Auth patterns in this file
 
@@ -1987,6 +1997,7 @@ One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spi
 | Services vanish after browser close | n8n `get-service-data` proxy returned flat object; `d.data` always undefined | Bypassed n8n proxy; now calls db-api `/config/services` directly |
 | Cancellation policy partially saved | 3 sequential `await save()` calls; page reload aborted in-flight requests | `Promise.all([...])` makes saves atomic from the UI's perspective |
 | Pricing grid × button missing after save | `savePricingCell()` refreshed JS array but not DOM; × only appeared after tab switch | Inject `del-price-btn` into the cell immediately after successful save |
+| Policy Templates tab non-functional | n8n `get-policy-templates` / `save-policy-template` webhooks never existed (404 + no CORS headers) | Built `bookings.policy_templates` table (migration 023) + `/config/policy-templates` GET+upsert routes; wired frontend to db-api directly |
 
 ---
 
