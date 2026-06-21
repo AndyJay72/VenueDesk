@@ -629,6 +629,77 @@ async function configRoutes(fastify) {
     });
   });
 
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // POLICY TEMPLATES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ─── GET /config/policy-templates ─────────────────────────────────────────
+  // Returns all saved policy templates for the tenant (0–3 rows, one per code).
+  // Browser calls this with ?jwt=<token> (Pattern 4 — no Auth header).
+  fastify.get('/policy-templates', {
+    preHandler: [fastify.authenticate],
+  }, async (request) => {
+    const { tenantId, ctx } = resolveTenant(request);
+
+    const { rows } = await ctx(tenantId, (client) =>
+      client.query(
+        `SELECT code, name, base_terms, extra_clauses, updated_at
+         FROM   bookings.policy_templates
+         WHERE  tenant_id = $1::integer
+         ORDER  BY code`,
+        [tenantId]
+      )
+    );
+
+    return { success: true, data: rows };
+  });
+
+
+  // ─── POST /config/policy-templates/upsert ─────────────────────────────────
+  // Insert or update a single policy template row, keyed by (tenant_id, code).
+  // Browser sends jwt in body (Pattern 4 — no Auth header).
+  //
+  // Body: { code: 'A'|'B'|'C', name, base_terms, extra_clauses?, jwt }
+  fastify.post('/policy-templates/upsert', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['code', 'name', 'base_terms'],
+        properties: {
+          code:          { type: 'string', enum: ['A', 'B', 'C'] },
+          name:          { type: 'string', minLength: 1 },
+          base_terms:    { type: 'string', minLength: 1 },
+          extra_clauses: { type: 'string' },
+          jwt:           { type: 'string' },
+          tenant_id:     { type: ['number', 'string'] },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request) => {
+    const { tenantId, ctx } = resolveTenant(request);
+    const { code, name, base_terms, extra_clauses = null } = request.body;
+
+    return ctx(tenantId, async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO bookings.policy_templates
+           (tenant_id, code, name, base_terms, extra_clauses, updated_at)
+         VALUES ($1::integer, $2, $3, $4, $5, NOW())
+         ON CONFLICT (tenant_id, code) DO UPDATE
+           SET name          = EXCLUDED.name,
+               base_terms    = EXCLUDED.base_terms,
+               extra_clauses = EXCLUDED.extra_clauses,
+               updated_at    = NOW()
+         RETURNING code, name, base_terms, extra_clauses, updated_at`,
+        [tenantId, code, name, base_terms, extra_clauses || null]
+      );
+
+      return { success: true, data: rows[0] };
+    });
+  });
+
 }
 
 module.exports = configRoutes;

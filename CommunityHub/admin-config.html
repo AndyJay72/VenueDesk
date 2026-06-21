@@ -1206,8 +1206,8 @@ const DB_API  = 'https://api.venuedesk.co.uk';
 const _TID    = () => sessionStorage.getItem('vp_tenant_id') || '';
 const _TOKEN  = () => sessionStorage.getItem('vp_token') || '';
 const API = {
-    getPolicyTemplates:  BASE + '/get-policy-templates',
-    savePolicyTemplate:  BASE + '/save-policy-template',
+    getPolicyTemplates:  DB_API + '/config/policy-templates',
+    savePolicyTemplate:  DB_API + '/config/policy-templates/upsert',
     getRooms:       () => BASE + '/get-rooms',
     createRoom:     BASE + '/create-room',
     updateRoom:     BASE + '/update-room',
@@ -2055,17 +2055,16 @@ init();
 // ─────────────────────────────────────────────
 async function loadPolicyTemplates() {
     try {
-        const res = await fetch(API.getPolicyTemplates + '?tenant_id=' + _TID(), {});
+        const res = await fetch(API.getPolicyTemplates + '?jwt=' + encodeURIComponent(_TOKEN()), {});
         if (!res.ok) return;
-        const rows = await res.json();
-        for (const row of (Array.isArray(rows) ? rows : [])) {
-            const code = row.code;
-            const b = document.getElementById('pt' + code + '-base');
-            const e = document.getElementById('pt' + code + '-extra');
+        const json = await res.json();
+        for (const row of (json.data || [])) {
+            const b = document.getElementById('pt' + row.code + '-base');
+            const e = document.getElementById('pt' + row.code + '-extra');
             if (b) b.value = row.base_terms   || '';
             if (e) e.value = row.extra_clauses || '';
         }
-    } catch(err) { /* silent — webhooks may not exist yet */ }
+    } catch(err) { /* silent */ }
 }
 
 async function savePolicyTemplate(code) {
@@ -2080,7 +2079,7 @@ async function savePolicyTemplate(code) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                tenant_id: parseInt(_TID() || '0'),
+                jwt: _TOKEN(),
                 code, name: nameMap[code] || code,
                 base_terms: base,
                 extra_clauses: extra || null
