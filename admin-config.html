@@ -1869,9 +1869,11 @@ async function saveCancellationPolicy() {
             const r = await fetch(API.updateSetting, { method:'POST', headers:{ 'Content-Type': 'application/json' }, body:JSON.stringify({key, value, tenant_id: parseInt(_TID())}) });
             if (!r.ok) throw new Error('Save failed: ' + key);
         };
-        await save('cancel_full_refund_days',    fullDays);
-        await save('cancel_partial_refund_days', partDays);
-        await save('cancel_partial_refund_pct',  pct);
+        await Promise.all([
+            save('cancel_full_refund_days',    fullDays),
+            save('cancel_partial_refund_days', partDays),
+            save('cancel_partial_refund_pct',  pct),
+        ]);
         showToast('Cancellation policy saved');
         statusEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Policy saved and active';
         await loadSettings();
@@ -1902,7 +1904,9 @@ function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stri
 function _persistSvcToDb(svc) {
     const tid = parseInt(_TID() || '0');
     if (!tid) return;
-    fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...svc, tenant_id: tid }) }).catch(() => {});
+    fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...svc, tenant_id: tid }) })
+        .then(r => { if (!r.ok) r.json().then(e => console.error('[services] persist failed:', e.message || r.status)).catch(() => console.error('[services] persist failed:', r.status)); })
+        .catch(e => console.error('[services] persist error:', e.message));
 }
 function _deleteSvcFromDb(id) {
     const tid = parseInt(_TID() || '0');
@@ -1955,7 +1959,7 @@ function addService() {
     if (!name)                    { showToast('Service name is required', 'error'); return; }
     if (isNaN(price) || price < 0){ showToast('Valid price is required', 'error'); return; }
     const svcs = loadServicesData();
-    const newSvc = { id: 'svc_' + Date.now(), name, type, price, active: true };
+    const newSvc = { id: crypto.randomUUID(), name, type, price, active: true };
     svcs.push(newSvc);
     saveServicesData(svcs);
     _persistSvcToDb(newSvc);
