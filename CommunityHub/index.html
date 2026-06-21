@@ -3143,7 +3143,7 @@
         async function loadAllInteractions() {
             const INTERACTIONS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
             try {
-                const res = await fetch(INTERACTIONS_API + '?email=all' + tidParam('&'), { headers: getAuthHeaders() });
+                const res = await fetch(INTERACTIONS_API + tidParam(), { headers: getAuthHeaders() });
                 const json = await res.json();
                 allInteractions = (json.data || []).sort((a, b) => new Date(b.timestamp || b.interaction_date) - new Date(a.timestamp || a.interaction_date));
                 if (currentView === 'interactions') renderInteractionsTable();
