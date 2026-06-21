@@ -1222,9 +1222,9 @@ const API = {
     getSettings:    BASE + '/get-settings',
     updateSetting:  BASE + '/update-setting',
     cancelBooking:  BASE + '/cancel-booking',
-    getServices:    BASE + '/get-service-data',
-    saveService:    BASE + '/save-service',
-    deleteService:  BASE + '/delete-service',
+    getServices:    DB_API + '/config/services',
+    saveService:    DB_API + '/config/services/upsert',
+    deleteService:  DB_API + '/config/services/delete',
 };
 
 function getAuthHeaders() { return {}; }
@@ -1290,10 +1290,9 @@ function switchTab(name) {
 
 // Fetch services from DB API and merge into sessionStorage so DB-added services appear
 async function syncServicesFromDb() {
-    const tid = _TID();
-    if (!tid) return;
+    if (!_TOKEN()) return;
     try {
-        const res = await fetch(API.getServices + '?tenant_id=' + tid, {});
+        const res = await fetch(API.getServices + '?jwt=' + encodeURIComponent(_TOKEN()), {});
         if (!res.ok) return;
         const d = await res.json();
         const apiSvcs = d.data || [];
@@ -1902,16 +1901,14 @@ function loadServicesData()    { try { return JSON.parse(sessionStorage.getItem(
 function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stringify(d)); }
 // Persist a single service to DB (fire-and-forget; sessionStorage already updated)
 function _persistSvcToDb(svc) {
-    const tid = parseInt(_TID() || '0');
-    if (!tid) return;
-    fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...svc, tenant_id: tid }) })
+    if (!_TOKEN()) return;
+    fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: svc.id, name: svc.name, type: svc.type, price: svc.price, active: svc.active, jwt: _TOKEN() }) })
         .then(r => { if (!r.ok) r.json().then(e => console.error('[services] persist failed:', e.message || r.status)).catch(() => console.error('[services] persist failed:', r.status)); })
         .catch(e => console.error('[services] persist error:', e.message));
 }
 function _deleteSvcFromDb(id) {
-    const tid = parseInt(_TID() || '0');
-    if (!tid) return;
-    fetch(API.deleteService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, tenant_id: tid }) }).catch(() => {});
+    if (!_TOKEN()) return;
+    fetch(API.deleteService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, jwt: _TOKEN() }) }).catch(e => console.error('[services] delete error:', e.message));
 }
 
 function generateTimeOptions() {
