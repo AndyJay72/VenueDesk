@@ -1999,6 +1999,29 @@ One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spi
 | Pricing grid × button missing after save | `savePricingCell()` refreshed JS array but not DOM; × only appeared after tab switch | Inject `del-price-btn` into the cell immediately after successful save |
 | Policy Templates tab non-functional | n8n `get-policy-templates` / `save-policy-template` webhooks never existed (404 + no CORS headers) | Built `bookings.policy_templates` table (migration 023) + `/config/policy-templates` GET+upsert routes; wired frontend to db-api directly |
 
+## Payments tab — verified working (June 22 2026)
+
+Full Playwright + live API verification. All paths confirmed correct:
+
+**Load flow (`POST /admin/payment-settings/load`):**
+- Fires when `switchTab('payments')` is called via the late-patch `window.switchTab` wrapper
+- Returns `{ is_stripe_enabled, stripe_publishable_key, has_secret_key (bool), has_webhook_secret (bool), bacs_account_name, bacs_sort_code, bacs_account_number }`
+- Secret values are **never returned in full** — only boolean presence flags (`has_secret_key`, `has_webhook_secret`)
+- Status badges update from these flags: green "saved ✓" when `true`, grey "not set" when `false`
+
+**Save flow (`POST /admin/payment-settings/save`):**
+- Dynamically builds SET clause — only fields explicitly present in the body are updated
+- Empty string for `stripe_secret_key` / `stripe_webhook_secret` → **skipped** (keys left unchanged in DB)
+- After Stripe save: secret key + webhook input fields are **cleared** client-side; `loadPaymentSettings()` re-fires to refresh badges
+- No-op body (just `jwt`) → `{ message: "Nothing to update" }` — returns 200, no DB write
+- Extra/unknown fields stripped silently by `removeAdditional: true` (Fastify AJV default) — not a security risk
+
+**Auth:** Both endpoints use `preHandler: [fastify.authenticate]` + Pattern 4 (jwt in body). No CORS header required from browser.
+
+**Known minor issues (not fixed — low priority):**
+- `toggleVis()` sets `ico.className` with a trailing space: `` `fa-solid fa-eye${...} ` `` — harmless in all browsers
+- `switchTab` is late-patched in a `DOMContentLoaded` listener; if a future script wraps `window.switchTab` after this listener, `loadPaymentSettings` won't fire. No other script currently does this.
+
 ---
 
 # ⚠️ Pending Items — Security & Correctness
