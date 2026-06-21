@@ -19,6 +19,12 @@
 3. [Troubleshooting Matrix](#3-troubleshooting-matrix)
 4. [n8n Automation Engine & Mail Statuses](#4-n8n-automation-engine--mail-statuses)
 5. [Payment Configuration (Stripe & BACS)](#5-payment-configuration-stripe--bacs)
+6. [Event Types](#6-event-types)
+7. [Pricing Grid](#7-pricing-grid)
+8. [Add-on Services](#8-add-on-services)
+9. [Booking Turnaround Buffer](#9-booking-turnaround-buffer)
+10. [Cancellation Policy](#10-cancellation-policy)
+11. [Policy Templates](#11-policy-templates)
 
 ---
 
@@ -89,10 +95,14 @@ Rooms are never permanently deleted — they are **deactivated**. This protects 
 
 ### Adding Event Types & Pricing
 
-Event types (e.g. "Wedding", "Corporate Meeting", "Birthday Party") are managed separately from rooms and can be configured with per-room pricing rules. To set up:
+Event types (e.g. "Wedding", "Corporate Meeting", "Birthday Party") are managed separately from rooms and can be configured with per-room pricing rules.
+
+For full instructions see **Section 6 — Event Types** and **Section 7 — Pricing Grid**.
+
+In brief:
 
 1. Navigate to **Config → Event Types** to create an event type.
-2. Navigate to **Config → Pricing** to link an event type to a specific room with a price.
+2. Navigate to **Config → Pricing Grid** to set a custom hourly rate for a specific room-and-event-type combination. Cells left blank use the room's default rate.
 
 Each room-and-event-type combination can have its own rate, giving you full pricing flexibility.
 
@@ -427,6 +437,267 @@ If all five checks pass and the problem persists, escalate to the technical team
 ---
 
 ---
+
+---
+
+---
+
+## 6. Event Types
+
+### What Are Event Types?
+
+Event types let you categorise bookings by the nature of the hire — for example, "Wedding", "Corporate Meeting", "Children's Party", or "Community Class". Every booking must be assigned an event type, and event types can be linked to custom pricing rules in the Pricing Grid tab.
+
+Navigate to **Config → Event Types** to manage them.
+
+---
+
+### Adding an Event Type
+
+| Field | Required | What to enter |
+|-------|----------|---------------|
+| **Event Type Name** | Yes | A clear, descriptive label your team will recognise (e.g. "Corporate", "Wedding", "Community") |
+| **Description** | No | A short note explaining what falls under this type — useful for staff who are unfamiliar with the categories |
+
+Click **Add Event Type** to save. The new type will appear in the list on the right and immediately become available for selection when creating bookings.
+
+---
+
+### Editing and Deactivating Event Types
+
+In the Event Types list you will see a **Status** column and action buttons for each type.
+
+- **Edit (pen icon):** Update the name or description of an existing event type. Changes take effect immediately.
+- **Deactivate:** Removes the event type from the booking form drop-down. Existing bookings that use this type are unaffected — they retain their original event type in the historical records.
+
+> **⚠️ Deactivating an event type does not delete any pricing rules linked to it.** Those rules are simply no longer reachable via new bookings. If you reactivate the event type in the future, the pricing rules will be restored automatically.
+
+---
+
+---
+
+## 7. Pricing Grid
+
+### What Is the Pricing Grid?
+
+The Pricing Grid lets you set **custom hourly rates** for specific room-and-event-type combinations. It is a matrix: rooms run across the top, event types run down the side. Each cell in the grid represents one combination.
+
+Navigate to **Config → Pricing Grid** to manage it.
+
+---
+
+### How Rates Are Applied
+
+> **If a cell in the Pricing Grid is blank, the system uses the room's default hourly rate** (set when the room was created or last edited in the Rooms tab).
+
+The Pricing Grid is for *overrides only*. You only need to fill in a cell if a particular booking type should be charged at a different rate than the room default.
+
+**Example:**
+
+| | Main Hall | Conference Suite |
+|---|-----------|-----------------|
+| Corporate | £80/hr ← *override* | *(blank — uses room default £60/hr)* |
+| Community | £20/hr ← *override* | £15/hr ← *override* |
+| Wedding | *(blank — uses room default £60/hr)* | *(blank — uses room default £60/hr)* |
+
+---
+
+### Setting a Custom Rate
+
+1. Find the cell where the room column and event type row intersect.
+2. Click the cell — an input field will appear.
+3. Type the hourly rate (numbers only, no £ symbol needed).
+4. Press **Enter** or click away to save. A confirmation indicator will appear, and a **×** button will appear in the cell to allow removal later.
+
+### Removing a Custom Rate
+
+Click the **×** button inside a cell that has a custom rate set. The cell will clear and the room's default rate will apply again for that booking type.
+
+---
+
+---
+
+## 8. Add-on Services
+
+### What Are Add-on Services?
+
+Add-on services are optional extras that can be included when confirming a booking — for example, equipment hire (projector, PA system), catering, or staffing. They appear as selectable options on the booking confirmation screen in the Calendar and Dashboard.
+
+Navigate to **Config → Services** to manage them.
+
+---
+
+### Adding a Service
+
+| Field | Required | What to enter |
+|-------|----------|---------------|
+| **Service Name** | Yes | A clear label that staff will see on the booking screen (e.g. "OHP / Projector", "DJ", "Catering Package") |
+| **Pricing Type** | Yes | Choose **Flat Rate** (one fixed charge per booking) or **Per Hour** (charged per hour of the hire) |
+| **Price (£)** | Yes | The amount in pounds. Enter numbers only — no £ symbol needed. Decimal values are supported (e.g. 12.50) |
+
+Click **Add Service** to save. It will appear in the Services list on the right and immediately become available for selection on bookings.
+
+---
+
+### Managing Existing Services
+
+The Services list shows all configured services with their pricing type, price, status, and action buttons.
+
+| Action | What it does |
+|--------|-------------|
+| **Edit (pen icon)** | Update the service name, pricing type, or price |
+| **Toggle on/off** | Activate or deactivate the service. An inactive service is hidden from the booking confirmation screen but remains in the system. Use this rather than deleting if a service is temporarily unavailable. |
+| **Delete (bin icon)** | Permanently removes the service. This cannot be undone. Historical bookings that included this service are unaffected. |
+
+> **Pricing type note:** If you change a service from Flat Rate to Per Hour (or vice versa), the price field should be reviewed — £50 as a flat rate and £50/hr are very different charges.
+
+---
+
+---
+
+## 9. Booking Turnaround Buffer
+
+### What Is the Turnaround Buffer?
+
+The turnaround buffer is the **minimum gap required between back-to-back bookings in the same room**. When a buffer is set, the system will not allow a new booking to start until the buffer period has elapsed after the previous booking ends — and vice versa at the other end.
+
+This gives staff time to clean, reset, or inspect a room between hirers.
+
+Navigate to **Config → Settings** to manage it.
+
+---
+
+### Setting the Buffer
+
+Select from the dropdown:
+
+| Option | When to use |
+|--------|-------------|
+| **No buffer** | Bookings can run back-to-back with no gap. Use only if your rooms require no turnaround time. |
+| **30 minutes** | Suitable for clean, simple spaces with minimal setup. |
+| **45 minutes** | A middle option for spaces that need a brief tidy. |
+| **60 minutes (recommended)** | Standard for most venues — one hour gives staff adequate time for most changeovers. |
+| **90 minutes** | Appropriate for complex setups or rooms that require significant reconfiguration between hirers. |
+| **2 hours** | Use for large spaces or events that generate significant residual activity (e.g. clearing up after a wedding). |
+| **Custom…** | Enter any value from 0 to 480 minutes in 5-minute increments. |
+
+Click **Save Buffer Setting** to apply. The current active buffer is shown below the dropdown before you save.
+
+> **⚠️ The buffer applies to all rooms equally.** There is currently one global buffer setting for the whole venue. If different rooms need different turnaround times, set the buffer to the longest required time and manage shorter-turnaround rooms manually.
+
+> **⚠️ Changing the buffer does not affect existing bookings.** Only future bookings submitted after the change is saved will be checked against the new buffer value.
+
+---
+
+---
+
+## 10. Cancellation Policy
+
+### What Is the Cancellation Policy?
+
+The cancellation policy defines the refund rules that apply when a customer cancels a booking. It uses a **three-tier system** based on how far in advance the cancellation is made.
+
+Navigate to **Config → Cancellation Policy** to manage it.
+
+---
+
+### The Three Tiers
+
+#### Tier 1 — Full Refund (green)
+
+The customer receives a **100% refund** when they cancel this many days or more before the booking date.
+
+Use the slider to set the minimum number of days (range: 1–90). The default is 14 days.
+
+**Example:** If Tier 1 is set to 14 days, a customer who cancels 15 days before their booking receives a full refund.
+
+---
+
+#### Tier 2 — Partial Refund (amber)
+
+The customer receives a **partial refund** when they cancel between the Tier 2 threshold and the Tier 1 threshold. Two controls apply:
+
+- **Minimum days slider** (range: 1–60): The lower boundary of the partial-refund window. The upper boundary is automatically set to one day below your Tier 1 threshold.
+- **Refund percentage slider** (range: 5%–95%, in 5% steps): The proportion of the booking value that is refunded.
+
+**Example:** Tier 1 = 14 days, Tier 2 = 7 days at 50%. A customer who cancels 10 days before receives 50% of their booking value.
+
+---
+
+#### Tier 3 — No Refund (red)
+
+Applied automatically when the customer cancels **within the Tier 2 threshold**. No manual setting is needed — this threshold is determined entirely by your Tier 2 setting.
+
+**Example:** Tier 2 = 7 days. A customer who cancels 5 days before receives nothing.
+
+---
+
+### Live Policy Preview
+
+As you adjust the sliders, the **Live Policy Preview** panel on the right updates in real time showing:
+- A summary of all three tiers in plain English
+- A worked example using a £500 booking
+
+Use this to verify your settings before saving.
+
+Click **Save Cancellation Policy** when you are satisfied. All three tiers are saved together in a single operation.
+
+---
+
+### How Cancellations Are Processed
+
+When a booking is cancelled in the system:
+
+1. The platform checks the cancellation date against the booking date and applies the appropriate tier automatically.
+2. A unique **CANC-XXXXXX** reference is generated for the cancellation record.
+3. The cancellation and any calculated refund amount appear on the Accounts page for reconciliation.
+
+> **⚠️ The cancellation policy controls the calculated refund amount — it does not automatically issue a refund payment.** If the customer paid by Stripe, the refund must be initiated separately through the Stripe Dashboard or by the relevant booking action in the dashboard. BACS payments must be returned manually via your bank.
+
+---
+
+---
+
+## 11. Policy Templates
+
+### What Are Policy Templates?
+
+Policy templates are blocks of legal or operational text that are **automatically appended to confirmation and invoice emails** sent to customers. There are three templates, each applied to a different booking type.
+
+Navigate to **Config → Policy Templates** to manage them.
+
+---
+
+### The Three Templates
+
+#### Policy A — Standard One-off
+
+Applied to all **single, one-time bookings**. Use this for your standard terms and conditions: hire rules, liability, damage policy, and any general conditions that apply to all hirers.
+
+#### Policy B — Recurring Member
+
+Applied to all **recurring membership bookings**. Use this for terms specific to members who book the same slot on a regular schedule: notice period requirements, rules for pausing or cancelling a membership series, and any additional clauses covering ongoing hire arrangements.
+
+#### Policy C — Community / Charity
+
+Applied to **discounted community or charity bookings**. Use this for any special conditions that apply to subsidised bookings: restrictions on sub-letting, annual pricing review clauses, storage rules, and any eligibility requirements for the community rate.
+
+---
+
+### Editing a Template
+
+Each template has two text areas:
+
+| Field | Purpose |
+|-------|---------|
+| **Base Terms** | The main body of the policy — typically your standard terms that apply to all bookings of this type. |
+| **Additional Clauses** | Supplementary text appended after the base terms — use for specific rules, exceptions, or period-specific notes. Leave blank if not needed. |
+
+Click the individual **Save Policy A / B / C** button for each template you edit. Templates are saved independently — saving Policy A does not affect B or C.
+
+A green **✓ Saved** confirmation will appear next to the button when the save completes. If the base terms field is left blank, the save will be blocked with a validation message.
+
+> **⚠️ These templates are operational documents.** Changes take effect on all emails generated after the save — they do not retroactively update confirmation emails already sent. If you update the terms during an ongoing booking cycle, consider notifying affected customers directly.
 
 ---
 
