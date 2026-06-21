@@ -18,6 +18,12 @@
                 if (_p.exp && _p.exp * 1000 < Date.now()) {
                     sessionStorage.clear();
                     window.location.href = 'login.html';
+                    return;
+                }
+                if (!(_p.user_id || _p.id) || !_p.tenant_id) {
+                    console.warn('[auth] stale token — missing claims', _p);
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
                 }
             } catch(e) { /* non-JWT token, skip expiry check */ }
         })();
@@ -2002,117 +2008,6 @@ function deleteSvc(id) {
 }
 
 // ─────────────────────────────────────────────
-// ROOM HOURS (localStorage per tenant)
-// ─────────────────────────────────────────────
-function roomHoursKey()   { return 'vp_room_hours_' + (_TID() || '0'); }
-function loadRoomHours()  { try { return JSON.parse(sessionStorage.getItem(roomHoursKey()) || '{}'); } catch(e) { return {}; } }
-function saveRoomHours(d) { sessionStorage.setItem(roomHoursKey(), JSON.stringify(d)); }
-
-// ─────────────────────────────────────────────
-// SERVICES (localStorage per tenant)
-// ─────────────────────────────────────────────
-function servicesKey()       { return 'vp_services_' + (_TID() || '0'); }
-function loadServicesData()  { try { return JSON.parse(sessionStorage.getItem(servicesKey()) || '[]'); } catch(e) { return []; } }
-function saveServicesData(d) { sessionStorage.setItem(servicesKey(), JSON.stringify(d)); }
-
-function generateTimeOptions() {
-    const opts = ['<option value="">— Not set —</option>'];
-    for (let h = 0; h < 24; h++) {
-        for (let m = 0; m < 60; m += 30) {
-            const t = `${String(h).padStart(2,'0')}:${m === 0 ? '00' : '30'}`;
-            opts.push(`<option value="${t}">${t}</option>`);
-        }
-    }
-    return opts.join('');
-}
-
-function renderServicesTable() {
-    const svcs  = loadServicesData();
-    const tbody = document.getElementById('servicesTable');
-    if (!tbody) return;
-    if (!svcs.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No services defined yet.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = svcs.map(s => `
-        <tr class="${s.active === false ? 'inactive-row' : ''}">
-            <td style="font-weight:600;color:white">${esc(s.name)}</td>
-            <td style="color:var(--text-muted)">${s.type === 'hourly' ? 'Per Hour' : 'Flat Rate'}</td>
-            <td>${fmt(s.price)}${s.type === 'hourly' ? '<span style="font-size:0.72rem;color:var(--text-muted)">/hr</span>' : ''}</td>
-            <td><span class="status-badge ${s.active !== false ? 'status-active' : 'status-inactive'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
-            <td>
-                <div class="action-btns">
-                    <button class="btn-sm btn-edit"    onclick="editServiceItem('${s.id}')"><i class="fa-solid fa-pen"></i></button>
-                    ${s.active !== false
-                        ? `<button class="btn-sm btn-delete"  onclick="toggleService('${s.id}',false)"><i class="fa-solid fa-eye-slash"></i></button>`
-                        : `<button class="btn-sm btn-restore" onclick="toggleService('${s.id}',true)"><i class="fa-solid fa-eye"></i></button>`
-                    }
-                    <button class="btn-sm btn-delete" onclick="deleteSvc('${s.id}')" title="Delete permanently"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </td>
-        </tr>`).join('');
-}
-
-function addService() {
-    const name  = document.getElementById('svcName').value.trim();
-    const type  = document.getElementById('svcType').value;
-    const price = parseFloat(document.getElementById('svcPrice').value);
-    if (!name)                     { showToast('Service name is required', 'error'); return; }
-    if (isNaN(price) || price < 0) { showToast('Valid price is required', 'error'); return; }
-    const newSvc2 = { id: 'svc_' + Date.now(), name, type, price, active: true };
-    const svcs = loadServicesData();
-    svcs.push(newSvc2);
-    saveServicesData(svcs);
-    _persistSvcToDb(newSvc2);
-    showToast('Service added!');
-    document.getElementById('svcName').value  = '';
-    document.getElementById('svcPrice').value = '';
-    renderServicesTable();
-}
-
-function editServiceItem(id) {
-    const svcs = loadServicesData();
-    const s = svcs.find(x => x.id === id);
-    if (!s) return;
-    modalMode = { type: 'service', id };
-    document.getElementById('modalTitle').textContent = 'Edit Service — ' + s.name;
-    document.getElementById('modalBody').innerHTML = `
-        <div class="input-group"><label>Service Name</label><input type="text" id="me_svc_name" value="${esc(s.name)}"></div>
-        <div class="row2">
-            <div class="input-group">
-                <label>Pricing Type</label>
-                <select id="me_svc_type">
-                    <option value="flat"   ${s.type === 'flat'   ? 'selected' : ''}>Flat Rate</option>
-                    <option value="hourly" ${s.type === 'hourly' ? 'selected' : ''}>Per Hour</option>
-                </select>
-            </div>
-            <div class="input-group"><label>Price (£)</label><input type="number" id="me_svc_price" value="${s.price}" min="0" step="0.01"></div>
-        </div>
-        <div class="toggle-row">
-            <span class="toggle-label">Active</span>
-            <button class="toggle ${s.active !== false ? 'on' : ''}" id="me_svc_active" onclick="this.classList.toggle('on')"></button>
-        </div>`;
-    document.getElementById('editModal').classList.add('open');
-}
-
-function toggleService(id, active) {
-    const svcs = loadServicesData();
-    const s = svcs.find(x => x.id === id);
-    if (s) { s.active = active; _persistSvcToDb(s); }
-    saveServicesData(svcs);
-    showToast(active ? 'Service activated' : 'Service deactivated');
-    renderServicesTable();
-}
-
-function deleteSvc(id) {
-    if (!confirm('Permanently delete this service?')) return;
-    saveServicesData(loadServicesData().filter(x => x.id !== id));
-    _deleteSvcFromDb(id);
-    showToast('Service deleted');
-    renderServicesTable();
-}
-
-// ─────────────────────────────────────────────
 // ESCAPE HELPER
 // ─────────────────────────────────────────────
 function esc(str) {
@@ -2347,7 +2242,6 @@ async function saveBacsSettings() {
 }
 
 // Load payment settings when the Payments tab is activated
-const _origSwitchTab = window.switchTab;
 document.addEventListener('DOMContentLoaded', () => {
     const orig = window.switchTab;
     window.switchTab = function(name) {
