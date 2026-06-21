@@ -7,11 +7,12 @@
  * All tenant_id values come exclusively from the verified JWT payload.
  * No tenant_id is accepted from the request body (CLAUDE.md §3.3).
  *
- * POST /customers/upsert         — find-or-create by email (booking intake)
- * POST /customers/update         — update fields on existing customer + log interaction
- * POST /customers/update-status  — update CRM status (pending → contacted → booked etc.)
- * GET  /customers/list           — all customers for tenant with latest booking dates
- * GET  /customers/interactions   — customer interaction log (by customer_id or email)
+ * POST /customers/upsert            — find-or-create by email (booking intake)
+ * POST /customers/update            — update fields on existing customer + log interaction
+ * POST /customers/update-status     — update CRM status (pending → contacted → booked etc.)
+ * GET  /customers/list              — all customers for tenant with latest booking dates
+ * GET  /customers/interactions      — customer interaction log (by customer_id or email)
+ * POST /customers/log-interaction   — create a customer_interactions row from the dashboard modal
  */
 
 const { withTenantContext } = require('../db/pool');
@@ -438,6 +439,94 @@ async function customersRoutes(fastify) {
     );
 
     return { success: true, data: rows };
+  });
+
+
+  // ─── POST /customers/log-interaction ─────────────────────────────────────
+  // Creates a customer_interactions row from the dashboard Log Interaction modal.
+  //
+  // Body:
+  //   customer_id       UUID    required
+  //   subject           string  required
+  //   interaction_type  string  required
+  //   notes             string  optional
+  //   staff_member      string  optional
+  //   customer_name     string  optional
+  //   customer_email    string  optional
+  //   customer_phone    string  optional
+  //   booking_id        UUID    optional (nullable)
+  //   booking_date      string  optional (YYYY-MM-DD or ISO timestamp)
+  //   room_name         string  optional
+  //
+  // Returns: { success: true, data: { id } }
+  fastify.post('/log-interaction', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['customer_id', 'subject', 'interaction_type'],
+        properties: {
+          customer_id:      { type: 'string' },
+          subject:          { type: 'string' },
+          interaction_type: { type: 'string' },
+          notes:            { type: 'string',  default: '' },
+          staff_member:     { type: 'string',  default: 'Staff' },
+          customer_name:    { type: 'string',  default: '' },
+          customer_email:   { type: 'string',  default: '' },
+          customer_phone:   { type: 'string',  default: '' },
+          booking_id:       { type: 'string' },
+          booking_date:     { type: 'string' },
+          room_name:        { type: 'string',  default: '' },
+        },
+      },
+    },
+  }, async (request) => {
+    const tenantId = request.user.tenant_id;
+    const {
+      customer_id,
+      subject,
+      interaction_type,
+      notes          = '',
+      staff_member   = 'Staff',
+      customer_name  = '',
+      customer_email = '',
+      customer_phone = '',
+      booking_id,
+      booking_date,
+      room_name      = '',
+    } = request.body;
+
+    assertUUID(customer_id, 'customer_id');
+    if (booking_id) assertUUID(booking_id, 'booking_id');
+
+    return withTenantContext(tenantId, async (client) => {
+      const { rows: [row] } = await client.query(
+        `INSERT INTO bookings.customer_interactions
+           (tenant_id, customer_id, customer_name, customer_email, customer_phone,
+            booking_id, booking_date, room_name, subject, interaction_type, notes,
+            staff_member, timestamp)
+         VALUES
+           ($1::integer, $2::uuid, $3, $4, $5,
+            $6, $7, $8, $9, $10, $11,
+            $12, NOW())
+         RETURNING id::text`,
+        [
+          tenantId,
+          customer_id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          booking_id   || null,
+          booking_date ? booking_date.slice(0, 10) : null,
+          room_name,
+          subject,
+          interaction_type,
+          notes,
+          staff_member,
+        ]
+      );
+      return { success: true, data: row };
+    });
   });
 
 

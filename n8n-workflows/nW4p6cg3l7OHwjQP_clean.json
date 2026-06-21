@@ -44,7 +44,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.venuedesk.co.uk/recurring/log-interaction",
+        "url": "https://api.venuedesk.co.uk/customers/log-interaction",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
