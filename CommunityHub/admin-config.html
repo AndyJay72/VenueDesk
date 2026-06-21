@@ -1685,7 +1685,16 @@ async function savePricingCell(input) {
         });
         if (!res.ok) throw new Error('Failed');
         input.classList.remove('unsaved');
-        // Refresh local pricing cache silently
+        // Inject × delete button if this cell didn't already have one
+        const cell = input.closest('td');
+        if (cell && !cell.querySelector('.del-price-btn')) {
+            const xBtn = document.createElement('button');
+            xBtn.className = 'del-price-btn';
+            xBtn.title = 'Remove rate override';
+            xBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            xBtn.onclick = function() { deletePricingCell(room_id, event_type_id, this, null); };
+            cell.appendChild(xBtn);
+        }
         await loadPricing();
     } catch(e) { showToast('Failed to save price', 'error'); }
 }
