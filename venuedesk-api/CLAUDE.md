@@ -50,7 +50,7 @@ tests/
 |--------|------|-------|
 | `/auth` | `auth.js` | Login, JWT issuance |
 | `/bookings` | `bookings.js` | Booking lifecycle (create, cancel, list, update) |
-| `/config` | `config.js` | Rooms, event types, pricing, settings |
+| `/config` | `config.js` | Rooms, event types, pricing, settings, **add-on services** |
 | `/customers` | `customers.js` | CRM — upsert, update, list, `GET /interactions`, `POST /log-interaction` |
 | `/recurring` | `recurring.js` | Recurring series, rules, payment schedule |
 | `/stripe` | `stripe.js` | Checkout sessions, cycle-session, webhook handler |
@@ -66,6 +66,34 @@ tests/
 | `/users` | `users.js` | Staff user reads |
 | `/users` | `users-update.js` | Staff user writes (update, password) |
 | `/blocked-dates` | `blocked-dates.js` | Venue blocked date rules |
+
+### /config route detail
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/config/rooms` | List rooms for tenant |
+| POST | `/config/rooms/create` | Insert room |
+| POST | `/config/rooms/update` | Update room fields |
+| POST | `/config/rooms/delete` | Soft-delete (is_active = false) |
+| GET | `/config/event-types` | List event types |
+| POST | `/config/event-types/create` | Insert event type |
+| POST | `/config/event-types/update` | Update event type |
+| POST | `/config/event-types/delete` | Soft-delete event type |
+| GET | `/config/pricing` | List room_event_pricing with names |
+| POST | `/config/pricing/upsert` | Insert or update pricing override |
+| POST | `/config/pricing/delete` | Delete pricing override |
+| GET | `/config/settings` | All settings for tenant |
+| POST | `/config/settings/upsert` | Insert or update a single setting key |
+| GET | `/config/services` | List add-on services (`bookings.add_on_services`) |
+| POST | `/config/services/upsert` | Insert or update a service (UUID id required if updating) |
+| POST | `/config/services/delete` | Delete a service by UUID |
+
+**Services auth note:** `/config/services*` endpoints support both staff JWT (`tenant_id` from token)
+and service JWT (`tenant_id` from `?tenant_id` query param on GET, or `body.tenant_id` on POST).
+The `additionalProperties: false` schema on upsert and delete explicitly allows `jwt` and `tenant_id`
+fields so the Pattern 4 browser body-tunnel works without schema rejection.
+The frontend (`admin-config.html`) calls these directly — bypassing the broken n8n `ServicesAPI`
+proxy — using `?jwt=<token>` for GET and `{ jwt: _TOKEN(), ...fields }` for POST.
 
 ---
 

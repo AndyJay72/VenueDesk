@@ -1690,6 +1690,36 @@ if (durationDays > 90) {
 }
 ```
 
+## 4. admin-config.html Audit & Fixes ✅ DONE (June 2026)
+
+Five bugs found and fixed via Playwright-verified testing session:
+
+**a) Duplicate function block removed** — 9 functions (`roomHoursKey`, `loadRoomHours`,
+`saveRoomHours`, `servicesKey`, `loadServicesData`, `saveServicesData`, `generateTimeOptions`,
+`renderServicesTable`, `addService`, `editServiceItem`, `toggleService`, `deleteSvc`) were
+declared twice. The second block won via hoisting; the first was dead. Removed ~110-line
+duplicate, plus dead `const _origSwitchTab` line.
+
+**b) Rule F4 claim check added to security gatekeeper** — The gatekeeper checked JWT expiry
+but not missing `user_id`/`id` or `tenant_id` claims. Added stale-token guard with
+`sessionStorage.clear()` + redirect. Added `return` after expiry redirect so the claim check
+doesn't fire after navigation.
+
+**c) Services UUID fix** — `addService()` generated `'svc_' + Date.now()` IDs. The db-api
+`/config/services/upsert` endpoint validates UUIDs via `assertUUID`. Rejection was silently
+swallowed by `.catch(() => {})`. Fixed: `crypto.randomUUID()` for IDs + surfaced errors via
+`console.error` chain in `_persistSvcToDb`.
+
+**d) Services n8n proxy bypassed** — `get-service-data` n8n webhook returned a flat single
+object instead of `{data: [...]}`, so `syncServicesFromDb` always got `d.data = undefined`
+and bailed early. After browser close (sessionStorage wiped), services appeared gone. Fixed:
+all three service calls now go directly to `api.venuedesk.co.uk/config/services*` with
+Pattern 4 JWT auth (`?jwt=` for GET, `jwt` in body for POST).
+
+**e) Cancellation policy parallel saves** — Three sequential `await save(key, value)` calls
+took 4–6s; any navigation mid-save left the policy partially written in DB. Fixed:
+`await Promise.all([save(k1,v1), save(k2,v2), save(k3,v3)])` — one round-trip ~1–2s.
+
 ---
 
 ## Pattern 13 — n8n `neverError: true` Silently Masks db-api Failures
@@ -1779,6 +1809,69 @@ const emailFilter = (email && email !== 'all') ? email : null;
 
 ---
 
+## Pattern 16 — n8n Proxy Shape Mismatch (Silent Data Loss)
+
+**Problem:** n8n webhook proxies that sit between the frontend and db-api can return the
+wrong response shape without any visible error. The proxy appears to work (HTTP 200) but
+the frontend receives a flat object `{id, name, ...}` instead of `{data: [...]}`, so any
+code doing `d.data || []` silently gets an empty array and bails early.
+
+**Example (June 2026):** The `get-service-data` n8n webhook proxied
+`GET /config/services` on db-api. The proxy was returning a single flat service object
+instead of the expected `{data: [{...}, {...}]}`. `syncServicesFromDb` did:
+```javascript
+const apiSvcs = d.data || [];   // d.data = undefined → []
+if (!apiSvcs.length) return;    // always returned early
+```
+Services lived only in sessionStorage. After a browser close (sessionStorage wiped),
+services appeared gone even though they were persisted in DB. Logout/login survived
+because `logout()` only removes `vp_token` — not the service sessionStorage key.
+
+**Root cause diagnostic:** compare `curl <n8n-webhook-url>` vs
+`curl <db-api-url>?jwt=<token>` and diff the shapes. If they differ, the proxy is broken.
+
+**Rule:** When a db-api route already exists for a feature, call it directly from the
+frontend rather than proxying through n8n:
+
+```javascript
+// WRONG — routes through n8n proxy that may return wrong shape
+getServices: BASE + '/get-service-data',
+
+// CORRECT — call db-api directly with Pattern 4 jwt auth
+getServices: DB_API + '/config/services',
+// GET:  fetch(API.getServices + '?jwt=' + encodeURIComponent(_TOKEN()))
+// POST: body: JSON.stringify({ ...payload, jwt: _TOKEN() })
+```
+
+**When n8n proxy is unavoidable:** validate the shape explicitly and log a console.error
+if it doesn't match expectations rather than silently returning `[]`.
+
+---
+
+## Pattern 17 — Frontend ID Generation: crypto.randomUUID()
+
+**Problem:** Frontend code that generates IDs with `'prefix_' + Date.now()` produces
+strings like `svc_1782068760572`. db-api endpoints that validate UUIDs (via `assertUUID`)
+reject these with `INTERNAL_ERROR: id must be a valid UUID`. The rejection is typically
+swallowed by a `.catch(() => {})`, so the write appears to succeed locally (sessionStorage
+updated) but never reaches the DB.
+
+**Classic failure (June 2026):** `addService()` used `id: 'svc_' + Date.now()`.
+The `save-service` webhook (and later `/config/services/upsert`) both require a valid UUID.
+Services were sessionStorage-only — lost on browser close.
+
+**Rule:** Always use the native Web Crypto API for IDs sent to db-api:
+```javascript
+// WRONG — fails UUID validation at db-api
+const newSvc = { id: 'svc_' + Date.now(), name, type, price, active: true };
+
+// CORRECT — valid UUID accepted by assertUUID
+const newSvc = { id: crypto.randomUUID(), name, type, price, active: true };
+```
+`crypto.randomUUID()` is available in all modern browsers and Node.js 15+. No import needed.
+
+---
+
 ## Customer Interactions — Endpoint & Workflow Reference (June 2026)
 
 ### db-api endpoints
@@ -1817,6 +1910,72 @@ The live ID differs from the backup filename — this is expected after re-impor
 - Both HTTP Request nodes have `neverError: true` — errors are absorbed silently
 - Auth for POST: `Authorization: Bearer $json.body?.jwt` (JWT body-tunnel from browser)
 - Auth for GET: `Authorization: Bearer $env.N8N_SERVICE_JWT` (service JWT — server-to-server)
+
+---
+
+# 🛠️ admin-config.html — Architecture Reference (June 2026)
+
+**File:** `CommunityHub/admin-config.html` | **Deployed via:** GitHub Pages
+
+## API routing per tab
+
+| Tab | Backend | Endpoints |
+|-----|---------|-----------|
+| Rooms | n8n webhook | `get-rooms`, `create-room`, `update-room`, `delete-room` |
+| Event Types | n8n webhook | `get-event-types`, `create-event-type`, `update-event-type`, `delete-event-type` |
+| Pricing Grid | n8n webhook | `get-pricing`, `set-pricing`, `delete-pricing` |
+| Settings (buffer) | n8n webhook | `get-settings`, `update-setting` |
+| Services | **db-api direct** | `GET /config/services`, `POST /config/services/upsert`, `POST /config/services/delete` |
+| Cancellation Policy | n8n webhook | `update-setting` (3× per save, now parallel) |
+| Policy Templates | n8n webhook | `get-policy-templates`, `save-policy-template` |
+| Payments | **db-api direct** | `POST /admin/payment-settings/load`, `POST /admin/payment-settings/save` |
+
+Services and Payments call db-api directly — all others go via n8n. See Pattern 16 for why Services was moved.
+
+## Auth patterns in this file
+
+- **n8n webhook GETs:** `?tenant_id=<tid>` query param via `tidParam()`
+- **n8n webhook POSTs:** `withRole({...payload})` helper — injects `tenant_id` + `userRole` into body
+- **db-api GETs:** `?jwt=<token>` query param via `encodeURIComponent(_TOKEN())`
+- **db-api POSTs:** `jwt: _TOKEN()` in request body (Pattern 4 / Rule F6)
+
+## Services persistence flow
+
+```
+addService()
+  → crypto.randomUUID()          // valid UUID for db-api
+  → saveServicesData(svcs)       // sessionStorage (immediate display)
+  → _persistSvcToDb(svc)         // fire-and-forget: POST /config/services/upsert?jwt=
+
+switchTab('services')
+  → syncServicesFromDb()         // GET /config/services?jwt= → { success, data: [...] }
+  → merges DB rows with local-only sessionStorage entries
+  → renderServicesTable()
+```
+
+After browser close: sessionStorage is empty → `syncServicesFromDb` repopulates from DB on next Services tab open.
+
+## Cancellation policy save
+
+`saveCancellationPolicy()` fires all three setting keys in parallel:
+```javascript
+await Promise.all([
+    save('cancel_full_refund_days',    fullDays),
+    save('cancel_partial_refund_days', partDays),
+    save('cancel_partial_refund_pct',  pct),
+]);
+```
+One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spinner stays active until `Promise.all` resolves.
+
+## Bugs fixed June 2026
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| Duplicate function block | 9 functions declared twice (second block won via hoisting) | Removed ~110-line duplicate block |
+| Missing Rule F4 claim check | Security gatekeeper checked expiry but not `user_id`/`tenant_id` | Added stale-claim guard with `sessionStorage.clear()` + redirect |
+| Services not persisted to DB | `svc_` + timestamp IDs failed UUID validation silently | `crypto.randomUUID()` + error surfacing in `.catch` |
+| Services vanish after browser close | n8n `get-service-data` proxy returned flat object; `d.data` always undefined | Bypassed n8n proxy; now calls db-api `/config/services` directly |
+| Cancellation policy partially saved | 3 sequential `await save()` calls; page reload aborted in-flight requests | `Promise.all([...])` makes saves atomic from the UI's perspective |
 
 ---
 
