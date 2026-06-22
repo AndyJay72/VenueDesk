@@ -56,6 +56,43 @@ Once saved, the room becomes immediately bookable and visible in the calendar.
 
 ---
 
+### Room Operating Hours
+
+When Open Time and Close Time are set for a room, the platform enforces them automatically. No booking can be accepted that starts before the room opens or ends after it closes.
+
+#### How enforcement works
+
+The restriction applies at two points:
+
+1. **In the booking form (calendar)** — as soon as a time is selected that falls outside the room's window, the availability checker shows a warning immediately, before the booking is even submitted:
+   > *"This room does not open until 09:00. Please choose a later start time."*
+   > *"This room closes at 17:00. Please choose an earlier end time."*
+   The Submit button is disabled until the times are corrected.
+
+2. **At the system level** — even if someone bypasses the form (e.g. a direct API call), the server rejects the booking with a 400 error. Hours enforcement cannot be bypassed by any user, regardless of their role.
+
+#### Practical examples
+
+| Room | Open Time | Close Time | Booking attempt | Outcome |
+|------|-----------|------------|----------------|---------|
+| Studio A | 09:00 | 17:00 | 08:00–10:00 | ❌ Rejected — starts before 09:00 |
+| Studio A | 09:00 | 17:00 | 10:00–18:00 | ❌ Rejected — ends after 17:00 |
+| Studio A | 09:00 | 17:00 | 10:00–16:00 | ✅ Accepted — within window |
+| Main Hall | *(blank)* | *(blank)* | 07:00–22:00 | ✅ Accepted — no per-room restriction |
+
+#### Rooms with no hours set
+
+If both fields are left blank, the room is available across the full venue operating window (08:00–22:00). This is the default for all rooms. Blank does not mean "restrict to 08:00–17:00" — it means no per-room restriction at all.
+
+#### Changing or removing hours
+
+- **To change a room's hours:** edit the room in Config → Rooms, update the times, and save. The new hours apply to all future bookings immediately.
+- **To remove all restrictions:** edit the room, clear both time fields, and save. The room reverts to the full venue window.
+
+> **⚠️ Changing hours does not affect existing bookings.** Bookings already confirmed in the system are not cancelled or modified when you change a room's hours. Only new booking attempts made after the change are subject to the updated restriction. Communicate any change to your team before applying it.
+
+---
+
 ### The Capacity Rule
 
 > **This is one of the most important settings on the platform. Read carefully.**
