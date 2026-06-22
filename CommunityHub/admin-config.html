@@ -1325,10 +1325,10 @@ async function loadRooms() {
 function renderRoomsTable() {
     const tbody = document.getElementById('roomsTable');
     if (!rooms.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No rooms found.</td></tr>'; return; }
-    const rHours = loadRoomHours();
     tbody.innerHTML = rooms.map(r => {
-        const rh = rHours[r.id] || {};
-        const hoursStr = (rh.open && rh.close) ? `${rh.open}–${rh.close}` : '—';
+        const openStr  = r.open_time  ? r.open_time.slice(0, 5)  : null;
+        const closeStr = r.close_time ? r.close_time.slice(0, 5) : null;
+        const hoursStr = (openStr && closeStr) ? `${openStr}–${closeStr}` : '—';
         return `
         <tr class="${!r.is_active ? 'inactive-row' : ''}">
             <td style="font-weight:600;color:white">${esc(r.name)}</td>
@@ -1365,21 +1365,16 @@ async function addRoom() {
     try {
         const res = await fetch(API.createRoom, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ name, capacity: cap || null, day_rate: dr, description: desc || null }))
+            body: JSON.stringify(withRole({
+                name, capacity: cap || null, day_rate: dr, description: desc || null,
+                open_time:  openTime  || null,
+                close_time: closeTime || null,
+            }))
         });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
         showToast('Room added!');
-        ['rName','rCapacity','rDayRate','rDesc'].forEach(id => document.getElementById(id).value = '');
+        ['rName','rCapacity','rDayRate','rDesc','rOpenTime','rCloseTime'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         await loadRooms();
-        if (openTime || closeTime) {
-            const newRoom = rooms.find(r => r.name === name);
-            if (newRoom) {
-                const rh = loadRoomHours();
-                rh[newRoom.id] = { open: openTime, close: closeTime };
-                saveRoomHours(rh);
-                renderRoomsTable();
-            }
-        }
     } catch(e) { showToast(e.message || 'Error adding room', 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Room'; }
 }
@@ -1389,7 +1384,6 @@ function editRoom(id) {
     if (!r) return;
     modalMode = { type: 'room', id, data: r };
     document.getElementById('modalTitle').textContent = 'Edit Room — ' + r.name;
-    const rh2 = loadRoomHours()[r.id] || {};
     const timeOpts = generateTimeOptions();
     document.getElementById('modalBody').innerHTML = `
         <div class="input-group"><label>Room Name</label><input type="text" id="me_name" value="${esc(r.name)}"></div>
@@ -1406,8 +1400,10 @@ function editRoom(id) {
             <span class="toggle-label">Room Active</span>
             <button class="toggle ${r.is_active ? 'on' : ''}" id="me_active" onclick="this.classList.toggle('on')"></button>
         </div>`;
-    if (rh2.open)  document.getElementById('me_open').value  = rh2.open;
-    if (rh2.close) document.getElementById('me_close').value = rh2.close;
+    const dbOpen  = r.open_time  ? r.open_time.slice(0, 5)  : '';
+    const dbClose = r.close_time ? r.close_time.slice(0, 5) : '';
+    if (dbOpen)  document.getElementById('me_open').value  = dbOpen;
+    if (dbClose) document.getElementById('me_close').value = dbClose;
     document.getElementById('editModal').classList.add('open');
 }
 
@@ -1424,16 +1420,13 @@ async function saveModal() {
                 capacity:    document.getElementById('me_cap').value || null,
                 day_rate:    document.getElementById('me_dr').value,
                 description: document.getElementById('me_desc').value.trim() || null,
-                is_active:   document.getElementById('me_active').classList.contains('on')
+                is_active:   document.getElementById('me_active').classList.contains('on'),
+                open_time:   document.getElementById('me_open').value  || null,
+                close_time:  document.getElementById('me_close').value || null,
             };
             if (!payload.name) throw new Error('Room name is required');
             const res = await fetch(API.updateRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
             if (!res.ok) throw new Error('Update failed');
-            const openTime  = (document.getElementById('me_open')  || {}).value || '';
-            const closeTime = (document.getElementById('me_close') || {}).value || '';
-            const rh = loadRoomHours();
-            rh[modalMode.id] = { open: openTime, close: closeTime };
-            saveRoomHours(rh);
             showToast('Room updated!');
             await loadRooms();
         } else if (modalMode.type === 'event') {
@@ -1903,13 +1896,6 @@ async function saveCancellationPolicy() {
         btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Cancellation Policy';
     }
 }
-
-// ─────────────────────────────────────────────
-// ROOM HOURS (localStorage per tenant)
-// ─────────────────────────────────────────────
-function roomHoursKey()   { return 'vp_room_hours_' + (_TID() || '0'); }
-function loadRoomHours()  { try { return JSON.parse(sessionStorage.getItem(roomHoursKey()) || '{}'); } catch(e) { return {}; } }
-function saveRoomHours(d) { sessionStorage.setItem(roomHoursKey(), JSON.stringify(d)); }
 
 // ─────────────────────────────────────────────
 // SERVICES (localStorage per tenant)

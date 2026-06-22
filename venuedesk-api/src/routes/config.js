@@ -59,7 +59,8 @@ async function configRoutes(fastify) {
 
     const { rows } = await ctx(tenantId, (client) =>
       client.query(
-        `SELECT id, name, capacity, day_rate, half_rate, description, is_active
+        `SELECT id, name, capacity, day_rate, half_rate, description, is_active,
+                open_time, close_time
          FROM   bookings.rooms
          WHERE  tenant_id = $1::integer
          ORDER  BY is_active DESC, name`,
@@ -84,20 +85,25 @@ async function configRoutes(fastify) {
           day_rate:    { type: 'number',  default: 0 },
           half_rate:   { type: 'number',  default: 0 },
           description: { type: 'string',  default: '' },
+          open_time:   { type: 'string' },
+          close_time:  { type: 'string' },
         },
       },
     },
   }, async (request) => {
     const { tenantId, ctx } = resolveTenant(request);
-    const { name, capacity = 0, day_rate = 0, half_rate = 0, description = '' } = request.body;
+    const { name, capacity = 0, day_rate = 0, half_rate = 0, description = '',
+            open_time, close_time } = request.body;
 
     return ctx(tenantId, async (client) => {
       const { rows } = await client.query(
-        `INSERT INTO bookings.rooms (name, capacity, day_rate, half_rate, description, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO bookings.rooms
+           (name, capacity, day_rate, half_rate, description, open_time, close_time, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6::time, $7::time, $8)
          ON CONFLICT (name) DO NOTHING
          RETURNING *`,
-        [name.trim(), capacity, day_rate, half_rate, description, tenantId]
+        [name.trim(), capacity, day_rate, half_rate, description,
+         open_time || '08:00:00', close_time || '17:00:00', tenantId]
       );
 
       if (rows.length === 0) {
@@ -124,19 +130,23 @@ async function configRoutes(fastify) {
           half_rate:   { type: 'number' },
           description: { type: 'string' },
           is_active:   { type: 'boolean' },
+          open_time:   { type: 'string' },
+          close_time:  { type: 'string' },
         },
       },
     },
   }, async (request) => {
     const { tenantId, ctx } = resolveTenant(request);
-    const { id, name, capacity, day_rate, half_rate, description, is_active } = request.body;
+    const { id, name, capacity, day_rate, half_rate, description, is_active,
+            open_time, close_time } = request.body;
 
     assertUUID(id, 'id');
 
     return ctx(tenantId, async (client) => {
       // Load current values for COALESCE pattern
       const { rows: [current] } = await client.query(
-        `SELECT name, capacity, day_rate, half_rate, description, is_active
+        `SELECT name, capacity, day_rate, half_rate, description, is_active,
+                open_time, close_time
          FROM bookings.rooms WHERE id = $1::uuid AND tenant_id = $2`,
         [id, tenantId]
       );
@@ -149,7 +159,9 @@ async function configRoutes(fastify) {
              day_rate    = $4,
              half_rate   = $5,
              description = $6,
-             is_active   = $7
+             is_active   = $7,
+             open_time   = $9::time,
+             close_time  = $10::time
          WHERE id = $1::uuid AND tenant_id = $8::integer
          RETURNING *`,
         [
@@ -161,6 +173,8 @@ async function configRoutes(fastify) {
           description ?? current.description,
           is_active   ?? current.is_active,
           tenantId,
+          open_time   != null ? open_time   : (current.open_time  || '08:00:00'),
+          close_time  != null ? close_time  : (current.close_time || '17:00:00'),
         ]
       );
 
