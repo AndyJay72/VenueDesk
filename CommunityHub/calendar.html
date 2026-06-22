@@ -1597,8 +1597,8 @@
            the server-side clash-guard only.
            MIN_SLOT_MINS is the shortest booking that counts as "available".
         ──────────────────────────────────────────────────────────────── */
-        const VENUE_OPEN_MINS  = 8  * 60;  // 08:00
-        const VENUE_CLOSE_MINS = 22 * 60;  // 22:00
+        const VENUE_OPEN_MINS  = 8  * 60;  // 08:00 — venue-wide fallback
+        const VENUE_CLOSE_MINS = 22 * 60;  // 22:00 — venue-wide fallback
         const BUFFER_MINS      = 0;         // display layer only — buffer enforced at submission
         const MIN_SLOT_MINS    = 60;
 
@@ -1612,34 +1612,48 @@
             return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
         }
         /**
+         * Returns {open: mins, close: mins} for a room, using that room's
+         * DB-persisted open_time/close_time when set, otherwise the venue defaults.
+         */
+        function _getRoomWindow(roomName){
+            const room=qbRoomsData.find(r=>(r.name||r.room_name||r.id)===roomName);
+            const open  = room&&room.open_time  ? _toMins(room.open_time.slice(0,5))  : VENUE_OPEN_MINS;
+            const close = room&&room.close_time ? _toMins(room.close_time.slice(0,5)) : VENUE_CLOSE_MINS;
+            return {open, close};
+        }
+        /**
          * Returns true when the bookable window has no contiguous gap of
          * at least MIN_SLOT_MINS remaining after accounting for booked
          * intervals + BUFFER_MINS turnaround after each.
          * @param {Array<{start:string,end:string}>} intervals  HH:MM strings
+         * @param {string} [roomName]  When supplied, uses per-room hours
          */
-        function _isDayFull(intervals){
+        function _isDayFull(intervals,roomName){
             if(!intervals||!intervals.length)return false;
+            const win=roomName?_getRoomWindow(roomName):{open:VENUE_OPEN_MINS,close:VENUE_CLOSE_MINS};
             const sorted=[...intervals].sort((a,b)=>_toMins(a.start)-_toMins(b.start));
-            let cursor=VENUE_OPEN_MINS;
+            let cursor=win.open;
             for(const iv of sorted){
                 const s=_toMins(iv.start);
                 const e=_toMins(iv.end)+BUFFER_MINS;
                 if(s-cursor>=MIN_SLOT_MINS)return false; // gap found before this booking
                 cursor=Math.max(cursor,e);
             }
-            return (VENUE_CLOSE_MINS-cursor)<MIN_SLOT_MINS; // gap after last booking?
+            return (win.close-cursor)<MIN_SLOT_MINS; // gap after last booking?
         }
         /**
          * Returns {start:'HH:MM', end:'HH:MM'} for the next bookable slot
          * on a given date for the given room, or null if the day is full.
+         * Uses per-room operating hours when set.
          */
         function _findNextSlot(dateStr,roomName){
+            const win=_getRoomWindow(roomName);
             const intervals=((dateStatusMap[roomName]||{})[dateStr])||[];
             if(!intervals.length){
-                return{start:_fromMins(VENUE_OPEN_MINS),end:_fromMins(VENUE_OPEN_MINS+MIN_SLOT_MINS)};
+                return{start:_fromMins(win.open),end:_fromMins(win.open+MIN_SLOT_MINS)};
             }
             const sorted=[...intervals].sort((a,b)=>_toMins(a.start)-_toMins(b.start));
-            let cursor=VENUE_OPEN_MINS;
+            let cursor=win.open;
             for(const iv of sorted){
                 const s=_toMins(iv.start);
                 const e=_toMins(iv.end)+BUFFER_MINS;
@@ -1648,7 +1662,7 @@
                 }
                 cursor=Math.max(cursor,e);
             }
-            if(VENUE_CLOSE_MINS-cursor>=MIN_SLOT_MINS){
+            if(win.close-cursor>=MIN_SLOT_MINS){
                 return{start:_fromMins(cursor),end:_fromMins(cursor+MIN_SLOT_MINS)};
             }
             return null; // fully booked
@@ -1663,6 +1677,12 @@
             const av=document.getElementById('qb-availStatus');
             if(!roomName||!from||!startT||!endT){av.className='qb-avail-box qb-avail-idle';document.getElementById('qb-availText').textContent='Fill in room, date & times to check availability.';qbSetButtons(false);return;}
             if(qbIsDateBlocked(from)){av.className='qb-avail-box qb-avail-unavailable';document.getElementById('qb-availText').textContent='This date is blocked.';qbSetButtons(false);return;}
+            // ── Per-room operating hours check ────────────────────────────────
+            const win=_getRoomWindow(roomName);
+            const stMins=_toMins(startT);
+            const etMins=_toMins(endT);
+            if(stMins<win.open){av.className='qb-avail-box qb-avail-unavailable';document.getElementById('qb-availText').textContent='This room does not open until '+_fromMins(win.open)+'. Please choose a later start time.';qbSetButtons(false);return;}
+            if(etMins>win.close){av.className='qb-avail-box qb-avail-unavailable';document.getElementById('qb-availText').textContent='This room closes at '+_fromMins(win.close)+'. Please choose an earlier end time.';qbSetButtons(false);return;}
             // Also block if a pending request overlaps (with BUFFER_MINS turnaround) for this room+date
             const reqStart=_toMins(startT);
             const reqEnd=_toMins(endT);
@@ -2796,7 +2816,7 @@
                     const intervals=(dateStatusMap[roomVal]||{})[ds]||[];
                     if(!intervals.length){
                         col='var(--cal-avail-bg)'; // green — nothing booked
-                    } else if(_isDayFull(intervals)){
+                    } else if(_isDayFull(intervals,roomVal)){
                         const hasPending=intervals.some(iv=>iv.isPending);
                         col=hasPending?'var(--cal-partial-bg)':'var(--cal-full-bg)';
                     } else {
@@ -2810,7 +2830,7 @@
                         col='var(--cal-avail-bg)'; // green — no bookings at all
                     } else {
                         const bookedRooms=[...new Set(aggIntervals.map(iv=>iv.room).filter(Boolean))];
-                        const allFull=bookedRooms.length>0&&bookedRooms.every(r=>_isDayFull((dateStatusMap[r]||{})[ds]||[]));
+                        const allFull=bookedRooms.length>0&&bookedRooms.every(r=>_isDayFull((dateStatusMap[r]||{})[ds]||[],r));
                         const anyPending=aggIntervals.some(iv=>iv.isPending);
                         if(allFull){
                             col=anyPending?'var(--cal-partial-bg)':'var(--cal-full-bg)';

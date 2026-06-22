@@ -103,7 +103,7 @@ async function configRoutes(fastify) {
          ON CONFLICT (name) DO NOTHING
          RETURNING *`,
         [name.trim(), capacity, day_rate, half_rate, description,
-         open_time || '08:00:00', close_time || '17:00:00', tenantId]
+         open_time || null, close_time || null, tenantId]
       );
 
       if (rows.length === 0) {
@@ -173,8 +173,8 @@ async function configRoutes(fastify) {
           description ?? current.description,
           is_active   ?? current.is_active,
           tenantId,
-          open_time   != null ? open_time   : (current.open_time  || '08:00:00'),
-          close_time  != null ? close_time  : (current.close_time || '17:00:00'),
+          open_time  !== undefined ? (open_time  || null) : current.open_time,
+          close_time !== undefined ? (close_time || null) : current.close_time,
         ]
       );
 

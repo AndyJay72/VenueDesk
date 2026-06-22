@@ -268,9 +268,9 @@ async function customersRoutes(fastify) {
 
     return withTenantContext(tenantId, async (client) => {
       if (check_clashes) {
-        // ── Room lookup (capacity validation) ────────────────────────────
+        // ── Room lookup (capacity + operating hours validation) ───────────
         const { rows: [room] } = await client.query(
-          `SELECT id, capacity
+          `SELECT id, capacity, open_time, close_time
            FROM   bookings.rooms
            WHERE  id        = $1::uuid
              AND  tenant_id = $2::integer`,
@@ -285,6 +285,27 @@ async function customersRoutes(fastify) {
           throw badRequest(
             `guest_count ${guest_count} exceeds room capacity of ${room.capacity}`
           );
+        }
+
+        // ── Operating hours enforcement ───────────────────────────────────
+        // NULL open_time / close_time = unconstrained (venue-wide window).
+        // Comparison is HH:MM string (zero-padded = lexicographic == chronological).
+        if (room.open_time || room.close_time) {
+          const toHHMM = t => String(t).slice(0, 5);
+          const stHHMM = start_time.slice(0, 5);
+          const etHHMM = end_time.slice(0, 5);
+          if (room.open_time && stHHMM < toHHMM(room.open_time)) {
+            throw badRequest(
+              `This room does not open until ${toHHMM(room.open_time)}. ` +
+              `Please choose a start time of ${toHHMM(room.open_time)} or later.`
+            );
+          }
+          if (room.close_time && etHHMM > toHHMM(room.close_time)) {
+            throw badRequest(
+              `This room closes at ${toHHMM(room.close_time)}. ` +
+              `Please choose an end time of ${toHHMM(room.close_time)} or earlier.`
+            );
+          }
         }
 
         // ── Overlap clash check ───────────────────────────────────────────
