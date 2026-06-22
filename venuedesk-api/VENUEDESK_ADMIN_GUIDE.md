@@ -45,6 +45,11 @@ To create a room on the platform, navigate to the **Config Manager** in the dash
 | **Close Time** | No | The time the room stops being available each day (e.g. 22:00). Saved permanently to the database. Defaults to 17:00 if not set. |
 | **Description** | No | Internal notes or marketing copy for the room. |
 
+> **ℹ️ What Open Time and Close Time do — and do not do**
+> These fields are **reference information** for your team. They appear in the Rooms list so staff can see at a glance when each room is available. They are saved permanently to the database and will not be lost if the browser is closed.
+>
+> They do **not** restrict the booking calendar. The calendar allows bookings across a venue-wide operating window (08:00–22:00) regardless of what individual rooms have set. If a customer tries to book a room outside its stated hours, a staff member will need to check manually and decline if appropriate.
+
 Once saved, the room becomes immediately bookable and visible in the calendar.
 
 ---
@@ -262,6 +267,8 @@ Use this table when staff report errors during booking or when the dashboard sho
 | "Booking duration exceeds maximum allowed limit of 90 days" | 400 Bad Request | The date range spans more than 90 consecutive days | Break the booking into multiple shorter blocks (see The 90-Day Shield) |
 | "guest_count must be at least 1" | 400 Bad Request | A guest count of zero was submitted | Correct the guest count to 1 or more, or leave the field blank |
 | "end_time must be after start_time" | 422 Unprocessable | The end time is equal to or earlier than the start time | Correct the time fields |
+| Room shows 08:00–17:00 hours but I set different times | — | Open Time / Close Time were not saved previously (old browser session) | Open **Config → Rooms**, edit the room, re-enter the correct Open and Close times, and save. Times now save permanently to the database. |
+| Room hours updated but calendar still accepts bookings outside those hours | — | Open Time / Close Time are reference fields — they do not restrict the booking calendar | This is expected behaviour. The calendar uses the venue-wide window (08:00–22:00). Decline out-of-hours bookings manually. |
 | Dashboard shows blank / no data | — | Session token expired or missing claims | Log out, log back in; token will be refreshed |
 | Booking form rejects a valid UUID | 400 Bad Request | Malformed ID in the request | Reload the page and re-select the customer/room from the dropdown |
 
