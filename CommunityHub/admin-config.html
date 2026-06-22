@@ -1303,7 +1303,7 @@ async function syncServicesFromDb() {
         // Keep local entries whose IDs are not yet in the DB (pending sync)
         const localOnly = localSvcs.filter(s => !apiIds.has(String(s.id)));
         saveServicesData([...apiSvcs, ...localOnly]);
-    } catch(e) { /* fail silently — UI will show whatever is in sessionStorage */ }
+    } catch(e) { console.error('[services] sync failed:', e.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -1470,10 +1470,11 @@ async function saveModal() {
 async function softDeleteRoom(id, name) {
     if (!confirm(`Deactivate "${name}"? It won't appear in booking forms but historical data is kept.`)) return;
     try {
-        await fetch(API.deleteRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ room_id: id })) });
+        const res = await fetch(API.deleteRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ room_id: id })) });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Deactivate failed'); }
         showToast('Room deactivated');
         await loadRooms();
-    } catch(e) { showToast('Error', 'error'); }
+    } catch(e) { showToast(e.message || 'Error deactivating room', 'error'); }
 }
 
 async function restoreRoom(id, name) {
@@ -1481,13 +1482,14 @@ async function restoreRoom(id, name) {
     const r = rooms.find(x => x.id == id);
     if (!r) return;
     try {
-        await fetch(API.updateRoom, {
+        const res = await fetch(API.updateRoom, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ ...r, id, is_active: true }))
         });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Re-activate failed'); }
         showToast('Room re-activated');
         await loadRooms();
-    } catch(e) { showToast('Error', 'error'); }
+    } catch(e) { showToast(e.message || 'Error re-activating room', 'error'); }
 }
 
 // ─────────────────────────────────────────────
@@ -1577,10 +1579,11 @@ function editEventType(id) {
 async function softDeleteEventType(id, name) {
     if (!confirm(`Deactivate "${name}"?`)) return;
     try {
-        await fetch(API.deleteEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ event_type_id: id })) });
+        const res = await fetch(API.deleteEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ event_type_id: id })) });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Deactivate failed'); }
         showToast('Event type deactivated');
         await loadEventTypes();
-    } catch(e) { showToast('Error', 'error'); }
+    } catch(e) { showToast(e.message || 'Error deactivating event type', 'error'); }
 }
 
 async function restoreEventType(id, name) {
@@ -1588,13 +1591,14 @@ async function restoreEventType(id, name) {
     const et = eventTypes.find(x => x.id == id);
     if (!et) return;
     try {
-        await fetch(API.updateEventType, {
+        const res = await fetch(API.updateEventType, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({ ...et, id, is_active: true }))
         });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Re-activate failed'); }
         showToast('Event type re-activated');
         await loadEventTypes();
-    } catch(e) { showToast('Error', 'error'); }
+    } catch(e) { showToast(e.message || 'Error re-activating event type', 'error'); }
 }
 
 function closeModal() {
@@ -1610,7 +1614,12 @@ async function loadPricing() {
         const res = await fetch(API.getPricing + tidParam(), {});
         const json = await res.json();
         pricing = json.data || (Array.isArray(json) ? json : []);
-    } catch(e) { pricing = []; }
+    } catch(e) {
+        console.error('[pricing] load failed:', e.message);
+        pricing = [];
+        const wrap = document.getElementById('pricingGridWrap');
+        if (wrap) wrap.innerHTML = '<p style="color:var(--danger);padding:2rem;text-align:center"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load pricing data. Please refresh the page.</p>';
+    }
 }
 
 function renderPricingGrid() {
@@ -1912,8 +1921,22 @@ function saveServicesData(d)   { sessionStorage.setItem(servicesKey(), JSON.stri
 function _persistSvcToDb(svc) {
     if (!_TOKEN()) return;
     fetch(API.saveService, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: svc.id, name: svc.name, type: svc.type, price: svc.price, active: svc.active, jwt: _TOKEN() }) })
-        .then(r => { if (!r.ok) r.json().then(e => console.error('[services] persist failed:', e.message || r.status)).catch(() => console.error('[services] persist failed:', r.status)); })
-        .catch(e => console.error('[services] persist error:', e.message));
+        .then(r => {
+            if (!r.ok) {
+                r.json().then(e => {
+                    const msg = e.message || r.status;
+                    console.error('[services] persist failed:', msg);
+                    showToast('Service saved locally but failed to reach database — ' + msg, 'error');
+                }).catch(() => {
+                    console.error('[services] persist failed:', r.status);
+                    showToast('Service saved locally but failed to reach database', 'error');
+                });
+            }
+        })
+        .catch(e => {
+            console.error('[services] persist error:', e.message);
+            showToast('Service saved locally but failed to reach database — network error', 'error');
+        });
 }
 function _deleteSvcFromDb(id) {
     if (!_TOKEN()) return;
@@ -2064,7 +2087,7 @@ async function loadPolicyTemplates() {
             if (b) b.value = row.base_terms   || '';
             if (e) e.value = row.extra_clauses || '';
         }
-    } catch(err) { /* silent */ }
+    } catch(err) { console.error('[policy-templates] load failed:', err.message); }
 }
 
 async function savePolicyTemplate(code) {
@@ -2127,7 +2150,7 @@ async function loadPaymentSettings() {
         setVal('bacsName',   data.bacs_account_name);
         setVal('bacsSort',   data.bacs_sort_code);
         setVal('bacsNumber', data.bacs_account_number);
-    } catch(e) { /* silent on load */ }
+    } catch(e) { console.error('[payments] load failed:', e.message); }
 }
 
 function setVal(id, v) {

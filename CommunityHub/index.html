@@ -2966,7 +2966,7 @@
             confirmBtn.disabled  = false;
             document.getElementById('payMod').classList.add('open');
             // Background config load — swap button if Stripe is enabled for this tenant
-            loadPayConfig().then(cfg => setModalMode(cfg)).catch(() => {});
+            loadPayConfig().then(cfg => setModalMode(cfg)).catch(e => console.error('[pay-modal] config load failed:', e.message));
         }
 
         function closePayModal() {
@@ -3060,7 +3060,7 @@
                             },
                             source: 'dashboard',
                         })
-                    }).catch(() => {}); // intentionally non-blocking
+                    }).catch(e => console.warn('[audit-log] fire-and-forget failed:', e.message)); // intentionally non-blocking
                 } else {
                     showToast('Payment failed — please try again', 'error');
                 }
