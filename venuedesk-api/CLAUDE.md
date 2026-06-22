@@ -71,9 +71,9 @@ tests/
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/config/rooms` | List rooms for tenant |
-| POST | `/config/rooms/create` | Insert room |
-| POST | `/config/rooms/update` | Update room fields |
+| GET | `/config/rooms` | List rooms for tenant — returns `id, name, capacity, day_rate, half_rate, description, is_active, open_time, close_time` |
+| POST | `/config/rooms/create` | Insert room — accepts `open_time`, `close_time` (TIME strings, default `08:00:00`/`17:00:00`) |
+| POST | `/config/rooms/update` | Update room fields — accepts `open_time`, `close_time`; preserves existing value when omitted |
 | POST | `/config/rooms/delete` | Soft-delete (is_active = false) |
 | GET | `/config/event-types` | List event types |
 | POST | `/config/event-types/create` | Insert event type |
@@ -275,8 +275,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `023_policy_templates.sql` (June 2026 — policy_templates table + RLS)  
-**Next number:** `024`
+**Latest migration:** `024_add_room_hours.sql` (June 2026 — open_time/close_time columns on bookings.rooms)  
+**Next number:** `025`
 
 ---
 
@@ -425,4 +425,4 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 
 **Migration 022** (`022_confirmed_bookings_unique_slot.sql`) — unique partial index on
 `(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
-Closes TOCTOU race at the DB layer. Next migration number: `024`.
+Closes TOCTOU race at the DB layer. Next migration number: `025`.

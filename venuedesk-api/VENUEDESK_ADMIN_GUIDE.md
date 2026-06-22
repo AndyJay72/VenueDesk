@@ -40,8 +40,9 @@ To create a room on the platform, navigate to the **Config Manager** in the dash
 |-------|----------|--------------|
 | **Name** | Yes | The public-facing room label. Must be unique — the system will reject a duplicate name. |
 | **Capacity** | No | The maximum number of guests allowed. See the Capacity Rule below. |
-| **Day Rate** | No | Full-day hire price (used for pricing calculations). |
-| **Half Rate** | No | Half-day hire price. |
+| **Hourly Rate** | No | Hire price per hour (used for pricing calculations and the Pricing Grid). |
+| **Open Time** | No | The time the room becomes available for hire each day (e.g. 08:00). Saved permanently to the database and displayed in the Rooms list. Defaults to 08:00 if not set. |
+| **Close Time** | No | The time the room stops being available each day (e.g. 22:00). Saved permanently to the database. Defaults to 17:00 if not set. |
 | **Description** | No | Internal notes or marketing copy for the room. |
 
 Once saved, the room becomes immediately bookable and visible in the calendar.

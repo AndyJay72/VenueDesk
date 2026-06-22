@@ -1892,6 +1892,46 @@ const newSvc = { id: crypto.randomUUID(), name, type, price, active: true };
 
 ---
 
+## Pattern 18 — Always Check `res.ok` Before Showing a Success Toast
+
+**Problem:** `fetch()` does not throw on HTTP error responses (4xx/5xx). Calling it without checking `res.ok` means a failed network mutation — an n8n webhook returning 500, or a db-api route returning 400 — still runs the success toast and the follow-up `loadRooms()` / `loadEventTypes()` call. The user sees "Room deactivated" while the DB is unchanged.
+
+This was found on four functions in `admin-config.html` during the June 2026 catch-hardening audit: `softDeleteRoom`, `restoreRoom`, `softDeleteEventType`, `restoreEventType`.
+
+**Rule:** Every mutating `fetch()` call (POST, PUT, PATCH, DELETE) must check `res.ok` before declaring success. Extract the error body for the toast message:
+
+```javascript
+// WRONG — success toast fires even when n8n returns 500
+await fetch(API.deleteRoom, { method: 'POST', ... });
+showToast('Room deactivated');
+
+// CORRECT — error body propagated to user
+const res = await fetch(API.deleteRoom, { method: 'POST', ... });
+if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || e.message || 'Deactivate failed');
+}
+showToast('Room deactivated');
+```
+
+The same pattern applies to the catch clause — prefer `showToast(e.message || 'Fallback text', 'error')` over generic `showToast('Error', 'error')` so the server's error message reaches the user.
+
+---
+
+## Pattern 19 — Room Hours: DB Columns, Not sessionStorage (June 2026)
+
+**Problem:** Room open/close times were stored in `sessionStorage` under `vp_room_hours_<tenant_id>`. Three helper functions (`roomHoursKey`, `loadRoomHours`, `saveRoomHours`) wrote to and read from this key. The data was lost on every browser close, appearing as "—" in the rooms table on next login.
+
+**Fix (June 22 2026):** Migration 024 adds `open_time TIME DEFAULT '08:00:00'` and `close_time TIME DEFAULT '17:00:00'` to `bookings.rooms`. The db-api `GET /config/rooms`, `POST /config/rooms/create`, and `POST /config/rooms/update` routes now include these columns. The frontend sends them in the create/update payload and reads them from the API response.
+
+**Deleted permanently:** `roomHoursKey()`, `loadRoomHours()`, `saveRoomHours()` and the `vp_room_hours_<tid>` sessionStorage key. Zero references remain.
+
+**Data flow:** browser → n8n (full `$json.body` passthrough — no workflow change needed) → db-api `/config/rooms/create|update` → `bookings.rooms.open_time / close_time`.
+
+**Time format note:** PostgreSQL returns TIME columns as `"08:00:00"` (HH:MM:SS). Frontend slices to 5 chars (`r.open_time.slice(0, 5)`) to match the `HH:MM` values in the select dropdowns.
+
+---
+
 ## Customer Interactions — Endpoint & Workflow Reference (June 2026)
 
 ### db-api endpoints
@@ -1998,6 +2038,10 @@ One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spi
 | Cancellation policy partially saved | 3 sequential `await save()` calls; page reload aborted in-flight requests | `Promise.all([...])` makes saves atomic from the UI's perspective |
 | Pricing grid × button missing after save | `savePricingCell()` refreshed JS array but not DOM; × only appeared after tab switch | Inject `del-price-btn` into the cell immediately after successful save |
 | Policy Templates tab non-functional | n8n `get-policy-templates` / `save-policy-template` webhooks never existed (404 + no CORS headers) | Built `bookings.policy_templates` table (migration 023) + `/config/policy-templates` GET+upsert routes; wired frontend to db-api directly |
+| Muted catch blocks — false success toasts | `softDeleteRoom`, `restoreRoom`, `softDeleteEventType`, `restoreEventType` called `fetch()` without checking `res.ok`; success toast fired even on n8n error | Added `res.ok` guard + error message from server propagated into toast on all four functions |
+| Silent load failures | `loadPricing`, `syncServicesFromDb`, `loadPolicyTemplates`, `loadPaymentSettings` all had empty/comment-only catch blocks — failures invisible to devs and users | Added `console.error` to all four; `loadPricing` also renders a visible error banner in the grid |
+| `_persistSvcToDb` silent DB failure | Fire-and-forget service persist logged `console.error` on failure but showed nothing to the user | Escalated to `showToast('Service saved locally but failed to reach database', 'error')` |
+| Room open/close hours — sessionStorage-only data loss | `vp_room_hours_<tid>` written to sessionStorage only; lost on every browser close; never reached DB | Migration 024 adds `open_time`/`close_time` TIME columns to `bookings.rooms`; create/update routes accept and persist them; frontend reads from API response; `roomHoursKey`, `loadRoomHours`, `saveRoomHours` deleted |
 
 ## Payments tab — verified working (June 22 2026)
 
