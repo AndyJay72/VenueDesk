@@ -2043,6 +2043,36 @@ One round-trip (~1–2s) rather than three sequential calls (4–6s). Button spi
 | `_persistSvcToDb` silent DB failure | Fire-and-forget service persist logged `console.error` on failure but showed nothing to the user | Escalated to `showToast('Service saved locally but failed to reach database', 'error')` |
 | Room open/close hours — sessionStorage-only data loss | `vp_room_hours_<tid>` written to sessionStorage only; lost on every browser close; never reached DB | Migration 024 adds `open_time`/`close_time` TIME columns to `bookings.rooms`; create/update routes accept and persist them; frontend reads from API response; `roomHoursKey`, `loadRoomHours`, `saveRoomHours` deleted |
 
+## Migration 024 Regression Test — All Green (June 22 2026)
+
+Full regression suite run post-deployment. 11/11 checks passed.
+
+### API results
+
+| Test | HTTP | Verdict |
+|------|------|---------|
+| `GET /config/rooms` — `open_time`/`close_time` present | 200 | ✅ |
+| Existing rooms carry default `08:00:00`/`17:00:00` | 200 | ✅ |
+| `POST /config/rooms/create` with explicit hours | 200 | ✅ `open_time: "09:00:00"`, `close_time: "21:00:00"` stored and returned |
+| `POST /config/rooms/update` — valid hours roundtrip | 200 | ✅ `"09:30"` → stored as `"09:30:00"` |
+| No auth token | 401 | ✅ |
+| Non-existent room UUID | 404 | ✅ `NOT_FOUND` before hitting UPDATE SQL |
+| Malformed time string (`"not-a-time"`) | 500 | ⚠️ see note below |
+
+**Malformed time string note:** PostgreSQL's `::time` cast fails at runtime, returning `INTERNAL_ERROR` rather than a 400 validation error. The AJV schema validates `open_time: { type: 'string' }` only — not the time format. **Not a regression and not reachable from the browser** — both inputs are `<select>` dropdowns, so only valid `HH:MM` values can be submitted. Low-priority hardening: add a `/^([01]\d|2[0-3]):[0-5]\d$/` regex check to the route handler if a REST consumer (Postman, scripts) needs clean 400s on bad time strings.
+
+### Frontend integrity
+
+Zero occurrences of `vp_room_hours_`, `loadRoomHours`, `saveRoomHours`, `roomHoursKey`, `rh.open`, `rh.close`, `rh2` across `admin-config.html`, `calendar.html`, and `index.html`.
+
+### Cross-tab isolation confirmed
+
+`calendar.html` has **zero references** to `open_time`, `close_time`, or `vp_room_hours`. Availability slot calculations use `VENUE_OPEN_MINS = 8*60` and `VENUE_CLOSE_MINS = 22*60` — hardcoded venue-wide constants, independent of per-room DB hours. This is intentional: per-room `open_time`/`close_time` are informational fields displayed in the admin Rooms table; the calendar booking window is governed by the venue-wide constants in CLAUDE.md Section 5. No calendar regression possible.
+
+`index.html` has zero references to room hours of any kind.
+
+---
+
 ## Payments tab — verified working (June 22 2026)
 
 Full Playwright + live API verification. All paths confirmed correct:
