@@ -1918,17 +1918,44 @@ The same pattern applies to the catch clause — prefer `showToast(e.message || 
 
 ---
 
-## Pattern 19 — Room Hours: DB Columns, Not sessionStorage (June 2026)
+## Pattern 19 — Room Hours: DB Persistence + Full-Stack Enforcement (June 2026)
 
-**Problem:** Room open/close times were stored in `sessionStorage` under `vp_room_hours_<tenant_id>`. Three helper functions (`roomHoursKey`, `loadRoomHours`, `saveRoomHours`) wrote to and read from this key. The data was lost on every browser close, appearing as "—" in the rooms table on next login.
+### Phase 1 — DB persistence (migration 024, June 22 2026)
 
-**Fix (June 22 2026):** Migration 024 adds `open_time TIME DEFAULT '08:00:00'` and `close_time TIME DEFAULT '17:00:00'` to `bookings.rooms`. The db-api `GET /config/rooms`, `POST /config/rooms/create`, and `POST /config/rooms/update` routes now include these columns. The frontend sends them in the create/update payload and reads them from the API response.
+**Problem:** Room open/close times were stored in `sessionStorage` under `vp_room_hours_<tenant_id>`. Three helper functions (`roomHoursKey`, `loadRoomHours`, `saveRoomHours`) wrote to and read from this key. The data was lost on every browser close.
 
-**Deleted permanently:** `roomHoursKey()`, `loadRoomHours()`, `saveRoomHours()` and the `vp_room_hours_<tid>` sessionStorage key. Zero references remain.
+**Fix:** Migration 024 adds `open_time` and `close_time` TIME columns to `bookings.rooms`. `GET /config/rooms`, `POST /config/rooms/create`, and `POST /config/rooms/update` include these columns. The frontend sends them in the payload and reads them from the API response. `roomHoursKey`, `loadRoomHours`, `saveRoomHours` deleted — zero references remain.
 
-**Data flow:** browser → n8n (full `$json.body` passthrough — no workflow change needed) → db-api `/config/rooms/create|update` → `bookings.rooms.open_time / close_time`.
+**Time format note:** PostgreSQL returns TIME as `"08:00:00"` (HH:MM:SS). Frontend slices to 5 chars for the `HH:MM` dropdowns.
 
-**Time format note:** PostgreSQL returns TIME columns as `"08:00:00"` (HH:MM:SS). Frontend slices to 5 chars (`r.open_time.slice(0, 5)`) to match the `HH:MM` values in the select dropdowns.
+### Phase 2 — NULL defaults + enforcement (migration 025, June 22 2026)
+
+**Problem with 024 defaults:** Migration 024 used `DEFAULT '08:00:00'/'17:00:00'`. All existing rooms got `close_time = 17:00:00`, which would have immediately blocked all evening bookings on enforcement.
+
+**Migration 025 fix:**
+- `ALTER COLUMN open_time/close_time SET DEFAULT NULL` — new rooms without explicit hours are unconstrained
+- `UPDATE bookings.rooms SET open_time=NULL, close_time=NULL WHERE open_time='08:00:00' AND close_time='17:00:00'` — resets rooms carrying the 024 placeholder; rooms explicitly configured by a manager (different values) are left untouched
+
+**`config.js` fix:** Create now stores `open_time || null` (was `|| '08:00:00'`). Update uses `open_time !== undefined ? (open_time || null) : current.open_time` — blank select field clears to NULL rather than triggering a `::time` cast error.
+
+**`bookings.js` enforcement:** Room SELECT now fetches `open_time, close_time`. After capacity check, if either column is NOT NULL:
+```javascript
+const toHHMM = t => String(t).slice(0, 5);
+if (room.open_time  && start_time.slice(0,5) < toHHMM(room.open_time))
+  throw badRequest(`This room does not open until ${toHHMM(room.open_time)}. ...`);
+if (room.close_time && end_time.slice(0,5)   > toHHMM(room.close_time))
+  throw badRequest(`This room closes at ${toHHMM(room.close_time)}. ...`);
+```
+Returns HTTP 400. NULL = unconstrained (venue-wide window applies). Comparison is HH:MM zero-padded string — lexicographic == chronological.
+
+**`calendar.html` UX layer:**
+- `_getRoomWindow(roomName)` — looks up room in `qbRoomsData`; returns `{open, close}` in minutes using DB hours when NOT NULL, falls back to `VENUE_OPEN_MINS`/`VENUE_CLOSE_MINS` (08:00/22:00) when NULL
+- `qbCheckAvailability` — checks per-room window before calling the server; shows "This room does not open until HH:MM" / "closes at HH:MM" in the availability box
+- `_isDayFull(intervals, roomName)` and `_findNextSlot(dateStr, roomName)` — both use `_getRoomWindow`; day-full colouring and next-slot suggestions respect per-room hours
+
+**Note on error code:** Hours violations return HTTP 400 with the correct human-readable message. The JSON `code` field shows `INTERNAL_ERROR` due to how the error handler classifies non-AJV `badRequest()` throws from inside `withTenantContext` — this is a pre-existing code-mapping quirk in `errorHandler.js`, not a regression. HTTP status is correct.
+
+**Data flow:** browser → n8n (full `$json.body` passthrough) → db-api `/config/rooms/create|update` → `bookings.rooms.open_time / close_time`.
 
 ---
 

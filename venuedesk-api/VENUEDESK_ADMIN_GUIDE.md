@@ -41,14 +41,16 @@ To create a room on the platform, navigate to the **Config Manager** in the dash
 | **Name** | Yes | The public-facing room label. Must be unique — the system will reject a duplicate name. |
 | **Capacity** | No | The maximum number of guests allowed. See the Capacity Rule below. |
 | **Hourly Rate** | No | Hire price per hour (used for pricing calculations and the Pricing Grid). |
-| **Open Time** | No | The time the room becomes available for hire each day (e.g. 08:00). Saved permanently to the database and displayed in the Rooms list. Defaults to 08:00 if not set. |
-| **Close Time** | No | The time the room stops being available each day (e.g. 22:00). Saved permanently to the database. Defaults to 17:00 if not set. |
+| **Open Time** | No | The earliest time this room can be booked each day (e.g. 09:00). Leave blank for no restriction — the venue-wide window (08:00–22:00) applies. Saved permanently to the database. |
+| **Close Time** | No | The latest time a booking in this room can end each day (e.g. 17:00). Leave blank for no restriction. Saved permanently to the database. |
 | **Description** | No | Internal notes or marketing copy for the room. |
 
-> **ℹ️ What Open Time and Close Time do — and do not do**
-> These fields are **reference information** for your team. They appear in the Rooms list so staff can see at a glance when each room is available. They are saved permanently to the database and will not be lost if the browser is closed.
+> **⚠️ Open Time and Close Time are enforced**
+> When set, these fields restrict when the room can be booked. A booking request with a start time before the room's Open Time, or an end time after its Close Time, will be **automatically rejected** with a clear error message — both in the calendar's booking form and at the system level.
 >
-> They do **not** restrict the booking calendar. The calendar allows bookings across a venue-wide operating window (08:00–22:00) regardless of what individual rooms have set. If a customer tries to book a room outside its stated hours, a staff member will need to check manually and decline if appropriate.
+> **Leave both fields blank** if you want the room available across the full venue operating window (08:00–22:00). Blank means no per-room restriction, not "defaults to 08:00–17:00".
+>
+> **To remove a restriction:** open Config → Rooms, edit the room, clear both time fields, and save. The room immediately becomes available for the full venue window again.
 
 Once saved, the room becomes immediately bookable and visible in the calendar.
 
@@ -267,8 +269,9 @@ Use this table when staff report errors during booking or when the dashboard sho
 | "Booking duration exceeds maximum allowed limit of 90 days" | 400 Bad Request | The date range spans more than 90 consecutive days | Break the booking into multiple shorter blocks (see The 90-Day Shield) |
 | "guest_count must be at least 1" | 400 Bad Request | A guest count of zero was submitted | Correct the guest count to 1 or more, or leave the field blank |
 | "end_time must be after start_time" | 422 Unprocessable | The end time is equal to or earlier than the start time | Correct the time fields |
-| Room shows 08:00–17:00 hours but I set different times | — | Open Time / Close Time were not saved previously (old browser session) | Open **Config → Rooms**, edit the room, re-enter the correct Open and Close times, and save. Times now save permanently to the database. |
-| Room hours updated but calendar still accepts bookings outside those hours | — | Open Time / Close Time are reference fields — they do not restrict the booking calendar | This is expected behaviour. The calendar uses the venue-wide window (08:00–22:00). Decline out-of-hours bookings manually. |
+| "This room does not open until HH:MM" | 400 Bad Request | Booking start time is before the room's configured Open Time | Adjust the start time to be at or after the room's Open Time, or clear the room's hours in Config → Rooms to remove the restriction |
+| "This room closes at HH:MM" | 400 Bad Request | Booking end time is after the room's configured Close Time | Adjust the end time to be at or before the room's Close Time, or clear the room's hours in Config → Rooms to remove the restriction |
+| Room shows 08:00–17:00 hours but those weren't intentionally set | — | Old placeholder values from a system update — not manually configured | Open **Config → Rooms**, edit the room, clear both time fields, and save. The room will revert to the full venue window with no per-room restriction. |
 | Dashboard shows blank / no data | — | Session token expired or missing claims | Log out, log back in; token will be refreshed |
 | Booking form rejects a valid UUID | 400 Bad Request | Malformed ID in the request | Reload the page and re-select the customer/room from the dropdown |
 
