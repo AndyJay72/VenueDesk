@@ -1180,6 +1180,42 @@ db-api hop because the body-tunnel fallback isn't reliable for `$json`-construct
 
 ---
 
+## Rule F7 — localStorage vs sessionStorage Key Policy
+
+**Problem:** Auth/identity keys written to `localStorage` persist indefinitely across browser
+sessions. If a shared or public computer is used, a subsequent user can read `vp_token` from
+`localStorage` and access the dashboard without logging in. Multiple pages were found writing
+JWT tokens and tenant context to `localStorage` instead of `sessionStorage`.
+
+**Rule:** Auth and identity keys MUST use `sessionStorage`. UI preference keys MAY use
+`localStorage` (they are not security-sensitive and persisting across browser sessions is the
+intended behaviour).
+
+| Key | Storage | Why |
+|-----|---------|-----|
+| `vp_token` | **sessionStorage** | JWT — must not outlive browser session |
+| `vp_user` | **sessionStorage** | User object including role/tenant |
+| `vp_tenant_id` | **sessionStorage** | Tenant context |
+| `vp_venue_id` | **sessionStorage** | Alias for tenant_id |
+| `vp_venue_name` | **sessionStorage** | Displayed name — part of identity |
+| `vp_user_name` | **sessionStorage** | Staff display name |
+| `vd_admin_auth` | **sessionStorage** | Onboarding admin key gate |
+| `vp_sidebar_col` | localStorage | UI preference — intentional persistence |
+| `vp_theme` | localStorage | UI preference — intentional persistence |
+| `vp_light_mode` | localStorage | UI preference — intentional persistence |
+| `vp_sidebar_collapsed` | localStorage | UI preference — intentional persistence |
+
+**Audit status (June 23 2026):** All live root files scanned. Every auth/identity key now
+uses `sessionStorage`. UI preference keys remain in `localStorage` — this is correct.
+Files confirmed clean: `index.html`, `calendar.html`, `customers.html`, `accounts.html`,
+`users.html`, `admin-config.html`, `final-payment.html`, `onboarding.html`,
+`manual-booking.html`, `recurring-bookings.html`.
+
+`CommunityHub/preview/` and `CommunityHub/spa/` still contain the old pattern — these are
+archive/preview files, not live, and do not need fixing.
+
+---
+
 # 🔧 Skills & Operating Procedures
 
 ---
@@ -1768,6 +1804,28 @@ UNIQUE (tenant_id, code) key, RLS enforced + forced, `venuedesk_app` granted CRU
 param and reads `json.data[]`; `savePolicyTemplate` sends `jwt: _TOKEN()` in body.
 Verified: all three templates (A/B/C) save and reload correctly; empty-base guard works.
 
+## 5. localStorage → sessionStorage Migration Audit ✅ DONE (June 23 2026)
+
+Full audit of all live HTML pages (repo root) for auth/identity keys incorrectly stored in
+`localStorage`. See **Rule F7** for the definitive key → storage mapping.
+
+**Pages fixed across June 22–23 2026 sessions:**
+
+| File | Keys migrated | Other fixes |
+|------|--------------|-------------|
+| `customers.html` | `vp_token`, `vp_user`, `vp_tenant_id` etc. | CORS auth pattern |
+| `accounts.html` | `vp_token`, `vp_user`, `vp_tenant_id` etc. | CORS auth pattern |
+| `users.html` | `vp_token`, `vp_user` | — |
+| `admin-config.html` | `vp_token`, `vp_user` | — |
+| `final-payment.html` | `vp_token`, `vp_user` | Added jwt+tenant_id to both fetch calls |
+| `onboarding.html` | `vd_admin_auth` | Auth gate now expires on browser close |
+
+**Pages confirmed clean (no auth-key localStorage):** `index.html`, `calendar.html`,
+`manual-booking.html`, `recurring-bookings.html`, `userguide.html`.
+
+`vp_sidebar_col`, `vp_theme`, `vp_light_mode`, `vp_sidebar_collapsed` remain in
+`localStorage` — this is intentional (UI preferences, not security-sensitive).
+
 ---
 
 ## Pattern 13 — n8n `neverError: true` Silently Masks db-api Failures
@@ -2153,11 +2211,63 @@ Full Playwright + live API verification. All paths confirmed correct:
 
 ---
 
+# 🧾 final-payment.html — Page Reference (June 23 2026)
+
+**File:** `final-payment.html` (root) + `CommunityHub/final-payment.html` (mirror)
+**Purpose:** Staff-facing balance collection page — loads outstanding invoices, allows partial or full payment recording.
+
+## Auth pattern
+
+Uses `_FP_*` helper constants at top of `<script>` block:
+```javascript
+const _FP_TID   = () => sessionStorage.getItem('vp_tenant_id') || '0';
+const _FP_TOKEN = () => sessionStorage.getItem('vp_token') || '';
+const _FP_STAFF = () => sessionStorage.getItem('vp_user_name') || 'Staff';
+const _FP_UID   = () => { try { const u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; } catch(e) { return null; } };
+```
+
+## n8n webhooks
+
+| Direction | URL | Auth |
+|-----------|-----|------|
+| GET outstanding invoices | `n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings` | `?tenant_id=<tid>&jwt=<token>` query params |
+| POST pay balance | `n8n.srv1090894.hstgr.cloud/webhook/pay-balance` | `jwt` + `tenant_id` in POST body |
+
+Both webhooks go to n8n (not db-api). Apply Pattern 4 body-tunnel for jwt because the browser cannot send `Authorization` headers cross-origin.
+
+## Security gatekeeper
+```javascript
+if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+```
+Add the full Rule F4 JWT claim validation IIFE if this page is hardened further.
+
+---
+
 # ⚠️ Pending Items — Security & Correctness
 
 ## 1. Remove PostgreSQL host port binding (pre-existing)
 
 See original pending item — `ports: "5432:5432"` in docker-compose.yml exposes PostgreSQL on the host. Remove in production.
+
+---
+
+## 2. Tenant Lifecycle & CRM Dashboard — Planned Next (June 24 2026)
+
+**Scope:** Transform `onboarding.html` + `n8n-workflows/OnboardingManager.json` from a basic
+setup utility into a comprehensive **Tenant Lifecycle & CRM Dashboard**.
+
+Current state: `onboarding.html` is a minimal admin tool — admin key gate, venue list,
+basic venue creation. `OnboardingManager.json` is the backing n8n workflow.
+
+**Planned additions (to be scoped at session start):**
+- Tenant list with search/filter and health/status indicators
+- Onboarding progress tracking per tenant
+- Contact / CRM history per tenant
+- Subscription / billing state display
+- Admin actions: activate, suspend, reset password, impersonate
+
+**Constraint:** Static site rule applies — vanilla JS only, no framework.
+Auth gate: `vd_admin_auth` (already migrated to sessionStorage June 23 2026).
 
 ---
 
