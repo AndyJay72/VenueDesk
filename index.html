@@ -3845,6 +3845,7 @@
         function renderActivityFeed() {
             const list = document.getElementById('act-feed-list');
             const navEl = document.getElementById('act-feed-nav');
+            if (!list || !navEl) return;
             const totalPages = Math.max(1, Math.ceil(actEvents.length / ACT_PAGE_SIZE));
             if (actPage > totalPages) actPage = totalPages;
             const slice = actEvents.slice((actPage - 1) * ACT_PAGE_SIZE, actPage * ACT_PAGE_SIZE);
@@ -3868,9 +3869,12 @@
                 </div>`;
             }).join('');
             navEl.style.display = actEvents.length > ACT_PAGE_SIZE ? 'flex' : 'none';
-            document.getElementById('act-page-info').innerText = `Page ${actPage} of ${totalPages} (${actEvents.length} events)`;
-            document.getElementById('act-prev').disabled = actPage === 1;
-            document.getElementById('act-next').disabled = actPage === totalPages;
+            const pageInfo = document.getElementById('act-page-info');
+            const prevBtn  = document.getElementById('act-prev');
+            const nextBtn  = document.getElementById('act-next');
+            if (pageInfo) pageInfo.innerText = `Page ${actPage} of ${totalPages} (${actEvents.length} events)`;
+            if (prevBtn)  prevBtn.disabled = actPage === 1;
+            if (nextBtn)  nextBtn.disabled = actPage === totalPages;
         }
         function changeActPage(dir) { actPage += dir; renderActivityFeed(); }
         async function loadActivityFeed() {
