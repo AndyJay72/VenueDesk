@@ -61,6 +61,7 @@
         .type-email{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
         .type-membership{background:rgba(236,72,153,0.15);color:#ec4899;border:1px solid rgba(236,72,153,0.3)}
         .type-other{background:rgba(148,163,184,0.1);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)}
+        .type-invoice{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
         .type-recurring{background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.4)}
         .method-badge{padding:3px 8px;border-radius:8px;font-size:0.7rem;font-weight:600;background:rgba(0,0,0,0.3);border:1px solid var(--border);text-transform:capitalize}
         .pagination{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-top:1px solid var(--border)}
@@ -613,7 +614,8 @@
             </div>
         </header>
         <div class="filter-row">
-            <input type="text" id="f-search" class="f-input" placeholder="Search customer, room, ref..." oninput="applyFilters()" style="flex:1;min-width:180px">
+            <input type="text" id="f-search" class="f-input" placeholder="Search customer, room, ref, staff..." oninput="applyFilters()" style="flex:1;min-width:180px">
+            <input type="text" id="f-actor" class="f-input" placeholder="Filter by staff..." oninput="applyFilters()" style="min-width:140px;max-width:170px">
             <input type="date" id="f-from" class="f-input" title="From" onchange="applyFilters()">
             <input type="date" id="f-to" class="f-input" title="To" onchange="applyFilters()">
             <select id="f-type" class="f-select" onchange="applyFilters()">
@@ -644,7 +646,7 @@
         <div class="table-wrap">
             <div class="table-inner">
                 <table>
-                    <thead><tr><th>Date &amp; Time</th><th>Customer</th><th>Room</th><th>Type</th><th>Details</th><th>Amount</th><th>Series / Ref</th></tr></thead>
+                    <thead><tr><th>Date &amp; Time</th><th>Customer</th><th>Room</th><th>Type</th><th>Details</th><th>Staff</th><th>Amount</th><th>Series / Ref</th></tr></thead>
                     <tbody id="log-tbody"><tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</td></tr></tbody>
                 </table>
             </div>
@@ -691,7 +693,7 @@
             email:              { cls:'type-email',            label:'Email',             icon:'fa-envelope' },
             membership:         { cls:'type-membership',       label:'Membership',        icon:'fa-id-card' },
             series_created:     { cls:'type-recurring',        label:'Series Created',    icon:'fa-file-contract' },
-            invoice_generated:  { cls:'type-deposit',          label:'Invoice Generated', icon:'fa-file-invoice-dollar' },
+            invoice_generated:  { cls:'type-invoice',          label:'Invoice Due',       icon:'fa-file-invoice-dollar' },
             // interaction_type values written by the new DB: Log * Interaction nodes
             booking_confirmed:  { cls:'type-booking',          label:'Booking Confirmed', icon:'fa-calendar-check' },
             booking_cancelled:  { cls:'type-refund',           label:'Booking Cancelled', icon:'fa-calendar-xmark' },
@@ -753,15 +755,17 @@
             }
             return rows.filter(r => !drop.has(r));
         }
-        function clearFilters(){document.getElementById('f-search').value='';document.getElementById('f-from').value='';document.getElementById('f-to').value='';document.getElementById('f-type').value='';document.getElementById('f-method').value='';applyFilters();}
+        function clearFilters(){document.getElementById('f-search').value='';document.getElementById('f-from').value='';document.getElementById('f-to').value='';document.getElementById('f-type').value='';document.getElementById('f-method').value='';document.getElementById('f-actor').value='';applyFilters();}
         function applyFilters(){
             const q=(document.getElementById('f-search').value||'').toLowerCase();
             const from=document.getElementById('f-from').value;
             const to=document.getElementById('f-to').value;
             const typ=document.getElementById('f-type').value;
             const meth=document.getElementById('f-method').value;
+            const actor=(document.getElementById('f-actor').value||'').toLowerCase();
             filtered=allTx.filter(t=>{
-                if(q&&![(t.customer_name||''),(t.room_name||''),(t.ref||''),(t.customer_email||''),(t.details||'')].join(' ').toLowerCase().includes(q))return false;
+                if(q&&![(t.customer_name||''),(t.room_name||''),(t.ref||''),(t.customer_email||''),(t.details||''),(t.staff_member||''),(t.actor||'')].join(' ').toLowerCase().includes(q))return false;
+                if(actor&&![(t.staff_member||''),(t.actor||''),(t.performed_by||'')].join(' ').toLowerCase().includes(actor))return false;
                 const d=(t.ts||'').slice(0,10);
                 if(from&&d<from)return false;
                 if(to&&d>to)return false;
@@ -808,12 +812,17 @@
                 } else {
                     refCell = `<span style="font-family:monospace;font-size:0.78rem;color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;" title="${t.ref||''}">${t.ref||'—'}</span>`;
                 }
+                const actorName = t.staff_member || t.actor || t.performed_by || '';
+                const actorCell = actorName
+                    ? `<span style="font-size:0.78rem;color:#a5b4fc;display:inline-flex;align-items:center;gap:4px;white-space:nowrap"><i class="fa-solid fa-user" style="font-size:0.65rem;opacity:0.7"></i>${actorName}</span>`
+                    : `<span style="color:var(--text-muted);font-size:0.78rem;">—</span>`;
                 return `<tr>
                     <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap">${dateStr}</td>
                     <td>${custCell}</td>
                     <td style="font-size:0.85rem">${t.room_name||'—'}</td>
                     <td><span class="type-pill ${cfg.cls}"><i class="fa-solid ${cfg.icon}" style="margin-right:4px"></i>${cfg.label}</span></td>
                     <td style="font-size:0.83rem;color:var(--text-muted)">${t.details||'—'}</td>
+                    <td>${actorCell}</td>
                     <td>${amountCell}</td>
                     <td>${refCell}</td>
                 </tr>`;
@@ -825,11 +834,11 @@
         function changePage(dir){page+=dir;render();}
         function exportCSV(){
             if(!filtered.length){alert('No data to export.');return;}
-            const cols=['Date & Time','Customer','Email','Room','Type','Details','Amount (GBP)','Ref / Subject'];
+            const cols=['Date & Time','Customer','Email','Room','Type','Details','Staff','Amount (GBP)','Ref / Subject'];
             const esc=v=>{const s=String(v==null?'':v).replace(/"/g,'""');return /[",\n\r]/.test(s)?`"${s}"`:s;};
             const rows=filtered.map(t=>{
                 const dateStr=t.ts?(()=>{try{return new Date(t.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return t.ts;}})():'';
-                return [dateStr,t.customer_name||'',t.customer_email||'',t.room_name||'',t.type||'',t.details||'',parseFloat(t.amount||0).toFixed(2),t.ref||''].map(esc).join(',');
+                return [dateStr,t.customer_name||'',t.customer_email||'',t.room_name||'',t.type||'',t.details||'',t.staff_member||t.actor||'',parseFloat(t.amount||0).toFixed(2),t.ref||''].map(esc).join(',');
             });
             const csv=[cols.map(esc).join(','),...rows].join('\r\n');
             const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});

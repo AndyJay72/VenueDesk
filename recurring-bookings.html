@@ -1416,6 +1416,8 @@ function mpRenderCard(s) {
                         <div class="mp-fin-lbl">Status</div>
                         <div class="mp-fin-val" style="font-size:.82rem;">${isOverdue ? '<span style="color:#f87171">Overdue</span>' : isPeriodPaid ? '<span style="color:#34d399">Paid up</span>' : canPay ? '<span style="color:#fbbf24">Unpaid</span>' : '<span style="color:#94a3b8;">—</span>'}</div>
                     </div>
+                    ${parseFloat(s.total_paid||0) > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Paid to Date</div><div class="mp-fin-val" style="color:#34d399">${mpFmt(parseFloat(s.total_paid))}</div></div>` : ''}
+                    ${(ratePS > 0 && total > 0) ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Contract Value</div><div class="mp-fin-val" style="color:var(--text-muted)">${mpFmt(ratePS * total)}</div></div>` : monthlyRate > 0 && parseInt(s.total_cycles||0) > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Contract Value</div><div class="mp-fin-val" style="color:var(--text-muted)">${mpFmt(monthlyRate * parseInt(s.total_cycles))}</div></div>` : ''}
                 </div>
                 ${outstandingStrip}
             </div>
@@ -1643,7 +1645,8 @@ async function mpCancelSeries(ruleId, customerName) {
             body: JSON.stringify({
                 series_id:    ruleId,
                 performed_by,
-                jwt:          sessionStorage.getItem('vp_token') || ''
+                jwt:          sessionStorage.getItem('vp_token') || '',
+                user_id:      (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; }catch(e){ return null; } })()
             })
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1722,7 +1725,10 @@ async function mpSubmitPayment() {
             session_price:      _mpPayData.sessionPrice     || 0,
             sessions_per_cycle: _mpPayData.sessionsPerCycle || 4,
             tenant_id:          parseInt(_TID()),
-            performed_by:       (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })()
+            jwt:                sessionStorage.getItem('vp_token') || '',
+            staff_member:       (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.full_name||u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })(),
+            user_id:            (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; }catch(e){ return null; } })(),
+            performed_by:       (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.full_name||u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })()
         };
         const res = await fetch(REC_PAYMENT_URL, {
             method:'POST', headers:{'Content-Type':'application/json'},

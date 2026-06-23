@@ -1140,14 +1140,16 @@
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        jwt:         sessionStorage.getItem('vp_token') || '',
-                        tenant_id:   parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
-                        booking_id:  _bid,
-                        customer_id: _payBooking.customer_id || '',
-                        amount:      amount,
-                        description: `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
-                        success_url: _successUrl,
-                        cancel_url:  window.location.href,
+                        jwt:          sessionStorage.getItem('vp_token') || '',
+                        tenant_id:    parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
+                        booking_id:   _bid,
+                        customer_id:  _payBooking.customer_id || '',
+                        amount:       amount,
+                        description:  `Payment — ${_payBooking.customer_name || ''} · £${amount.toFixed(2)}`,
+                        success_url:  _successUrl,
+                        cancel_url:   window.location.href,
+                        staff_member: (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.full_name||u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })(),
+                        user_id:      (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; }catch(e){ return null; } })(),
                     })
                 });
                 const j = await res.json();

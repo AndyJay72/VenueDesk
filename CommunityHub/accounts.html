@@ -1443,6 +1443,12 @@
                     })
                     .reduce((sum, t) => sum + parseFloat(t.amount||0), 0)
             );
+            // Zero-state guard — show message instead of a meaningless flat line
+            if (totals.every(v => v === 0)) {
+                const canvasWrap = document.getElementById('trendChart').parentElement;
+                canvasWrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;gap:8px"><i class="fa-solid fa-chart-line"></i> No payment data in the last 6 months</div>';
+                return;
+            }
             const ctx = document.getElementById('trendChart').getContext('2d');
             const grad = ctx.createLinearGradient(0, 0, 0, 180);
             grad.addColorStop(0, 'rgba(99,102,241,0.45)');
@@ -1520,6 +1526,13 @@
             roomsChartMonth += delta;
             if (roomsChartMonth > 12) { roomsChartMonth = 1;  roomsChartYear++; }
             if (roomsChartMonth < 1)  { roomsChartMonth = 12; roomsChartYear--; }
+            // Cap at current month — no point navigating into the future
+            const _now = new Date();
+            if (roomsChartYear > _now.getFullYear() ||
+               (roomsChartYear === _now.getFullYear() && roomsChartMonth > _now.getMonth() + 1)) {
+                roomsChartYear  = _now.getFullYear();
+                roomsChartMonth = _now.getMonth() + 1;
+            }
             loadRoomsChart();
         }
     
