@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
-        if (!localStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+        if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
     </script>
 
     <style>
@@ -497,9 +497,14 @@
     <script>
         const API_URL = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-customers';
 
-        function getAuthHeaders() {
-            return { 'Authorization': 'Bearer ' + (localStorage.getItem('vp_token') || '') };
-        }
+        // Pattern 4 / Rule F6 — CORS prevents Authorization headers from the browser.
+        // Auth travels via body.jwt (POST) or ?tenant_id= (GET, n8n uses service JWT internally).
+        function getAuthHeaders() { return {}; }
+        function _TID()       { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+        function tidParam(sep){ return (sep||'?') + 'tenant_id=' + _TID(); }
+        function _TOKEN()     { return sessionStorage.getItem('vp_token') || ''; }
+        function _USER_NAME() { return sessionStorage.getItem('vp_user_name') || 'Staff Member'; }
+        function _getUserId() { try { var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; } catch(e) { return null; } }
         function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 
@@ -515,7 +520,7 @@
             sidebar.classList.remove('active');
             if (overlay) overlay.classList.remove('active');
         }
-        function logout() { if(confirm("Log out?")) { localStorage.removeItem('vp_token'); window.location.href='login.html'; } }
+        function logout() { if(confirm("Log out?")) { sessionStorage.removeItem('vp_token'); window.location.href='login.html'; } }
 
         const BOOKINGS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
         const fmtCur = n => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
@@ -528,7 +533,11 @@
             const tbody   = document.getElementById('bh-tbody');
             loading.style.display = 'block'; stats.style.display = 'none'; tableW.style.display = 'none'; empty.style.display = 'none';
             try {
-                const res  = await fetch(BOOKINGS_API, { headers: getAuthHeaders() });
+                const res  = await fetch(BOOKINGS_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jwt: _TOKEN(), tenant_id: parseInt(_TID()) })
+                });
                 const json = await res.json();
                 const all  = json.data || (Array.isArray(json) ? json : []);
                 const mine = all.filter(b => (b.customer_email || b.email || '').toLowerCase() === (email || '').toLowerCase());
@@ -595,7 +604,11 @@
 
         async function loadData() {
             try {
-                const response = await fetch(API_URL, { headers: getAuthHeaders() });
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jwt: _TOKEN(), tenant_id: parseInt(_TID()) })
+                });
                 if (!response.ok) throw new Error("API Error");
                 const json = await response.json();
                 const customers = json.data || (Array.isArray(json) ? json : []); 
@@ -713,7 +726,7 @@
             const type = document.getElementById('interaction-type').value;
             const notes = document.getElementById('interaction-notes').value;
             const timestamp = new Date().toISOString();
-            const staffMember = localStorage.getItem('vp_user_name') || 'Staff Member';
+            const staffMember = _USER_NAME();
             
             const interactionData = {
                 customer_id: currentCustomerData.customer.id,
@@ -738,11 +751,13 @@
                 
                 const response = await fetch(INTERACTIONS_API, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...getAuthHeaders()
-                    },
-                    body: JSON.stringify(interactionData)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...interactionData,
+                        jwt:       _TOKEN(),
+                        tenant_id: parseInt(_TID()),
+                        user_id:   _getUserId()
+                    })
                 });
                 
                 if (!response.ok) throw new Error('Failed to save interaction');
@@ -771,9 +786,7 @@
             noInteractionsEl.style.display = 'none';
             
             try {
-                const response = await fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}`, {
-                    headers: getAuthHeaders()
-                });
+                const response = await fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}`);
                 
                 if (!response.ok) throw new Error('Failed to load interactions');
                 
@@ -821,9 +834,7 @@
             const email = document.getElementById('m-email').innerText;
             const customerName = document.getElementById('m-name').innerText;
             
-            fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}`, {
-                headers: getAuthHeaders()
-            })
+            fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}`)
             .then(res => res.json())
             .then(json => {
                 const interactions = json.data || (Array.isArray(json) ? json : []);
