@@ -609,12 +609,13 @@
         const ROOMS_API    = BASE_API + '/get-rooms';
         const PRICING_API  = BASE_API + '/get-pricing';
 
-        function getAuthHeaders() {
-            return {
-                'Authorization': 'Bearer ' + (sessionStorage.getItem('vp_token') || ''),
-                'X-Tenant-ID': sessionStorage.getItem('vp_tenant_id') || ''
-            };
-        }
+        // Pattern 4 / Rule F6 — no Authorization / X-Tenant-ID headers from browser (CORS preflight).
+        // Auth travels via body.jwt (POST); tenant scoping via ?tenant_id= (GET).
+        function getAuthHeaders() { return {}; }
+        function _VP_TID()    { return sessionStorage.getItem('vp_tenant_id') || '0'; }
+        function _VP_TOKEN()  { return sessionStorage.getItem('vp_token') || ''; }
+        function _VP_STAFF()  { return sessionStorage.getItem('vp_user_name') || 'Staff'; }
+        function _VP_UID()    { try { var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; } catch(e) { return null; } }
 
         
         let requestsData = [];
@@ -652,8 +653,8 @@
         async function loadRoomsAndPricing() {
             try {
                 const [rRes, pRes] = await Promise.all([
-                    fetch(ROOMS_API,   { headers: getAuthHeaders() }),
-                    fetch(PRICING_API, { headers: getAuthHeaders() })
+                    fetch(ROOMS_API   + '?tenant_id=' + _VP_TID()),
+                    fetch(PRICING_API + '?tenant_id=' + _VP_TID())
                 ]);
                 const rJson = await rRes.json();
                 let pJson = {}; try { pJson = await pRes.json(); } catch(e) {}
@@ -694,7 +695,7 @@
 
         async function loadRequests() {
             try {
-                const response = await fetch(REQUESTS_API, { headers: getAuthHeaders() });
+                const response = await fetch(REQUESTS_API + '?tenant_id=' + _VP_TID());
                 const json = await response.json();
                 requestsData = json.data || (Array.isArray(json) ? json : []);
                 
@@ -919,8 +920,8 @@
                 try {
                     const res = await fetch(CHECK_API, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                        body: JSON.stringify({ roomName: room, eventDate: dateFrom, dateTo: toDate, timeFrom: start, timeTo: end })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomName: room, eventDate: dateFrom, dateTo: toDate, timeFrom: start, timeTo: end, tenant_id: parseInt(_VP_TID()) })
                     });
                     const d = await res.json();
                     if (d.available === true || d.available === 'true') {
@@ -994,12 +995,13 @@
             try {
                 const avRes = await fetch(CHECK_API, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        roomName: document.getElementById('roomName').value,
+                        roomName:  document.getElementById('roomName').value,
                         eventDate: document.getElementById('dateFrom').value,
-                        timeFrom: document.getElementById('startTime').value,
-                        timeTo: document.getElementById('endTime').value
+                        timeFrom:  document.getElementById('startTime').value,
+                        timeTo:    document.getElementById('endTime').value,
+                        tenant_id: parseInt(_VP_TID())
                     })
                 });
                 const avData = await avRes.json();
@@ -1037,8 +1039,14 @@
             try {
                 const res = await fetch(BOOKING_API, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify(payload)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...payload,
+                        jwt:          _VP_TOKEN(),
+                        tenant_id:    parseInt(_VP_TID()),
+                        staff_member: _VP_STAFF(),
+                        user_id:      _VP_UID()
+                    })
                 });
 
                 if (res.ok) {

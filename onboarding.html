@@ -1224,11 +1224,12 @@ function closeVenueDetail() {
 
 // Pre-authenticate as this venue and open the target VenueDesk page
 function connectToPage(tenantId, venueName, fullName, page) {
-  localStorage.setItem('vp_tenant_id',  tenantId);
-  localStorage.setItem('vp_venue_id',   tenantId);
-  localStorage.setItem('vp_venue_name', venueName);
-  localStorage.setItem('vp_token',      AUTH);
-  localStorage.setItem('vp_user',       JSON.stringify({ name: fullName || venueName, role: 'admin' }));
+  // vp_* session keys go to sessionStorage — that's where the rest of the app reads them
+  sessionStorage.setItem('vp_tenant_id',  tenantId);
+  sessionStorage.setItem('vp_venue_id',   tenantId);
+  sessionStorage.setItem('vp_venue_name', venueName);
+  sessionStorage.setItem('vp_token',      AUTH);
+  sessionStorage.setItem('vp_user',       JSON.stringify({ name: fullName || venueName, role: 'admin' }));
   window.open(page, '_blank');
   showToast(`Connecting to ${page.replace('.html','')} for "${venueName}"…`, 'success');
 }

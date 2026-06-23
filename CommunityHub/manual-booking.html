@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        if (!localStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+        if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
     
         function toggleSidebarCollapse(){
             const col=document.body.classList.toggle('sidebar-collapsed');
@@ -573,20 +573,20 @@
     <script>
         function logout() {
             if (confirm("Are you sure you want to log out?")) {
-                localStorage.removeItem('vp_token');
-                localStorage.removeItem('vp_user');
+                sessionStorage.removeItem('vp_token');
+                sessionStorage.removeItem('vp_user');
                 window.location.href = 'login.html';
             }
         }
 
         const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-        const _MB_TID     = localStorage.getItem('vp_tenant_id') || '';
+        const _MB_TID     = sessionStorage.getItem('vp_tenant_id') || '';
         const BOOKING_API   = BASE_API + '/walk-in-booking';
         const CHECK_API     = BASE_API + '/check-availability';
-        const ROOMS_API     = BASE_API + '/get-rooms?tenant_id=' + _MB_TID;
-        const PRICING_API   = BASE_API + '/get-pricing';
+        const ROOMS_API     = BASE_API + '/get-rooms?tenant_id='      + _MB_TID;
+        const PRICING_API   = BASE_API + '/get-pricing?tenant_id='    + _MB_TID;
         const TYPES_API     = BASE_API + '/get-event-types?tenant_id=' + _MB_TID;
-        const BLOCKED_API   = BASE_API + '/blocked-dates?tenant_id=' + _MB_TID;
+        const BLOCKED_API   = BASE_API + '/blocked-dates?tenant_id='  + _MB_TID;
 
         const DEPOSIT_PCT = 30;
 
@@ -605,9 +605,12 @@
             return null;
         }
 
-        function getAuthHeaders() {
-            return { 'Authorization': 'Bearer ' + (localStorage.getItem('vp_token') || '') };
-        }
+        // Pattern 4 / Rule F6 — no Authorization header from browser (CORS preflight).
+        // Auth travels via body.jwt (POST); tenant scoping via ?tenant_id= (GET).
+        function getAuthHeaders() { return {}; }
+        function _TOKEN()     { return sessionStorage.getItem('vp_token') || ''; }
+        function _USER_NAME() { return sessionStorage.getItem('vp_user_name') || 'Staff'; }
+        function _getUserId() { try { var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; } catch(e) { return null; } }
         function toggleMenu() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -671,9 +674,9 @@
 
             try {
                 const [rRes, pRes, tRes, bRes] = await Promise.all([
-                    fetch(ROOMS_API,   { headers: getAuthHeaders() }),
-                    fetch(PRICING_API, { headers: getAuthHeaders() }),
-                    fetch(TYPES_API,   { headers: getAuthHeaders() }),
+                    fetch(ROOMS_API),
+                    fetch(PRICING_API),
+                    fetch(TYPES_API),
                     fetch(BLOCKED_API).catch(() => null)
                 ]);
                 const rJson = await rRes.json();
@@ -843,8 +846,8 @@
                 try {
                     const res = await fetch(CHECK_API, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                        body: JSON.stringify({ roomName, eventDate: dateFrom, timeFrom: start, timeTo: end })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomName, eventDate: dateFrom, timeFrom: start, timeTo: end, tenant_id: parseInt(_MB_TID) })
                     });
                     const d = await res.json();
                     if (d.available === true || d.available === 'true') {
@@ -1001,8 +1004,14 @@
             try {
                 const res = await fetch(BOOKING_API, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify(payload)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...payload,
+                        jwt:          _TOKEN(),
+                        tenant_id:    parseInt(_MB_TID),
+                        staff_member: _USER_NAME(),
+                        user_id:      _getUserId()
+                    })
                 });
 
                 let data = {};
