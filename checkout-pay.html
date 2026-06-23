@@ -363,8 +363,9 @@
 
   // ─── Boot ─────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
-    // Show sidebar user name
-    document.getElementById('sidebar-user').textContent = _USER();
+    // Show sidebar user name (element absent on this page — guard against null)
+    const _suEl = document.getElementById('sidebar-user');
+    if (_suEl) _suEl.textContent = _USER();
 
     // Validate required URL params
     if (!BOOKING_ID) {
