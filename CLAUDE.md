@@ -944,14 +944,41 @@ Login MUST set all of them on successful authentication:
 
 ## Frontend deployment
 
-HTML pages live in `CommunityHub/` and are served via **GitHub Pages** from the `AndyJay72/VenueDesk` repo.
-Deploy changes with:
+### ⚠️ Root vs CommunityHub — two copies, root is live
+
+The repo contains **two copies** of every HTML page:
+
+| Location | Purpose | Served by |
+|----------|---------|-----------|
+| `/<file>.html` (repo root) | **Live production source** | GitHub Pages → `venuedesk.co.uk` |
+| `CommunityHub/<file>.html` | Local working copy / backup | Not served directly |
+
+GitHub Pages is configured to serve from the repo root. `CommunityHub/` is a backup mirror that is **not deployed**. Changes made only to `CommunityHub/` will not appear on the live site.
+
+**Always edit both copies, or copy CommunityHub → root before committing:**
+
 ```bash
 cd ~/Downloads/venue_desk_backup
-git add CommunityHub/<file>.html
+
+# Edit the CommunityHub copy first (your working copy)
+# Then promote to root before staging:
+cp CommunityHub/<file>.html ./<file>.html
+
+git add CommunityHub/<file>.html <file>.html
 git commit -m "..."
 git push origin main
 ```
+
+**Or edit the root copy directly** — it is identical to the CommunityHub copy and is the simpler target for one-off patches:
+
+```bash
+# Edit root copy, then sync back to CommunityHub to keep them in step:
+cp <file>.html CommunityHub/<file>.html
+git add <file>.html CommunityHub/<file>.html
+git commit -m "..."
+git push origin main
+```
+
 **Never SCP frontend files to the VPS.** The VPS only hosts n8n and the db-api container.
 
 ## VPS / Docker
@@ -1049,8 +1076,9 @@ const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
 
 **Rule:** VenueDesk frontend is static HTML/CSS/JS served via GitHub Pages. Do **not**
 introduce Vite, Webpack, React, Vue, or any build step or SPA framework unless explicitly
-requested. All fixes must be vanilla JS edits to the existing `.html` files in
-`CommunityHub/`. Maintain the existing dark-theme fintech CSS layout exactly.
+requested. All fixes must be vanilla JS edits to the existing `.html` files. GitHub Pages
+serves from the **repo root** — always update both the root copy and the `CommunityHub/`
+mirror (see Frontend deployment section). Maintain the existing dark-theme fintech CSS layout exactly.
 
 ---
 
@@ -1314,7 +1342,7 @@ const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
 
 - Maintain the static site architecture. Do **not** introduce Vite, Webpack, React, Vue, or any build step or SPA framework.
 - Use vanilla JS and the existing CSS variable system (e.g. `--bg-card`, `--primary`, `--text-secondary`) for all new UI components.
-- All fixes must be edits to the existing `.html` files in `CommunityHub/`. Maintain the existing dark-theme fintech CSS layout exactly.
+- All fixes must be edits to the existing `.html` files. GitHub Pages serves from the **repo root** — always update both the root copy and the `CommunityHub/` mirror. Maintain the existing dark-theme fintech CSS layout exactly.
 
 ---
 
