@@ -964,7 +964,7 @@ function toggleSidebarCollapse() {
 
 // ─── Auth ─────────────────────────────────────────────
 (function checkAuth() {
-  if (localStorage.getItem('vd_admin_auth') === '1') {
+  if (sessionStorage.getItem('vd_admin_auth') === '1') {
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     loadVenues();
@@ -986,7 +986,7 @@ async function adminLogin() {
       body: JSON.stringify({ admin_key: key })
     });
     if (r.ok) {
-      localStorage.setItem('vd_admin_auth', '1');
+      sessionStorage.setItem('vd_admin_auth', '1');
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       loadVenues();
@@ -1002,7 +1002,7 @@ async function adminLogin() {
 }
 
 function adminLogout() {
-  localStorage.removeItem('vd_admin_auth');
+  sessionStorage.removeItem('vd_admin_auth');
   location.reload();
 }
 

@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        if (!localStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+        if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
     </script>
     <style>
         :root { --bg-dark: #0f172a; --bg-card: rgba(30, 41, 59, 0.9); --border: rgba(148, 163, 184, 0.1); --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --sidebar-width: 260px; }
@@ -393,8 +393,8 @@
     <script>
         function logout() {
             if(confirm("Are you sure you want to log out?")) {
-                localStorage.removeItem('vp_token');
-                localStorage.removeItem('vp_user');
+                sessionStorage.removeItem('vp_token');
+                sessionStorage.removeItem('vp_user');
                 window.location.href = 'login.html';
             }
         }
@@ -402,6 +402,10 @@
         const LIST_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-bookings';
         const PAY_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/pay-balance';
         const fmt = n => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+        const _FP_TID    = () => sessionStorage.getItem('vp_tenant_id') || '0';
+        const _FP_TOKEN  = () => sessionStorage.getItem('vp_token') || '';
+        const _FP_STAFF  = () => sessionStorage.getItem('vp_user_name') || 'Staff';
+        const _FP_UID    = () => { try { const u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.id||u.user_id||null; } catch(e) { return null; } };
 
         let bookingsData = [];
 
@@ -420,7 +424,7 @@
 
         async function loadOutstanding() {
             try {
-                const res = await fetch(LIST_API);
+                const res = await fetch(LIST_API + '?tenant_id=' + _FP_TID() + '&jwt=' + encodeURIComponent(_FP_TOKEN()));
                 const json = await res.json();
                 bookingsData = json.data || (Array.isArray(json) ? json : []);
 
@@ -566,7 +570,9 @@
                         amount:            amount,
                         balance_due:       maxBal,
                         deposit_reference: depositReference,
-                        payment_method:    document.getElementById('payMethodSelect').value
+                        payment_method:    document.getElementById('payMethodSelect').value,
+                        jwt:               _FP_TOKEN(),
+                        tenant_id:         parseInt(_FP_TID())
                     })
                 });
                 const result = await res.json();
