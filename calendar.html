@@ -2620,13 +2620,19 @@
                         body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,
                             total_amount:total,balance_due:useStripe?total:balance,
                             deposit_amount:depositForWorkflow,payment_method:method,
-                            tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
+                            tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload(),
+                            jwt:sessionStorage.getItem('vp_token')||'',
+                            staff_member:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.full_name||u.name||u.username||'Staff';}catch(e){return 'Staff';}}()),
+                            user_id:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.id||u.user_id||null;}catch(e){return null;}}())})});
                     if(!r1.ok)throw new Error('Convert failed: HTTP '+r1.status);
                 }else{
                     const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},
                         body:JSON.stringify({booking_id:currentModalBookingId,
                             total_amount:total,balance_due:useStripe?total:balance,
-                            tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload()})});
+                            tenant_id:parseInt(_CAL_TID()),services:csGetServicesPayload(),rooms:csGetRoomsPayload(),
+                            jwt:sessionStorage.getItem('vp_token')||'',
+                            staff_member:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.full_name||u.name||u.username||'Staff';}catch(e){return 'Staff';}}()),
+                            user_id:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.id||u.user_id||null;}catch(e){return null;}}())})});
                     if(!r1.ok)throw new Error('Confirm failed: HTTP '+r1.status);
                     // Step 2a — Non-Stripe: record deposit immediately
                     if(!useStripe&&deposit>0){
@@ -2662,10 +2668,12 @@
             const p=currentModalProps;
             try{
                 if(p.request_id&&!p.has_booking){
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total||0,balance_due:total||0,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload()})});
+                    const _smND=(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.full_name||u.name||u.username||'Staff';}catch(e){return 'Staff';}}());
+                    const _uidND=(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.id||u.user_id||null;}catch(e){return null;}}());
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({request_id:p.request_id,customer_id:p.customer_id,total_amount:total||0,balance_due:total||0,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload(),jwt:sessionStorage.getItem('vp_token')||'',staff_member:_smND,user_id:_uidND})});
                     if(!r1.ok)throw new Error('HTTP '+r1.status);
                 }else{
-                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total||null,balance_due:total||null,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload()})});
+                    const r1=await fetch(CAL_CONFIRM_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,total_amount:total||null,balance_due:total||null,tenant_id:parseInt(_CAL_TID()),rooms:csGetRoomsPayload(),jwt:sessionStorage.getItem('vp_token')||'',staff_member:_smND,user_id:_uidND})});
                     if(!r1.ok)throw new Error('HTTP '+r1.status);
                 }
                 showToast('Booking confirmed!','success');
@@ -2686,7 +2694,7 @@
                 if(!confirm('Cancel this booking? This cannot be undone.'))return;
             }
             try{
-                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,tenant_id:parseInt(_CAL_TID()),cancel_series})});
+                const res=await fetch(CAL_CANCEL_URL,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({booking_id:currentModalBookingId,tenant_id:parseInt(_CAL_TID()),cancel_series,jwt:sessionStorage.getItem('vp_token')||'',staff_member:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.full_name||u.name||u.username||'Staff';}catch(e){return 'Staff';}}()),user_id:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.id||u.user_id||null;}catch(e){return null;}}())})});
                 if(res.ok){
                     const data=await res.json().catch(()=>({}));
                     const msg=data.series_cancelled?'Recurring series cancelled':'Booking cancelled';

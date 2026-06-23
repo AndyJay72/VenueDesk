@@ -800,7 +800,7 @@
                 const res = await fetch(CREATE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ full_name: name, username: user, password: pass, role: role, tenant_id: parseInt(_TID()) })
+                    body: JSON.stringify({ full_name: name, username: user, password: pass, role: role, tenant_id: parseInt(_TID()), jwt: sessionStorage.getItem('vp_token') || '' })
                 });
 
                 if(res.ok) {
@@ -820,7 +820,7 @@
                 const res = await fetch(DELETE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: id, tenant_id: parseInt(_TID()) })
+                    body: JSON.stringify({ user_id: id, tenant_id: parseInt(_TID()), jwt: sessionStorage.getItem('vp_token') || '', staff_member: (function(){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); return u.full_name||u.name||u.username||'Staff'; }catch(e){ return 'Staff'; } })() })
                 });
                 if(res.ok) { loadUsers(); } else { alert("Failed to delete."); }
             } catch(e) { alert("Connection Error"); }

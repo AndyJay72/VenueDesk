@@ -1231,7 +1231,7 @@ function tidParam(sep = '?') { return sep + 'tenant_id=' + _TID(); }
 function withRole(obj) {
     const u = JSON.parse(sessionStorage.getItem('vp_user') || '{}');
     const tenantId = parseInt(sessionStorage.getItem('vp_tenant_id') || '0', 10) || undefined;
-    return { ...obj, userRole: u.role || 'admin', tenant_id: tenantId, venue_id: tenantId };
+    return { ...obj, userRole: u.role || 'admin', tenant_id: tenantId, venue_id: tenantId, jwt: sessionStorage.getItem('vp_token') || '' };
 }
 
 // ─────────────────────────────────────────────
