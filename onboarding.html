@@ -1509,8 +1509,8 @@ async function addVenue() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, admin_key: AUTH })
     });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.message || 'Failed');
+    const d = await _safeJSON(r);
+    if (!_isOK(d)) throw new Error(d.message || 'Server rejected the request');
     ['fTenantId','fVenueName','fSlug','fUsername','fFullName','fPassword'].forEach(id => {
       document.getElementById(id).value = '';
     });
@@ -1536,8 +1536,8 @@ async function toggleVenue(tenantId, name, currentlyActive) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant_id: tenantId, admin_key: AUTH })
     });
-    const d = await r.json();
-    if (!d.ok) throw new Error('Failed');
+    const d = await _safeJSON(r);
+    if (!_isOK(d)) throw new Error(d.message || 'Toggle failed');
     await loadVenues();
     showToast(`Venue "${name}" ${currentlyActive ? 'deactivated' : 'reactivated'}.`, currentlyActive ? 'error' : 'success');
   } catch(e) {
@@ -1681,8 +1681,8 @@ async function confirmEditVenue() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
     });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.message || 'Failed');
+    const d = await _safeJSON(r);
+    if (!_isOK(d)) throw new Error(d.message || 'Update failed');
     closeEditModal();
     await loadVenues();
     showToast(`"${venueName}" updated successfully!`, 'success');
@@ -1740,9 +1740,8 @@ async function confirmResetPw() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''), admin_key: AUTH })
       });
-      const t = await r.text();
-      d = t.trim() ? JSON.parse(t) : {};
-      if (!d.ok) throw new Error(d.message || 'Failed to set login');
+      d = await _safeJSON(r);
+      if (!_isOK(d)) throw new Error(d.message || 'Failed to set login');
       closePwModal();
       await loadVenues();
       showToast(`Login created for ${venueName} (${username}).`, 'success');
@@ -1752,9 +1751,8 @@ async function confirmResetPw() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, admin_key: AUTH })
       });
-      const t = await r.text();
-      d = t.trim() ? JSON.parse(t) : {};
-      if (!d.ok) throw new Error('Failed');
+      d = await _safeJSON(r);
+      if (!_isOK(d)) throw new Error(d.message || 'Reset failed');
       closePwModal();
       showToast(`Password reset for ${username}.`, 'success');
     }
@@ -1766,6 +1764,32 @@ async function confirmResetPw() {
 }
 
 // ─── Utilities ────────────────────────────────────────
+
+// Defensive fetch wrapper — guards against empty/non-JSON responses from n8n.
+// n8n returns HTTP 200 with an empty body for unregistered webhook paths or
+// when a respond node expression fails. r.json() on an empty string throws
+// "unexpected end of data"; this helper surfaces a clear message instead.
+async function _safeJSON(r) {
+  const text = await r.text();
+  if (!text || !text.trim()) {
+    throw new Error('Empty response from n8n — workflow may need re-importing');
+  }
+  if (!r.ok) {
+    throw new Error('HTTP ' + r.status + ': ' + text.slice(0, 120));
+  }
+  try {
+    return JSON.parse(text);
+  } catch(_) {
+    throw new Error('Invalid response from n8n — check workflow execution logs');
+  }
+}
+
+// Accept both {ok:true} and {success:true} since db-api uses 'success' and
+// some n8n respond nodes pass it through as 'ok'.
+function _isOK(d) {
+  return d && (d.ok === true || d.success === true);
+}
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }

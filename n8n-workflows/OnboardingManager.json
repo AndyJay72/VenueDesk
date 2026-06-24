@@ -146,7 +146,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: $json.ok, data: $json.data }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), data: ($json && $json.data) || null }) }}",
         "options": {
           "responseHeaders": {
             "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
@@ -235,7 +235,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
+        "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)) }) }}",
         "options": {
           "responseHeaders": {
             "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
@@ -313,7 +313,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: $json.ok, data: [$json.data] }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), data: ($json && $json.data) ? [$json.data] : [] }) }}",
         "options": {
           "responseHeaders": {
             "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
