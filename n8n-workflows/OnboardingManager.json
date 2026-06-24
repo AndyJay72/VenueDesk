@@ -436,7 +436,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ data: ($json.data || []) }) }}",
+        "responseBody": "={{ JSON.stringify({ data: (Array.isArray($json && $json.data) ? $json.data : []) }) }}",
         "options": {
           "responseHeaders": {
             "entries": [

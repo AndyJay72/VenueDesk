@@ -1307,13 +1307,53 @@ function closeAuditModal() {
 }
 async function loadSystemLogs() {
   const el = document.getElementById('auditContent');
+  const countEl = document.getElementById('auditCount');
   el.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:1rem;display:block"></i>Loading…</div>';
+  countEl.textContent = '';
   try {
     const r = await fetch(N8N + '/onboarding/system-logs?admin_key=' + encodeURIComponent(AUTH));
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
+
+    // Read raw text first — an empty body causes r.json() to throw "unexpected end of data"
+    const text = await r.text();
+
+    // Empty body = webhook not yet registered in live n8n (workflow not re-imported)
+    // or db-api /admin/system-logs endpoint not yet deployed
+    if (!text || !text.trim()) {
+      el.innerHTML = `<div style="padding:2rem;text-align:center">
+        <i class="fa-solid fa-circle-info" style="font-size:1.75rem;color:var(--primary-hi);margin-bottom:1rem;display:block"></i>
+        <div style="color:var(--text);font-weight:600;margin-bottom:0.5rem">Audit log not yet active</div>
+        <div style="color:var(--text-muted);font-size:0.83rem;max-width:380px;margin:0 auto;line-height:1.6">
+          Re-import <code style="background:rgba(99,102,241,0.15);padding:1px 6px;border-radius:4px">OnboardingManager.json</code>
+          in n8n to register the <code style="background:rgba(99,102,241,0.15);padding:1px 6px;border-radius:4px">system-logs</code>
+          webhook, and deploy <code style="background:rgba(99,102,241,0.15);padding:1px 6px;border-radius:4px">GET /admin/system-logs</code>
+          on db-api to populate records here.
+        </div>
+      </div>`;
+      return;
+    }
+
+    // Non-200 after we have body text
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' — ' + text.slice(0, 120));
+
+    // Parse — if it fails the response was HTML or malformed
+    let d;
+    try { d = JSON.parse(text); }
+    catch(_) {
+      el.innerHTML = `<div style="padding:2rem;text-align:center">
+        <i class="fa-solid fa-circle-info" style="font-size:1.75rem;color:var(--primary-hi);margin-bottom:1rem;display:block"></i>
+        <div style="color:var(--text);font-weight:600;margin-bottom:0.5rem">Audit log not yet active</div>
+        <div style="color:var(--text-muted);font-size:0.83rem;max-width:380px;margin:0 auto;line-height:1.6">
+          The <code style="background:rgba(99,102,241,0.15);padding:1px 6px;border-radius:4px">onboarding/system-logs</code>
+          webhook returned a non-JSON response. Re-import
+          <code style="background:rgba(99,102,241,0.15);padding:1px 6px;border-radius:4px">OnboardingManager.json</code>
+          in n8n to activate this feature.
+        </div>
+      </div>`;
+      return;
+    }
+
     const rows = d.data || [];
-    document.getElementById('auditCount').textContent = rows.length + ' records';
+    countEl.textContent = rows.length + ' records';
     if (!rows.length) {
       el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem">No audit records found.</p>';
       return;
@@ -1325,21 +1365,21 @@ async function loadSystemLogs() {
             <th>Timestamp</th><th>Action</th><th>Target Tenant</th>
             <th>Admin</th><th>Details</th>
           </tr></thead>
-          <tbody>${rows.map(r => {
-            const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+          <tbody>${rows.map(row => {
+            const ts = row.timestamp ? new Date(row.timestamp).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
             return `<tr>
               <td style="white-space:nowrap;color:var(--text-muted)">${esc(ts)}</td>
-              <td><span class="audit-type-pill">${esc(r.action_type||r.action||'—')}</span></td>
-              <td><span class="badge-id">#${esc(r.target_tenant||'—')}</span></td>
-              <td style="color:var(--text-muted)">${esc(r.admin_id||r.actor||'—')}</td>
-              <td style="color:var(--text-muted);font-size:0.78rem">${esc(r.details||r.payload||'—')}</td>
+              <td><span class="audit-type-pill">${esc(row.action_type||row.action||'—')}</span></td>
+              <td><span class="badge-id">#${esc(row.target_tenant||'—')}</span></td>
+              <td style="color:var(--text-muted)">${esc(row.admin_id||row.actor||'—')}</td>
+              <td style="color:var(--text-muted);font-size:0.78rem">${esc(row.details||row.payload||'—')}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
       </div>`;
   } catch(e) {
     el.innerHTML = `<div style="color:var(--danger);padding:2rem;text-align:center"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px"></i>Failed to load logs: ${esc(e.message)}</div>`;
-    document.getElementById('auditCount').textContent = '';
+    countEl.textContent = '';
   }
 }
 
