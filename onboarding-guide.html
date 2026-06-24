@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VenueDesk — Onboarding & Tenant Lifecycle Dashboard Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-page: #f8fafc; --bg-card: #ffffff; --bg-sidebar: #ffffff;
+            --bg-input: #f1f5f9; --bg-muted: #f8fafc; --border-color: #e2e8f0;
+            --text-main: #0f172a; --text-muted: #64748b; --text-inverse: #ffffff;
+            --primary: #4f46e5; --primary-hover: #4338ca;
+            --primary-light: #e0e7ff; --primary-glow: rgba(79,70,229,0.15);
+            --success: #10b981; --success-bg: #d1fae5; --success-text: #065f46;
+            --warning: #f59e0b; --warning-bg: #fef3c7; --warning-text: #78350f;
+            --danger: #ef4444; --danger-bg: #fee2e2; --danger-text: #991b1b;
+            --info: #3b82f6; --info-bg: #dbeafe; --info-text: #1e40af;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05),0 2px 4px -2px rgba(0,0,0,0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.08);
+            --shadow-glow: 0 0 20px rgba(79,70,229,0.1);
+            --radius-lg: 1rem; --radius-md: 0.75rem; --radius-sm: 0.5rem;
+            --transition-all: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            --transition-fast: all 0.15s ease;
+        }
+        [data-theme="dark"] {
+            --bg-page: #0b0f19; --bg-card: #131b2e; --bg-sidebar: #131b2e;
+            --bg-input: #1e293b; --bg-muted: #1e293b; --border-color: #1e293b;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --text-inverse: #0f172a;
+            --primary: #6366f1; --primary-hover: #4f46e5;
+            --primary-light: #1e1b4b; --primary-glow: rgba(99,102,241,0.25);
+            --success: #34d399; --success-bg: #064e3b; --success-text: #a7f3d0;
+            --warning: #fbbf24; --warning-bg: #78350f; --warning-text: #fde68a;
+            --danger: #f87171; --danger-bg: #7f1d1d; --danger-text: #fca5a5;
+            --info: #60a5fa; --info-bg: #1e3a8a; --info-text: #bfdbfe;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3),0 2px 4px -2px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4),0 4px 6px -4px rgba(0,0,0,0.4);
+            --shadow-glow: 0 0 25px rgba(99,102,241,0.15);
+        }
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+        html{scroll-behavior:smooth;}
+        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-page);color:var(--text-main);line-height:1.6;transition:var(--transition-all);}
+        ::-webkit-scrollbar{width:8px;height:8px;}
+        ::-webkit-scrollbar-track{background:var(--bg-page);}
+        ::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:4px;}
+        ::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+        .highlight{background:rgba(253,224,71,0.4);color:inherit;border-radius:2px;padding:0 2px;font-weight:bold;}
+        .app-container{display:grid;grid-template-columns:280px 1fr;min-height:100vh;}
+        aside.sidebar{position:sticky;top:0;height:100vh;background:var(--bg-sidebar);border-right:1px solid var(--border-color);padding:2rem 1.5rem;display:flex;flex-direction:column;gap:1.5rem;z-index:100;transition:var(--transition-all);overflow-y:auto;}
+        .sidebar-logo{display:flex;align-items:center;gap:0.75rem;font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;color:var(--primary);}
+        .sidebar-logo-icon{background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);color:var(--text-inverse);width:2.25rem;height:2.25rem;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:1rem;}
+        .sidebar-subtitle{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:0 0.25rem;}
+        nav.sidebar-nav{display:flex;flex-direction:column;gap:0.25rem;}
+        .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.625rem 1rem;border-radius:var(--radius-sm);color:var(--text-muted);text-decoration:none;font-size:0.875rem;font-weight:500;transition:var(--transition-fast);border:1px solid transparent;}
+        .nav-item:hover{color:var(--primary);background:var(--bg-muted);}
+        .nav-item.active{color:var(--primary);background:var(--primary-light);border-color:rgba(79,70,229,0.15);font-weight:600;}
+        .nav-item i{width:1rem;text-align:center;font-size:0.85rem;}
+        .sidebar-footer{margin-top:auto;font-size:0.75rem;color:var(--text-muted);display:flex;flex-direction:column;gap:0.4rem;padding-top:1rem;border-top:1px solid var(--border-color);}
+        .sidebar-footer a{color:var(--primary);text-decoration:none;}
+        header.top-bar{position:sticky;top:0;z-index:90;background:rgba(248,250,252,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border-color);padding:1rem 2.5rem;display:flex;align-items:center;justify-content:space-between;gap:2rem;transition:var(--transition-all);}
+        [data-theme="dark"] header.top-bar{background:rgba(11,15,25,0.8);}
+        .search-container{position:relative;flex-grow:1;max-width:500px;}
+        .search-input{width:100%;padding:0.75rem 1rem 0.75rem 2.5rem;border-radius:9999px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);font-size:0.9rem;transition:var(--transition-all);outline:none;}
+        .search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+        .search-icon{position:absolute;left:0.9rem;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;width:1rem;height:1rem;}
+        .action-buttons{display:flex;align-items:center;gap:1rem;}
+        .btn-action{display:inline-flex;align-items:center;gap:0.5rem;padding:0.625rem 1.25rem;border-radius:9999px;font-size:0.875rem;font-weight:500;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);transition:var(--transition-fast);outline:none;text-decoration:none;}
+        .btn-action:hover{border-color:var(--primary);color:var(--primary);background:var(--bg-muted);}
+        .btn-primary{background:var(--primary);border-color:var(--primary);color:var(--text-inverse);}
+        .btn-primary:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:var(--text-inverse);}
+        .theme-toggle-btn{background:var(--bg-card);border:1px solid var(--border-color);cursor:pointer;padding:0.5rem;border-radius:50%;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:var(--transition-fast);width:2.25rem;height:2.25rem;}
+        .theme-toggle-btn:hover{color:var(--primary);background:var(--bg-muted);}
+        main.main-content{padding:2rem 2.5rem;overflow-x:hidden;}
+        .hero-banner{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4338ca 100%);color:white;border-radius:var(--radius-lg);padding:3rem 2.5rem;margin-bottom:2.5rem;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);}
+        .hero-banner::after{content:'';position:absolute;top:-20%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,0.4) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+        .hero-banner::before{content:'';position:absolute;bottom:-30%;left:20%;width:400px;height:400px;background:radial-gradient(circle,rgba(139,92,246,0.2) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+        .hero-banner-content{position:relative;z-index:2;}
+        .hero-banner h1{font-family:'Outfit',sans-serif;font-size:2.5rem;font-weight:800;letter-spacing:-0.025em;margin-bottom:0.75rem;}
+        .hero-banner p{color:#c7d2fe;font-size:1.1rem;max-width:700px;margin-bottom:1.5rem;}
+        .metadata-badge-group{display:flex;flex-wrap:wrap;gap:0.75rem;}
+        .meta-badge{background:rgba(255,255,255,0.12);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.1);padding:0.5rem 1rem;border-radius:9999px;font-size:0.825rem;font-weight:500;display:inline-flex;align-items:center;gap:0.5rem;color:#e0e7ff;text-decoration:none;transition:var(--transition-fast);}
+        .meta-badge:hover{background:rgba(255,255,255,0.2);color:#fff;}
+        .section-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);margin-bottom:2.5rem;overflow:hidden;transition:var(--transition-all);}
+        .section-card:hover{box-shadow:var(--shadow-lg),var(--shadow-glow);}
+        .card-header{padding:1.5rem 2rem;border-bottom:1px solid var(--border-color);background:var(--bg-muted);display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+        .card-header h2{font-family:'Outfit',sans-serif;font-size:1.4rem;color:var(--text-main);font-weight:700;display:flex;align-items:center;gap:0.75rem;}
+        .card-body{padding:2rem;}
+        .card-body>p{margin-bottom:1.25rem;color:var(--text-muted);}
+        .header-anchor{color:var(--text-muted);text-decoration:none;font-size:0.875rem;display:inline-flex;align-items:center;gap:0.25rem;cursor:pointer;padding:0.25rem 0.5rem;border-radius:var(--radius-sm);border:1px dashed var(--border-color);transition:var(--transition-fast);}
+        .header-anchor:hover{color:var(--primary);border-color:var(--primary);background:var(--primary-light);}
+        .grid-3-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;}
+        .grid-2-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:1.5rem;}
+        .sub-card{background:var(--bg-muted);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:1.5rem;transition:var(--transition-all);position:relative;}
+        .sub-card:hover{transform:translateY(-2px);border-color:var(--primary);}
+        .sub-card h4{color:var(--primary);font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;}
+        .quick-ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;}
+        .quick-ref-item{background:var(--bg-muted);padding:1.25rem;border-radius:var(--radius-md);border-left:4px solid var(--primary);transition:var(--transition-all);display:flex;flex-direction:column;gap:0.4rem;cursor:pointer;}
+        .quick-ref-item:hover{transform:translateX(4px);background:var(--primary-light);}
+        .quick-ref-item strong{font-family:'Outfit',sans-serif;color:var(--text-main);font-size:0.95rem;display:flex;align-items:center;gap:0.5rem;}
+        .quick-ref-item span.path{font-size:0.82rem;color:var(--text-main);}
+        .quick-ref-item small{color:var(--text-muted);font-size:0.75rem;margin-top:auto;display:flex;align-items:center;gap:0.25rem;font-weight:500;}
+        .table-container{overflow-x:auto;border-radius:var(--radius-md);border:1px solid var(--border-color);box-shadow:var(--shadow-sm);}
+        table{width:100%;border-collapse:collapse;font-size:0.9rem;background:var(--bg-card);}
+        th{text-align:left;padding:1rem 1.25rem;background:var(--bg-muted);font-weight:600;color:var(--text-main);border-bottom:2px solid var(--border-color);}
+        td{padding:1rem 1.25rem;border-bottom:1px solid var(--border-color);color:var(--text-main);}
+        tr:last-child td{border-bottom:none;}
+        tr:hover td{background:var(--bg-muted);}
+        .custom-step-list{list-style:none;display:flex;flex-direction:column;gap:1rem;}
+        .custom-step-list li{background:var(--bg-muted);padding:1rem 1.25rem;border-radius:var(--radius-md);display:flex;gap:1rem;align-items:flex-start;border:1px solid var(--border-color);transition:var(--transition-fast);}
+        .custom-step-list li:hover{border-color:var(--primary);}
+        .step-bubble{background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);color:white;width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;box-shadow:0 2px 4px rgba(79,70,229,0.2);}
+        .step-content{flex:1;}
+        .step-content strong{display:block;font-weight:600;margin-bottom:0.2rem;color:var(--text-main);}
+        .step-content span{font-size:0.875rem;color:var(--text-muted);}
+        .status-badge{display:inline-flex;align-items:center;gap:0.35rem;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:600;border:1px solid transparent;}
+        .status-badge.green{background:var(--success-bg);color:var(--success-text);border-color:rgba(16,185,129,0.2);}
+        .status-badge.amber{background:var(--warning-bg);color:var(--warning-text);border-color:rgba(245,158,11,0.2);}
+        .status-badge.red{background:var(--danger-bg);color:var(--danger-text);border-color:rgba(239,68,68,0.2);}
+        .status-badge.blue{background:var(--info-bg);color:var(--info-text);border-color:rgba(59,130,246,0.2);}
+        .status-badge.indigo{background:rgba(99,102,241,0.12);color:#6366f1;border-color:rgba(99,102,241,0.25);}
+        .badge-warning-text{font-size:0.85rem;color:var(--danger);background:var(--danger-bg);padding:0.875rem 1.25rem;border-radius:var(--radius-md);border-left:4px solid var(--danger);display:flex;align-items:flex-start;gap:0.75rem;font-weight:500;margin-top:1rem;line-height:1.5;}
+        .badge-info-text{font-size:0.85rem;color:var(--info-text);background:var(--info-bg);padding:0.875rem 1.25rem;border-radius:var(--radius-md);border-left:4px solid var(--info);display:flex;align-items:flex-start;gap:0.75rem;font-weight:500;margin-top:1rem;line-height:1.5;}
+        .badge-success-text{font-size:0.85rem;color:var(--success-text);background:var(--success-bg);padding:0.875rem 1.25rem;border-radius:var(--radius-md);border-left:4px solid var(--success);display:flex;align-items:flex-start;gap:0.75rem;font-weight:500;margin-top:1rem;line-height:1.5;}
+        /* UI Mockup frames */
+        .mockup-frame{background:#06101f;border-radius:var(--radius-lg);padding:1.5rem;margin:1.5rem 0;border:1px solid rgba(99,120,186,0.2);box-shadow:0 20px 40px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05);font-family:'Inter',sans-serif;position:relative;overflow:hidden;}
+        .mockup-frame::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+        .mockup-label{position:absolute;top:0.75rem;right:1rem;font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(99,120,186,0.6);}
+        /* Telemetry panel mockup */
+        .mk-telemetry{display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;background:rgba(13,21,46,0.82);border:1px solid rgba(99,120,186,0.32);border-radius:12px;padding:0.85rem 1.25rem;backdrop-filter:blur(12px);}
+        .mk-tele-item{display:flex;align-items:center;gap:0.6rem;}
+        .mk-tele-item+.mk-tele-item{padding-left:1.25rem;border-left:1px solid rgba(99,120,186,0.2);}
+        .mk-tele-label{font-size:0.65rem;font-weight:700;color:#8b9cc8;text-transform:uppercase;letter-spacing:0.07em;}
+        .mk-tele-val{font-size:0.88rem;font-weight:700;font-family:monospace;color:#818cf8;}
+        .mk-health-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+        .mk-health-dot.green{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,0.6);}
+        .mk-health-dot.red{background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,0.6);}
+        .mk-btn{padding:5px 12px;border-radius:8px;font-size:0.75rem;font-weight:600;border:1px solid;cursor:default;display:inline-flex;align-items:center;gap:5px;}
+        .mk-btn-info{background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3);}
+        .mk-btn-ping{background:rgba(16,185,129,0.09);color:#34d399;border-color:rgba(16,185,129,0.28);}
+        /* Table mockup */
+        .mk-table{width:100%;border-collapse:collapse;color:#eef2ff;font-size:0.8rem;}
+        .mk-table th{padding:0.55rem 0.75rem;text-align:left;font-size:0.65rem;font-weight:700;color:#8b9cc8;text-transform:uppercase;letter-spacing:0.05em;background:rgba(13,21,46,0.7);border-bottom:1px solid rgba(99,120,186,0.2);}
+        .mk-table td{padding:0.7rem 0.75rem;border-bottom:1px solid rgba(99,120,186,0.12);vertical-align:middle;}
+        .mk-table tr:last-child td{border-bottom:none;}
+        .mk-table tr:hover td{background:rgba(99,120,186,0.06);}
+        .mk-badge-id{display:inline-block;padding:2px 8px;background:rgba(99,102,241,0.16);color:#a5b4fc;border-radius:5px;font-weight:700;font-size:0.78rem;font-family:monospace;}
+        .mk-badge-active{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.25);padding:2px 8px;border-radius:5px;font-size:0.73rem;font-weight:600;}
+        .mk-badge-sub-active{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.3);padding:2px 8px;border-radius:5px;font-size:0.72rem;font-weight:700;}
+        .mk-badge-sub-trial{background:rgba(99,102,241,0.14);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);padding:2px 8px;border-radius:5px;font-size:0.72rem;font-weight:700;}
+        .mk-badge-sub-pastdue{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:5px;font-size:0.72rem;font-weight:700;}
+        .mk-seats-pill{font-size:0.75rem;color:#8b9cc8;font-family:monospace;}
+        /* Form + stepper mockup */
+        .mk-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;}
+        .mk-input-group{margin-bottom:0.75rem;}
+        .mk-label{font-size:0.65rem;font-weight:700;color:#8b9cc8;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.35rem;}
+        .mk-input{width:100%;padding:0.5rem 0.75rem;background:rgba(0,0,0,0.3);border:1px solid rgba(99,120,186,0.32);border-radius:8px;color:#eef2ff;font-size:0.82rem;font-family:inherit;}
+        .mk-stepper{display:flex;align-items:center;height:34px;border:1px solid rgba(99,120,186,0.32);border-radius:8px;overflow:hidden;width:fit-content;}
+        .mk-stepper-btn{width:34px;height:34px;background:rgba(99,102,241,0.12);border:none;color:#818cf8;font-size:1rem;font-weight:700;cursor:default;display:flex;align-items:center;justify-content:center;}
+        .mk-stepper-val{padding:0 1rem;font-size:0.9rem;font-weight:700;color:#eef2ff;background:rgba(0,0,0,0.25);height:100%;display:flex;align-items:center;border-left:1px solid rgba(99,120,186,0.32);border-right:1px solid rgba(99,120,186,0.32);}
+        .mk-pricing-preview{padding:0.6rem 0.9rem;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.22);border-radius:8px;font-size:0.78rem;color:#8b9cc8;margin-top:0.5rem;}
+        .mk-pricing-preview strong{color:#818cf8;font-size:0.92rem;}
+        .mk-btn-primary{width:100%;padding:0.65rem;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;border-radius:8px;color:#fff;font-size:0.88rem;font-weight:700;cursor:default;display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-top:0.5rem;}
+        /* Audit log mockup */
+        .mk-audit-header{display:flex;align-items:center;gap:0.75rem;padding:0.9rem 1.25rem;border-bottom:1px solid rgba(99,120,186,0.2);background:rgba(8,14,35,0.97);}
+        .mk-audit-header h4{font-size:0.9rem;font-weight:700;color:#eef2ff;flex:1;}
+        .mk-audit-pill{display:inline-block;padding:2px 9px;border-radius:5px;font-size:0.7rem;font-weight:700;background:rgba(99,102,241,0.14);color:#818cf8;}
+        /* Login mockup */
+        .mk-login-card{background:rgba(10,17,38,0.88);border:1px solid rgba(99,120,186,0.32);border-radius:20px;padding:2rem 1.75rem;max-width:340px;margin:0 auto;backdrop-filter:blur(28px);}
+        .mk-brand{font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(135deg,#eef2ff 0%,#a5b4fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:0.2rem;}
+        .mk-subtitle{font-size:0.75rem;color:#8b9cc8;margin-bottom:1.5rem;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;}
+        /* Glossary */
+        .glossary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;}
+        .glossary-term-card{background:var(--bg-muted);padding:1.25rem;border-radius:var(--radius-md);border:1px solid var(--border-color);transition:var(--transition-all);}
+        .glossary-term-card:hover{border-color:var(--primary);transform:translateY(-2px);}
+        .glossary-term-card strong{color:var(--primary);font-family:'Outfit',sans-serif;font-size:1rem;display:block;margin-bottom:0.4rem;font-weight:600;}
+        .glossary-term-card p{font-size:0.855rem;color:var(--text-muted);line-height:1.5;}
+        footer.main-footer{text-align:center;padding:3rem 2rem;color:var(--text-muted);font-size:0.85rem;border-top:1px solid var(--border-color);margin-top:2rem;display:flex;flex-direction:column;gap:0.5rem;}
+        @media print{body{background:white;color:black;}.app-container{display:block;}aside.sidebar,header.top-bar,.action-buttons,.theme-toggle-btn,.header-anchor{display:none!important;}main.main-content{padding:0;}.hero-banner{background:#1e1b4b!important;color:white!important;border-radius:0;box-shadow:none;}.section-card{break-inside:avoid;page-break-inside:avoid;box-shadow:none;border:1px solid #ccc;margin-bottom:2rem;}.mockup-frame{break-inside:avoid;}.card-header{background:#f3f4f6!important;border-bottom:1px solid #ccc;}}
+        @media(max-width:1024px){.app-container{grid-template-columns:1fr;}aside.sidebar{display:none;}main.main-content{padding:1.5rem;}.mk-form-grid{grid-template-columns:1fr;}}
+        @media(max-width:640px){.hero-banner h1{font-size:1.8rem;}.grid-2-col,.grid-3-col{grid-template-columns:1fr;}}
+    </style>
+</head>
+<body>
+<div class="app-container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon"><i class="fa-solid fa-rocket fa-xs"></i></div>
+            VenueDesk
+        </div>
+        <div class="sidebar-subtitle">Admin Guide</div>
+        <nav class="sidebar-nav">
+            <a href="#quick-ref" class="nav-item active" onclick="setActive(this)"><i class="fa-solid fa-bolt"></i> Quick Reference</a>
+            <a href="#login" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-shield-check"></i> Logging In</a>
+            <a href="#telemetry" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-wave-square"></i> Telemetry Panel</a>
+            <a href="#venues-table" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-table"></i> Venues Table</a>
+            <a href="#onboarding" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-building-circle-plus"></i> Onboarding a Venue</a>
+            <a href="#editing" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-pen-to-square"></i> Editing a Venue</a>
+            <a href="#passwords" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-key"></i> Password Management</a>
+            <a href="#toggle" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-power-off"></i> Activate / Deactivate</a>
+            <a href="#connect" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-arrow-up-right-from-square"></i> Connect to Venue</a>
+            <a href="#audit" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-shield-halved"></i> System Audit Log</a>
+            <a href="#subscription" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-credit-card"></i> Subscription & Seats</a>
+            <a href="#enquiry" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-link"></i> Enquiry Links</a>
+            <a href="#security" class="nav-item" onclick="setActive(this)"><i class="fa-solid fa-lock"></i> Security Notes</a>
+            <a href="#glossary" class="nav-item" onclick="setActive(this)" style="border-top:1px solid var(--border-color);margin-top:0.5rem;padding-top:0.875rem;"><i class="fa-solid fa-book"></i> Glossary</a>
+        </nav>
+        <div class="sidebar-footer">
+            <span><i class="fa-solid fa-rocket" style="color:var(--primary)"></i> Admin access only</span>
+            <a href="onboarding.html" target="_blank">→ Open Dashboard</a>
+            <a href="userguide.html">→ Staff User Guide</a>
+            <span style="opacity:0.6">VenueDesk · June 2026</span>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <div style="display:flex;flex-direction:column;min-height:100vh;">
+
+        <!-- Top bar -->
+        <header class="top-bar">
+            <div class="search-container">
+                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" id="guide-search" class="search-input" placeholder="Search this guide (e.g. seat, audit, ping)…" oninput="runSearch(this.value)">
+            </div>
+            <div class="action-buttons">
+                <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <i class="fa-solid fa-sun" id="theme-icon"></i>
+                </button>
+                <button class="btn-action" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+                <a href="onboarding.html" target="_blank" class="btn-action btn-primary"><i class="fa-solid fa-rocket"></i> Open Dashboard</a>
+            </div>
+        </header>
+
+        <main class="main-content">
+
+            <!-- Hero -->
+            <div class="hero-banner">
+                <div class="hero-banner-content">
+                    <h1><i class="fa-solid fa-rocket" style="font-size:2rem"></i> Onboarding & Tenant Lifecycle Dashboard</h1>
+                    <p>Super-admin guide for provisioning venues, monitoring platform health, managing subscriptions, and auditing system activity on the VenueDesk platform.</p>
+                    <div class="metadata-badge-group">
+                        <span class="meta-badge"><i class="fa-solid fa-calendar-days"></i> June 2026</span>
+                        <span class="meta-badge"><i class="fa-solid fa-user-shield"></i> Super Admin Only</span>
+                        <a href="onboarding.html" target="_blank" class="meta-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Dashboard</a>
+                        <a href="onboarding_users_guide.md" class="meta-badge"><i class="fa-solid fa-file-lines"></i> Markdown Version</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUICK REFERENCE -->
+            <section id="quick-ref" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-bolt" style="color:var(--warning)"></i> Quick Reference</h2>
+                    <a class="header-anchor" onclick="copyAnchor('quick-ref')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="quick-ref-grid">
+                        <div class="quick-ref-item" onclick="scrollTo('onboarding')">
+                            <strong><i class="fa-solid fa-building-circle-plus"></i> Onboard New Venue</strong>
+                            <span class="path">Left form → Fill details → Set seats → Create Venue Account</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 5</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('editing')">
+                            <strong><i class="fa-solid fa-pen-to-square"></i> Edit Venue Details</strong>
+                            <span class="path">Table row → Edit button → Update fields → Save Changes</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 6</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('passwords')">
+                            <strong><i class="fa-solid fa-key"></i> Reset a Password</strong>
+                            <span class="path">Table row → 🔑 button → Enter new password → Reset Password</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 7</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('toggle')">
+                            <strong><i class="fa-solid fa-power-off"></i> Suspend a Venue</strong>
+                            <span class="path">Table row → ⏸ Pause → Confirm prompt</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 8</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('connect')">
+                            <strong><i class="fa-solid fa-arrow-up-right-from-square"></i> Log Into a Venue</strong>
+                            <span class="path">Click row → Venue Detail Panel → Connect to Full Dashboard</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 9</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('audit')">
+                            <strong><i class="fa-solid fa-shield-halved"></i> View Audit Log</strong>
+                            <span class="path">Telemetry panel → System Audit button → browse log</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 10</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('telemetry')">
+                            <strong><i class="fa-solid fa-wave-square"></i> Check API Health</strong>
+                            <span class="path">Telemetry panel → ⚡ Ping → read latency in ms</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 3</small>
+                        </div>
+                        <div class="quick-ref-item" onclick="scrollTo('enquiry')">
+                            <strong><i class="fa-solid fa-link"></i> Copy Enquiry Link</strong>
+                            <span class="path">Table row → 🔗 Enquiry Link → link copied to clipboard</span>
+                            <small><i class="fa-solid fa-arrow-right"></i> Section 12</small>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LOGIN -->
+            <section id="login" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-shield-check" style="color:var(--success)"></i> Logging In</h2>
+                    <a class="header-anchor" onclick="copyAnchor('login')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <div>
+                            <p>The dashboard is protected by an admin key gate — not the same as the staff JWT login used by venue managers.</p>
+                            <ul class="custom-step-list">
+                                <li><div class="step-bubble">1</div><div class="step-content"><strong>Navigate to the dashboard URL</strong><span>The login card appears over a dark background — the main app is hidden until authenticated.</span></div></li>
+                                <li><div class="step-bubble">2</div><div class="step-content"><strong>Enter the Admin Key</strong><span>Type the key into the password field. Press Enter or click <em>Access Dashboard</em>.</span></div></li>
+                                <li><div class="step-bubble">3</div><div class="step-content"><strong>Dashboard loads</strong><span>Venues load, the telemetry panel fires its first latency ping, and the DB health dot turns green.</span></div></li>
+                            </ul>
+                            <div class="badge-warning-text" style="margin-top:1.25rem">
+                                <i class="fa-solid fa-clock"></i>
+                                <span><strong>Session expires on browser close.</strong> The admin key is stored in sessionStorage only — there is no "stay logged in" option. Re-enter the key each new session.</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="mockup-frame">
+                                <span class="mockup-label">Login Screen</span>
+                                <div class="mk-login-card">
+                                    <div class="mk-brand"><i class="fa-solid fa-layer-group" style="color:#6366f1;-webkit-text-fill-color:#6366f1"></i> VenueDesk</div>
+                                    <div class="mk-subtitle">Onboarding Administration</div>
+                                    <div class="mk-input-group">
+                                        <label class="mk-label">Admin Key</label>
+                                        <input class="mk-input" type="password" placeholder="Enter admin key" disabled style="pointer-events:none">
+                                    </div>
+                                    <div class="mk-btn-primary"><i class="fa-solid fa-shield-check"></i> Access Dashboard</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TELEMETRY -->
+            <section id="telemetry" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-wave-square" style="color:var(--primary)"></i> Telemetry Panel</h2>
+                    <a class="header-anchor" onclick="copyAnchor('telemetry')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>The glassmorphism bar at the top of the main area provides a live view of platform health. It updates automatically every 30 seconds — no page refresh needed.</p>
+                    <div class="mockup-frame">
+                        <span class="mockup-label">Telemetry Panel</span>
+                        <div class="mk-telemetry">
+                            <div class="mk-tele-item">
+                                <div class="mk-health-dot green"></div>
+                                <div><div class="mk-tele-label">DB Health</div><div class="mk-tele-val" style="color:#34d399;font-size:0.75rem">Healthy</div></div>
+                            </div>
+                            <div class="mk-tele-item">
+                                <i class="fa-solid fa-wave-square" style="color:#818cf8;font-size:0.8rem"></i>
+                                <div><div class="mk-tele-label">API Latency</div><div class="mk-tele-val">42 ms</div></div>
+                            </div>
+                            <div class="mk-tele-item">
+                                <i class="fa-solid fa-clock-rotate-left" style="color:#8b9cc8;font-size:0.8rem"></i>
+                                <div><div class="mk-tele-label">Last Check</div><div class="mk-tele-val" style="font-size:0.72rem">14:32:07</div></div>
+                            </div>
+                            <div style="margin-left:auto;display:flex;gap:0.5rem">
+                                <div class="mk-btn mk-btn-info"><i class="fa-solid fa-shield-halved"></i> System Audit</div>
+                                <div class="mk-btn mk-btn-ping"><i class="fa-solid fa-bolt"></i> Ping</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" style="margin-top:1.5rem">
+                        <table>
+                            <thead><tr><th>Indicator</th><th>State</th><th>Meaning</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Health dot — green, pulsing</strong></td><td><span class="status-badge green">● Healthy</span></td><td>Last venue data load succeeded. DB and API are responsive.</td></tr>
+                                <tr><td><strong>Health dot — red, pulsing</strong></td><td><span class="status-badge red">● Degraded</span></td><td>Last venue load failed. Click Refresh in the venues card to retry.</td></tr>
+                                <tr><td><strong>Latency — green (&lt; 300 ms)</strong></td><td><span class="status-badge green">42 ms</span></td><td>API responding normally. No action needed.</td></tr>
+                                <tr><td><strong>Latency — amber (300–800 ms)</strong></td><td><span class="status-badge amber">520 ms</span></td><td>Elevated latency. Monitor — may be transient.</td></tr>
+                                <tr><td><strong>Latency — red (&gt; 800 ms) / timeout</strong></td><td><span class="status-badge red">timeout</span></td><td>API not responding. Check server status.</td></tr>
+                                <tr><td><strong>System Audit button</strong></td><td>—</td><td>Opens the admin action log modal. See Section 10.</td></tr>
+                                <tr><td><strong>⚡ Ping button</strong></td><td>—</td><td>Triggers an immediate latency check — useful after a network event.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="badge-info-text" style="margin-top:1.25rem">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>The latency check sends a lightweight GET to <code>api.venuedesk.co.uk/health/ping</code>. It does not transmit credentials. The 30-second auto-check starts when you log in and runs for the lifetime of your tab.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VENUES TABLE -->
+            <section id="venues-table" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-table" style="color:var(--info)"></i> Reading the Venues Table</h2>
+                    <a class="header-anchor" onclick="copyAnchor('venues-table')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>The main panel lists all registered venues. Click any row to open the full Venue Detail Panel for that tenant.</p>
+                    <div class="mockup-frame">
+                        <span class="mockup-label">Venues Table</span>
+                        <div style="overflow-x:auto">
+                        <table class="mk-table">
+                            <thead><tr><th>ID</th><th>Venue</th><th>Username</th><th>Status</th><th>Subscription</th><th>Seats</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="mk-badge-id">#1001</span></td>
+                                    <td><strong style="color:#eef2ff">The Park Suite</strong><br><span style="font-size:0.72rem;color:#8b9cc8">the-park-suite</span></td>
+                                    <td><code style="font-size:0.78rem;color:#a5b4fc;background:rgba(99,102,241,0.10);padding:2px 7px;border-radius:5px">parksuite</code></td>
+                                    <td><span class="mk-badge-active"><i class="fa-solid fa-circle-check"></i> Active</span></td>
+                                    <td><span class="mk-badge-sub-active"><i class="fa-solid fa-circle-check"></i> Active</span></td>
+                                    <td><span class="mk-seats-pill">Seats: 3 / 5</span></td>
+                                    <td style="white-space:nowrap"><div style="display:flex;gap:5px;flex-wrap:wrap">
+                                        <span style="padding:3px 8px;background:rgba(99,102,241,0.12);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;font-size:0.72rem;font-weight:600">✏ Edit</span>
+                                        <span style="padding:3px 8px;background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.28);border-radius:6px;font-size:0.72rem;font-weight:600">↗ Open</span>
+                                        <span style="padding:3px 8px;background:rgba(16,185,129,0.10);color:#34d399;border:1px solid rgba(16,185,129,0.28);border-radius:6px;font-size:0.72rem;font-weight:600">🔗</span>
+                                        <span style="padding:3px 8px;background:rgba(99,102,241,0.12);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;font-size:0.72rem;font-weight:600">🔑</span>
+                                        <span style="padding:3px 8px;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:6px;font-size:0.72rem;font-weight:600">⏸</span>
+                                    </div></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mk-badge-id">#1002</span></td>
+                                    <td><strong style="color:#eef2ff">Riverside Hall</strong><br><span style="font-size:0.72rem;color:#8b9cc8">riverside-hall</span></td>
+                                    <td><code style="font-size:0.78rem;color:#a5b4fc;background:rgba(99,102,241,0.10);padding:2px 7px;border-radius:5px">riverside</code></td>
+                                    <td><span class="mk-badge-active"><i class="fa-solid fa-circle-check"></i> Active</span></td>
+                                    <td><span class="mk-badge-sub-trial"><i class="fa-solid fa-hourglass-half"></i> Trial</span></td>
+                                    <td><span class="mk-seats-pill">Seats: 1 / 2</span></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                    <div class="table-container" style="margin-top:1.5rem">
+                        <table>
+                            <thead><tr><th>Column</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>ID</strong></td><td>The tenant ID — a unique integer (≥ 1000) that identifies this venue across the entire platform. Used in booking form URLs.</td></tr>
+                                <tr><td><strong>Venue / Slug</strong></td><td>Display name and the URL-safe slug used in the public enquiry form link.</td></tr>
+                                <tr><td><strong>Username</strong></td><td>The staff login credential for this venue. If blank, no login has been set yet — use the 🔑 button to create one.</td></tr>
+                                <tr><td><strong>Status</strong></td><td>Green <span class="status-badge green">Active</span> = accepting bookings. Grey <span class="status-badge" style="background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.25)">Inactive</span> = suspended.</td></tr>
+                                <tr><td><strong>Subscription</strong></td><td>Billing tier badge: <span class="status-badge green">Active</span> <span class="status-badge indigo">Trial</span> <span class="status-badge red">Past Due</span>. Shows — until the API returns this field.</td></tr>
+                                <tr><td><strong>Seats</strong></td><td>Staff account usage in the format <code>Seats: X / Y</code> where X = active accounts, Y = licensed maximum.</td></tr>
+                                <tr><td><strong>Actions</strong></td><td>Edit · Open detail panel · Copy enquiry link · Reset password (🔑) · Pause/Play (toggle active).</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ONBOARDING -->
+            <section id="onboarding" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-building-circle-plus" style="color:var(--success)"></i> Onboarding a New Venue</h2>
+                    <a class="header-anchor" onclick="copyAnchor('onboarding')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>The left-hand <strong>Onboard New Venue</strong> form creates a complete venue account — database record, tenant isolation, and staff login credentials — in a single operation.</p>
+                    <div class="grid-2-col">
+                        <div>
+                            <ul class="custom-step-list">
+                                <li><div class="step-bubble">1</div><div class="step-content"><strong>Tenant / Venue ID</strong><span>Auto-suggested as the next available number. Must be ≥ 1000. Adjust if needed — each ID must be unique.</span></div></li>
+                                <li><div class="step-bubble">2</div><div class="step-content"><strong>Venue Name</strong><span>The full display name, e.g. <em>The Park Suite</em>. The Slug field auto-fills as you type.</span></div></li>
+                                <li><div class="step-bubble">3</div><div class="step-content"><strong>Slug</strong><span>Auto-generated as lowercase-with-hyphens. Appears in booking form URLs. Edit manually only if needed.</span></div></li>
+                                <li><div class="step-bubble">4</div><div class="step-content"><strong>Admin Username &amp; Contact Name</strong><span>The login credential and display name for the venue manager.</span></div></li>
+                                <li><div class="step-bubble">5</div><div class="step-content"><strong>Password</strong><span>Initial password — minimum 6 characters. Share securely; ask the venue to change it after first login.</span></div></li>
+                                <li><div class="step-bubble">6</div><div class="step-content"><strong>Staff Seats stepper</strong><span>Set the number of staff accounts this venue is licensed for. Pricing preview updates instantly.</span></div></li>
+                                <li><div class="step-bubble">7</div><div class="step-content"><strong>Click Create Venue Account</strong><span>Spinner shows while processing. Green toast on success — venue appears in the table immediately.</span></div></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <div class="mockup-frame">
+                                <span class="mockup-label">Create Form</span>
+                                <div class="mk-form-grid">
+                                    <div class="mk-input-group"><label class="mk-label">Tenant / Venue ID</label><input class="mk-input" value="1004" disabled></div>
+                                    <div class="mk-input-group"><label class="mk-label">Venue Name</label><input class="mk-input" value="The Park Suite" disabled></div>
+                                </div>
+                                <div class="mk-input-group"><label class="mk-label">Slug</label><input class="mk-input" value="the-park-suite" disabled></div>
+                                <div class="mk-form-grid">
+                                    <div class="mk-input-group"><label class="mk-label">Admin Username</label><input class="mk-input" value="parksuite" disabled></div>
+                                    <div class="mk-input-group"><label class="mk-label">Contact Name</label><input class="mk-input" value="Jane Smith" disabled></div>
+                                </div>
+                                <div class="mk-input-group"><label class="mk-label">Password</label><input class="mk-input" type="password" value="securepass1" disabled></div>
+                                <div class="mk-input-group">
+                                    <label class="mk-label">Staff Seats</label>
+                                    <div style="display:flex;align-items:center;gap:0.75rem">
+                                        <div class="mk-stepper"><div class="mk-stepper-btn">−</div><div class="mk-stepper-val">3</div><div class="mk-stepper-btn">+</div></div>
+                                        <span style="font-size:0.75rem;color:#8b9cc8">staff accounts included</span>
+                                    </div>
+                                    <div class="mk-pricing-preview">Monthly: <strong>£40.00</strong> <span style="font-size:0.73rem">(£30 base + 2 × £5 extra seats)</span></div>
+                                </div>
+                                <div class="mk-btn-primary"><i class="fa-solid fa-floppy-disk" style="font-size:0.85rem"></i> Create Venue Account</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-card" style="margin-top:1.5rem;margin-bottom:0">
+                        <div class="card-header" style="padding:1rem 1.5rem"><h2 style="font-size:1.1rem"><i class="fa-solid fa-sterling-sign" style="color:var(--warning)"></i> Seat Pricing Reference</h2></div>
+                        <div class="card-body" style="padding:1.25rem 1.5rem">
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Staff Seats</th><th>Base</th><th>Extra Seats</th><th>Monthly Total</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>1 seat</td><td>£30</td><td>0 × £5 = £0</td><td><strong>£30.00</strong></td></tr>
+                                        <tr><td>2 seats</td><td>£30</td><td>1 × £5 = £5</td><td><strong>£35.00</strong></td></tr>
+                                        <tr><td>3 seats</td><td>£30</td><td>2 × £5 = £10</td><td><strong>£40.00</strong></td></tr>
+                                        <tr><td>5 seats</td><td>£30</td><td>4 × £5 = £20</td><td><strong>£50.00</strong></td></tr>
+                                        <tr><td>10 seats</td><td>£30</td><td>9 × £5 = £45</td><td><strong>£75.00</strong></td></tr>
+                                        <tr><td>20 seats (max)</td><td>£30</td><td>19 × £5 = £95</td><td><strong>£125.00</strong></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EDITING -->
+            <section id="editing" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-pen-to-square" style="color:var(--primary)"></i> Editing a Venue</h2>
+                    <a class="header-anchor" onclick="copyAnchor('editing')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>Click the <strong>Edit</strong> button on any table row (or <em>Edit Details</em> inside the Venue Detail Panel) to open the Edit Venue modal.</p>
+                    <div class="grid-2-col">
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+                                <tbody>
+                                    <tr><td><strong>Venue Name</strong></td><td>Updates the display name everywhere in the platform.</td></tr>
+                                    <tr><td><strong>Slug</strong></td><td>Auto-updates as you type the name. Only change manually if you need a specific URL key.</td></tr>
+                                    <tr><td><strong>Contact Name</strong></td><td>Updates the staff display name shown in the venue's dashboard sidebar.</td></tr>
+                                    <tr><td><strong>Staff Seats</strong></td><td>Adjust seat allocation up or down. Pricing preview updates in real time. The new value is saved to the database.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div class="badge-info-text"><i class="fa-solid fa-circle-info"></i><span>The slug forms part of the public enquiry link — changing it will break any existing links shared with customers. Coordinate with the venue before modifying it.</span></div>
+                            <div class="badge-success-text" style="margin-top:1rem"><i class="fa-solid fa-check-circle"></i><span>The table refreshes automatically after saving. No manual page reload needed.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PASSWORDS -->
+            <section id="passwords" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-key" style="color:var(--warning)"></i> Password Management</h2>
+                    <a class="header-anchor" onclick="copyAnchor('passwords')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <div class="sub-card">
+                            <h4><i class="fa-solid fa-key"></i> Reset Password (existing user)</h4>
+                            <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem">Use when a venue manager is locked out or requests a new password.</p>
+                            <ol class="custom-step-list">
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">1</div><div class="step-content"><strong>Click 🔑 on the table row</strong><span>Modal shows the existing username (read-only).</span></div></li>
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">2</div><div class="step-content"><strong>Enter new password (min 6 chars)</strong></div></li>
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">3</div><div class="step-content"><strong>Click Reset Password</strong></div></li>
+                            </ol>
+                        </div>
+                        <div class="sub-card">
+                            <h4><i class="fa-solid fa-user-plus"></i> Set Login (new user on existing venue)</h4>
+                            <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem">Use when a venue was created without a username, or needs a second account.</p>
+                            <ol class="custom-step-list">
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">1</div><div class="step-content"><strong>Click 🔑 on a row with no username</strong><span>Modal shows a Username input field.</span></div></li>
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">2</div><div class="step-content"><strong>Enter username and password</strong></div></li>
+                                <li style="padding:0.75rem 1rem"><div class="step-bubble" style="width:1.5rem;height:1.5rem;font-size:0.75rem">3</div><div class="step-content"><strong>Click Set Login</strong><span>A new staff user account is created for this tenant.</span></div></li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="badge-warning-text"><i class="fa-solid fa-triangle-exclamation"></i><span>Passwords are hashed with SHA-512 + a server-side pepper before storage. There is no way to recover a lost password — only reset it. Always communicate new passwords to venues through a secure channel.</span></div>
+                </div>
+            </section>
+
+            <!-- TOGGLE -->
+            <section id="toggle" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-power-off" style="color:var(--danger)"></i> Activating &amp; Deactivating Venues</h2>
+                    <a class="header-anchor" onclick="copyAnchor('toggle')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <div>
+                            <p>Click the <strong>⏸ Pause</strong> button to deactivate, or <strong>▶ Play</strong> to reactivate. A confirmation prompt appears before any change is applied.</p>
+                            <div class="table-container" style="margin-top:1rem">
+                                <table>
+                                    <thead><tr><th>State change</th><th>What happens</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><span class="status-badge green">Active</span> → <span class="status-badge" style="background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.25)">Inactive</span></td><td>Venue's booking form rejects new enquiries. Staff can still log in. Row badge turns grey.</td></tr>
+                                        <tr><td><span class="status-badge" style="background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.25)">Inactive</span> → <span class="status-badge green">Active</span></td><td>Reverses the above immediately. Enquiries accepted again.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="badge-info-text"><i class="fa-solid fa-circle-info"></i><span>Deactivation is <strong>soft</strong> — no data is deleted. The venue's bookings, customers, and history remain intact. This is the correct action for a payment dispute or subscription lapse; use it before considering any data deletion.</span></div>
+                            <div class="badge-warning-text" style="margin-top:1rem"><i class="fa-solid fa-triangle-exclamation"></i><span>Every toggle action is automatically written to the System Audit Log with a timestamp and the target tenant ID.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CONNECT -->
+            <section id="connect" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-arrow-up-right-from-square" style="color:var(--success)"></i> Connecting to a Venue's Dashboard</h2>
+                    <a class="header-anchor" onclick="copyAnchor('connect')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>Click any table row to open the <strong>Venue Detail Panel</strong>. The right column provides a grid of quick-launch buttons for every section of that venue's dashboard.</p>
+                    <div class="grid-3-col" style="margin:1.5rem 0">
+                        <div class="sub-card"><h4>🏨 Rooms &amp; Pricing</h4><p style="font-size:0.855rem;color:var(--text-muted)">Configure rooms, event types, and the pricing grid for this venue.</p></div>
+                        <div class="sub-card"><h4>📅 Calendar</h4><p style="font-size:0.855rem;color:var(--text-muted)">View and manage the booking calendar and blocked dates.</p></div>
+                        <div class="sub-card"><h4>👥 Customers</h4><p style="font-size:0.855rem;color:var(--text-muted)">Browse customer records, log interactions, view history.</p></div>
+                        <div class="sub-card"><h4>📋 Bookings</h4><p style="font-size:0.855rem;color:var(--text-muted)">All confirmed bookings and walk-in registrations.</p></div>
+                        <div class="sub-card"><h4>📊 Accounts</h4><p style="font-size:0.855rem;color:var(--text-muted)">Payments, revenue overview, and outstanding balances.</p></div>
+                        <div class="sub-card"><h4>✍️ Manual Booking</h4><p style="font-size:0.855rem;color:var(--text-muted)">Create a booking on behalf of this venue without going through the enquiry form.</p></div>
+                    </div>
+                    <div class="badge-warning-text"><i class="fa-solid fa-triangle-exclamation"></i><span><strong>Connected tabs are live sessions.</strong> Any action you take (create a booking, edit a customer, record a payment) affects real data permanently. Always close the venue tab when you are done to avoid accidental changes.</span></div>
+                    <div class="badge-info-text" style="margin-top:0.75rem"><i class="fa-solid fa-circle-info"></i><span>The <strong>Connect to Full Dashboard</strong> purple button opens the venue's main staff dashboard (index.html), pre-authenticated as an admin for that tenant. A green toast notification confirms which venue you are connecting to.</span></div>
+                </div>
+            </section>
+
+            <!-- AUDIT LOG -->
+            <section id="audit" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-shield-halved" style="color:var(--primary)"></i> System Audit Log</h2>
+                    <a class="header-anchor" onclick="copyAnchor('audit')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <p>Every admin write operation (create venue, reset password, toggle venue) is automatically logged. Click <strong>System Audit</strong> in the telemetry panel to review the log.</p>
+                    <div class="mockup-frame">
+                        <span class="mockup-label">System Audit Modal</span>
+                        <div style="background:rgba(8,14,35,0.97);border:1px solid rgba(99,120,186,0.2);border-radius:12px;overflow:hidden;max-height:260px;">
+                            <div class="mk-audit-header">
+                                <i class="fa-solid fa-shield-halved" style="color:#818cf8"></i>
+                                <h4>System Audit Log</h4>
+                                <span style="font-size:0.72rem;color:#8b9cc8;margin-left:auto">3 records</span>
+                                <div class="mk-btn mk-btn-ping" style="margin-left:0.5rem;font-size:0.7rem"><i class="fa-solid fa-rotate-right"></i> Refresh</div>
+                            </div>
+                            <div style="overflow-x:auto;padding:0.75rem">
+                            <table class="mk-table">
+                                <thead><tr><th>Timestamp</th><th>Action</th><th>Target</th><th>Admin</th><th>Details</th></tr></thead>
+                                <tbody>
+                                    <tr><td style="color:#8b9cc8;white-space:nowrap">24 Jun 14:31</td><td><span class="mk-audit-pill">create_venue</span></td><td><span class="mk-badge-id">#1004</span></td><td style="color:#8b9cc8">super-admin</td><td style="color:#8b9cc8;font-size:0.75rem">Venue created: The Park Suite, max_users: 3</td></tr>
+                                    <tr><td style="color:#8b9cc8;white-space:nowrap">24 Jun 14:15</td><td><span class="mk-audit-pill">toggle_venue</span></td><td><span class="mk-badge-id">#1002</span></td><td style="color:#8b9cc8">super-admin</td><td style="color:#8b9cc8;font-size:0.75rem">Venue active state toggled for tenant_id: 1002</td></tr>
+                                    <tr><td style="color:#8b9cc8;white-space:nowrap">24 Jun 09:02</td><td><span class="mk-audit-pill">reset_password</span></td><td><span style="color:#8b9cc8">—</span></td><td style="color:#8b9cc8">super-admin</td><td style="color:#8b9cc8;font-size:0.75rem">Password reset for user: riverside</td></tr>
+                                </tbody>
+                            </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" style="margin-top:1.5rem">
+                        <table>
+                            <thead><tr><th>Column</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Timestamp</strong></td><td>Date and time the action occurred (shown in your local time zone).</td></tr>
+                                <tr><td><strong>Action</strong></td><td><code>create_venue</code>, <code>reset_password</code>, or <code>toggle_venue</code>.</td></tr>
+                                <tr><td><strong>Target</strong></td><td>The venue ID affected. Blank (<code>—</code>) for password resets, which are per-user not per-tenant.</td></tr>
+                                <tr><td><strong>Admin</strong></td><td>The admin identity that performed the action. Currently <code>super-admin</code> for all platform operations.</td></tr>
+                                <tr><td><strong>Details</strong></td><td>Human-readable summary of what changed, e.g. venue name, seat count, or username affected.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="badge-info-text" style="margin-top:1.25rem"><i class="fa-solid fa-circle-info"></i><span>If the modal shows <strong>"Failed to load logs"</strong>, the <code>GET /admin/system-logs</code> endpoint on the API server is not yet active. This is a known pending item — the frontend is ready and will populate automatically once the backend endpoint is deployed.</span></div>
+                </div>
+            </section>
+
+            <!-- SUBSCRIPTION & SEATS -->
+            <section id="subscription" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-credit-card" style="color:var(--warning)"></i> Subscription Status &amp; Seat Allocation</h2>
+                    <a class="header-anchor" onclick="copyAnchor('subscription')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <div>
+                            <h4 style="font-family:'Outfit',sans-serif;font-weight:600;margin-bottom:1rem;color:var(--text-main)">Subscription Status Badges</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><span class="status-badge green"><i class="fa-solid fa-circle-check"></i> Active</span></td><td>Venue is on a paid, current subscription.</td></tr>
+                                        <tr><td><span class="status-badge indigo"><i class="fa-solid fa-hourglass-half"></i> Trial</span></td><td>Venue is in a free trial period.</td></tr>
+                                        <tr><td><span class="status-badge red"><i class="fa-solid fa-triangle-exclamation"></i> Past Due</span></td><td>Payment is overdue. May need intervention.</td></tr>
+                                        <tr><td><code>—</code></td><td>API hasn't returned this field yet — no billing data in the database for this venue.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="font-family:'Outfit',sans-serif;font-weight:600;margin-bottom:1rem;color:var(--text-main)">Seat Allocation</h4>
+                            <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1rem">Displayed as <code>Seats: X / Y</code> in the table:</p>
+                            <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem">
+                                <li style="display:flex;gap:0.75rem;align-items:center;font-size:0.9rem"><span class="status-badge blue">X</span><span style="color:var(--text-muted)">Number of currently active staff user accounts for this venue.</span></li>
+                                <li style="display:flex;gap:0.75rem;align-items:center;font-size:0.9rem"><span class="status-badge indigo">Y</span><span style="color:var(--text-muted)">Maximum licensed seats — set when onboarding or via the Edit modal.</span></li>
+                            </ul>
+                            <div class="badge-info-text" style="margin-top:1rem"><i class="fa-solid fa-circle-info"></i><span>To increase or decrease a venue's seat limit, open the <strong>Edit</strong> modal and adjust the stepper. The new <code>max_users</code> value is saved to the database on Save Changes.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ENQUIRY LINK -->
+            <section id="enquiry" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-link" style="color:var(--success)"></i> Copying the Public Enquiry Link</h2>
+                    <a class="header-anchor" onclick="copyAnchor('enquiry')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <div>
+                            <p>Every venue has a unique public-facing booking enquiry form URL. Click the <strong>🔗 Enquiry Link</strong> button on any table row to copy it to your clipboard.</p>
+                            <p style="margin-top:0.75rem">Share this URL with the venue so they can embed it on their website or include it in marketing. The URL format is:</p>
+                            <div style="background:var(--bg-muted);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:0.875rem 1rem;margin:1rem 0;font-family:monospace;font-size:0.85rem;color:var(--primary);word-break:break-all;">
+                                https://andyjay72.github.io/VenueDesk/enquiry-form.html?t=<strong>1001</strong>
+                            </div>
+                            <p style="font-size:0.875rem;color:var(--text-muted)">The <code>?t=</code> parameter is the venue's tenant ID. Enquiries submitted through this form are routed directly to that venue's dashboard under <strong>Pending Requests</strong>.</p>
+                        </div>
+                        <div>
+                            <div class="badge-info-text"><i class="fa-solid fa-circle-info"></i><span>If the clipboard copy fails (older browsers), a toast notification shows the full URL so you can copy it manually.</span></div>
+                            <div class="badge-warning-text" style="margin-top:1rem"><i class="fa-solid fa-triangle-exclamation"></i><span>If you change a venue's <strong>slug</strong> in the Edit modal, existing enquiry links using the old slug will break. Always redistribute a new link after a slug change.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECURITY -->
+            <section id="security" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-lock" style="color:var(--danger)"></i> Session &amp; Security Notes</h2>
+                    <a class="header-anchor" onclick="copyAnchor('security')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2-col">
+                        <ul class="custom-step-list">
+                            <li><div class="step-bubble" style="background:linear-gradient(135deg,var(--danger),#dc2626)"><i class="fa-solid fa-clock fa-xs"></i></div><div class="step-content"><strong>Session expires on browser close</strong><span><code>vd_admin_auth</code> is stored in sessionStorage only. There is no "stay logged in" — every new browser session requires re-entering the admin key.</span></div></li>
+                            <li><div class="step-bubble" style="background:linear-gradient(135deg,var(--danger),#dc2626)"><i class="fa-solid fa-eye fa-xs"></i></div><div class="step-content"><strong>Admin key visible in page source</strong><span>The dashboard is for internal admin use only. Do not share the URL publicly. The admin key is embedded in the JS for operational convenience — treat it as sensitive.</span></div></li>
+                            <li><div class="step-bubble" style="background:linear-gradient(135deg,var(--success),#059669)"><i class="fa-solid fa-shield fa-xs"></i></div><div class="step-content"><strong>Every admin action is logged</strong><span>Create, reset-password, and toggle-venue operations write an audit record automatically. No manual step required.</span></div></li>
+                            <li><div class="step-bubble" style="background:linear-gradient(135deg,var(--warning),#d97706)"><i class="fa-solid fa-exclamation fa-xs"></i></div><div class="step-content"><strong>Connected venue tabs are live</strong><span>Impersonating a venue opens a real session. Bookings, payments, and edits made there are permanent. Close the tab when done.</span></div></li>
+                            <li><div class="step-bubble" style="background:linear-gradient(135deg,var(--info),#2563eb)"><i class="fa-solid fa-network-wired fa-xs"></i></div><div class="step-content"><strong>Latency checks send no credentials</strong><span>The 30-second ping to <code>/health/ping</code> is an unauthenticated GET. No session data, tenant data, or admin key is transmitted.</span></div></li>
+                        </ul>
+                        <div>
+                            <div class="sub-card">
+                                <h4><i class="fa-solid fa-route"></i> Auth architecture</h4>
+                                <p style="font-size:0.855rem;color:var(--text-muted);margin-bottom:0.75rem">The onboarding dashboard uses a separate auth system from the venue staff login:</p>
+                                <div class="table-container">
+                                    <table>
+                                        <thead><tr><th>Mechanism</th><th>Used by</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>Admin key gate (<code>vd_admin_auth</code>)</td><td>This onboarding dashboard</td></tr>
+                                            <tr><td>JWT token (<code>vp_token</code>)</td><td>All venue staff pages (index, calendar, customers…)</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GLOSSARY -->
+            <section id="glossary" class="section-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-book" style="color:var(--info)"></i> Glossary</h2>
+                    <a class="header-anchor" onclick="copyAnchor('glossary')"><i class="fa-solid fa-link"></i> Copy link</a>
+                </div>
+                <div class="card-body">
+                    <div class="glossary-grid">
+                        <div class="glossary-term-card"><strong>Tenant</strong><p>A single venue account on the VenueDesk platform. Each tenant has a unique tenant ID, its own isolated database records, and its own staff login credentials.</p></div>
+                        <div class="glossary-term-card"><strong>Tenant ID</strong><p>A unique integer (≥ 1000) that identifies a venue throughout the platform. Appears in booking URLs as <code>?t=1001</code>. Never reuse a retired ID.</p></div>
+                        <div class="glossary-term-card"><strong>Slug</strong><p>A URL-safe version of the venue name, e.g. <code>the-park-suite</code>. Used in the public enquiry form link. Lowercase letters, numbers, and hyphens only.</p></div>
+                        <div class="glossary-term-card"><strong>Seat / max_users</strong><p>The number of staff login accounts a venue is licensed to have. One is included in the base subscription; additional seats are £5/month each.</p></div>
+                        <div class="glossary-term-card"><strong>Admin key</strong><p>The master password that gates access to this onboarding dashboard. Separate from the venue staff JWT login. Stored only for the current browser session.</p></div>
+                        <div class="glossary-term-card"><strong>DB Health dot</strong><p>The coloured pulsing circle in the telemetry panel. Green = last venue data load succeeded. Red = last load failed, possible API or database issue.</p></div>
+                        <div class="glossary-term-card"><strong>API Latency</strong><p>Round-trip time in milliseconds from your browser to <code>api.venuedesk.co.uk</code>. Under 300 ms is normal; over 800 ms warrants investigation.</p></div>
+                        <div class="glossary-term-card"><strong>Impersonate / Connect</strong><p>Opening a venue's dashboard in a new tab pre-authenticated as that tenant's admin. Used for support and setup. All actions in that tab are real and permanent.</p></div>
+                        <div class="glossary-term-card"><strong>Subscription status</strong><p>The billing state of a venue: Active (paid), Trial (free period), Past Due (payment overdue). Driven by the <code>subscription_status</code> field in the database.</p></div>
+                        <div class="glossary-term-card"><strong>Audit log</strong><p>A timestamped record of every admin write operation. Stored in the database and accessible via the System Audit modal. Cannot be edited or deleted from the UI.</p></div>
+                        <div class="glossary-term-card"><strong>Health pulse</strong><p>An automated background check that runs every 5 minutes via a scheduled workflow. Sends a POST to <code>/health/pulse</code> so the API can record system telemetry.</p></div>
+                        <div class="glossary-term-card"><strong>Enquiry link</strong><p>The public-facing URL for a venue's booking form. Format: <code>enquiry-form.html?t=&lt;tenant_id&gt;</code>. Enquiries submitted here appear in the venue's Pending Requests list.</p></div>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="main-footer">
+                <span><i class="fa-solid fa-rocket" style="color:var(--primary)"></i> VenueDesk Onboarding Guide — Super Admin Edition</span>
+                <span>June 2026 · For technical architecture details see <code>CLAUDE.md → onboarding.html Architecture Reference</code></span>
+                <span style="font-size:0.78rem">Questions? Check the <a href="userguide.html" style="color:var(--primary)">Staff User Guide</a> or review <a href="CLAUDE.md" style="color:var(--primary)">CLAUDE.md</a></span>
+            </footer>
+
+        </main>
+    </div><!-- end main wrapper -->
+</div><!-- end app-container -->
+
+<script>
+function setActive(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+}
+function scrollTo(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function copyAnchor(id) {
+    const url = window.location.href.split('#')[0] + '#' + id;
+    navigator.clipboard.writeText(url).catch(() => {});
+    const tip = document.createElement('span');
+    tip.textContent = ' Copied!';
+    tip.style.cssText = 'color:var(--success);font-size:0.75rem;';
+    event.target.parentNode.appendChild(tip);
+    setTimeout(() => tip.remove(), 1800);
+}
+function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    localStorage.setItem('venuedesk-ob-guide-theme', isDark ? 'light' : 'dark');
+}
+(function() {
+    const saved = localStorage.getItem('venuedesk-ob-guide-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.className = saved === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+})();
+function runSearch(q) {
+    const term = q.toLowerCase().trim();
+    if (!term) { document.querySelectorAll('.section-card').forEach(s => s.style.opacity = '1'); return; }
+    document.querySelectorAll('.section-card').forEach(s => {
+        const hit = s.textContent.toLowerCase().includes(term);
+        s.style.opacity = hit ? '1' : '0.3';
+        if (hit) s.querySelectorAll('*').forEach(el => {
+            if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                el.innerHTML = el.innerHTML.replace(/<mark class="highlight">(.*?)<\/mark>/gi, '$1');
+                const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+                if (el.textContent.toLowerCase().includes(term)) {
+                    el.innerHTML = el.innerHTML.replace(re, '<mark class="highlight">$1</mark>');
+                }
+            }
+        });
+    });
+}
+// Active section tracking on scroll
+const sections = document.querySelectorAll('section[id]');
+const navItems = document.querySelectorAll('.nav-item[href^="#"]');
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            navItems.forEach(n => {
+                n.classList.toggle('active', n.getAttribute('href') === '#' + entry.target.id);
+            });
+        }
+    });
+}, { threshold: 0.25 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
