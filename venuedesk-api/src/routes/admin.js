@@ -188,6 +188,88 @@ async function adminRoutes(fastify) {
     return { success: true, message: 'Payment settings saved' };
   });
 
+  // ── POST /admin/audit-log ─────────────────────────────────────────────────
+  // Called by n8n OnboardingManager after every admin write (create_venue,
+  // reset_password, toggle_venue). Server-to-server hop uses service JWT.
+  // Body: { admin_id, target_tenant, action_type, timestamp, details }
+  fastify.post('/audit-log', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          admin_id:      { type: 'string' },
+          target_tenant: { type: 'integer' },
+          action_type:   { type: 'string' },
+          details:       { type: 'string' },
+          timestamp:     { type: 'string' },
+        },
+        required: ['action_type'],
+        additionalProperties: false,
+      },
+    },
+  }, async (request) => {
+    const {
+      admin_id     = 'super-admin',
+      target_tenant,
+      action_type,
+      details,
+      timestamp,
+    } = request.body;
+
+    await systemQuery(
+      `INSERT INTO bookings.admin_audit_log
+         (admin_id, target_tenant, action_type, details, timestamp)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        admin_id,
+        target_tenant || null,
+        action_type,
+        details       || null,
+        timestamp     ? new Date(timestamp) : new Date(),
+      ]
+    );
+
+    return { success: true };
+  });
+
+  // ── GET /admin/system-logs ────────────────────────────────────────────────
+  // Returns admin_audit_log rows for the onboarding dashboard audit modal.
+  // Proxied through n8n /onboarding/system-logs webhook (service JWT).
+  fastify.get('/system-logs', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          limit:       { type: 'integer', default: 100, maximum: 500 },
+          action_type: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { limit = 100, action_type } = request.query;
+
+    const conditions = [];
+    const params     = [limit];
+
+    if (action_type) {
+      params.push(action_type);
+      conditions.push(`action_type = $${params.length}`);
+    }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const { rows } = await systemQuery(
+      `SELECT id, admin_id, target_tenant, action_type, details, timestamp, created_at
+       FROM   bookings.admin_audit_log
+       ${where}
+       ORDER  BY created_at DESC
+       LIMIT  $1`,
+      params
+    );
+
+    return { success: true, data: rows, count: rows.length };
+  });
+
   // GET /admin/scheduler-health
   // Convenience endpoint — equivalent to:
   //   SELECT * FROM bookings.system_logs WHERE source = 'SchedulerService' ORDER BY created_at DESC LIMIT 50;

@@ -46,6 +46,7 @@ const customersRoutes    = require('./routes/customers');     // ← CRM custome
 const usersRoutes        = require('./routes/users');         // ← Staff user management
 const usersUpdateRoutes  = require('./routes/users-update');  // ← Staff user write ops (update)
 const blockedDatesRoutes = require('./routes/blocked-dates'); // ← Blocked date rules
+const healthRoutes       = require('./routes/health');        // ← Liveness ping + health pulse
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -155,6 +156,7 @@ fastify.register(customersRoutes,    { prefix: '/customers'     }); // ← CRM c
 fastify.register(usersRoutes,        { prefix: '/users'         }); // ← Staff users
 fastify.register(usersUpdateRoutes,  { prefix: '/users'         }); // ← Staff user update
 fastify.register(blockedDatesRoutes, { prefix: '/blocked-dates' }); // ← Blocked date rules
+fastify.register(healthRoutes,       { prefix: '/health'        }); // ← /health/ping + /health/pulse
 
 // ── Health check ──────────────────────────────────────────────────────────────
 fastify.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }));
