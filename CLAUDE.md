@@ -1806,6 +1806,8 @@ Verified: all three templates (A/B/C) save and reload correctly; empty-base guar
 
 ## 5. localStorage → sessionStorage Migration Audit ✅ DONE (June 23 2026)
 
+
+
 Full audit of all live HTML pages (repo root) for auth/identity keys incorrectly stored in
 `localStorage`. See **Rule F7** for the definitive key → storage mapping.
 
@@ -1825,6 +1827,69 @@ Full audit of all live HTML pages (repo root) for auth/identity keys incorrectly
 
 `vp_sidebar_col`, `vp_theme`, `vp_light_mode`, `vp_sidebar_collapsed` remain in
 `localStorage` — this is intentional (UI preferences, not security-sensitive).
+
+## 6. audit-log.html — staff_member Field Drop ✅ FIXED (June 24 2026)
+
+**Bug:** Customer interactions were correctly stored in DB with a `staff_member` value, but
+the Staff column in `audit-log.html` always showed `—`. The render function checked
+`t.staff_member` — but when interactions were mapped to audit events, `i.staff_member` was
+read (used in the `details` string) but never copied into the pushed event object itself.
+
+**Fix:** Added `staff_member: i.staff_member || ''` to the pushed event objects in both
+the `recurring` branch and the standard `interaction` branch of the interactions mapper.
+Confirmed: both `audit-log.html` root and `CommunityHub/` mirror updated (commit `a598de5`).
+
+**General lesson:** See Pattern 20 below — when mapping a source object to an event/display
+object, every field that will be rendered must be explicitly carried across. Fields used
+only inside computed strings are silently dropped from the target object.
+
+## 7. Onboarding CRM Dashboard Upgrade ✅ DONE (June 24 2026)
+
+Full transformation of `onboarding.html` + `OnboardingManager.json` from a basic setup
+utility into a Tenant Lifecycle & CRM Dashboard. Commit `76615b9`. 16/16 smoke-test checks
+passed. See `# 🛠️ onboarding.html — Architecture Reference` section below for full detail.
+
+---
+
+## Pattern 20 — Event Object Mapping: Carry Every Rendered Field Explicitly
+
+**Problem:** When a source data object (`i`) is mapped to a display/event object pushed
+into an array, fields that are only *read* (e.g. used inside a computed string like
+`evDetails`) are not automatically present on the target object. Any renderer that later
+checks `t.field` will see `undefined`, not the source value.
+
+**Classic failure (June 24 2026):**
+```javascript
+// i.staff_member EXISTS in the interaction data from the API
+evDetails = i.subject || `${itype} · ${i.staff_member}`;  // staff_member read here...
+
+events.push({
+    type: evType, ts: i.timestamp,
+    customer_name: i.customer_name,
+    details: evDetails,
+    // staff_member NEVER COPIED — silently absent from the event object
+});
+
+// Renderer:
+const actorName = t.staff_member || t.actor || '';  // always '' — field missing
+```
+
+**Rule:** When building an event/display object from a richer source, explicitly list every
+field that any downstream renderer, filter, or CSV export will read:
+```javascript
+events.push({
+    type: evType, ts: i.timestamp,
+    customer_name: i.customer_name,
+    details: evDetails,
+    staff_member: i.staff_member || '',   // ← explicit carry-through
+    room_name: i.room_name,
+    // ... all other rendered fields
+});
+```
+
+**Diagnostic:** If a column is always blank despite the DB having data, check whether the
+field is present in the *source* object but missing from the *event* object pushed to the
+display array. `console.log(events[0])` immediately reveals absent keys.
 
 ---
 
@@ -2251,23 +2316,124 @@ See original pending item — `ports: "5432:5432"` in docker-compose.yml exposes
 
 ---
 
-## 2. Tenant Lifecycle & CRM Dashboard — Planned Next (June 24 2026)
+## 2. Tenant Lifecycle & CRM Dashboard ✅ DONE (June 24 2026)
 
-**Scope:** Transform `onboarding.html` + `n8n-workflows/OnboardingManager.json` from a basic
-setup utility into a comprehensive **Tenant Lifecycle & CRM Dashboard**.
+Delivered in commit `76615b9`. See `# 🛠️ onboarding.html — Architecture Reference` below.
 
-Current state: `onboarding.html` is a minimal admin tool — admin key gate, venue list,
-basic venue creation. `OnboardingManager.json` is the backing n8n workflow.
+---
 
-**Planned additions (to be scoped at session start):**
-- Tenant list with search/filter and health/status indicators
-- Onboarding progress tracking per tenant
-- Contact / CRM history per tenant
-- Subscription / billing state display
-- Admin actions: activate, suspend, reset password, impersonate
+# 🛠️ onboarding.html — Architecture Reference (June 24 2026)
 
-**Constraint:** Static site rule applies — vanilla JS only, no framework.
-Auth gate: `vd_admin_auth` (already migrated to sessionStorage June 23 2026).
+**File:** `onboarding.html` (root) + `CommunityHub/onboarding.html` (mirror)
+**Workflow:** `n8n-workflows/OnboardingManager.json` (v3, commit `76615b9`)
+**Auth gate:** `vd_admin_auth` in sessionStorage (not a JWT — separate admin key system)
+**User guide:** `onboarding_users_guide.md` (root of repo)
+
+## Auth model
+
+`onboarding.html` uses its own admin key gate, separate from the vp_token JWT system:
+- Login POSTs `{ admin_key }` to `N8N + /onboarding/login` → db-api validates key
+- On success: `sessionStorage.setItem('vd_admin_auth', '1')` gates the UI
+- All subsequent fetch calls embed `admin_key: AUTH` in the request body (Rule F6 — no Authorization header)
+- Session ends on browser close (sessionStorage). Re-login required each session.
+
+`AUTH` constant (`'vp-api-2026-Kj9mXqR4wZ'`) is visible in browser source — intentional for
+this admin-only utility. Never use this key as a JWT replacement in the main app pages.
+
+## Constant declaration order (Rule F1)
+
+```javascript
+const DASH_DB_API = 'https://api.venuedesk.co.uk';           // line 1187
+const N8N         = 'https://n8n.srv1090894.hstgr.cloud/webhook'; // line 1188
+const AUTH        = 'vp-api-2026-Kj9mXqR4wZ';               // line 1190
+```
+
+All three must remain at the top of the `<script>` block before any derived URLs or functions.
+
+## Telemetry panel
+
+| Element | ID | Data source | Update cadence |
+|---------|-----|-------------|----------------|
+| DB Health dot | `#dbHealthDot` | Set by `loadVenues()` success/fail | On every venue load |
+| DB Health text | `#dbHealthVal` | Same as above | On every venue load |
+| API Latency | `#teleLatency` | `performance.now()` round-trip to `GET /health/ping` | Every 30s via `setInterval` |
+| Last Check | `#teleLastCheck` | Timestamp set after each `checkLatency()` call | Every 30s |
+
+`startLatencyMonitor()` is called on both auto-login (checkAuth IIFE) and manual login.
+
+## Seat Stepper + Pricing
+
+```javascript
+function adjustSeats(elId, delta)          // clamped 1–20
+function updatePricingPreview(elId)        // called by adjustSeats + openEditModal
+// formula: total = 30 + Math.max(0, seats - 1) * 5  — pure integer, no float drift
+```
+
+Stepper IDs: `fSeats` (create form), `editSeats` (edit modal).
+`max_users` is sent in the payload for both create and edit operations.
+Edit modal pre-fills from `v.max_users || v.max_seats || 1` when opened.
+
+## Subscription CRM columns
+
+Rendered in `renderVenues()` from fields returned by `GET /onboarding/venues`:
+
+| Field | Badge | Fallback |
+|-------|-------|---------|
+| `v.subscription_status === 'active'` | `.badge-sub-active` (green) | `—` |
+| `v.subscription_status === 'past_due'` | `.badge-sub-pastdue` (red) | `—` |
+| `v.subscription_status === 'trial'` | `.badge-sub-trial` (indigo) | `—` |
+| `v.max_users` / `v.active_users` | `Seats: X / Y` pill | `—` |
+
+All four degrade gracefully to `—` if the db-api doesn't yet return those fields.
+
+## System Audit Modal
+
+Fetches `GET N8N + '/onboarding/system-logs?admin_key=<AUTH>'` (query param, Rule F6 GET pattern).
+n8n proxies to `GET /admin/system-logs` on db-api using service JWT (server-to-server hop).
+Renders: Timestamp / Action / Target Tenant / Admin / Details grid.
+
+## OnboardingManager.json v3 — Webhook inventory
+
+| Webhook path | Method | db-api endpoint | Auth |
+|-------------|--------|-----------------|------|
+| `onboarding/login` | POST | `POST /onboarding/login` | `admin_key` in body |
+| `onboarding/venues` | GET | `GET /onboarding/venues` | `X-Admin-Key` header |
+| `onboarding/create-venue` | POST | `POST /onboarding/create-venue` | `X-Admin-Key` header |
+| `onboarding/reset-password` | POST | `POST /onboarding/reset-password` | `X-Admin-Key` header |
+| `onboarding/toggle-venue` | POST | `POST /onboarding/toggle-venue` | `X-Admin-Key` header |
+| `onboarding/update-venue` | POST | `POST /onboarding/update-venue` | `X-Admin-Key` header |
+| `onboarding/system-logs` | GET | `GET /admin/system-logs` | Service JWT (Authorization header) |
+
+## Audit fan-out pattern (v3)
+
+After each write operation, an audit HTTP node fires **in parallel** with the Respond node:
+
+```
+API: Create Venue → [Respond: Created, Code: Lead Converted Stub, Audit: Create Venue]
+API: Reset Password → [Respond: Reset OK, Audit: Reset Password]
+API: Toggle Venue  → [Respond: Toggle OK, Audit: Toggle Venue]
+```
+
+All audit nodes POST to `https://api.venuedesk.co.uk/admin/audit-log` with:
+```json
+{ "admin_id": "super-admin", "target_tenant": <int>, "action_type": "<string>", "timestamp": "<ISO>", "details": "<string>" }
+```
+Auth: `Authorization: Bearer $env.CYCLE_SWEEP_SERVICE_JWT` (server-to-server — correct per Pattern 4).
+
+## Health Pulse Cron
+
+`Cron: Health Pulse` — schedule `*/5 * * * *` → `POST https://api.venuedesk.co.uk/health/pulse`
+Auth: service JWT. db-api commits telemetry snapshot to `bookings.system_health` index.
+
+## Known constraints / future work
+
+- `subscription_status`, `max_users`, `active_users` columns will show `—` until db-api
+  `/onboarding/venues` returns those fields. Frontend is ready; backend schema update pending.
+- `GET /admin/system-logs` and `POST /admin/audit-log` and `POST /health/pulse` endpoints
+  need to be implemented in db-api routes. Until then, audit modal shows "Failed to load logs"
+  gracefully.
+- Admin ID is hardcoded as `"super-admin"` in audit payloads. Replace with actual admin
+  identity once the onboarding login flow returns a user record from db-api.
 
 ---
 
