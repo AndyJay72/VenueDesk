@@ -66,6 +66,7 @@ tests/
 | `/users` | `users.js` | Staff user reads |
 | `/users` | `users-update.js` | Staff user writes (update, password) |
 | `/blocked-dates` | `blocked-dates.js` | Venue blocked date rules |
+| `/health` | `health.js` | Liveness ping (no auth) + health pulse cron endpoint |
 
 ### /config route detail
 
@@ -96,6 +97,39 @@ The `additionalProperties: false` schema on upsert and delete explicitly allows 
 fields so the Pattern 4 browser body-tunnel works without schema rejection.
 The frontend (`admin-config.html`) calls these directly — bypassing the broken n8n `ServicesAPI`
 proxy — using `?jwt=<token>` for GET and `{ jwt: _TOKEN(), ...fields }` for POST.
+
+### /admin route detail (June 24 2026)
+
+All `/admin` routes enforce `role: 'admin'` via a scope-level `addHook('preHandler')`.
+Called by the n8n `OnboardingManager` workflow using `CYCLE_SWEEP_SERVICE_JWT` (service JWT
+with `role: 'admin'`, `tenant_id: 1001`). Use `systemQuery` (bypasses RLS — cross-tenant).
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/admin/jobs` | admin JWT | List registered cron jobs from JOB_REGISTRY |
+| POST | `/admin/run-job` | admin JWT | Manually trigger a cron job |
+| GET | `/admin/logs` | admin JWT | Query `bookings.system_logs` (infra logs) |
+| GET | `/admin/scheduler-health` | admin JWT | Last run result per scheduled job |
+| POST | `/admin/payment-settings/load` | admin JWT | Load Stripe/BACS config for tenant |
+| POST | `/admin/payment-settings/save` | admin JWT | Update Stripe/BACS config |
+| POST | `/admin/audit-log` | admin JWT | Insert onboarding admin action to `admin_audit_log` |
+| GET | `/admin/system-logs` | admin JWT | Read `admin_audit_log` for onboarding audit modal |
+
+**`POST /admin/audit-log` body:** `{ admin_id, target_tenant, action_type, details, timestamp }`
+Only `action_type` is required. Called by n8n fan-out nodes after create/reset/toggle operations.
+Returns 400 (not 401) when called without a body — AJV schema validates before auth hook runs.
+
+**`GET /admin/system-logs`** returns `{ success, data: [...], count }` sorted newest-first.
+Optional query params: `limit` (default 100, max 500), `action_type` (filter).
+
+### /health route detail (June 24 2026)
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/health/ping` | **None** | Unauthenticated liveness check — returns `{ok:true,ts:"..."}`. Used by onboarding telemetry panel `performance.now()` loop every 30 s. No DB round-trip. |
+| POST | `/health/pulse` | JWT | n8n `Cron: Health Pulse` (*/5 cron) writes heartbeat to `bookings.system_health`. Body: `{source, timestamp}`. |
+
+`GET /health` (root, not `/health/ping`) also exists in `server.js` and returns `{status:"ok"}` — used by Docker health checks.
 
 ---
 
@@ -275,8 +309,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `025_room_hours_nulldefault.sql` (June 2026 — NULL defaults + existing rows reset; hours enforcement in bookings.js)  
-**Next number:** `026`
+**Latest migration:** `026_admin_audit_log.sql` (June 24 2026 — `bookings.admin_audit_log` + `bookings.system_health` tables; GRANT to venuedesk_app)
+**Next number:** `027`
 
 ---
 
@@ -425,4 +459,4 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 
 **Migration 022** (`022_confirmed_bookings_unique_slot.sql`) — unique partial index on
 `(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
-Closes TOCTOU race at the DB layer. Next migration number: `026`.
+Closes TOCTOU race at the DB layer. Next migration number: `027`.

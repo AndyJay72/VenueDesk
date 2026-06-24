@@ -1849,6 +1849,31 @@ Full transformation of `onboarding.html` + `OnboardingManager.json` from a basic
 utility into a Tenant Lifecycle & CRM Dashboard. Commit `76615b9`. 16/16 smoke-test checks
 passed. See `# 🛠️ onboarding.html — Architecture Reference` section below for full detail.
 
+## 8. Backend endpoints for Audit Log + Health ✅ DONE (June 24 2026)
+
+**Migration 026** (`026_admin_audit_log.sql`) deployed June 24 2026.
+Creates `bookings.admin_audit_log` and `bookings.system_health` tables.
+
+**New db-api routes (commit `a434210`):**
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `GET` | `/health/ping` | None | Latency target for onboarding telemetry panel |
+| `POST` | `/health/pulse` | Service JWT | n8n cron heartbeat → `system_health` |
+| `POST` | `/admin/audit-log` | Service JWT (admin role) | n8n fan-out writes onboarding actions |
+| `GET` | `/admin/system-logs` | Service JWT (admin role) | Onboarding audit modal reads |
+
+Smoke-test results: `GET /health/ping` → `{"ok":true}` · `POST /admin/audit-log` → 400
+(correct — empty body fails AJV schema before auth; n8n sends full body) · `GET /admin/system-logs` → 401.
+
+**onboarding-guide.html** — new interactive super-admin HTML guide (864 lines, commit `fb360bd`).
+Matches `userguide.html` design system. Includes 5 inline UI mockups, search, light/dark toggle,
+13 sections, 12-term glossary. Deployed at root + CommunityHub mirror.
+
+**Audit log graceful degradation (commit `bb8c1e8`)** — `loadSystemLogs` now reads
+`r.text()` before `r.json()`, shows "not yet active" panel on empty/non-JSON response
+instead of exposing raw `JSON.parse` error to user.
+
 ---
 
 ## Pattern 20 — Event Object Mapping: Carry Every Rendered Field Explicitly
@@ -1890,6 +1915,44 @@ events.push({
 **Diagnostic:** If a column is always blank despite the DB having data, check whether the
 field is present in the *source* object but missing from the *event* object pushed to the
 display array. `console.log(events[0])` immediately reveals absent keys.
+
+---
+
+## Pattern 21 — VPS Docker Deploy: Shell Variable for Long Paths
+
+**Problem:** `docker cp` commands to `/opt/n8n_postgres/venuedesk-api/src/...` are 100–130
+characters. Claude Code's UI and most terminals display-wrap lines longer than ~80 chars.
+When a user copies a wrapped command, the display linebreak becomes a real newline — the
+shell receives two broken fragments, both fail. This caused repeated deploy failures on
+June 24 2026 across multiple attempts (heredoc, direct paste, scp relay).
+
+**Rule:** When issuing `docker cp` commands on the VPS, set a path variable first, then
+use it to shorten each command to under 80 characters:
+
+```bash
+S=/opt/n8n_postgres/venuedesk-api/src
+docker cp $S/routes/admin.js  venuedesk-api:/app/src/routes/admin.js
+docker cp $S/routes/health.js venuedesk-api:/app/src/routes/health.js
+docker cp $S/server.js        venuedesk-api:/app/src/server.js
+```
+
+For migration files with long names (Pattern 11), copy to `/tmp/x` first:
+```bash
+cp 026_admin_audit_log.sql /tmp/x
+docker cp /tmp/x venuedesk-api:/app/src/db/migrations/026_admin_audit_log.sql
+```
+(`/tmp/x` as source → 79 chars — just fits.)
+
+**For long URLs** (e.g. `wget` from GitHub raw), use the same variable pattern:
+```bash
+U=https://raw.githubusercontent.com/AndyJay72/VenueDesk/main
+wget -q $U/venuedesk-api/src/db/migrations/026_admin_audit_log.sql
+```
+
+**Root cause of wrapping:** The issue is in the Claude Code UI rendering, not the VPS
+terminal. Commands that are single logical lines in my output get display-wrapped by the
+UI, and copy-paste captures the visual newline as a real `\n`. Keeping commands under 80
+chars is the only reliable prevention.
 
 ---
 
@@ -2429,11 +2492,12 @@ Auth: service JWT. db-api commits telemetry snapshot to `bookings.system_health`
 
 - `subscription_status`, `max_users`, `active_users` columns will show `—` until db-api
   `/onboarding/venues` returns those fields. Frontend is ready; backend schema update pending.
-- `GET /admin/system-logs` and `POST /admin/audit-log` and `POST /health/pulse` endpoints
-  need to be implemented in db-api routes. Until then, audit modal shows "Failed to load logs"
-  gracefully.
+- ~~`GET /admin/system-logs`, `POST /admin/audit-log`, `POST /health/pulse` not yet built~~
+  **✅ Deployed June 24 2026** — migration 026, `health.js`, updated `admin.js`.
 - Admin ID is hardcoded as `"super-admin"` in audit payloads. Replace with actual admin
   identity once the onboarding login flow returns a user record from db-api.
+- **Re-import required:** `OnboardingManager.json` must be re-imported into live n8n to
+  activate the `onboarding/system-logs` webhook and audit fan-out nodes.
 
 ---
 
