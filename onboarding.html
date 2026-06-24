@@ -507,6 +507,159 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .ob-launch-full:hover { opacity: 0.88; transform: translateY(-1px); }
 
+/* ── Telemetry panel ────────────────────────────────── */
+.ob-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.5rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.ob-tele-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+.ob-tele-item + .ob-tele-item { padding-left: 1.5rem; border-left: 1px solid var(--border); }
+.ob-tele-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+.ob-tele-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Mono', monospace;
+  color: var(--primary-hi);
+  letter-spacing: -0.01em;
+  min-width: 52px;
+}
+.ob-tele-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+/* Health dot */
+.health-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #6b7280;
+  box-shadow: 0 0 0 0 rgba(107,114,128,0.4);
+}
+.health-dot.green {
+  background: var(--success);
+  animation: pulse-green 2s infinite;
+}
+.health-dot.red {
+  background: var(--danger);
+  animation: pulse-red 1.4s infinite;
+}
+@keyframes pulse-green {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+@keyframes pulse-red {
+  0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+
+/* ── Seat stepper ────────────────────────────────────── */
+.seat-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  height: 36px;
+}
+.stepper-btn {
+  width: 36px; height: 36px;
+  background: rgba(99,102,241,0.12);
+  border: none;
+  color: var(--primary-hi);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.stepper-btn:hover { background: rgba(99,102,241,0.25); }
+.stepper-val {
+  flex: 1;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(0,0,0,0.25);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  border-left: 1px solid var(--border-hi);
+  border-right: 1px solid var(--border-hi);
+}
+.pricing-preview {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(99,102,241,0.07);
+  border: 1px solid rgba(99,102,241,0.22);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.pricing-preview strong { color: var(--primary-hi); font-size: 1rem; }
+
+/* ── Subscription badges ─────────────────────────────── */
+.badge-sub-active   { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.3); padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.badge-sub-trial    { background: rgba(99,102,241,0.14); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.badge-sub-pastdue  { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.seats-pill { font-size: 0.78rem; color: var(--text-muted); font-family: 'SF Mono','Fira Mono',monospace; white-space: nowrap; }
+
+/* ── Audit log modal ─────────────────────────────────── */
+.ob-audit-modal {
+  background: rgba(8,14,35,0.97);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  width: min(96vw, 860px);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.65);
+}
+.ob-audit-header {
+  padding: 1.2rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.ob-audit-header h3 { font-size: 1rem; font-weight: 700; flex: 1; }
+.ob-audit-body { overflow-y: auto; padding: 1.25rem 1.75rem; flex: 1; }
+.ob-audit-body table { min-width: 600px; }
+.ob-audit-body thead th { font-size: 0.69rem; }
+.ob-audit-body tbody td { font-size: 0.82rem; }
+.audit-type-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(99,102,241,0.14);
+  color: var(--primary-hi);
+}
+
 /* ── Toast ──────────────────────────────────────────── */
 #toast {
   position: fixed;
@@ -744,6 +897,39 @@ body.sidebar-collapsed .nav-link:hover::after {
   <!-- Main -->
   <main class="ob-main">
 
+    <!-- Telemetry panel -->
+    <div class="ob-telemetry">
+      <div class="ob-tele-item">
+        <div class="health-dot" id="dbHealthDot"></div>
+        <div>
+          <div class="ob-tele-label">DB Health</div>
+          <div class="ob-tele-val" id="dbHealthVal" style="font-size:0.78rem;min-width:auto">—</div>
+        </div>
+      </div>
+      <div class="ob-tele-item">
+        <i class="fa-solid fa-wave-square" style="color:var(--primary-hi);font-size:0.85rem"></i>
+        <div>
+          <div class="ob-tele-label">API Latency</div>
+          <div class="ob-tele-val" id="teleLatency">— ms</div>
+        </div>
+      </div>
+      <div class="ob-tele-item">
+        <i class="fa-solid fa-clock-rotate-left" style="color:var(--text-muted);font-size:0.85rem"></i>
+        <div>
+          <div class="ob-tele-label">Last Check</div>
+          <div class="ob-tele-val" id="teleLastCheck" style="font-size:0.75rem;min-width:auto">—</div>
+        </div>
+      </div>
+      <div class="ob-tele-actions">
+        <button class="btn btn-sm btn-info" onclick="openAuditModal()" title="View system audit log">
+          <i class="fa-solid fa-shield-halved"></i> System Audit
+        </button>
+        <button class="btn btn-sm" onclick="checkLatency()" title="Run latency check now" style="background:rgba(16,185,129,0.09);color:#34d399;border-color:rgba(16,185,129,0.28)">
+          <i class="fa-solid fa-bolt"></i> Ping
+        </button>
+      </div>
+    </div>
+
     <!-- Stats -->
     <div class="ob-stats">
       <div class="ob-stat-card">
@@ -801,6 +987,21 @@ body.sidebar-collapsed .nav-link:hover::after {
           <label>Password</label>
           <input type="password" id="fPassword" placeholder="Min 6 characters" autocomplete="new-password">
         </div>
+        <div class="input-group" style="margin-bottom:0.5rem">
+          <label>Staff Seats</label>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="seat-stepper">
+              <button type="button" class="stepper-btn" onclick="adjustSeats('fSeats',-1)">−</button>
+              <span class="stepper-val" id="fSeats">1</span>
+              <button type="button" class="stepper-btn" onclick="adjustSeats('fSeats',1)">+</button>
+            </div>
+            <span style="font-size:0.8rem;color:var(--text-muted)">staff accounts included</span>
+          </div>
+          <div class="pricing-preview" id="fPricingPreview">
+            Monthly: <strong id="fPriceDisplay">£30.00</strong>
+            <span style="margin-left:0.5rem;font-size:0.76rem">(£30 base + 0 × £5 extra seats)</span>
+          </div>
+        </div>
         <button class="btn btn-primary" id="addVenueBtn" onclick="addVenue()">
           <i class="fa-solid fa-floppy-disk"></i> Create Venue Account
         </button>
@@ -822,11 +1023,13 @@ body.sidebar-collapsed .nav-link:hover::after {
                 <th>Venue</th>
                 <th>Username</th>
                 <th>Status</th>
+                <th>Subscription</th>
+                <th>Seats</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="venuesTable">
-              <tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">Loading…</td></tr>
+              <tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -853,9 +1056,23 @@ body.sidebar-collapsed .nav-link:hover::after {
         <input type="text" id="editSlug" placeholder="e.g. park-suite">
       </div>
     </div>
-    <div class="input-group" style="margin-bottom:0">
+    <div class="input-group">
       <label>Contact Name</label>
       <input type="text" id="editFullName" placeholder="e.g. Jane Smith">
+    </div>
+    <div class="input-group" style="margin-bottom:0.5rem">
+      <label>Staff Seats</label>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <div class="seat-stepper">
+          <button type="button" class="stepper-btn" onclick="adjustSeats('editSeats',-1)">−</button>
+          <span class="stepper-val" id="editSeats">1</span>
+          <button type="button" class="stepper-btn" onclick="adjustSeats('editSeats',1)">+</button>
+        </div>
+      </div>
+      <div class="pricing-preview" id="editPricingPreview">
+        Monthly: <strong id="editPriceDisplay">£30.00</strong>
+        <span style="margin-left:0.5rem;font-size:0.76rem">(£30 base + 0 × £5 extra seats)</span>
+      </div>
     </div>
     <div class="ob-modal-actions">
       <button class="btn" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
@@ -941,13 +1158,36 @@ body.sidebar-collapsed .nav-link:hover::after {
   </div>
 </div>
 
+<!-- ── System Audit Modal ──────────────────────────────── -->
+<div class="ob-modal-overlay" id="auditModal" onclick="if(event.target===this)closeAuditModal()">
+  <div class="ob-audit-modal">
+    <div class="ob-audit-header">
+      <i class="fa-solid fa-shield-halved" style="color:var(--primary-hi)"></i>
+      <h3>System Audit Log</h3>
+      <span id="auditCount" style="font-size:0.75rem;color:var(--text-muted)"></span>
+      <button class="btn btn-sm" onclick="loadSystemLogs()" style="margin-left:auto"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+      <button class="ob-vd-close" onclick="closeAuditModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="ob-audit-body">
+      <div id="auditContent">
+        <div style="text-align:center;padding:3rem;color:var(--text-muted)">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:1rem;display:block"></i>
+          Loading audit log…
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Toast ──────────────────────────────────────────── -->
 <div id="toast"></div>
 
 <script>
-// ─── Config ───────────────────────────────────────────
-const N8N  = 'https://n8n.srv1090894.hstgr.cloud/webhook';
-const AUTH = 'vp-api-2026-Kj9mXqR4wZ';
+// ── API base URLs — must come first (Rule F1) ─────────
+const DASH_DB_API = 'https://api.venuedesk.co.uk';
+const N8N         = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+// Admin auth key — travels via request body only (Rule F6: no Authorization headers from browser)
+const AUTH        = 'vp-api-2026-Kj9mXqR4wZ';
 
 // ─── Sidebar ──────────────────────────────────────────
 function toggleMenu() {
@@ -968,6 +1208,7 @@ function toggleSidebarCollapse() {
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     loadVenues();
+    startLatencyMonitor();
   }
 })();
 
@@ -990,6 +1231,7 @@ async function adminLogin() {
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       loadVenues();
+      startLatencyMonitor();
     } else {
       throw new Error('Invalid admin key');
     }
@@ -1016,9 +1258,88 @@ async function loadVenues() {
     renderVenues();
     renderStats();
     suggestNextId();
+    setDbHealth(true);
   } catch(e) {
     document.getElementById('venuesTable').innerHTML =
-      '<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:2rem">Failed to load venues</td></tr>';
+      '<tr><td colspan="7" style="color:var(--danger);text-align:center;padding:2rem">Failed to load venues</td></tr>';
+    setDbHealth(false);
+  }
+}
+
+// ─── DB Health indicator ──────────────────────────────
+function setDbHealth(ok) {
+  const dot = document.getElementById('dbHealthDot');
+  const val = document.getElementById('dbHealthVal');
+  if (!dot) return;
+  dot.className = 'health-dot ' + (ok ? 'green' : 'red');
+  val.textContent = ok ? 'Healthy' : 'Degraded';
+  val.style.color = ok ? 'var(--success)' : 'var(--danger)';
+}
+
+// ─── Latency monitor ──────────────────────────────────
+async function checkLatency() {
+  const el = document.getElementById('teleLatency');
+  const ck = document.getElementById('teleLastCheck');
+  if (el) el.textContent = '…';
+  try {
+    const t0 = performance.now();
+    await fetch(DASH_DB_API + '/health/ping', { cache: 'no-store' });
+    const ms = Math.round(performance.now() - t0);
+    if (el) el.textContent = ms + ' ms';
+    if (el) el.style.color = ms < 300 ? 'var(--success)' : ms < 800 ? 'var(--warning)' : 'var(--danger)';
+  } catch(e) {
+    if (el) { el.textContent = 'timeout'; el.style.color = 'var(--danger)'; }
+  }
+  if (ck) ck.textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function startLatencyMonitor() {
+  checkLatency();
+  setInterval(checkLatency, 30000);
+}
+
+// ─── System Audit Modal ───────────────────────────────
+function openAuditModal() {
+  document.getElementById('auditModal').classList.add('open');
+  loadSystemLogs();
+}
+function closeAuditModal() {
+  document.getElementById('auditModal').classList.remove('open');
+}
+async function loadSystemLogs() {
+  const el = document.getElementById('auditContent');
+  el.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:1rem;display:block"></i>Loading…</div>';
+  try {
+    const r = await fetch(N8N + '/onboarding/system-logs?admin_key=' + encodeURIComponent(AUTH));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const rows = d.data || [];
+    document.getElementById('auditCount').textContent = rows.length + ' records';
+    if (!rows.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem">No audit records found.</p>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="ob-table-wrap">
+        <table>
+          <thead><tr>
+            <th>Timestamp</th><th>Action</th><th>Target Tenant</th>
+            <th>Admin</th><th>Details</th>
+          </tr></thead>
+          <tbody>${rows.map(r => {
+            const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+            return `<tr>
+              <td style="white-space:nowrap;color:var(--text-muted)">${esc(ts)}</td>
+              <td><span class="audit-type-pill">${esc(r.action_type||r.action||'—')}</span></td>
+              <td><span class="badge-id">#${esc(r.target_tenant||'—')}</span></td>
+              <td style="color:var(--text-muted)">${esc(r.admin_id||r.actor||'—')}</td>
+              <td style="color:var(--text-muted);font-size:0.78rem">${esc(r.details||r.payload||'—')}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--danger);padding:2rem;text-align:center"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px"></i>Failed to load logs: ${esc(e.message)}</div>`;
+    document.getElementById('auditCount').textContent = '';
   }
 }
 
@@ -1032,10 +1353,24 @@ function renderStats() {
 function renderVenues() {
   const tb = document.getElementById('venuesTable');
   if (!venues.length) {
-    tb.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:2rem">No venues yet. Add your first one →</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem">No venues yet. Add your first one →</td></tr>';
     return;
   }
-  tb.innerHTML = venues.map(v => `
+  tb.innerHTML = venues.map(v => {
+    const subStatus = (v.subscription_status || '').toLowerCase();
+    let subBadge;
+    if (subStatus === 'active')        subBadge = '<span class="badge-sub-active"><i class="fa-solid fa-circle-check"></i> Active</span>';
+    else if (subStatus === 'past_due' || subStatus === 'pastdue') subBadge = '<span class="badge-sub-pastdue"><i class="fa-solid fa-triangle-exclamation"></i> Past Due</span>';
+    else if (subStatus === 'trial')    subBadge = '<span class="badge-sub-trial"><i class="fa-solid fa-hourglass-half"></i> Trial</span>';
+    else                               subBadge = '<span style="color:var(--text-muted);font-size:0.78rem">—</span>';
+
+    const maxSeats    = v.max_users    || v.max_seats    || null;
+    const activeSeats = v.active_users || v.active_seats || null;
+    const seatStr = (maxSeats !== null)
+      ? `<span class="seats-pill">Seats: ${activeSeats !== null ? activeSeats : '?'} / ${maxSeats}</span>`
+      : '<span style="color:var(--text-muted);font-size:0.78rem">—</span>';
+
+    return `
     <tr onclick="openVenueDetail(${v.tenant_id})" style="cursor:pointer">
       <td><span class="badge-id">#${v.tenant_id}</span></td>
       <td>
@@ -1050,6 +1385,8 @@ function renderVenues() {
       <td>${v.active
         ? '<span class="badge-active"><i class="fa-solid fa-circle-check"></i> Active</span>'
         : '<span class="badge-inactive"><i class="fa-solid fa-circle-xmark"></i> Inactive</span>'}</td>
+      <td>${subBadge}</td>
+      <td>${seatStr}</td>
       <td>
         <div class="td-actions">
           <button class="btn btn-sm" onclick="event.stopPropagation();openEditModal(${v.tenant_id})" title="Edit venue details" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">
@@ -1069,7 +1406,30 @@ function renderVenues() {
           </button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+// ─── Seat stepper ─────────────────────────────────────
+function adjustSeats(elId, delta) {
+  const el = document.getElementById(elId);
+  const cur = parseInt(el.textContent) || 1;
+  const next = Math.max(1, Math.min(20, cur + delta));
+  el.textContent = next;
+  updatePricingPreview(elId);
+}
+function updatePricingPreview(elId) {
+  const isEdit = elId === 'editSeats';
+  const seats  = parseInt(document.getElementById(elId).textContent) || 1;
+  const extra  = Math.max(0, seats - 1);
+  const total  = 30 + extra * 5;
+  const priceEl = document.getElementById(isEdit ? 'editPriceDisplay' : 'fPriceDisplay');
+  const prevEl  = document.getElementById(isEdit ? 'editPricingPreview' : 'fPricingPreview');
+  if (priceEl) priceEl.textContent = '£' + total.toFixed(2);
+  if (prevEl) {
+    const span = prevEl.querySelector('span');
+    if (span) span.textContent = `(£30 base + ${extra} × £5 extra seat${extra !== 1 ? 's' : ''})`;
+  }
 }
 
 // ─── Add venue ────────────────────────────────────────
@@ -1094,6 +1454,7 @@ async function addVenue() {
     username:   document.getElementById('fUsername').value.trim(),
     full_name:  document.getElementById('fFullName').value.trim(),
     password:   document.getElementById('fPassword').value,
+    max_users:  parseInt(document.getElementById('fSeats').textContent) || 1,
   };
   if (!payload.tenant_id || payload.tenant_id < 1000) { showToast('Tenant ID must be ≥ 1000', 'error'); return; }
   if (!payload.venue_name) { showToast('Venue name is required', 'error'); return; }
@@ -1105,14 +1466,16 @@ async function addVenue() {
   try {
     const r = await fetch(N8N + '/onboarding/create-venue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, admin_key: AUTH })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.message || 'Failed');
     ['fTenantId','fVenueName','fSlug','fUsername','fFullName','fPassword'].forEach(id => {
       document.getElementById(id).value = '';
     });
+    document.getElementById('fSeats').textContent = '1';
+    updatePricingPreview('fSeats');
     await loadVenues();
     showToast(`Venue "${payload.venue_name}" created successfully!`, 'success');
   } catch(e) {
@@ -1130,8 +1493,8 @@ async function toggleVenue(tenantId, name, currentlyActive) {
   try {
     const r = await fetch(N8N + '/onboarding/toggle-venue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
-      body: JSON.stringify({ tenant_id: tenantId })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant_id: tenantId, admin_key: AUTH })
     });
     const d = await r.json();
     if (!d.ok) throw new Error('Failed');
@@ -1249,6 +1612,9 @@ function openEditModal(tenantId) {
   document.getElementById('editSlug').value       = v.slug || '';
   document.getElementById('editFullName').value   = v.full_name || '';
   document.getElementById('editModalLabel').textContent = `Editing: ${v.venue_name} (#${tenantId})`;
+  const curSeats = v.max_users || v.max_seats || 1;
+  document.getElementById('editSeats').textContent = curSeats;
+  updatePricingPreview('editSeats');
   document.getElementById('editModal').classList.add('open');
   setTimeout(() => document.getElementById('editVenueName').focus(), 100);
 }
@@ -1270,10 +1636,10 @@ async function confirmEditVenue() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
   try {
-    const r = await fetch('https://n8n.srv1090894.hstgr.cloud/webhook/update-tenant', {
+    const r = await fetch(N8N + '/onboarding/update-venue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
-      body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.message || 'Failed');
@@ -1331,8 +1697,8 @@ async function confirmResetPw() {
       // Create staff user for existing tenant
       r = await fetch(N8N + '/onboarding/create-venue', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
-        body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''), admin_key: AUTH })
       });
       const t = await r.text();
       d = t.trim() ? JSON.parse(t) : {};
@@ -1343,8 +1709,8 @@ async function confirmResetPw() {
     } else {
       r = await fetch(N8N + '/onboarding/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AUTH },
-        body: JSON.stringify({ username, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, admin_key: AUTH })
       });
       const t = await r.text();
       d = t.trim() ? JSON.parse(t) : {};
