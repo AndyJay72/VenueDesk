@@ -932,6 +932,7 @@
                                     customer_phone:i.customer_phone||i.phone||'',
                                     room_name:i.room_name, details:evDetails, amount:null,
                                     ref:i.subject||i.notes||'',
+                                    staff_member:i.staff_member||'',
                                     series_reference:seriesRef,
                                     recurring_rule_id:i.recurring_rule_id||i.booking_id||''
                                 });
@@ -947,7 +948,8 @@
                                     customer_name:i.customer_name, customer_email:i.customer_email||i.email,
                                     customer_phone:i.customer_phone||i.phone||'',
                                     room_name:i.room_name, details:evDetails, amount:null,
-                                    ref:i.subject||i.notes||''
+                                    ref:i.subject||i.notes||'',
+                                    staff_member:i.staff_member||''
                                 });
                             }
                         });
