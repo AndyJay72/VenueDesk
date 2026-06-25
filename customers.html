@@ -786,7 +786,7 @@
             noInteractionsEl.style.display = 'none';
             
             try {
-                const response = await fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}`);
+                const response = await fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}&jwt=${encodeURIComponent(_TOKEN())}`);
                 
                 if (!response.ok) throw new Error('Failed to load interactions');
                 
@@ -834,7 +834,7 @@
             const email = document.getElementById('m-email').innerText;
             const customerName = document.getElementById('m-name').innerText;
             
-            fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}`)
+            fetch(`${INTERACTIONS_API}?email=${encodeURIComponent(email)}${tidParam('&')}&jwt=${encodeURIComponent(_TOKEN())}`)
             .then(res => res.json())
             .then(json => {
                 const interactions = json.data || (Array.isArray(json) ? json : []);

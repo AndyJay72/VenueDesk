@@ -1240,7 +1240,7 @@
         const fmt=n=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
         function _CAL_TID(){return sessionStorage.getItem('vp_tenant_id')||'0';}
         function getAuthHeaders(){return{};}
-        function tidUrl(base){return base+(base.includes('?')?'&':'?')+'tenant_id='+_CAL_TID();}
+        function tidUrl(base){const sep=base.includes('?')?'&':'?';return base+sep+'tenant_id='+_CAL_TID()+'&jwt='+encodeURIComponent(sessionStorage.getItem('vp_token')||'');}
 
         // ── Payment config (Stripe status + publishable key) ───────────────────
         // /stripe/config is public — no JWT needed or sent (JWT in URL would be logged).
