@@ -27,7 +27,7 @@ const crypto = require('crypto');
 const { pool } = require('../db/pool');
 
 const ADMIN_KEY = process.env.ONBOARDING_ADMIN_KEY || 'vp-onboarding-admin-change-me';
-const PEPPER    = process.env.PASSWORD_PEPPER       || 'vp-pepper-change-me-in-env';
+const PEPPER    = process.env.PASSWORD_PEPPER       || 'vp-pepper-change-me';
 
 function hashPassword(password) {
   return crypto.createHash('sha512').update(PEPPER + password).digest('hex');
