@@ -1679,7 +1679,7 @@ async function confirmEditVenue() {
     const r = await fetch(N8N + '/onboarding/update-venue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id: tenantId, name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
+      body: JSON.stringify({ tenant_id: tenantId, venue_name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
     });
     const d = await _safeJSON(r);
     if (!_isOK(d)) throw new Error(d.message || 'Update failed');
