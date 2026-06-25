@@ -1310,7 +1310,7 @@ async function syncServicesFromDb() {
 // ─────────────────────────────────────────────
 async function loadRooms() {
     try {
-        const res = await fetch(API.getRooms() + tidParam(), {});
+        const res = await fetch(API.getRooms() + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         rooms = json.data || (Array.isArray(json) ? json : []);
@@ -1489,7 +1489,7 @@ async function restoreRoom(id, name) {
 // ─────────────────────────────────────────────
 async function loadEventTypes() {
     try {
-        const res = await fetch(API.getEventTypes() + tidParam(), {});
+        const res = await fetch(API.getEventTypes() + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         eventTypes = json.data || (Array.isArray(json) ? json : []);
@@ -1603,7 +1603,7 @@ function closeModal() {
 // ─────────────────────────────────────────────
 async function loadPricing() {
     try {
-        const res = await fetch(API.getPricing + tidParam(), {});
+        const res = await fetch(API.getPricing + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
         const json = await res.json();
         pricing = json.data || (Array.isArray(json) ? json : []);
     } catch(e) {
@@ -1728,7 +1728,7 @@ async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
 async function loadSettings() {
     document.getElementById('bufferCurrentText').textContent = 'Loading...';
     try {
-        const res = await fetch(API.getSettings + tidParam(), {});
+        const res = await fetch(API.getSettings + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
         const json = await res.json();
         settings = json.data || (Array.isArray(json) ? json : []);
         const bufferSetting = settings.find(s => s.key === 'booking_buffer_minutes');

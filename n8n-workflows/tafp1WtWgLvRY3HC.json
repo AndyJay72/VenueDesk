@@ -386,7 +386,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Get Rooms').first().json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -485,7 +485,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Create Room').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -578,7 +578,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Update Room').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -658,7 +658,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Delete Room').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -736,7 +736,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Get Event Types').first().json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -826,7 +826,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Create Event Type').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -919,7 +919,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Update Event Type').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -999,7 +999,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Delete Event Type').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -1077,7 +1077,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Get Pricing').first().json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -1176,7 +1176,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Set Pricing').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -1254,7 +1254,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Get Settings').first().json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -1331,7 +1331,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Update Setting').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -1424,7 +1424,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Delete Pricing').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",

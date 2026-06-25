@@ -853,7 +853,7 @@
             try{
                 const [txR,intR,dashR,ledgerR]=await Promise.allSettled([
                     fetch(PAYMENTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
-                    fetch(INTERACTIONS_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
+                    fetch(INTERACTIONS_API+'?tenant_id='+_TID()+'&jwt='+encodeURIComponent(sessionStorage.getItem('vp_token')||''),{headers:getAuthHeaders()}),
                     fetch(DASHBOARD_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
                     fetch(LEDGER_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
                 ]);

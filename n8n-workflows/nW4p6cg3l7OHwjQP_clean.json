@@ -91,7 +91,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
