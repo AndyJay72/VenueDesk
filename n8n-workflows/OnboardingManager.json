@@ -1,7 +1,6 @@
 {
   "name": "VenueDesk — Onboarding Manager",
   "nodes": [
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -13,7 +12,10 @@
       "name": "Webhook: Admin Login",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "onboarding/login",
       "credentials": {}
     },
@@ -24,20 +26,28 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ admin_key: $('Webhook: Admin Login').first().json.body?.admin_key || '' }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-login",
       "name": "API: Admin Login",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 0]
+      "position": [
+        240,
+        0
+      ]
     },
     {
       "parameters": {
@@ -45,7 +55,12 @@
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -53,9 +68,11 @@
       "name": "Respond: Auth OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [480, 0]
+      "position": [
+        480,
+        0
+      ]
     },
-
     {
       "parameters": {
         "path": "onboarding/venues",
@@ -66,7 +83,10 @@
       "name": "Webhook: List Venues",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 368],
+      "position": [
+        0,
+        368
+      ],
       "webhookId": "onboarding/venues",
       "credentials": {}
     },
@@ -77,16 +97,24 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Admin-Key", "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"}
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            }
           ]
         },
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-list",
       "name": "API: List Venues",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 368]
+      "position": [
+        288,
+        368
+      ]
     },
     {
       "parameters": {
@@ -94,7 +122,12 @@
         "responseBody": "={{ JSON.stringify({ data: ($json.data || []) }) }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -102,9 +135,11 @@
       "name": "Respond: Venues",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 368]
+      "position": [
+        560,
+        368
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -116,7 +151,10 @@
       "name": "Webhook: Create Venue",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 720],
+      "position": [
+        0,
+        720
+      ],
       "webhookId": "onboarding/create-venue",
       "credentials": {}
     },
@@ -127,21 +165,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Admin-Key", "value": "={{ $('Webhook: Create Venue').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Create Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Create Venue').first().json.body?.venue_name || '', username: $('Webhook: Create Venue').first().json.body?.username || '', password: $('Webhook: Create Venue').first().json.body?.password || '', full_name: $('Webhook: Create Venue').first().json.body?.full_name || '', slug: $('Webhook: Create Venue').first().json.body?.slug || '', max_users: parseInt($('Webhook: Create Venue').first().json.body?.max_users || '1'), prospect_id: $('Webhook: Create Venue').first().json.body?.prospect_id || null }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-create",
       "name": "API: Create Venue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 720]
+      "position": [
+        288,
+        720
+      ]
     },
     {
       "parameters": {
@@ -149,7 +198,12 @@
         "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), data: ($json && $json.data) || null }) }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -157,7 +211,10 @@
       "name": "Respond: Created",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 640]
+      "position": [
+        560,
+        640
+      ]
     },
     {
       "parameters": {
@@ -167,7 +224,10 @@
       "name": "Code: Lead Converted Stub",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [560, 800],
+      "position": [
+        560,
+        800
+      ],
       "continueOnFail": true
     },
     {
@@ -177,23 +237,33 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ admin_id: 'super-admin', target_tenant: parseInt($('Webhook: Create Venue').first().json.body?.tenant_id || '0'), action_type: 'create_venue', timestamp: new Date().toISOString(), details: 'Venue created: ' + ($('Webhook: Create Venue').first().json.body?.venue_name || '') + ', max_users: ' + ($('Webhook: Create Venue').first().json.body?.max_users || 1) }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-audit-create",
       "name": "Audit: Create Venue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [560, 960]
+      "position": [
+        560,
+        960
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -205,7 +275,10 @@
       "name": "Webhook: Reset Password",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 1200],
+      "position": [
+        0,
+        1200
+      ],
       "webhookId": "onboarding/reset-password",
       "credentials": {}
     },
@@ -216,21 +289,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Admin-Key", "value": "={{ $('Webhook: Reset Password').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ username: $('Webhook: Reset Password').first().json.body?.username || '', password: $('Webhook: Reset Password').first().json.body?.password || '' }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-reset",
       "name": "API: Reset Password",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 1200]
+      "position": [
+        288,
+        1200
+      ]
     },
     {
       "parameters": {
@@ -238,7 +322,12 @@
         "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)) }) }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -246,7 +335,10 @@
       "name": "Respond: Reset OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 1120]
+      "position": [
+        560,
+        1120
+      ]
     },
     {
       "parameters": {
@@ -255,23 +347,33 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ admin_id: 'super-admin', target_tenant: null, action_type: 'reset_password', timestamp: new Date().toISOString(), details: 'Password reset for user: ' + ($('Webhook: Reset Password').first().json.body?.username || '') }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-audit-reset",
       "name": "Audit: Reset Password",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [560, 1280]
+      "position": [
+        560,
+        1280
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -283,7 +385,10 @@
       "name": "Webhook: Toggle Venue",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 1560],
+      "position": [
+        0,
+        1560
+      ],
       "webhookId": "onboarding/toggle-venue",
       "credentials": {}
     },
@@ -294,21 +399,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Admin-Key", "value": "={{ $('Webhook: Toggle Venue').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Toggle Venue').first().json.body?.tenant_id || '0') }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-toggle",
       "name": "API: Toggle Venue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 1560]
+      "position": [
+        288,
+        1560
+      ]
     },
     {
       "parameters": {
@@ -316,7 +432,12 @@
         "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), data: ($json && $json.data) ? [$json.data] : [] }) }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -324,7 +445,10 @@
       "name": "Respond: Toggle OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 1480]
+      "position": [
+        560,
+        1480
+      ]
     },
     {
       "parameters": {
@@ -333,23 +457,33 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ admin_id: 'super-admin', target_tenant: parseInt($('Webhook: Toggle Venue').first().json.body?.tenant_id || '0'), action_type: 'toggle_venue', timestamp: new Date().toISOString(), details: 'Venue active state toggled for tenant_id: ' + ($('Webhook: Toggle Venue').first().json.body?.tenant_id || '') }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-audit-toggle",
       "name": "Audit: Toggle Venue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [560, 1640]
+      "position": [
+        560,
+        1640
+      ]
     },
-
     {
       "parameters": {
         "httpMethod": "POST",
@@ -361,7 +495,10 @@
       "name": "Webhook: Update Venue",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 1920],
+      "position": [
+        0,
+        1920
+      ],
       "webhookId": "49352f05-85cc-46f8-8b45-bcee16ea76b1",
       "credentials": {}
     },
@@ -372,21 +509,32 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Admin-Key", "value": "={{ $('Webhook: Update Venue').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Update Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Update Venue').first().json.body?.venue_name || '', slug: $('Webhook: Update Venue').first().json.body?.slug || '', full_name: $('Webhook: Update Venue').first().json.body?.full_name || '', max_users: parseInt($('Webhook: Update Venue').first().json.body?.max_users || '1') }) }}",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-update",
       "name": "API: Update Venue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 1920]
+      "position": [
+        288,
+        1920
+      ]
     },
     {
       "parameters": {
@@ -398,9 +546,11 @@
       "name": "Respond: Updated",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 1920]
+      "position": [
+        560,
+        1920
+      ]
     },
-
     {
       "parameters": {
         "path": "onboarding/system-logs",
@@ -411,7 +561,10 @@
       "name": "Webhook: System Logs",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 2240],
+      "position": [
+        0,
+        2240
+      ],
       "webhookId": "onboarding/system-logs",
       "credentials": {}
     },
@@ -422,16 +575,24 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"
+            }
           ]
         },
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-syslogs",
       "name": "API: System Logs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 2240]
+      "position": [
+        288,
+        2240
+      ]
     },
     {
       "parameters": {
@@ -440,9 +601,18 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              {"name": "Access-Control-Allow-Origin", "value": "*"},
-              {"name": "Access-Control-Allow-Methods", "value": "GET, OPTIONS"},
-              {"name": "Access-Control-Allow-Headers", "value": "Content-Type"}
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
             ]
           }
         }
@@ -451,20 +621,30 @@
       "name": "Respond: System Logs",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [560, 2240]
+      "position": [
+        560,
+        2240
+      ]
     },
-
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "cronExpression", "expression": "*/5 * * * *"}]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 * * * *"
+            }
+          ]
         }
       },
       "id": "ob-cron-health",
       "name": "Cron: Health Pulse",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 2560]
+      "position": [
+        0,
+        2560
+      ]
     },
     {
       "parameters": {
@@ -473,57 +653,221 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.CYCLE_SWEEP_SERVICE_JWT || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={ \"source\": \"n8n-cron\", \"timestamp\": \"={{ new Date().toISOString() }}\" }",
-        "options": { "continueOnFail": true }
+        "options": {
+          "continueOnFail": true
+        }
       },
       "id": "ob-http-pulse",
       "name": "HTTP: Health Pulse",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [288, 2560]
+      "position": [
+        288,
+        2560
+      ]
     }
-
   ],
   "pinData": {},
   "connections": {
-    "Webhook: Admin Login":   { "main": [[{"node": "API: Admin Login",        "type": "main", "index": 0}]] },
-    "API: Admin Login":       { "main": [[{"node": "Respond: Auth OK",         "type": "main", "index": 0}]] },
-    "Webhook: List Venues":   { "main": [[{"node": "API: List Venues",         "type": "main", "index": 0}]] },
-    "API: List Venues":       { "main": [[{"node": "Respond: Venues",          "type": "main", "index": 0}]] },
-    "Webhook: Create Venue":  { "main": [[{"node": "API: Create Venue",        "type": "main", "index": 0}]] },
+    "Webhook: Admin Login": {
+      "main": [
+        [
+          {
+            "node": "API: Admin Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Admin Login": {
+      "main": [
+        [
+          {
+            "node": "Respond: Auth OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: List Venues": {
+      "main": [
+        [
+          {
+            "node": "API: List Venues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: List Venues": {
+      "main": [
+        [
+          {
+            "node": "Respond: Venues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Create Venue": {
+      "main": [
+        [
+          {
+            "node": "API: Create Venue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "API: Create Venue": {
-      "main": [[
-        {"node": "Respond: Created",          "type": "main", "index": 0},
-        {"node": "Code: Lead Converted Stub", "type": "main", "index": 0},
-        {"node": "Audit: Create Venue",       "type": "main", "index": 0}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Respond: Created",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code: Lead Converted Stub",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Audit: Create Venue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Webhook: Reset Password": { "main": [[{"node": "API: Reset Password",  "type": "main", "index": 0}]] },
+    "Webhook: Reset Password": {
+      "main": [
+        [
+          {
+            "node": "API: Reset Password",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "API: Reset Password": {
-      "main": [[
-        {"node": "Respond: Reset OK",    "type": "main", "index": 0},
-        {"node": "Audit: Reset Password","type": "main", "index": 0}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Respond: Reset OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Audit: Reset Password",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Webhook: Toggle Venue":   { "main": [[{"node": "API: Toggle Venue",      "type": "main", "index": 0}]] },
+    "Webhook: Toggle Venue": {
+      "main": [
+        [
+          {
+            "node": "API: Toggle Venue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "API: Toggle Venue": {
-      "main": [[
-        {"node": "Respond: Toggle OK",  "type": "main", "index": 0},
-        {"node": "Audit: Toggle Venue", "type": "main", "index": 0}
-      ]]
+      "main": [
+        [
+          {
+            "node": "Respond: Toggle OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Audit: Toggle Venue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Webhook: Update Venue":   { "main": [[{"node": "API: Update Venue",      "type": "main", "index": 0}]] },
-    "API: Update Venue":       { "main": [[{"node": "Respond: Updated",       "type": "main", "index": 0}]] },
-    "Webhook: System Logs":    { "main": [[{"node": "API: System Logs",       "type": "main", "index": 0}]] },
-    "API: System Logs":        { "main": [[{"node": "Respond: System Logs",   "type": "main", "index": 0}]] },
-    "Cron: Health Pulse":      { "main": [[{"node": "HTTP: Health Pulse",     "type": "main", "index": 0}]] }
+    "Webhook: Update Venue": {
+      "main": [
+        [
+          {
+            "node": "API: Update Venue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Update Venue": {
+      "main": [
+        [
+          {
+            "node": "Respond: Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: System Logs": {
+      "main": [
+        [
+          {
+            "node": "API: System Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: System Logs": {
+      "main": [
+        [
+          {
+            "node": "Respond: System Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron: Health Pulse": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Health Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
   "settings": {

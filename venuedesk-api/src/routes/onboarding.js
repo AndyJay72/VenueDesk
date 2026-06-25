@@ -73,12 +73,12 @@ async function onboardingRoutes(fastify) {
               t.active,
               t.created_at::date AS created_date,
               u.username,
-              u.full_name,
+              COALESCE(t.contact_name, u.full_name) AS full_name,
               u.is_active   AS user_active,
               u.id::text    AS user_id
        FROM   bookings.tenants t
        LEFT JOIN bookings.staff_users u ON u.tenant_id = t.tenant_id
-       ORDER BY t.tenant_id`
+       ORDER BY t.tenant_id`,
     );
     return { success: true, data: rows };
   });
@@ -254,10 +254,11 @@ async function onboardingRoutes(fastify) {
 
       await client.query(
         `UPDATE bookings.tenants
-         SET name = CASE WHEN $1 <> '' THEN $1 ELSE name END,
-             slug = CASE WHEN $2 <> '' THEN $2 ELSE slug END
-         WHERE tenant_id = $3`,
-        [venue_name, slug, tenant_id]
+         SET name         = CASE WHEN $1 <> '' THEN $1 ELSE name END,
+             slug         = CASE WHEN $2 <> '' THEN $2 ELSE slug END,
+             contact_name = CASE WHEN $3 <> '' THEN $3 ELSE contact_name END
+         WHERE tenant_id = $4`,
+        [venue_name, slug, full_name, tenant_id]
       );
 
       if (full_name) {

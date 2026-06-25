@@ -2497,7 +2497,8 @@ Auth: service JWT. db-api commits telemetry snapshot to `bookings.system_health`
 - Admin ID is hardcoded as `"super-admin"` in audit payloads. Replace with actual admin
   identity once the onboarding login flow returns a user record from db-api.
 - **Re-import required:** `OnboardingManager.json` must be re-imported into live n8n to
-  activate the `onboarding/system-logs` webhook and audit fan-out nodes.
+  activate the `onboarding/system-logs` webhook and the fixed write-node auth headers
+  (Pattern 24 below).
 
 ---
 
@@ -2586,3 +2587,156 @@ docker exec n8n_postgres-postgres-1 psql -U n8n -d n8ndb -c \
 | Workflow | ID | Last error | Status |
 |----------|----|------------|--------|
 | Form entry workflow | `4iA8B7MCIejoTo5T` | Dec 2025 (16 errors) | Deactivated — not a live issue |
+
+---
+
+# 🧪 Playwright UI Test Harness — onboarding.html
+
+**Script:** `tests/playwright/onboarding.spec.js`
+**Config:** `tests/playwright/playwright.config.js`
+
+All n8n / db-api network calls are mocked via `page.route()` so the suite runs offline and deterministically. A Python HTTP server spins up automatically on port 7171 serving the repo root.
+
+## Running the suite
+
+```bash
+cd tests/playwright
+npm install
+npx playwright install chromium   # first run only
+npm test                          # headless
+npm run test:headed               # headed (watch mode)
+npm run test:ui                   # Playwright UI explorer
+```
+
+Exit codes: `0` = all pass, `1` = failures.
+
+**Current baseline (June 24 2026):** 60 PASS · 0 FAIL
+
+## Test sections
+
+| # | Section | Tests |
+|---|---------|-------|
+| 1 | Login gate | Overlay shown, wrong key rejected, correct key → app loads, Enter key works |
+| 2 | Telemetry panel | All indicators present, DB health dot green, audit button, ping button |
+| 3 | Stats cards | Total / Active / Inactive / Users populated correctly |
+| 4 | Venues table | Column headers, row count, all 3 subscription badge types, seats pill, action buttons, empty state |
+| 5 | Create form & seat stepper | All fields, stepper pricing (£30 + £5/seat), floor/ceiling clamps (1–20), slug auto-fill, tenant ID suggestion, validation errors |
+| 6 | Edit modal | Pre-fills venue data, seat stepper, cancel/save |
+| 7 | Password modal | Reset mode, short-password error, success closes modal |
+| 8 | System Audit modal | Opens, loads records, empty state, graceful degradation on empty/non-JSON body, click-outside close, refresh |
+| 9 | Venue detail panel | Opens on row click, metadata fields, status badge, 6 launch buttons, close |
+| 10 | Toggle venue | Deactivate confirm→toast, reactivate→success, dismiss does nothing |
+| 11 | Enquiry link copy | Button count, clipboard copy + success toast |
+| 12 | Sidebar navigation | All nav links, active class, dashboard href, collapse toggle |
+| 13 | Topbar & refresh | Card refresh reloads venues, topbar refresh icon, logout clears session |
+
+## Mock helper — `mockN8N(page)`
+
+Registered once per test via the `mockN8N(page)` helper (catches `**/n8n.srv1090894.hstgr.cloud/webhook/**`):
+
+| Intercepted path | Returns |
+|-----------------|---------|
+| `/onboarding/login` | `{ ok: true, user: { username: 'admin' } }` |
+| `/onboarding/venues` | 3 mock venues (active + trial + past_due) |
+| `/onboarding/create-venue` | `{ ok: true, data: { tenant_id: 1004 } }` |
+| `/onboarding/toggle-venue` | `{ ok: true }` |
+| `/onboarding/update-venue` | `{ ok: true }` |
+| `/onboarding/reset-password` | `{ ok: true }` |
+| `/onboarding/system-logs` | 2 audit log rows |
+| everything else | `route.continue()` (passes through — health/ping hits live API) |
+
+## Pattern 22 — Playwright Route Override: Trailing `**` for Query Strings
+
+**Problem:** `page.route('**/path/to/endpoint', handler)` does NOT match URLs with query strings
+(e.g. `?admin_key=...`). The override falls through to a previously registered catch-all handler
+and returns the wrong data.
+
+**Rule:** When overriding a specific URL with a query string, always add a trailing `**`:
+```javascript
+// WRONG — doesn't match /onboarding/system-logs?admin_key=...
+await page.route('**/onboarding/system-logs', route => route.fulfill(...));
+
+// CORRECT — ** at end matches optional query params
+await page.route('**/onboarding/system-logs**', route => route.fulfill(...));
+```
+
+**Also applies to the mock helper itself** — `**/n8n.srv1090894.hstgr.cloud/webhook/**` already
+has a trailing `**`, which is why it catches all paths including those with query strings.
+
+## Pattern 25 — onboarding contact_name: Store on tenants, Not staff_users
+
+**Problem:** `POST /onboarding/update-venue` updated `bookings.staff_users.full_name`
+to save the contact name. Venues provisioned outside the normal create-venue flow
+(or where the staff user was deleted) have no row in `staff_users`. The UPDATE
+matched 0 rows, silently succeeded (no error), and the contact name was lost.
+
+**Symptom:** venue name saves correctly; contact name shows success toast but reverts.
+The silent UPDATE is indistinguishable from a successful one.
+
+**Fix (migration 027, June 25 2026):**
+- `ALTER TABLE bookings.tenants ADD COLUMN IF NOT EXISTS contact_name TEXT`
+- `POST /update-venue`: writes `contact_name` into the tenants row directly
+  (in addition to staff_users when a staff user exists)
+- `GET /venues`: reads `COALESCE(t.contact_name, u.full_name) AS full_name` —
+  graceful fallback for existing venues whose staff user carries the name
+
+**Rule:** Admin-panel contact name belongs on `bookings.tenants.contact_name`.
+Staff user display names (shown in the dashboard) live on `staff_users.full_name`
+and are managed via the staff portal (users.html), not the admin panel.
+
+---
+
+## Pattern 24 — n8n X-Admin-Key: Always Use Server-Side Env Var, Never Frontend Value
+
+**Problem:** n8n write nodes (Toggle Venue, Create Venue, Reset Password, Update Venue) used
+this X-Admin-Key header expression:
+
+```javascript
+={{ $('Webhook: ...').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}
+```
+
+The frontend sends `admin_key: 'vp-api-2026-Kj9mXqR4wZ'` (plain text, visible in page source).
+The server-side `ONBOARDING_ADMIN_KEY` env var is set to a different value (a hash).
+Because the frontend value is non-empty and comes first in the expression, n8n sends the
+**wrong key** to db-api. db-api returns `401 INVALID_ADMIN_KEY`. Since `continueOnFail` is
+set inside `parameters.options` (not at node level), n8n halts before `Respond: *` fires →
+HTTP 200 with **empty body** → `_safeJSON` throws "Empty response from n8n".
+
+`API: List Venues` was unaffected because it uses `$env.ONBOARDING_ADMIN_KEY` exclusively
+(no frontend fallback) — this is the correct pattern.
+
+**Rule:** Every n8n HTTP Request node calling a db-api `/onboarding/*` endpoint MUST use:
+
+```javascript
+// CORRECT — always uses the server-side key
+X-Admin-Key: ={{ $env.ONBOARDING_ADMIN_KEY || '' }}
+
+// WRONG — frontend plain-text key shadows the env var key
+X-Admin-Key: ={{ $('Webhook: X').first().json.body?.admin_key || $env.ONBOARDING_ADMIN_KEY || '' }}
+```
+
+**Fix applied (June 24 2026):** `API: Toggle Venue`, `API: Create Venue`,
+`API: Reset Password`, `API: Update Venue` all patched in `OnboardingManager.json`.
+**Re-import required** for the fix to take effect in live n8n.
+
+**Symptom checklist:**
+- Write operations (toggle/create/reset/update) fail with "Empty response from n8n"
+- Read operations (`GET /onboarding/venues`) work correctly
+- This is the tell-tale sign: reads use `$env` directly; writes used the frontend fallback
+
+---
+
+## Pattern 23 — Playwright Strict Mode: Scope Locators to their Modal
+
+**Problem:** A CSS class used on a "close" button (e.g. `.ob-vd-close`) may be reused across
+multiple modals on the same page. Playwright's strict mode throws `strict mode violation:
+locator resolved to N elements` and the test fails.
+
+**Rule:** Always scope modal-specific locators to their parent element ID:
+```javascript
+// WRONG — .ob-vd-close matches both venue detail and audit modal buttons
+await page.locator('.ob-vd-close').click();
+
+// CORRECT — scoped to the specific modal
+await page.locator('#venueDetailModal .ob-vd-close').click();
+```
