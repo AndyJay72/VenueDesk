@@ -8,7 +8,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
-        if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                const uid = _p.user_id || _p.id;
+                if (!uid || !_p.tenant_id) {
+                    console.warn('[auth] Token missing required claims — clearing session', _p);
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                console.info('[auth] Token valid — tenant_id:', _p.tenant_id, 'user:', _p.full_name || _p.name || _p.username);
+            } catch(e) { /* non-JWT token, skip checks */ }
+        })();
     </script>
 
     <style>

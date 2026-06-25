@@ -7,7 +7,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
-        if (!sessionStorage.getItem('vp_token')) { window.location.href = 'login.html'; }
+        (function() {
+            const _t = sessionStorage.getItem('vp_token');
+            if (!_t) { window.location.href = 'login.html?return=' + encodeURIComponent(location.pathname.split('/').pop()); return; }
+            try {
+                const _p = JSON.parse(atob(_t.split('.')[1]));
+                if (_p.exp && _p.exp * 1000 < Date.now()) {
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                const uid = _p.user_id || _p.id;
+                if (!uid || !_p.tenant_id) {
+                    console.warn('[auth] Token missing required claims — clearing session', _p);
+                    sessionStorage.clear();
+                    window.location.href = 'login.html';
+                    return;
+                }
+                console.info('[auth] Token valid — tenant_id:', _p.tenant_id, 'user:', _p.full_name || _p.name || _p.username);
+            } catch(e) { /* non-JWT token, skip checks */ }
+        })();
     </script>
     <style>
         :root { --bg-dark: #0f172a; --bg-card: rgba(30, 41, 59, 0.9); --border: rgba(148, 163, 184, 0.1); --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --text-main: #f8fafc; --text-muted: #94a3b8; --sidebar-width: 260px; }

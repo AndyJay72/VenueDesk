@@ -116,7 +116,7 @@
         "fromEmail": "bookings@venuedesk.co.uk",
         "toEmail": "={{ $('Code: Logic + Ref').first().json.customer_email }}",
         "subject": "Recurring Booking Confirmation",
-        "html": "={{ \n\"Dear \" + $('Code: Logic + Ref').first().json.customer_name + \",\\n\\n\" +\n\"Thank you for your payment of \u00a3\" + $('Code: Logic + Ref').first().json.payment_amount + \".\\n\" +\n\"Transaction Reference: \" + $('Code: Logic + Ref').first().json.txn_reference + \"\\n\\n\" +\n\"Your recurring booking for the \" + $('Code: Logic + Ref').first().json.room_name + \" is confirmed.\\n\\n\" +\n\"Session Details:\\n\" +\n\"Date: \" + $('Code: Logic + Ref').first().json.booking_date + \"\\n\" +\n\"Time: \" + $('Code: Logic + Ref').first().json.start_time + \" - \" + $('Code: Logic + Ref').first().json.end_time + \"\\n\\n\" +\n\"Remaining Balance: \u00a3\" + $('Code: Logic + Ref').first().json.balance_due + \"\\n\\n\" +\n\"We look forward to hosting you!\\n\\n\" +\n\"Best regards,\\n\" +\n\"The VenueDesk Team\" \n}}",
+        "html": "={{ \n\"Dear \" + $('Code: Logic + Ref').first().json.customer_name + \",\\n\\n\" +\n\"Thank you for your payment of £\" + $('Code: Logic + Ref').first().json.payment_amount + \".\\n\" +\n\"Transaction Reference: \" + $('Code: Logic + Ref').first().json.txn_reference + \"\\n\\n\" +\n\"Your recurring booking for the \" + $('Code: Logic + Ref').first().json.room_name + \" is confirmed.\\n\\n\" +\n\"Session Details:\\n\" +\n\"Date: \" + $('Code: Logic + Ref').first().json.booking_date + \"\\n\" +\n\"Time: \" + $('Code: Logic + Ref').first().json.start_time + \" - \" + $('Code: Logic + Ref').first().json.end_time + \"\\n\\n\" +\n\"Remaining Balance: £\" + $('Code: Logic + Ref').first().json.balance_due + \"\\n\\n\" +\n\"We look forward to hosting you!\\n\\n\" +\n\"Best regards,\\n\" +\n\"The VenueDesk Team\" \n}}",
         "options": {}
       },
       "continueOnFail": true,
@@ -136,7 +136,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Receive Recurring Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -192,7 +192,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Receive Recurring Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -248,7 +248,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Receive Recurring Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",

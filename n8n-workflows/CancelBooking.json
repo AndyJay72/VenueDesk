@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst booking_id      = body.booking_id || '';\nconst tenant_id       = parseInt(body.tenant_id || $input.first().json.headers?.['x-tenant-id'] || '0');\nconst cancelled_by    = body.cancelled_by || 'staff';\nconst reason          = body.cancellation_reason || body.reason || '';\nconst refund_override = body.refund_amount != null ? parseFloat(body.refund_amount) : null;\n// NEW: cancel_series flag \u2014 when true, cancel all future sessions in the series\nconst cancel_series   = body.cancel_series === true || body.cancel_series === 'true';\n\nif (!booking_id) throw new Error('booking_id is required');\nif (!tenant_id)  throw new Error('tenant_id is required');\n\n// Generate unique cancellation reference\nconst ref = 'CANC-' + Math.floor(100000 + Math.random() * 900000);\n\nreturn [{ json: { booking_id, tenant_id, cancelled_by, reason, refund_override, cancellation_ref: ref, cancel_series } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst booking_id      = body.booking_id || '';\nconst tenant_id       = parseInt(body.tenant_id || $input.first().json.headers?.['x-tenant-id'] || '0');\nconst cancelled_by    = body.cancelled_by || 'staff';\nconst reason          = body.cancellation_reason || body.reason || '';\nconst refund_override = body.refund_amount != null ? parseFloat(body.refund_amount) : null;\n// NEW: cancel_series flag — when true, cancel all future sessions in the series\nconst cancel_series   = body.cancel_series === true || body.cancel_series === 'true';\n\nif (!booking_id) throw new Error('booking_id is required');\nif (!tenant_id)  throw new Error('tenant_id is required');\n\n// Generate unique cancellation reference\nconst ref = 'CANC-' + Math.floor(100000 + Math.random() * 900000);\n\nreturn [{ json: { booking_id, tenant_id, cancelled_by, reason, refund_override, cancellation_ref: ref, cancel_series } }];"
       },
       "id": "09680816-40dd-4f6c-aef0-69d8a2f78450",
       "name": "Extract & Validate",
@@ -80,8 +80,8 @@
       "parameters": {
         "fromEmail": "bookings@venuedesk.co.uk",
         "toEmail": "={{ $('Code: Calculate Refund').first().json.booking.customer_email }}",
-        "subject": "={{ 'Booking Cancelled \u2013 Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
-        "html": "=<p>Dear {{ $('Code: Calculate Refund').first().json.booking.customer_name }},</p>\n<p>Your booking at <strong>{{ $('Code: Calculate Refund').first().json.booking.room_name }}</strong>{{ $('Code: Calculate Refund').first().json.is_series_cancel ? ' and all future sessions in this recurring series have' : ' on <strong>' + ($('Code: Calculate Refund').first().json.booking.date_from || $('Code: Calculate Refund').first().json.booking.booking_date) + '</strong> has' }} been cancelled.</p>\n<p>A <strong>{{ $('Code: Calculate Refund').first().json.refundType === 'full' ? 'full' : 'partial' }} refund</strong> of <strong>\u00a3{{ parseFloat($('Code: Calculate Refund').first().json.refundAmount).toFixed(2) }}</strong> has been processed. Please allow 5\u201310 business days.</p>\n{{ $('Code: Calculate Refund').first().json.reason ? '<p>Reason: ' + $('Code: Calculate Refund').first().json.reason + '</p>' : '' }}\n<p>Reference: <strong>{{ $('Code: Calculate Refund').first().json.cancellation_ref }}</strong></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
+        "subject": "={{ 'Booking Cancelled – Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
+        "html": "=<p>Dear {{ $('Code: Calculate Refund').first().json.booking.customer_name }},</p>\n<p>Your booking at <strong>{{ $('Code: Calculate Refund').first().json.booking.room_name }}</strong>{{ $('Code: Calculate Refund').first().json.is_series_cancel ? ' and all future sessions in this recurring series have' : ' on <strong>' + ($('Code: Calculate Refund').first().json.booking.date_from || $('Code: Calculate Refund').first().json.booking.booking_date) + '</strong> has' }} been cancelled.</p>\n<p>A <strong>{{ $('Code: Calculate Refund').first().json.refundType === 'full' ? 'full' : 'partial' }} refund</strong> of <strong>£{{ parseFloat($('Code: Calculate Refund').first().json.refundAmount).toFixed(2) }}</strong> has been processed. Please allow 5–10 business days.</p>\n{{ $('Code: Calculate Refund').first().json.reason ? '<p>Reason: ' + $('Code: Calculate Refund').first().json.reason + '</p>' : '' }}\n<p>Reference: <strong>{{ $('Code: Calculate Refund').first().json.cancellation_ref }}</strong></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
         "options": {}
       },
       "id": "37c2cd3a-bdbe-4274-93e6-3bfae8762c44",
@@ -98,7 +98,7 @@
       "parameters": {
         "fromEmail": "bookings@venuedesk.co.uk",
         "toEmail": "={{ $('Code: Calculate Refund').first().json.booking.customer_email }}",
-        "subject": "={{ 'Booking Cancelled \u2013 Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
+        "subject": "={{ 'Booking Cancelled – Ref: ' + $('Code: Calculate Refund').first().json.cancellation_ref }}",
         "html": "=<p>Dear {{ $('Code: Calculate Refund').first().json.booking.customer_name }},</p>\n<p>Your booking at <strong>{{ $('Code: Calculate Refund').first().json.booking.room_name }}</strong>{{ $('Code: Calculate Refund').first().json.is_series_cancel ? ' and all future sessions in this recurring series have' : ' on <strong>' + ($('Code: Calculate Refund').first().json.booking.date_from || $('Code: Calculate Refund').first().json.booking.booking_date) + '</strong> has' }} been cancelled.</p>\n<p>Unfortunately, as this cancellation falls within the no-refund period, no refund is applicable.</p>\n{{ $('Code: Calculate Refund').first().json.reason ? '<p>Reason: ' + $('Code: Calculate Refund').first().json.reason + '</p>' : '' }}\n<p>Reference: <strong>{{ $('Code: Calculate Refund').first().json.cancellation_ref }}</strong></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
         "options": {}
       },
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: 'none', refund_amount: 0, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, series_cancelled: $('Code: Calculate Refund').first().json.is_series_cancel, message: $('Code: Calculate Refund').first().json.is_series_cancel ? 'Recurring series cancelled \u2014 no refund applicable per policy' : 'Booking cancelled \u2014 no refund applicable per policy' }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: 'none', refund_amount: 0, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, series_cancelled: $('Code: Calculate Refund').first().json.is_series_cancel, message: $('Code: Calculate Refund').first().json.is_series_cancel ? 'Recurring series cancelled — no refund applicable per policy' : 'Booking cancelled — no refund applicable per policy' }) }}",
         "options": {
           "responseCode": 200
         }
@@ -155,7 +155,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -207,7 +207,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -259,7 +259,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -315,7 +315,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",

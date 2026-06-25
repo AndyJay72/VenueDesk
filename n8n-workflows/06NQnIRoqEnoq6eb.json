@@ -9,34 +9,110 @@
   },
   "connections": {
     "Webhook: Cancel Booking": {
-      "main": [[{"node": "Extract & Validate", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Extract & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract & Validate": {
-      "main": [[{"node": "DB: Get Booking", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: Get Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Get Booking": {
-      "main": [[{"node": "DB: Get Cancel Policy", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: Get Cancel Policy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Get Cancel Policy": {
-      "main": [[{"node": "Code: Calculate Refund", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Code: Calculate Refund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Calculate Refund": {
-      "main": [[{"node": "DB: Cancel Booking", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: Cancel Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Cancel Booking": {
-      "main": [[{"node": "IF: Refund Due?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "IF: Refund Due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: Refund Due?": {
       "main": [
-        [{"node": "Email: Cancellation (Refund)", "type": "main", "index": 0}],
-        [{"node": "Email: Cancellation (No Refund)", "type": "main", "index": 0}]
+        [
+          {
+            "node": "Email: Cancellation (Refund)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email: Cancellation (No Refund)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Email: Cancellation (Refund)": {
-      "main": [[{"node": "Respond: Success", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Email: Cancellation (No Refund)": {
-      "main": [[{"node": "Respond: No Refund", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond: No Refund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "nodes": [
@@ -51,7 +127,10 @@
       "name": "Webhook: Cancel Booking",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-6016, -480],
+      "position": [
+        -6016,
+        -480
+      ],
       "webhookId": "cancel-booking-v1"
     },
     {
@@ -62,7 +141,10 @@
       "name": "Extract & Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-5808, -480]
+      "position": [
+        -5808,
+        -480
+      ]
     },
     {
       "parameters": {
@@ -70,12 +152,22 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -83,7 +175,10 @@
       "name": "DB: Get Booking",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-5584, -480],
+      "position": [
+        -5584,
+        -480
+      ],
       "continueOnFail": true
     },
     {
@@ -92,12 +187,22 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -105,7 +210,10 @@
       "name": "DB: Get Cancel Policy",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-5360, -480],
+      "position": [
+        -5360,
+        -480
+      ],
       "continueOnFail": true
     },
     {
@@ -116,7 +224,10 @@
       "name": "Code: Calculate Refund",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-5136, -480]
+      "position": [
+        -5136,
+        -480
+      ]
     },
     {
       "parameters": {
@@ -125,15 +236,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Cancel Booking').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ booking_id: $json.booking.id || $json.booking_id, cancelled_by: $json.cancelled_by, reason: $json.reason, refund_amount: $json.refundAmount || 0, refund_type: $json.refundType || 'none' }) }}",
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -141,18 +262,29 @@
       "name": "DB: Cancel Booking",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-4928, -480],
+      "position": [
+        -4928,
+        -480
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
         "conditions": {
-          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
           "conditions": [
             {
               "leftValue": "={{ $('Code: Calculate Refund').first().json.refundAmount }}",
               "rightValue": 0,
-              "operator": {"type": "number", "operation": "gt"},
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
               "id": "cc970ae3-8da6-490b-806a-bc59d9c9437a"
             }
           ],
@@ -164,7 +296,10 @@
       "name": "IF: Refund Due?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-4688, -480]
+      "position": [
+        -4688,
+        -480
+      ]
     },
     {
       "parameters": {
@@ -178,7 +313,10 @@
       "name": "Email: Cancellation (Refund)",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [-4256, -656],
+      "position": [
+        -4256,
+        -656
+      ],
       "continueOnFail": true
     },
     {
@@ -193,32 +331,45 @@
       "name": "Email: Cancellation (No Refund)",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [-4496, -240],
+      "position": [
+        -4496,
+        -240
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: $('Code: Calculate Refund').first().json.refundType, refund_amount: $('Code: Calculate Refund').first().json.refundAmount, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, message: 'Booking cancelled successfully' }) }}",
-        "options": {"responseCode": 200}
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "c4f3edce-727e-41b8-b540-9d14512cf242",
       "name": "Respond: Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [-4032, -656]
+      "position": [
+        -4032,
+        -656
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, cancellation_ref: $('Code: Calculate Refund').first().json.cancellation_ref, refund_type: 'none', refund_amount: 0, days_until_booking: $('Code: Calculate Refund').first().json.daysUntil, booking_id: $('Code: Calculate Refund').first().json.booking.id, message: 'Booking cancelled — no refund applicable per policy' }) }}",
-        "options": {"responseCode": 200}
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "526a9585-1942-41e9-8e2b-aca546ea1958",
       "name": "Respond: No Refund",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [-4256, -240]
+      "position": [
+        -4256,
+        -240
+      ]
     }
   ]
 }

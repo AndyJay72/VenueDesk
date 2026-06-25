@@ -9,34 +9,114 @@
   },
   "connections": {
     "Webhook: Get Users": {
-      "main": [[{"node": "DB: List Users", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: List Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: List Users": {
-      "main": [[{"node": "Code: Format", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Code: Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Format": {
-      "main": [[{"node": "Respond: List", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond: List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: Create User": {
-      "main": [[{"node": "Code: Validate User", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Code: Validate User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Validate User": {
-      "main": [[{"node": "Crypto: Hash", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Crypto: Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Crypto: Hash": {
-      "main": [[{"node": "Code: Combine", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Code: Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code: Combine": {
-      "main": [[{"node": "DB: Insert User (SQL)", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: Insert User (SQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Insert User (SQL)": {
-      "main": [[{"node": "Respond: OK", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: Delete User": {
-      "main": [[{"node": "DB: Delete User", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "DB: Delete User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "DB: Delete User": {
-      "main": [[{"node": "Respond: Deleted", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond: Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "nodes": [
@@ -50,7 +130,10 @@
       "name": "Webhook: Get Users",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [3296, 64],
+      "position": [
+        3296,
+        64
+      ],
       "webhookId": "get-users"
     },
     {
@@ -59,12 +142,22 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Get Users').first().json.query?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -72,7 +165,10 @@
       "name": "DB: List Users",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3520, 64],
+      "position": [
+        3520,
+        64
+      ],
       "continueOnFail": true
     },
     {
@@ -83,7 +179,10 @@
       "name": "Code: Format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3744, 64]
+      "position": [
+        3744,
+        64
+      ]
     },
     {
       "parameters": {
@@ -91,7 +190,12 @@
         "responseBody": "={{ $json }}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -99,7 +203,10 @@
       "name": "Respond: List",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3968, 64]
+      "position": [
+        3968,
+        64
+      ]
     },
     {
       "parameters": {
@@ -112,7 +219,10 @@
       "name": "Webhook: Create User",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [3136, 304],
+      "position": [
+        3136,
+        304
+      ],
       "webhookId": "create-user"
     },
     {
@@ -123,7 +233,10 @@
       "name": "Code: Validate User",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3312, 304]
+      "position": [
+        3312,
+        304
+      ]
     },
     {
       "parameters": {
@@ -134,7 +247,10 @@
       "name": "Crypto: Hash",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 1,
-      "position": [3456, 304]
+      "position": [
+        3456,
+        304
+      ]
     },
     {
       "parameters": {
@@ -144,7 +260,10 @@
       "name": "Code: Combine",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3616, 304]
+      "position": [
+        3616,
+        304
+      ]
     },
     {
       "parameters": {
@@ -153,15 +272,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Create User').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ username: $json.username, full_name: $json.full_name, role: $json.role, hashed_password: $json.hashed_password }) }}",
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -169,7 +298,10 @@
       "name": "DB: Insert User (SQL)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3776, 304],
+      "position": [
+        3776,
+        304
+      ],
       "continueOnFail": true
     },
     {
@@ -178,7 +310,12 @@
         "responseBody": "{\"status\": \"success\"}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -186,7 +323,10 @@
       "name": "Respond: OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [4000, 304]
+      "position": [
+        4000,
+        304
+      ]
     },
     {
       "parameters": {
@@ -199,7 +339,10 @@
       "name": "Webhook: Delete User",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [3296, 544],
+      "position": [
+        3296,
+        544
+      ],
       "webhookId": "delete-user"
     },
     {
@@ -209,15 +352,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Delete User').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ user_id: $json.body?.user_id || $json.user_id }) }}",
         "options": {
-          "response": {"response": {"neverError": true}},
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
           "timeout": 15000
         }
       },
@@ -225,7 +378,10 @@
       "name": "DB: Delete User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3520, 544],
+      "position": [
+        3520,
+        544
+      ],
       "continueOnFail": true
     },
     {
@@ -234,7 +390,12 @@
         "responseBody": "{\"status\": \"success\"}",
         "options": {
           "responseHeaders": {
-            "entries": [{"name": "Access-Control-Allow-Origin", "value": "*"}]
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
           }
         }
       },
@@ -242,7 +403,10 @@
       "name": "Respond: Deleted",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3744, 544]
+      "position": [
+        3744,
+        544
+      ]
     }
   ]
 }
