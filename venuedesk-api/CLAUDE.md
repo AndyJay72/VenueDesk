@@ -175,6 +175,24 @@ await client.query(
 
 ## Authentication
 
+### PEPPER alignment — critical (June 25 2026)
+
+Both `auth.js` and `onboarding.js` hash passwords with SHA512 + PEPPER.
+They MUST use the same PEPPER or accounts created via onboarding can never log in.
+
+| File | Fallback PEPPER (if env var not set) |
+|------|--------------------------------------|
+| `auth.js` | `'vp-pepper-change-me'` ← correct |
+| `onboarding.js` | `'vp-pepper-change-me'` ← fixed June 25 (was `'vp-pepper-change-me-in-env'`) |
+
+**Rule:** Always set `PASSWORD_PEPPER` in docker-compose.yml to a real secret so both
+files use the same env var and the fallback mismatch is irrelevant. If `PASSWORD_PEPPER`
+is not set, both files now fall back to the same string — correct behaviour.
+
+Any staff account created while the PEPPER was mismatched (`'vp-pepper-change-me-in-env'`)
+cannot log in. Fix: reset their password via the onboarding portal's Reset Password button,
+which re-hashes with the current (correct) PEPPER.
+
 ### Middleware
 
 `fastify.authenticate` is a `preHandler` decorator. It tries:

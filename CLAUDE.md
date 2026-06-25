@@ -1907,6 +1907,51 @@ See Pattern 25.
 
 ---
 
+## 10. Multi-tenant isolation — N8N_SERVICE_JWT root cause ✅ FIXED (June 25 2026)
+
+Commits `f99d7ec`, `1ee01ad`, `266ca62`, `0681fe5`.
+
+**Root cause:** `N8N_SERVICE_JWT` (docker-compose env var, `tenant_id: 1001`) was used as the
+`Authorization` header for every n8n → db-api HTTP Request node. Every user, regardless of
+their actual tenant, received tenant 1001's data because the service JWT locked the RLS context.
+
+**Affected workflows and fix applied:**
+
+| Workflow file | Nodes fixed | Method |
+|---|---|---|
+| `hBclMCxbgmz7f3Za_clean.json` (Dashboard) | 8 read nodes | `body?.jwt` from POST body |
+| `tafp1WtWgLvRY3HC.json` (Config Manager) | 13 nodes | `query?.jwt` (GET) / `body?.jwt` (POST) |
+| `nW4p6cg3l7OHwjQP_clean.json` (Interactions) | PG - Get Interactions | `query?.jwt` |
+
+All three workflows must be **re-imported into live n8n** after any changes.
+
+**Frontend GET calls fixed** (these didn't include jwt, so n8n fell back to service JWT):
+
+| File | Calls fixed |
+|---|---|
+| `index.html` | 4 × `customer-interactions` GET |
+| `audit-log.html` | 1 × `customer-interactions` GET |
+| `admin-config.html` | `get-rooms`, `get-event-types`, `get-pricing`, `get-settings` |
+| `calendar.html` | `tidUrl()` updated — covers `get-rooms`, `get-pricing`, `get-event-types`, `blocked-dates` |
+| `customers.html` | 2 × `customer-interactions` GET |
+
+**Additional bugs fixed in the same session:**
+
+- **PEPPER mismatch** — `onboarding.js` fallback was `'vp-pepper-change-me-in-env'`;
+  `auth.js` fallback is `'vp-pepper-change-me'`. New accounts created via onboarding
+  could never log in. Fixed: aligned `onboarding.js` fallback to `'vp-pepper-change-me'`.
+  Any account created before this fix needs a password reset via the onboarding portal.
+
+- **`full_name` defaulting to venue name** — `create-venue` sets `full_name = venue_name`
+  if no contact name is provided. Fix: always populate the Contact Name field when creating
+  a venue, or edit it afterwards in onboarding.html → the `update-venue` route writes to
+  both `bookings.tenants.contact_name` AND `bookings.staff_users.full_name`. Staff must log
+  out and back in after a name change for the JWT/welcome message to update.
+
+**See Pattern 26 below.**
+
+---
+
 ## Pattern 20 — Event Object Mapping: Carry Every Rendered Field Explicitly
 
 **Problem:** When a source data object (`i`) is mapped to a display/event object pushed
@@ -2693,6 +2738,57 @@ await page.route('**/onboarding/system-logs**', route => route.fulfill(...));
 
 **Also applies to the mock helper itself** — `**/n8n.srv1090894.hstgr.cloud/webhook/**` already
 has a trailing `**`, which is why it catches all paths including those with query strings.
+
+## Pattern 26 — N8N_SERVICE_JWT Must Never Be Used for User-Facing Reads
+
+**Problem:** `N8N_SERVICE_JWT` has `tenant_id: 1001` hardcoded in its payload. Any n8n HTTP
+Request node that uses it as the `Authorization` header for a db-api call will lock the RLS
+context to tenant 1001. Every user — regardless of their actual tenant — receives tenant
+1001's data. The symptom is indistinguishable from correct behaviour when only one tenant
+exists, making it invisible until a second tenant is provisioned.
+
+**Rule:** `N8N_SERVICE_JWT` is only correct for:
+- Scheduled/cron jobs (BillingCycle, PaymentChaser, RecurringGenerator, etc.) — no user session
+- Server-to-server internal operations not scoped to a specific user
+
+For **any n8n node that proxies a user's request to db-api**, forward the user's own JWT:
+
+```javascript
+// POST webhook — user sent jwt in body
+Authorization: ={{ 'Bearer ' + ($('Webhook: Dashboard').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}
+
+// GET webhook — frontend appended &jwt=<token> to query string
+Authorization: ={{ 'Bearer ' + ($json.query?.jwt || $env.N8N_SERVICE_JWT) }}
+```
+
+**Frontend side:** GET requests to n8n must append `&jwt=<token>` so the workflow has the
+JWT to forward. POST requests already include `jwt` in the body (Pattern 4 / Rule F6).
+
+```javascript
+// GET — append jwt to query string
+fetch(N8N_URL + tidParam() + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token')||''))
+
+// Reusable: bake jwt into tidUrl() helper so all GET calls get it automatically
+function tidUrl(base) {
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + 'tenant_id=' + _TID() + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token')||'');
+}
+```
+
+**Diagnostic:** If a new tenant sees another tenant's data, search for `N8N_SERVICE_JWT` in
+every workflow that serves a user-facing page. Any node using it as the sole auth source for
+a read operation is the culprit.
+
+**Workflows confirmed clean (June 25 2026):**
+- `hBclMCxbgmz7f3Za_clean.json` — dashboard, customers, bookings, accounts, pending, outstanding, revenue
+- `tafp1WtWgLvRY3HC.json` — rooms, event types, pricing, settings
+- `nW4p6cg3l7OHwjQP_clean.json` — customer interactions
+
+**Remaining known uses of service JWT (correct — automated, not user-scoped):**
+- `BillingCycleTrigger.json`, `RecurringBookingGenerator.json`, `PendingLifecycleScheduler.json`,
+  `RecurringAutoCancel.json`, `RecurringPaymentReminder.json`, `XKKG5SZ75bHg35Zt.json`
+
+---
 
 ## Pattern 25 — onboarding contact_name: Store on tenants, Not staff_users
 
