@@ -309,7 +309,7 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `026_admin_audit_log.sql` (June 24 2026 — `bookings.admin_audit_log` + `bookings.system_health` tables; GRANT to venuedesk_app)
+**Latest migration:** `027_tenants_contact_name.sql` (June 25 2026 — adds `contact_name TEXT` to `bookings.tenants`; used by `GET /onboarding/venues` via `COALESCE(t.contact_name, u.full_name)` and written by `POST /onboarding/update-venue`)
 **Next number:** `027`
 
 ---
@@ -459,4 +459,4 @@ Exit codes: `0` = all pass · `1` = non-critical failures · `2` = CRITICAL (API
 
 **Migration 022** (`022_confirmed_bookings_unique_slot.sql`) — unique partial index on
 `(room_id, booking_date, start_time, end_time) WHERE status <> 'cancelled'`.
-Closes TOCTOU race at the DB layer. Next migration number: `027`.
+Closes TOCTOU race at the DB layer. Next migration number: `028`.

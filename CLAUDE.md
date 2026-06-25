@@ -1865,6 +1865,7 @@ Creates `bookings.admin_audit_log` and `bookings.system_health` tables.
 
 Smoke-test results: `GET /health/ping` → `{"ok":true}` · `POST /admin/audit-log` → 400
 (correct — empty body fails AJV schema before auth; n8n sends full body) · `GET /admin/system-logs` → 401.
+**Next migration after 026:** `027_tenants_contact_name.sql` — see item 9 below.
 
 **onboarding-guide.html** — new interactive super-admin HTML guide (864 lines, commit `fb360bd`).
 Matches `userguide.html` design system. Includes 5 inline UI mockups, search, light/dark toggle,
@@ -1873,6 +1874,36 @@ Matches `userguide.html` design system. Includes 5 inline UI mockups, search, li
 **Audit log graceful degradation (commit `bb8c1e8`)** — `loadSystemLogs` now reads
 `r.text()` before `r.json()`, shows "not yet active" panel on empty/non-JSON response
 instead of exposing raw `JSON.parse` error to user.
+
+---
+
+## 9. Onboarding write-node auth + contact name ✅ DONE (June 25 2026)
+
+Three bugs diagnosed and fixed across two sessions (June 24–25 2026). Commit `48b20f3`.
+
+**Bug A — Toggle/Create/Reset/Update returned "Empty response from n8n"**
+`API: Toggle Venue` (and three sibling nodes) used `body?.admin_key` as the `X-Admin-Key`
+header value. The frontend sends the plain-text key; the server env var holds a different
+hash value. db-api returned 401 → n8n halted before `Respond:` node fired → empty HTTP 200
+body → `_safeJSON` threw "Empty response from n8n — workflow may need re-importing".
+Fix: all four write nodes now use `$env.ONBOARDING_ADMIN_KEY` exclusively (Pattern 24).
+`OnboardingManager.json` re-imported into live n8n June 25 2026.
+
+**Bug B — Venue name field name mismatch (`name` vs `venue_name`)**
+`confirmEditVenue()` sent `name: venueName` in the POST body; n8n read `body?.venue_name`.
+Empty string → db-api's `CASE WHEN '' THEN ... ELSE name` left venue name unchanged.
+Fix: changed to `venue_name: venueName` in `onboarding.html` (commit `5be85f5`).
+
+**Bug C — Contact name silently not saved**
+`POST /update-venue` ran `UPDATE bookings.staff_users WHERE tenant_id = $2` but the live
+venues had no rows in `staff_users` (only tenant_id 1 and 1001 had staff users). Zero rows
+matched; no error; route returned `{ok:true}`; success toast showed; name reverted.
+Fix: **migration 027** adds `contact_name TEXT` to `bookings.tenants`. Route now writes
+`contact_name` into the tenants row directly (in addition to staff_users when one exists).
+`GET /venues` reads `COALESCE(t.contact_name, u.full_name) AS full_name` — backward compat.
+See Pattern 25.
+
+**Playwright suite:** 60/60 passing after all fixes.
 
 ---
 
@@ -2496,9 +2527,9 @@ Auth: service JWT. db-api commits telemetry snapshot to `bookings.system_health`
   **✅ Deployed June 24 2026** — migration 026, `health.js`, updated `admin.js`.
 - Admin ID is hardcoded as `"super-admin"` in audit payloads. Replace with actual admin
   identity once the onboarding login flow returns a user record from db-api.
-- **Re-import required:** `OnboardingManager.json` must be re-imported into live n8n to
-  activate the `onboarding/system-logs` webhook and the fixed write-node auth headers
-  (Pattern 24 below).
+- ~~**Re-import required:** `OnboardingManager.json` must be re-imported~~
+  **✅ Re-imported June 25 2026** — `onboarding/system-logs` webhook active; all write
+  nodes now use `$env.ONBOARDING_ADMIN_KEY` (Pattern 24).
 
 ---
 
