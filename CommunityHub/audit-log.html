@@ -670,7 +670,7 @@
         const PAYMENTS_API      = 'https://n8n.srv1090894.hstgr.cloud/webhook/accounts-data';
         const INTERACTIONS_API  = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
         const DASHBOARD_API     = 'https://n8n.srv1090894.hstgr.cloud/webhook/staff-dashboard';
-        const LEDGER_API        = 'https://n8n.srv1090894.hstgr.cloud/webhook/get-outstanding-payments';
+        const LEDGER_API        = 'https://api.venuedesk.co.uk/recurring/outstanding-payments';
         const fmt = n => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(parseFloat(n)||0);
         function getAuthHeaders(){return{};}
         function _TID(){return sessionStorage.getItem('vp_tenant_id')||'0';}
@@ -864,7 +864,7 @@
                     fetch(PAYMENTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
                     fetch(INTERACTIONS_API+'?tenant_id='+_TID()+'&jwt='+encodeURIComponent(sessionStorage.getItem('vp_token')||''),{headers:getAuthHeaders()}),
                     fetch(DASHBOARD_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jwt:sessionStorage.getItem('vp_token')||''})}),
-                    fetch(LEDGER_API+'?tenant_id='+_TID(),{headers:getAuthHeaders()}),
+                    fetch(LEDGER_API+'?jwt='+encodeURIComponent(sessionStorage.getItem('vp_token')||''),{headers:getAuthHeaders()}),
                 ]);
                 const events=[];
                 if(txR.status==='fulfilled'&&txR.value.ok){
