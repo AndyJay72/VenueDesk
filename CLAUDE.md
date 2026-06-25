@@ -2686,7 +2686,7 @@ npm run test:ui                   # Playwright UI explorer
 
 Exit codes: `0` = all pass, `1` = failures.
 
-**Current baseline (June 24 2026):** 60 PASS · 0 FAIL
+**Current baseline (June 25 2026):** 60 PASS · 0 FAIL — confirmed after tenant isolation fixes, PEPPER fix, contact_name migration, and all workflow/frontend jwt-forwarding changes
 
 ## Test sections
 
