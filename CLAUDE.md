@@ -1553,7 +1553,7 @@ Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-co
 | 6b No TCP drops | status 0 on 4 threads | Known — the 23505 catch closes the connection before the losing threads receive a clean 409; functionally correct, test assertion too strict |
 | 7a No auth header | Returns 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct behaviour |
 
-**Current QA baseline (June 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+**Current QA baseline (June 25 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
 
 ---
 
@@ -1949,6 +1949,59 @@ All three workflows must be **re-imported into live n8n** after any changes.
   out and back in after a name change for the JWT/welcome message to update.
 
 **See Pattern 26 below.**
+
+---
+
+## 11. Full RLS audit & remediation ✅ DONE (June 25 2026)
+
+Commits `88652f3`, `e557f27`.
+
+**Rule F4 JWT claim validation added to 8 authenticated pages** — previously these pages only
+checked token presence or expiry but not required claims (`user_id`, `tenant_id`). A hollow
+token missing `tenant_id` would pass the gate and cause silent data failures or wrong-tenant reads.
+
+| Page | Was | Fixed |
+|------|-----|-------|
+| `accounts.html` | Expiry check only | Full claim check |
+| `audit-log.html` | Expiry check only | Full claim check |
+| `calendar.html` | Expiry check (var syntax) | Full claim check |
+| `customers.html` | Token presence only | Full claim check |
+| `final-payment.html` | Token presence only | Full claim check |
+| `manual-booking.html` | Token presence only | Full claim check |
+| `recurring-bookings.html` | Expiry check (var syntax) | Full claim check |
+| `users.html` | Expiry check only | Full claim check |
+
+**n8n workflow service JWT fixed** — 5 workflows were using `N8N_SERVICE_JWT` (tenant_id: 1001)
+for user-facing HTTP Request nodes, locking RLS context to tenant 1001 for all users:
+
+| Workflow | n8n ID | Nodes fixed |
+|----------|--------|-------------|
+| Cancel Booking (Series Support) | `Cei912AKyQBPOM9j` | 4 HTTP Request nodes |
+| User Manager | `KqSekNRSeXpKh5pJ` | 3 HTTP Request nodes + PEPPER fix |
+| Recurring Make Booking | `FWkK7gqWxKz4funf` | 3 HTTP Request nodes |
+| Cancellation Manager | `hhOxbWh7mW2tbyC5` | 2 nodes + broken node ref + broken URL expr |
+| Cancel Recurring Series | `yuODHy30pR8TR1Kp` | Already correct |
+| Create Recurring Booking | `XZMzXBD9ezo9ihXk` | Already correct |
+
+**User Manager PEPPER fix** — `Code: Validate User` had `PEPPER = 'vp-pepper-change-me-in-env'`
+(wrong). Changed to `'vp-pepper-change-me'` to match `auth.js`. Any account created before this
+fix cannot log in — reset password via the onboarding portal.
+
+**Get Outstanding Payments migrated off n8n Postgres node** — `index.html` and `audit-log.html`
+now call `GET https://api.venuedesk.co.uk/recurring/outstanding-payments?jwt=<token>` directly.
+The db-api endpoint (`recurring.js` line 2190) uses `withTenantContext` + appPool — RLS enforced.
+The n8n workflow `4ZLKQsWZBgDalvok` is archived.
+
+**Defunct workflows archived** — `ZFbEUOuAq5AVy8a5` (Add Recurring Rule) and
+`fZMBcIn9LpoE9D9B` (Recurring Walk-In Booking) had no frontend callers and used direct
+Postgres nodes. Both archived in n8n June 25 2026.
+
+**Phase 2 violations after this session: 0.**
+
+**QA suite:** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — pre-existing test artefacts) · 0 SKIP.
+Confirmed June 25 2026.
+
+**Playwright suite:** 60 PASS · 0 FAIL. Confirmed June 25 2026.
 
 ---
 
@@ -2783,10 +2836,23 @@ a read operation is the culprit.
 - `hBclMCxbgmz7f3Za_clean.json` — dashboard, customers, bookings, accounts, pending, outstanding, revenue
 - `tafp1WtWgLvRY3HC.json` — rooms, event types, pricing, settings
 - `nW4p6cg3l7OHwjQP_clean.json` — customer interactions
+- `KqSekNRSeXpKh5pJ` (User Manager) — JWT forwarding fixed on all 3 nodes; PEPPER aligned
+- `FWkK7gqWxKz4funf` (Recurring Make Booking) — JWT forwarding fixed on 3 nodes
+- `Cei912AKyQBPOM9j` (Cancel Booking Series Support) — JWT forwarding fixed on 4 nodes
+- `XZMzXBD9ezo9ihXk` (Create Recurring Booking) — already correct, no change needed
+- `yuODHy30pR8TR1Kp` (Cancel Recurring Series) — already correct, no change needed
+- `hhOxbWh7mW2tbyC5` (Cancellation Manager) — JWT forwarding fixed; broken `Webhook: Cancel Booking` node reference corrected to `Webhook: Cancel`; broken URL expression `{{ }}` → `={{ }}`
+
+**Archived (defunct — no frontend callers):**
+- `ZFbEUOuAq5AVy8a5` (Add Recurring Rule) — archived June 25 2026; backup in `_archived_members/`
+- `fZMBcIn9LpoE9D9B` (Recurring Walk-In Booking) — archived June 25 2026
+- `4ZLKQsWZBgDalvok` (Get Outstanding Payments) — archived June 25 2026; replaced by direct db-api call
 
 **Remaining known uses of service JWT (correct — automated, not user-scoped):**
 - `BillingCycleTrigger.json`, `RecurringBookingGenerator.json`, `PendingLifecycleScheduler.json`,
   `RecurringAutoCancel.json`, `RecurringPaymentReminder.json`, `XKKG5SZ75bHg35Zt.json`
+
+**Phase 2 violations remaining: 0** — all user-facing data paths go through db-api with JWT auth and RLS enforcement.
 
 ---
 
