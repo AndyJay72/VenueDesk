@@ -3139,7 +3139,7 @@
         async function loadAllInteractions() {
             const INTERACTIONS_API = 'https://n8n.srv1090894.hstgr.cloud/webhook/customer-interactions';
             try {
-                const res = await fetch(INTERACTIONS_API + tidParam(), { headers: getAuthHeaders() });
+                const res = await fetch(INTERACTIONS_API + tidParam() + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token')||''), { headers: getAuthHeaders() });
                 const json = await res.json();
                 allInteractions = (json.data || []).sort((a, b) => new Date(b.timestamp || b.interaction_date) - new Date(a.timestamp || a.interaction_date));
                 if (currentView === 'interactions') renderInteractionsTable();
@@ -3319,7 +3319,7 @@
                 const param = customerId && customerId !== '—'
                     ? `customer_id=${encodeURIComponent(customerId)}`
                     : `email=${encodeURIComponent(email || '')}`;
-                const res  = await fetch(`${CUST_INTERACTIONS_API}?${param}` + tidParam('&'), { headers: getAuthHeaders() });
+                const res  = await fetch(`${CUST_INTERACTIONS_API}?${param}` + tidParam('&') + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token')||''), { headers: getAuthHeaders() });
                 const json = await res.json();
                 const items = json.data || (Array.isArray(json) ? json : []);
                 loadingEl.style.display = 'none';
@@ -3448,7 +3448,7 @@
             const param = customerId && customerId !== '—'
                 ? `customer_id=${encodeURIComponent(customerId)}`
                 : `email=${encodeURIComponent(email)}`;
-            fetch(`${CUST_INTERACTIONS_API}?${param}` + tidParam('&'), { headers: getAuthHeaders() })
+            fetch(`${CUST_INTERACTIONS_API}?${param}` + tidParam('&') + '&jwt=' + encodeURIComponent(sessionStorage.getItem('vp_token')||''), { headers: getAuthHeaders() })
                 .then(r => r.json())
                 .then(json => {
                     const items = json.data || (Array.isArray(json) ? json : []);
