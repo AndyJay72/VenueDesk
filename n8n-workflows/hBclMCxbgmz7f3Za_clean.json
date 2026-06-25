@@ -68,7 +68,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Customers').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -146,7 +146,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Bookings').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -224,7 +224,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Accounts').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -261,7 +261,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Accounts').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -352,7 +352,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Pending').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -430,7 +430,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Outstanding').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -685,7 +685,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Monthly Revenue').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             },
             {
               "name": "Content-Type",
@@ -754,7 +754,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.N8N_SERVICE_JWT }}"
+              "value": "={{ 'Bearer ' + ($('Webhook: Dashboard').first().json.body?.jwt || $env.N8N_SERVICE_JWT) }}"
             }
           ]
         },
