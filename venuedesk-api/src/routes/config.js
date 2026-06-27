@@ -60,7 +60,8 @@ async function configRoutes(fastify) {
     const { rows } = await ctx(tenantId, (client) =>
       client.query(
         `SELECT id, name, capacity, day_rate, half_rate, description, is_active,
-                open_time, close_time
+                open_time, close_time,
+                parent_room_id, partition_order, partition_total
          FROM   bookings.rooms
          WHERE  tenant_id = $1::integer
          ORDER  BY is_active DESC, name`,
@@ -80,30 +81,36 @@ async function configRoutes(fastify) {
         type: 'object',
         required: ['name'],
         properties: {
-          name:        { type: 'string', minLength: 1 },
-          capacity:    { type: 'integer', default: 0 },
-          day_rate:    { type: 'number',  default: 0 },
-          half_rate:   { type: 'number',  default: 0 },
-          description: { type: 'string',  default: '' },
-          open_time:   { type: 'string' },
-          close_time:  { type: 'string' },
+          name:            { type: 'string', minLength: 1 },
+          capacity:        { type: 'integer', default: 0 },
+          day_rate:        { type: 'number',  default: 0 },
+          half_rate:       { type: 'number',  default: 0 },
+          description:     { type: 'string',  default: '' },
+          open_time:       { type: 'string' },
+          close_time:      { type: 'string' },
+          parent_room_id:  { type: 'string' },
+          partition_order: { type: 'integer' },
+          partition_total: { type: 'integer' },
         },
       },
     },
   }, async (request) => {
     const { tenantId, ctx } = resolveTenant(request);
     const { name, capacity = 0, day_rate = 0, half_rate = 0, description = '',
-            open_time, close_time } = request.body;
+            open_time, close_time,
+            parent_room_id, partition_order, partition_total } = request.body;
 
     return ctx(tenantId, async (client) => {
       const { rows } = await client.query(
         `INSERT INTO bookings.rooms
-           (name, capacity, day_rate, half_rate, description, open_time, close_time, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6::time, $7::time, $8)
+           (name, capacity, day_rate, half_rate, description, open_time, close_time, tenant_id,
+            parent_room_id, partition_order, partition_total)
+         VALUES ($1, $2, $3, $4, $5, $6::time, $7::time, $8, $9::uuid, $10, $11)
          ON CONFLICT (name) DO NOTHING
          RETURNING *`,
         [name.trim(), capacity, day_rate, half_rate, description,
-         open_time || null, close_time || null, tenantId]
+         open_time || null, close_time || null, tenantId,
+         parent_room_id || null, partition_order ?? null, partition_total ?? null]
       );
 
       if (rows.length === 0) {
@@ -123,22 +130,26 @@ async function configRoutes(fastify) {
         type: 'object',
         required: ['id'],
         properties: {
-          id:          { type: 'string' },
-          name:        { type: 'string' },
-          capacity:    { type: 'integer' },
-          day_rate:    { type: 'number' },
-          half_rate:   { type: 'number' },
-          description: { type: 'string' },
-          is_active:   { type: 'boolean' },
-          open_time:   { type: 'string' },
-          close_time:  { type: 'string' },
+          id:              { type: 'string' },
+          name:            { type: 'string' },
+          capacity:        { type: 'integer' },
+          day_rate:        { type: 'number' },
+          half_rate:       { type: 'number' },
+          description:     { type: 'string' },
+          is_active:       { type: 'boolean' },
+          open_time:       { type: 'string' },
+          close_time:      { type: 'string' },
+          parent_room_id:  { type: 'string' },
+          partition_order: { type: 'integer' },
+          partition_total: { type: 'integer' },
         },
       },
     },
   }, async (request) => {
     const { tenantId, ctx } = resolveTenant(request);
     const { id, name, capacity, day_rate, half_rate, description, is_active,
-            open_time, close_time } = request.body;
+            open_time, close_time,
+            parent_room_id, partition_order, partition_total } = request.body;
 
     assertUUID(id, 'id');
 
@@ -146,7 +157,7 @@ async function configRoutes(fastify) {
       // Load current values for COALESCE pattern
       const { rows: [current] } = await client.query(
         `SELECT name, capacity, day_rate, half_rate, description, is_active,
-                open_time, close_time
+                open_time, close_time, parent_room_id, partition_order, partition_total
          FROM bookings.rooms WHERE id = $1::uuid AND tenant_id = $2`,
         [id, tenantId]
       );
@@ -154,14 +165,17 @@ async function configRoutes(fastify) {
 
       const { rows } = await client.query(
         `UPDATE bookings.rooms
-         SET name        = $2,
-             capacity    = $3,
-             day_rate    = $4,
-             half_rate   = $5,
-             description = $6,
-             is_active   = $7,
-             open_time   = $9::time,
-             close_time  = $10::time
+         SET name            = $2,
+             capacity        = $3,
+             day_rate        = $4,
+             half_rate       = $5,
+             description     = $6,
+             is_active       = $7,
+             open_time       = $9::time,
+             close_time      = $10::time,
+             parent_room_id  = $11::uuid,
+             partition_order = $12,
+             partition_total = $13
          WHERE id = $1::uuid AND tenant_id = $8::integer
          RETURNING *`,
         [
@@ -173,8 +187,11 @@ async function configRoutes(fastify) {
           description ?? current.description,
           is_active   ?? current.is_active,
           tenantId,
-          open_time  !== undefined ? (open_time  || null) : current.open_time,
-          close_time !== undefined ? (close_time || null) : current.close_time,
+          open_time       !== undefined ? (open_time       || null) : current.open_time,
+          close_time      !== undefined ? (close_time      || null) : current.close_time,
+          parent_room_id  !== undefined ? (parent_room_id  || null) : current.parent_room_id,
+          partition_order !== undefined ? (partition_order ?? null) : current.partition_order,
+          partition_total !== undefined ? (partition_total ?? null) : current.partition_total,
         ]
       );
 

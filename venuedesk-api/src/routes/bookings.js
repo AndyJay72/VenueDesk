@@ -122,12 +122,41 @@ async function customersRoutes(fastify) {
 
     assertUUID(room_id, 'room_id');
 
-    // ── Strict Interval Overlap check ────────────────────────────────────────
-    // For each candidate date, find any confirmed_bookings in the same room on the
-    // same date whose time window overlaps: cb.start_time < end_time AND cb.end_time > start_time.
-    // Status 'cancelled' rows are excluded — they no longer hold the slot.
+    // ── Hierarchy-aware strict interval overlap check ─────────────────────────
+    // Expands the single-room filter to include ancestors, descendants, and
+    // spatially-overlapping siblings. Buffer-free (buffer enforced at clash-guard).
     const { rows } = await systemQuery(
-      `SELECT COALESCE(
+      `WITH RECURSIVE
+         ancestors(id) AS (
+           SELECT parent_room_id AS id FROM bookings.rooms
+           WHERE  id = $2::uuid AND parent_room_id IS NOT NULL
+           UNION ALL
+           SELECT r.parent_room_id FROM bookings.rooms r
+           JOIN   ancestors a ON r.id = a.id WHERE r.parent_room_id IS NOT NULL
+         ),
+         descendants(id) AS (
+           SELECT id FROM bookings.rooms WHERE parent_room_id = $2::uuid
+           UNION ALL
+           SELECT r.id FROM bookings.rooms r JOIN descendants d ON r.parent_room_id = d.id
+         ),
+         overlapping_siblings(id) AS (
+           SELECT s.id FROM bookings.rooms t
+           JOIN   bookings.rooms s
+                  ON  s.parent_room_id   = t.parent_room_id
+                  AND s.id              <> t.id
+                  AND t.partition_order IS NOT NULL
+                  AND s.partition_order IS NOT NULL
+                  AND (s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+                  AND (t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+           WHERE  t.id = $2::uuid
+         ),
+         conflict_set(id) AS (
+           SELECT $2::uuid
+           UNION SELECT id FROM ancestors           WHERE id IS NOT NULL
+           UNION SELECT id FROM descendants
+           UNION SELECT id FROM overlapping_siblings
+         )
+       SELECT COALESCE(
          ARRAY_AGG(d::text ORDER BY d),
          ARRAY[]::text[]
        ) AS clashed_dates
@@ -136,13 +165,11 @@ async function customersRoutes(fastify) {
          AND  EXISTS (
            SELECT 1
            FROM   bookings.confirmed_bookings cb
-           WHERE  cb.room_id    = $2::uuid
-             AND  cb.tenant_id  = $3::integer
-             AND  cb.status    NOT IN ('cancelled')
-             -- Date overlap: the booking covers this candidate date
+           JOIN   conflict_set cs ON cb.room_id = cs.id
+           WHERE  cb.tenant_id = $3::integer
+             AND  cb.status   NOT IN ('cancelled')
              AND  d::date BETWEEN COALESCE(cb.date_from::date, cb.booking_date)
                               AND COALESCE(cb.date_to::date,   cb.booking_date)
-             -- Strict interval overlap (no buffer — pure math)
              AND  cb.start_time < $5::time
              AND  cb.end_time   > $4::time
          )`,
@@ -308,17 +335,51 @@ async function customersRoutes(fastify) {
           }
         }
 
-        // ── Overlap clash check ───────────────────────────────────────────
+        // ── Hierarchy-aware overlap clash check ──────────────────────────
+        // Blocks bookings on ancestors, descendants, and spatially-
+        // overlapping siblings (integer cross-multiplication footprint test).
         const { rows: clashRows } = await client.query(
-          `SELECT id
-           FROM   bookings.confirmed_bookings
-           WHERE  room_id    = $1::uuid
-             AND  tenant_id  = $2::integer
-             AND  status    NOT IN ('cancelled')
-             AND  COALESCE(date_from::date, booking_date) <= $4::date
-             AND  COALESCE(date_to::date,   booking_date) >= $3::date
-             AND  start_time < $6::time
-             AND  end_time   > $5::time
+          `WITH RECURSIVE
+             ancestors(id) AS (
+               SELECT parent_room_id AS id FROM bookings.rooms
+               WHERE  id = $1::uuid AND parent_room_id IS NOT NULL
+               UNION ALL
+               SELECT r.parent_room_id FROM bookings.rooms r
+               JOIN   ancestors a ON r.id = a.id
+               WHERE  r.parent_room_id IS NOT NULL
+             ),
+             descendants(id) AS (
+               SELECT id FROM bookings.rooms WHERE parent_room_id = $1::uuid
+               UNION ALL
+               SELECT r.id FROM bookings.rooms r
+               JOIN   descendants d ON r.parent_room_id = d.id
+             ),
+             overlapping_siblings(id) AS (
+               SELECT s.id FROM bookings.rooms t
+               JOIN   bookings.rooms s
+                      ON  s.parent_room_id   = t.parent_room_id
+                      AND s.id              <> t.id
+                      AND t.partition_order IS NOT NULL
+                      AND s.partition_order IS NOT NULL
+                      AND (s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+                      AND (t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+               WHERE  t.id = $1::uuid
+             ),
+             conflict_set(id) AS (
+               SELECT $1::uuid
+               UNION SELECT id FROM ancestors           WHERE id IS NOT NULL
+               UNION SELECT id FROM descendants
+               UNION SELECT id FROM overlapping_siblings
+             )
+           SELECT cb.id
+           FROM   bookings.confirmed_bookings cb
+           JOIN   conflict_set cs ON cb.room_id = cs.id
+           WHERE  cb.tenant_id = $2::integer
+             AND  cb.status   NOT IN ('cancelled')
+             AND  COALESCE(cb.date_from::date, cb.booking_date) <= $4::date
+             AND  COALESCE(cb.date_to::date,   cb.booking_date) >= $3::date
+             AND  cb.start_time < $6::time
+             AND  cb.end_time   > $5::time
            LIMIT 1`,
           [room_id, tenantId, date_from, date_to, start_time, end_time]
         );
@@ -1206,22 +1267,53 @@ async function customersRoutes(fastify) {
 
     assertUUID(room_id, 'room_id');
 
-    // Replicates DB: Clash Guard verbatim — buffer pulled from settings at runtime.
+    // Hierarchy-aware clash guard — checks ancestors, descendants, overlapping siblings,
+    // confirmed_bookings AND recurring_rules, with the configured turnaround buffer.
     // $1=room_id, $2=booking_date, $3=start_time, $4=end_time, $5=date_to, $6=tenantId
     const { rows } = await systemQuery(
-      `SELECT COUNT(*) AS clashes
+      `WITH RECURSIVE
+         ancestors(id) AS (
+           SELECT parent_room_id AS id FROM bookings.rooms
+           WHERE  id = $1::uuid AND parent_room_id IS NOT NULL
+           UNION ALL
+           SELECT r.parent_room_id FROM bookings.rooms r
+           JOIN   ancestors a ON r.id = a.id WHERE r.parent_room_id IS NOT NULL
+         ),
+         descendants(id) AS (
+           SELECT id FROM bookings.rooms WHERE parent_room_id = $1::uuid
+           UNION ALL
+           SELECT r.id FROM bookings.rooms r JOIN descendants d ON r.parent_room_id = d.id
+         ),
+         overlapping_siblings(id) AS (
+           SELECT s.id FROM bookings.rooms t
+           JOIN   bookings.rooms s
+                  ON  s.parent_room_id   = t.parent_room_id
+                  AND s.id              <> t.id
+                  AND t.partition_order IS NOT NULL
+                  AND s.partition_order IS NOT NULL
+                  AND (s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+                  AND (t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+           WHERE  t.id = $1::uuid
+         ),
+         conflict_set(id) AS (
+           SELECT $1::uuid
+           UNION SELECT id FROM ancestors           WHERE id IS NOT NULL
+           UNION SELECT id FROM descendants
+           UNION SELECT id FROM overlapping_siblings
+         )
+       SELECT COUNT(*) AS clashes
        FROM (
-         SELECT id
-         FROM   bookings.confirmed_bookings
-         WHERE  room_id    = $1::uuid
-           AND  tenant_id  = $6::integer
-           AND  status     NOT IN ('cancelled')
-           AND  $2::date  <= COALESCE(date_to::date,   booking_date)
-           AND  $5::date  >= COALESCE(date_from::date, booking_date)
-           AND  start_time <  ($4::time + (COALESCE(
+         SELECT cb.id
+         FROM   bookings.confirmed_bookings cb
+         JOIN   conflict_set cs ON cb.room_id = cs.id
+         WHERE  cb.tenant_id = $6::integer
+           AND  cb.status   NOT IN ('cancelled')
+           AND  $2::date   <= COALESCE(cb.date_to::date,   cb.booking_date)
+           AND  $5::date   >= COALESCE(cb.date_from::date, cb.booking_date)
+           AND  cb.start_time <  ($4::time + (COALESCE(
                  (SELECT value::int FROM bookings.settings WHERE key = 'booking_buffer_minutes'),
                  60) || ' minutes')::interval)
-           AND  end_time   >  ($3::time - (COALESCE(
+           AND  cb.end_time   >  ($3::time - (COALESCE(
                  (SELECT value::int FROM bookings.settings WHERE key = 'booking_buffer_minutes'),
                  60) || ' minutes')::interval)
 
@@ -1229,10 +1321,10 @@ async function customersRoutes(fastify) {
 
          SELECT rr.id
          FROM   bookings.recurring_rules rr
+         JOIN   conflict_set cs ON rr.room_id = cs.id
          CROSS JOIN LATERAL generate_series($2::date, $5::date, '1 day'::interval) AS gs(d)
-         WHERE  rr.room_id    = $1::uuid
-           AND  rr.tenant_id  = $6::integer
-           AND  rr.active     = TRUE
+         WHERE  rr.tenant_id = $6::integer
+           AND  rr.active    = TRUE
            AND  EXTRACT(DOW FROM gs.d)::int = rr.day_of_week
            AND  rr.start_time <  ($4::time + (COALESCE(
                  (SELECT value::int FROM bookings.settings WHERE key = 'booking_buffer_minutes'),
@@ -1448,40 +1540,71 @@ async function customersRoutes(fastify) {
 
     if (!tenantId) throw unprocessable('tenant_id is required');
 
-    // Display-only availability check — direct overlap only, NO turnaround buffer.
-    // The 60-min buffer is enforced at booking submission time by clash-guard.
-    // Using no buffer here gives the user honest "Available / Not available" feedback
-    // without blocking slots that are genuinely free but adjacent to a recurring rule.
+    // Hierarchy-aware display availability check — no buffer (buffer is clash-guard's job).
+    // Resolves room by name, then expands to ancestors/descendants/overlapping siblings.
     // $1=roomName, $2=eventDate, $3=timeFrom, $4=timeTo, $5=dateTo, $6=tenantId
     const { rows } = await systemQuery(
-      `SELECT
+      `WITH RECURSIVE
+         target_room(id, partition_order, partition_total, parent_room_id) AS (
+           SELECT id, partition_order, partition_total, parent_room_id
+           FROM   bookings.rooms
+           WHERE  name ILIKE $1 AND tenant_id = $6::integer
+           LIMIT  1
+         ),
+         ancestors(id) AS (
+           SELECT parent_room_id AS id FROM target_room WHERE parent_room_id IS NOT NULL
+           UNION ALL
+           SELECT r.parent_room_id FROM bookings.rooms r
+           JOIN   ancestors a ON r.id = a.id WHERE r.parent_room_id IS NOT NULL
+         ),
+         descendants(id) AS (
+           SELECT r.id FROM bookings.rooms r
+           JOIN   target_room t ON r.parent_room_id = t.id
+           UNION ALL
+           SELECT r.id FROM bookings.rooms r JOIN descendants d ON r.parent_room_id = d.id
+         ),
+         overlapping_siblings(id) AS (
+           SELECT s.id FROM target_room t
+           JOIN   bookings.rooms s
+                  ON  s.parent_room_id = t.parent_room_id
+                  AND s.id            <> t.id
+                  AND t.partition_order IS NOT NULL
+                  AND s.partition_order IS NOT NULL
+                  AND (s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+                  AND (t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+         ),
+         conflict_set(id) AS (
+           SELECT id FROM target_room
+           UNION SELECT id FROM ancestors           WHERE id IS NOT NULL
+           UNION SELECT id FROM descendants
+           UNION SELECT id FROM overlapping_siblings
+         )
+       SELECT
          CASE WHEN COUNT(*) = 0 THEN true ELSE false END AS available,
          COUNT(*) AS clash_count,
-         60 AS buffer_minutes
+         60       AS buffer_minutes
        FROM (
-         SELECT cb.id::text AS clash_source
+         SELECT cb.id
          FROM   bookings.confirmed_bookings cb
-         JOIN   bookings.rooms r ON cb.room_id = r.id
-         WHERE  r.name     ILIKE $1
-           AND  cb.tenant_id    = $6::integer
-           AND  cb.status      NOT IN ('cancelled')
-           AND  $2::date       <= COALESCE(cb.date_to::date,   cb.booking_date)
-           AND  $5::date       >= COALESCE(cb.date_from::date, cb.booking_date)
-           AND  cb.start_time  <  $4::time
-           AND  cb.end_time    >  $3::time
+         JOIN   conflict_set cs ON cb.room_id = cs.id
+         WHERE  cb.tenant_id = $6::integer
+           AND  cb.status   NOT IN ('cancelled')
+           AND  $2::date   <= COALESCE(cb.date_to::date,   cb.booking_date)
+           AND  $5::date   >= COALESCE(cb.date_from::date, cb.booking_date)
+           AND  cb.start_time < $4::time
+           AND  cb.end_time   > $3::time
 
          UNION ALL
 
-         SELECT rr.id::text AS clash_source
+         SELECT rr.id
          FROM   bookings.recurring_rules rr
-         JOIN   bookings.rooms r ON rr.room_id = r.id
+         JOIN   conflict_set cs ON rr.room_id = cs.id
          CROSS JOIN LATERAL generate_series($2::date, $5::date, '1 day'::interval) AS gs(d)
-         WHERE  r.name     ILIKE $1
-           AND  rr.tenant_id    = $6::integer
-           AND  rr.active       = TRUE
+         WHERE  rr.tenant_id = $6::integer
+           AND  rr.active    = TRUE
            AND  EXTRACT(DOW FROM gs.d)::int = rr.day_of_week
-           AND  rr.start_time  <  $4::time
-           AND  rr.end_time    >  $3::time
+           AND  rr.start_time < $4::time
+           AND  rr.end_time   > $3::time
            AND  (rr.end_date IS NULL OR rr.end_date >= $2::date)
        ) clashes`,
       [roomName, eventDate, timeFrom, timeTo, dateTo, tenantId]

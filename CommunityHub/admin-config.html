@@ -90,6 +90,13 @@
         textarea { resize: vertical; min-height: 70px; }
         select option { background: #1e293b; }
         .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        /* ROOM HIERARCHY */
+        .hierarchy-section { background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.22); border-radius: 12px; padding: 1rem 1.1rem 0.7rem; margin-bottom: 1rem; }
+        .hierarchy-header { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary); margin-bottom: 0.9rem; }
+        .hierarchy-header .opt-badge { background: rgba(99,102,241,0.15); color: var(--primary); padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; margin-left: auto; }
+        .hierarchy-section .input-group { margin-bottom: 0.7rem; }
+        .room-parent-tag { font-size: 0.71rem; color: var(--primary); margin-top: 3px; display: flex; align-items: center; gap: 4px; opacity: 0.85; }
+        .room-children-tag { font-size: 0.71rem; color: var(--text-muted); margin-top: 2px; }
         .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.95rem; margin-top: 0.5rem; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: #4f46e5; }
@@ -732,6 +739,33 @@
                         <label>Description</label>
                         <textarea id="rDesc" placeholder="Short description of facilities..."></textarea>
                     </div>
+                    <!-- Room Hierarchy -->
+                    <div class="hierarchy-section">
+                        <div class="hierarchy-header">
+                            <i class="fa-solid fa-sitemap"></i> Parent Room / Anchor Space
+                            <span class="opt-badge">Optional</span>
+                        </div>
+                        <div class="input-group">
+                            <label>Parent Room</label>
+                            <select id="rParentRoom" onchange="onParentRoomChange(this,'rPartitionRow','rPartitionOrder','rPartitionTotal')">
+                                <option value="">None (standalone room)</option>
+                            </select>
+                        </div>
+                        <div class="row2" id="rPartitionRow" style="display:none;margin-bottom:0.25rem">
+                            <div class="input-group" style="margin-bottom:0">
+                                <label>Position</label>
+                                <select id="rPartitionOrder"></select>
+                            </div>
+                            <div class="input-group" style="margin-bottom:0">
+                                <label>Divide Into</label>
+                                <select id="rPartitionTotal" onchange="onPartitionTotalChange('rPartitionOrder','rPartitionTotal')">
+                                    <option value="2">Halves</option>
+                                    <option value="3">Thirds</option>
+                                    <option value="4">Quarters</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn btn-primary" id="addRoomBtn" onclick="addRoom()">
                         <i class="fa-solid fa-plus"></i> Add Room
                     </button>
@@ -1315,6 +1349,7 @@ async function loadRooms() {
         const json = text.trim() ? JSON.parse(text) : {};
         rooms = json.data || (Array.isArray(json) ? json : []);
         renderRoomsTable();
+        populateParentDropdown('rParentRoom');
     } catch(e) {
         document.getElementById('roomsTable').innerHTML =
             '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Failed to load rooms</td></tr>';
@@ -1324,13 +1359,29 @@ async function loadRooms() {
 function renderRoomsTable() {
     const tbody = document.getElementById('roomsTable');
     if (!rooms.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No rooms found.</td></tr>'; return; }
+    const roomById   = Object.fromEntries(rooms.map(r => [r.id, r]));
+    const partLabels = ['1st','2nd','3rd','4th'];
+    const unitMap    = {2:'Half', 3:'Third', 4:'Quarter'};
     tbody.innerHTML = rooms.map(r => {
         const openStr  = r.open_time  ? r.open_time.slice(0, 5)  : null;
         const closeStr = r.close_time ? r.close_time.slice(0, 5) : null;
         const hoursStr = (openStr && closeStr) ? `${openStr}–${closeStr}` : '—';
+        // Hierarchy display
+        let nameHtml = `<span style="font-weight:600;color:white">${esc(r.name)}</span>`;
+        if (r.parent_room_id && roomById[r.parent_room_id]) {
+            const pname = esc(roomById[r.parent_room_id].name);
+            const pos   = (r.partition_order !== null && r.partition_order !== undefined && r.partition_total)
+                ? ` · ${partLabels[r.partition_order] || (r.partition_order + 1) + 'th'} ${unitMap[r.partition_total] || 'Part'}`
+                : '';
+            nameHtml += `<div class="room-parent-tag"><i class="fa-solid fa-sitemap fa-xs"></i> ${pname}${pos}</div>`;
+        }
+        const childCount = rooms.filter(x => x.parent_room_id === r.id).length;
+        if (childCount) {
+            nameHtml += `<div class="room-children-tag"><i class="fa-solid fa-layer-group fa-xs"></i> ${childCount} partition${childCount > 1 ? 's' : ''}</div>`;
+        }
         return `
         <tr class="${!r.is_active ? 'inactive-row' : ''}">
-            <td style="font-weight:600;color:white">${esc(r.name)}</td>
+            <td>${nameHtml}</td>
             <td style="color:var(--text-muted)">${r.capacity || '—'}</td>
             <td>${fmt(r.day_rate)}<span style="font-size:0.72rem;color:var(--text-muted)">/hr</span></td>
             <td style="color:var(--text-muted);font-size:0.85rem">${hoursStr}</td>
@@ -1348,6 +1399,53 @@ function renderRoomsTable() {
     }).join('');
 }
 
+// ── Room Hierarchy helpers ────────────────────────────────────────────────────
+
+function onParentRoomChange(sel, rowId, orderSelId, totalSelId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    if (sel.value) {
+        row.style.display = '';
+        onPartitionTotalChange(orderSelId, totalSelId);
+    } else {
+        row.style.display = 'none';
+        const os = document.getElementById(orderSelId);
+        if (os) os.innerHTML = '';
+    }
+}
+
+function onPartitionTotalChange(orderSelId, totalSelId) {
+    const total  = parseInt(document.getElementById(totalSelId)?.value) || 2;
+    const labels = ['1st', '2nd', '3rd', '4th'];
+    const units  = { 2: 'Half', 3: 'Third', 4: 'Quarter' };
+    const unit   = units[total] || 'Part';
+    const sel    = document.getElementById(orderSelId);
+    if (!sel) return;
+    const cur = parseInt(sel.value);
+    sel.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${labels[i] || (i + 1) + 'th'} ${unit}`;
+        if (i === cur) opt.selected = true;
+        sel.appendChild(opt);
+    }
+}
+
+function populateParentDropdown(selectId, excludeId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">None (standalone room)</option>';
+    (rooms || []).filter(r => r.is_active && r.id !== excludeId).forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name;
+        if (r.id === cur) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
 async function addRoom() {
     const btn      = document.getElementById('addRoomBtn');
     const name     = document.getElementById('rName').value.trim();
@@ -1356,6 +1454,10 @@ async function addRoom() {
     const desc     = document.getElementById('rDesc').value.trim();
     const openTime  = document.getElementById('rOpenTime').value;
     const closeTime = document.getElementById('rCloseTime').value;
+    const parentRoomId   = document.getElementById('rParentRoom')?.value || null;
+    const partitionVisible = document.getElementById('rPartitionRow')?.style.display !== 'none';
+    const partitionTotal = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionTotal')?.value) || null)  : null;
+    const partitionOrder = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionOrder')?.value) ?? null) : null;
 
     if (!name) { showToast('Room name is required', 'error'); return; }
     if (!dr || isNaN(parseFloat(dr))) { showToast('Hourly rate is required', 'error'); return; }
@@ -1366,13 +1468,18 @@ async function addRoom() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({
                 name, capacity: cap || null, day_rate: dr, description: desc || null,
-                open_time:  openTime  || null,
-                close_time: closeTime || null,
+                open_time:       openTime      || null,
+                close_time:      closeTime     || null,
+                parent_room_id:  parentRoomId  || null,
+                partition_order: partitionOrder,
+                partition_total: partitionTotal,
             }))
         });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
         showToast('Room added!');
         ['rName','rCapacity','rDayRate','rDesc','rOpenTime','rCloseTime'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        const pr = document.getElementById('rParentRoom'); if (pr) pr.value = '';
+        const prow = document.getElementById('rPartitionRow'); if (prow) prow.style.display = 'none';
         await loadRooms();
     } catch(e) { showToast(e.message || 'Error adding room', 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Room'; }
@@ -1383,7 +1490,23 @@ function editRoom(id) {
     if (!r) return;
     modalMode = { type: 'room', id, data: r };
     document.getElementById('modalTitle').textContent = 'Edit Room — ' + r.name;
-    const timeOpts = generateTimeOptions();
+    const timeOpts   = generateTimeOptions();
+    const hasParent  = !!r.parent_room_id;
+    const pTotal     = r.partition_total || 2;
+    const partLabels = ['1st','2nd','3rd','4th'];
+    const unitMap    = {2:'Half', 3:'Third', 4:'Quarter'};
+    // Parent dropdown options — exclude self to prevent cycles
+    const parentOpts = rooms.filter(x => x.is_active && x.id !== id)
+        .map(x => `<option value="${x.id}"${x.id === r.parent_room_id ? ' selected' : ''}>${esc(x.name)}</option>`)
+        .join('');
+    // Partition position options for the current total
+    const posOpts = Array.from({length: pTotal}, (_, i) =>
+        `<option value="${i}"${i === r.partition_order ? ' selected' : ''}>${partLabels[i] || (i+1)+'th'} ${unitMap[pTotal]||'Part'}</option>`
+    ).join('');
+    const totalOpts = [2,3,4].map(n =>
+        `<option value="${n}"${n === pTotal ? ' selected' : ''}>${n===2?'Halves':n===3?'Thirds':'Quarters'}</option>`
+    ).join('');
+
     document.getElementById('modalBody').innerHTML = `
         <div class="input-group"><label>Room Name</label><input type="text" id="me_name" value="${esc(r.name)}"></div>
         <div class="row2">
@@ -1395,6 +1518,22 @@ function editRoom(id) {
             <div class="input-group"><label>Close Time</label><select id="me_close">${timeOpts}</select></div>
         </div>
         <div class="input-group"><label>Description</label><textarea id="me_desc">${esc(r.description || '')}</textarea></div>
+        <div class="hierarchy-section">
+            <div class="hierarchy-header"><i class="fa-solid fa-sitemap"></i> Parent Room / Anchor Space <span class="opt-badge">Optional</span></div>
+            <div class="input-group" style="margin-bottom:0.75rem">
+                <label>Parent Room</label>
+                <select id="me_parent" onchange="onParentRoomChange(this,'me_prow','me_pos','me_ptotal')">
+                    <option value="">None (standalone room)</option>
+                    ${parentOpts}
+                </select>
+            </div>
+            <div class="row2" id="me_prow" style="display:${hasParent ? '' : 'none'};margin-bottom:0.25rem">
+                <div class="input-group" style="margin-bottom:0"><label>Position</label><select id="me_pos">${posOpts}</select></div>
+                <div class="input-group" style="margin-bottom:0"><label>Divide Into</label>
+                    <select id="me_ptotal" onchange="onPartitionTotalChange('me_pos','me_ptotal')">${totalOpts}</select>
+                </div>
+            </div>
+        </div>
         <div class="toggle-row">
             <span class="toggle-label">Room Active</span>
             <button class="toggle ${r.is_active ? 'on' : ''}" id="me_active" onclick="this.classList.toggle('on')"></button>
@@ -1413,15 +1552,20 @@ async function saveModal() {
 
     try {
         if (modalMode.type === 'room') {
+            const parentRoomId     = document.getElementById('me_parent')?.value || null;
+            const partitionVisible = document.getElementById('me_prow')?.style.display !== 'none';
             const payload = {
-                id:          modalMode.id,
-                name:        document.getElementById('me_name').value.trim(),
-                capacity:    document.getElementById('me_cap').value || null,
-                day_rate:    document.getElementById('me_dr').value,
-                description: document.getElementById('me_desc').value.trim() || null,
-                is_active:   document.getElementById('me_active').classList.contains('on'),
-                open_time:   document.getElementById('me_open').value  || null,
-                close_time:  document.getElementById('me_close').value || null,
+                id:              modalMode.id,
+                name:            document.getElementById('me_name').value.trim(),
+                capacity:        document.getElementById('me_cap').value || null,
+                day_rate:        document.getElementById('me_dr').value,
+                description:     document.getElementById('me_desc').value.trim() || null,
+                is_active:       document.getElementById('me_active').classList.contains('on'),
+                open_time:       document.getElementById('me_open').value  || null,
+                close_time:      document.getElementById('me_close').value || null,
+                parent_room_id:  parentRoomId || null,
+                partition_order: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_pos')?.value)    ?? null) : null,
+                partition_total: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_ptotal')?.value) ?? null) : null,
             };
             if (!payload.name) throw new Error('Room name is required');
             const res = await fetch(API.updateRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
