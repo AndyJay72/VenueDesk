@@ -1321,6 +1321,159 @@
         .cal-tg-block strong { color: var(--primary); display: block; font-size: .8rem; }
         .cal-tg-block span   { color: var(--text-muted); font-size: .72rem; }
 
+        /* ── Room Partition Tree ─────────────────────────────────────────────────── */
+        .rt-wrap { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin-bottom: 1.5rem; }
+        .rt-parent-card {
+            background: rgba(13, 21, 46, 0.65);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 120, 186, 0.18);
+            border-radius: 14px; padding: 1.1rem 1.4rem;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem; cursor: default; transition: all .2s;
+        }
+        [data-theme="light"] .rt-parent-card {
+            background: rgba(255, 255, 255, 0.94);
+            border-color: rgba(99, 102, 241, 0.16);
+            box-shadow: 0 2px 12px rgba(99,102,241,.06);
+        }
+        .rt-parent-card:hover { box-shadow: 0 0 0 2px rgba(99,102,241,.25); }
+        .rt-badge { display: inline-flex; align-items: center; padding: .18rem .6rem; border-radius: 9999px; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin-bottom: .35rem; }
+        .rt-badge-parent { background: rgba(99,102,241,.15); color: var(--primary); border: 1px solid rgba(99,102,241,.28); }
+        .rt-badge-half   { background: rgba(16,185,129,.12); color: var(--success); border: 1px solid rgba(16,185,129,.22); }
+        .rt-badge-qtr    { background: rgba(245,158,11,.12);  color: var(--warning); border: 1px solid rgba(245,158,11,.22); }
+        .rt-room-name { font-family: 'Outfit', sans-serif; font-size: .95rem; font-weight: 700; color: var(--text-main); margin-bottom: .15rem; }
+        .rt-room-meta { font-size: .77rem; color: var(--text-muted); }
+        .rt-footprint { font-size: .72rem; font-family: monospace; color: var(--primary); background: rgba(99,102,241,.1); padding: .15rem .5rem; border-radius: 4px; display: inline-block; margin-top: .4rem; }
+        .rt-connector {
+            display: flex; justify-content: center; height: 22px; position: relative;
+        }
+        .rt-connector::before {
+            content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+            width: 2px; background: linear-gradient(to bottom, rgba(99,102,241,.35), rgba(99,102,241,.1));
+        }
+        .rt-halves-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .rt-qtrs-row   { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+        .rt-child-card {
+            background: rgba(13, 21, 46, 0.50);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 120, 186, 0.14);
+            border-radius: 12px; padding: .95rem 1.1rem;
+            cursor: default; transition: border-color .18s, background .18s, box-shadow .18s;
+        }
+        [data-theme="light"] .rt-child-card {
+            background: rgba(240, 244, 255, 0.94); border-color: rgba(99, 102, 241, 0.11);
+        }
+        .rt-child-card:hover { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,.14); }
+        .rt-leaf-card {
+            background: rgba(13, 21, 46, 0.38);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(99, 120, 186, 0.10);
+            border-radius: 10px; padding: .7rem .8rem;
+            cursor: default; transition: border-color .18s, background .18s, box-shadow .18s; text-align: center;
+        }
+        [data-theme="light"] .rt-leaf-card {
+            background: rgba(248, 250, 255, 0.96); border-color: rgba(99, 102, 241, 0.09);
+        }
+        .rt-leaf-card:hover { border-color: var(--warning); box-shadow: 0 0 0 2px rgba(245,158,11,.12); }
+        .rt-child-card.conflict-highlight, .rt-leaf-card.conflict-highlight, .rt-parent-card.conflict-highlight {
+            border-color: var(--danger) !important;
+            background: rgba(239,68,68,.09) !important;
+            box-shadow: 0 0 0 2px rgba(239,68,68,.16) !important;
+        }
+        .rt-child-card.allowed-highlight, .rt-leaf-card.allowed-highlight {
+            border-color: var(--success) !important;
+            background: rgba(16,185,129,.07) !important;
+            box-shadow: 0 0 0 2px rgba(16,185,129,.14) !important;
+        }
+        .rt-room-name-sm { font-size: .82rem; font-weight: 700; color: var(--text-main); margin: .28rem 0 .12rem; }
+        .rt-room-meta-sm { font-size: .7rem; color: var(--text-muted); }
+
+        /* ── Admin Config Form Mock ──────────────────────────────────────────────── */
+        .cfg-mock {
+            background: rgba(13, 21, 46, 0.65);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 120, 186, 0.14);
+            border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem;
+        }
+        [data-theme="light"] .cfg-mock {
+            background: rgba(255, 255, 255, 0.96); border-color: rgba(99, 102, 241, 0.14);
+            box-shadow: 0 4px 24px rgba(99,102,241,.06);
+        }
+        .cfg-mock-hdr {
+            padding: .7rem 1.25rem;
+            background: linear-gradient(90deg, rgba(99,102,241,.16) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(99,120,186,.14);
+            display: flex; align-items: center; gap: .6rem;
+            font-size: .8rem; color: var(--text-muted); font-weight: 600;
+        }
+        .cfg-mock-hdr span { color: var(--primary); }
+        .cfg-mock-body { padding: 1.1rem 1.25rem; }
+        .cfg-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+        .cfg-field { display: flex; flex-direction: column; gap: .28rem; }
+        .cfg-field-full { grid-column: span 2; }
+        .cfg-label { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+        .cfg-opt { font-size: .68rem; color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+        .cfg-input-mock {
+            padding: .48rem .75rem; border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-muted); color: var(--text-main); font-size: .84rem;
+        }
+        .cfg-input-mock.placeholder { color: var(--text-muted); font-style: italic; }
+        .cfg-select-mock {
+            padding: .48rem .75rem; border-radius: 8px;
+            border: 1px solid var(--primary); background: var(--bg-muted);
+            color: var(--text-main); font-size: .84rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .cfg-select-mock .chev { color: var(--primary); font-size: .78rem; }
+        .cfg-anchor-panel { margin-top: .85rem; border: 1px solid rgba(99,102,241,.2); border-radius: 10px; overflow: hidden; }
+        .cfg-anchor-panel-hdr {
+            padding: .58rem 1rem;
+            background: rgba(99,102,241,.08); border-bottom: 1px solid rgba(99,102,241,.15);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: .8rem; font-weight: 600; color: var(--primary);
+        }
+        .cfg-opt-badge { font-size: .68rem; background: rgba(99,102,241,.14); color: var(--primary); padding: .14rem .48rem; border-radius: 9999px; font-weight: 600; }
+        .cfg-anchor-body { padding: .85rem 1rem; display: flex; flex-direction: column; gap: .7rem; }
+        .cfg-guard {
+            background: rgba(16,185,129,.07); border: 1px solid rgba(16,185,129,.2);
+            border-radius: 10px; padding: .85rem 1rem;
+        }
+        .cfg-guard-badge { display: inline-flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; color: var(--success); margin-bottom: .5rem; }
+        .cfg-guard-path { font-size: .75rem; color: var(--text-muted); line-height: 1.75; font-family: monospace; }
+        .cfg-guard-path strong { color: var(--text-main); }
+        .cfg-submit-mock {
+            margin-top: 1rem; width: 100%; padding: .62rem;
+            border-radius: 8px; background: var(--primary); color: #fff;
+            font-size: .875rem; font-weight: 600; text-align: center; border: none; cursor: default;
+        }
+
+        /* ── Rooms Table Mock ─────────────────────────────────────────────────────── */
+        .rm-mock {
+            background: rgba(13, 21, 46, 0.55);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(99, 120, 186, 0.14);
+            border-radius: 14px; overflow: hidden; margin-bottom: 1.5rem;
+        }
+        [data-theme="light"] .rm-mock { background: rgba(255,255,255,.95); border-color: rgba(99,102,241,.12); }
+        .rm-mock-row {
+            display: grid; grid-template-columns: 2fr 52px 78px 68px 80px;
+            align-items: center; padding: .65rem 1.1rem;
+            border-bottom: 1px solid rgba(99,120,186,.1); font-size: .8rem; gap: .5rem;
+        }
+        .rm-mock-row:last-child { border-bottom: none; }
+        .rm-mock-head {
+            background: rgba(99,102,241,.07);
+            font-size: .7rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .04em;
+        }
+        .rm-name { font-weight: 600; color: var(--text-main); font-size: .82rem; }
+        .rm-sub  { font-size: .71rem; color: var(--primary); margin-top: .14rem; display: flex; align-items: center; gap: .25rem; }
+        .rm-badge-partition { font-size: .67rem; background: rgba(99,102,241,.12); color: var(--primary); padding: .08rem .38rem; border-radius: 4px; font-weight: 600; }
+        .rm-cell { color: var(--text-muted); font-size: .79rem; }
+        .rm-cell-rate { color: var(--text-main); font-weight: 600; font-size: .79rem; }
+        .rm-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; margin-right: .28rem; }
+
         /* ── Info highlight box ──────────────────────────────────────────────────── */
         .info-box {
             background: var(--primary-light); border-left: 4px solid var(--primary);
@@ -2240,128 +2393,207 @@
                     <div class="card-body">
                         <p style="margin-bottom:1.5rem">Some venues divide a large space (e.g. <strong>Main Hall</strong>) into independently bookable sections — halves, thirds, or quarters. Each partition has its own rate, capacity, and operating hours and can be booked without affecting other non-overlapping sections.</p>
 
-                        <!-- Visual mockup: room hierarchy diagram -->
-                        <div class="sub-card" style="margin-bottom:1.5rem;background:var(--bg-muted);font-family:monospace;font-size:0.82rem;line-height:1.6">
-                            <h4 style="font-family:inherit;margin-bottom:0.75rem">🏛️ Example — Conference Hall divided into Halves &amp; Quarters</h4>
-<pre style="margin:0;color:var(--text-main);overflow-x:auto">
-  ┌──────────────────────────────────────────────────┐
-  │                  Conference Hall                 │  ← Parent room
-  │              (full hire · £200/hr)               │     blocks ALL children
-  ├────────────────────┬─────────────────────────────┤
-  │    North Half      │        South Half            │  ← Halves (0/2, 1/2)
-  │    £95/hr          │        £95/hr                │     can be booked
-  ├──────┬─────────────┤──────────────┬──────────────┤     independently
-  │  Q1  │     Q2      │      Q3      │      Q4      │  ← Quarters (0/4..3/4)
-  │ £55  │    £55      │     £55      │     £55      │
-  └──────┴─────────────┴──────────────┴──────────────┘
+                        <!-- ── 1. CSS GRID ROOM HIERARCHY TREE ───────────────────────────────── -->
+                        <h3 style="margin-bottom:.75rem">🏛️ Example — Main Hall divided into Halves &amp; Quarters</h3>
+                        <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem"><strong>Hover over any room card</strong> to see the system highlight conflicting spaces <span style="color:var(--danger)">●</span> and non-conflicting spaces <span style="color:var(--success)">●</span> in real time.</p>
 
-  Q1 [0.00, 0.25] overlaps North Half [0.00, 0.50] → conflict ❌
-  Q3 [0.50, 0.75] overlaps South Half [0.50, 1.00] → conflict ❌
-  Q1 [0.00, 0.25] does NOT overlap Q3 [0.50, 0.75] → allowed ✅
-</pre>
+                        <div class="rt-wrap">
+                            <!-- Parent -->
+                            <div class="rt-parent-card" data-rt="rt-parent"
+                                 onmouseenter="rtHover('rt-parent')" onmouseleave="rtClear()">
+                                <div>
+                                    <div><span class="rt-badge rt-badge-parent">Parent Space</span></div>
+                                    <div class="rt-room-name">Main Hall</div>
+                                    <div class="rt-room-meta">£200/hr · Capacity: 200 · Booking this blocks all partitions below</div>
+                                </div>
+                                <div style="text-align:right;flex-shrink:0">
+                                    <div class="rt-footprint">Footprint [0 / 1]</div>
+                                    <div style="font-size:.7rem;color:var(--text-muted);margin-top:.3rem">Full physical space</div>
+                                </div>
+                            </div>
+
+                            <div class="rt-connector"></div>
+
+                            <!-- Halves -->
+                            <div class="rt-halves-row">
+                                <div class="rt-child-card" data-rt="rt-nh"
+                                     onmouseenter="rtHover('rt-nh')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-half">½ Halves layer</span></div>
+                                    <div class="rt-room-name">North Half</div>
+                                    <div class="rt-room-meta">£95/hr · Cap: 100</div>
+                                    <div class="rt-footprint">[ 0 / 2 ]</div>
+                                </div>
+                                <div class="rt-child-card" data-rt="rt-sh"
+                                     onmouseenter="rtHover('rt-sh')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-half">½ Halves layer</span></div>
+                                    <div class="rt-room-name">South Half</div>
+                                    <div class="rt-room-meta">£95/hr · Cap: 100</div>
+                                    <div class="rt-footprint">[ 1 / 2 ]</div>
+                                </div>
+                            </div>
+
+                            <div class="rt-connector"></div>
+
+                            <!-- Quarters -->
+                            <div class="rt-qtrs-row">
+                                <div class="rt-leaf-card" data-rt="rt-q1"
+                                     onmouseenter="rtHover('rt-q1')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-qtr">¼ Qtr</span></div>
+                                    <div class="rt-room-name-sm">1st Quarter</div>
+                                    <div class="rt-room-meta-sm">£55/hr · Cap: 50</div>
+                                    <div class="rt-footprint">[ 0 / 4 ]</div>
+                                </div>
+                                <div class="rt-leaf-card" data-rt="rt-q2"
+                                     onmouseenter="rtHover('rt-q2')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-qtr">¼ Qtr</span></div>
+                                    <div class="rt-room-name-sm">2nd Quarter</div>
+                                    <div class="rt-room-meta-sm">£55/hr · Cap: 50</div>
+                                    <div class="rt-footprint">[ 1 / 4 ]</div>
+                                </div>
+                                <div class="rt-leaf-card" data-rt="rt-q3"
+                                     onmouseenter="rtHover('rt-q3')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-qtr">¼ Qtr</span></div>
+                                    <div class="rt-room-name-sm">3rd Quarter</div>
+                                    <div class="rt-room-meta-sm">£55/hr · Cap: 50</div>
+                                    <div class="rt-footprint">[ 2 / 4 ]</div>
+                                </div>
+                                <div class="rt-leaf-card" data-rt="rt-q4"
+                                     onmouseenter="rtHover('rt-q4')" onmouseleave="rtClear()">
+                                    <div><span class="rt-badge rt-badge-qtr">¼ Qtr</span></div>
+                                    <div class="rt-room-name-sm">4th Quarter</div>
+                                    <div class="rt-room-meta-sm">£55/hr · Cap: 50</div>
+                                    <div class="rt-footprint">[ 3 / 4 ]</div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- How the conflict rules work -->
-                        <h3 style="margin-bottom:0.75rem">How conflict detection works</h3>
-                        <div class="table-container" style="margin-bottom:1.5rem">
-                            <table>
-                                <thead>
-                                    <tr><th>What you try to book</th><th>Existing booking</th><th>Result</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Conference Hall (parent)</td>
-                                        <td>North Half already booked</td>
-                                        <td><span class="status-badge red">❌ Blocked</span> — parent conflicts with any child</td>
-                                    </tr>
-                                    <tr>
-                                        <td>North Half (child)</td>
-                                        <td>Conference Hall already booked</td>
-                                        <td><span class="status-badge red">❌ Blocked</span> — child conflicts with parent</td>
-                                    </tr>
-                                    <tr>
-                                        <td>1st Quarter [0–25%]</td>
-                                        <td>North Half [0–50%] booked</td>
-                                        <td><span class="status-badge red">❌ Blocked</span> — footprints overlap</td>
-                                    </tr>
-                                    <tr>
-                                        <td>3rd Quarter [50–75%]</td>
-                                        <td>North Half [0–50%] booked</td>
-                                        <td><span class="status-badge green">✅ Allowed</span> — physically separate sections</td>
-                                    </tr>
-                                    <tr>
-                                        <td>South Half [50–100%]</td>
-                                        <td>North Half [0–50%] booked</td>
-                                        <td><span class="status-badge green">✅ Allowed</span> — non-overlapping sibling</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2nd Third [33–67%]</td>
-                                        <td>1st Third [0–33%] booked</td>
-                                        <td><span class="status-badge green">✅ Allowed</span> — no physical overlap</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <!-- ── 2. CONFLICT DETECTION (accordion) ──────────────────────────────── -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)">
+                            🔍 How conflict detection works — all scenarios
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body" style="margin-bottom:.5rem">
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>What you try to book</th><th>Existing booking</th><th>Result</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Main Hall (parent)</td><td>North Half already booked</td><td><span class="status-badge red">❌ Blocked</span> — parent conflicts with any child</td></tr>
+                                        <tr><td>North Half (child)</td><td>Main Hall already booked</td><td><span class="status-badge red">❌ Blocked</span> — child conflicts with parent</td></tr>
+                                        <tr><td>1st Quarter [0–25%]</td><td>North Half [0–50%] booked</td><td><span class="status-badge red">❌ Blocked</span> — footprints overlap</td></tr>
+                                        <tr><td>3rd Quarter [50–75%]</td><td>North Half [0–50%] booked</td><td><span class="status-badge green">✅ Allowed</span> — physically separate</td></tr>
+                                        <tr><td>South Half [50–100%]</td><td>North Half [0–50%] booked</td><td><span class="status-badge green">✅ Allowed</span> — non-overlapping sibling</td></tr>
+                                        <tr><td>2nd Third [33–67%]</td><td>1st Third [0–33%] booked</td><td><span class="status-badge green">✅ Allowed</span> — no physical overlap</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        <!-- Admin Config UI mockup -->
-                        <h3 style="margin-bottom:0.75rem">Setting up partitions — Admin Config UI</h3>
-                        <p style="margin-bottom:1rem">In <strong>Admin Config → Rooms</strong>, the <em>Add Room</em> form now includes a <strong>Parent Room / Anchor Space</strong> section. This panel only becomes active when you select a parent room.</p>
+                        <!-- ── 3. ADMIN CONFIG FORM MOCK ──────────────────────────────────────── -->
+                        <h3 style="margin-bottom:.75rem;margin-top:1.25rem">Setting up partitions — Admin Config UI</h3>
+                        <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem">In <strong>Admin Config → Rooms</strong>, the <em>Add Room</em> form includes a <strong>Parent Room / Anchor Space</strong> collapsible section. This activates when you select a parent room from the dropdown.</p>
 
-                        <div class="sub-card" style="background:var(--bg-muted);font-family:monospace;font-size:0.8rem;margin-bottom:1rem">
-<pre style="margin:0;color:var(--text-main);overflow-x:auto">
-┌─ Add Room ────────────────────────────────────────────────┐
-│                                                           │
-│  Room Name                                                │
-│  ┌───────────────────────────────────────────────────┐   │
-│  │ North Half                                        │   │
-│  └───────────────────────────────────────────────────┘   │
-│                                                           │
-│  Capacity              Hourly Rate (£)                    │
-│  ┌───────────────┐     ┌────────────────────────────┐    │
-│  │  100          │     │  95                        │    │
-│  └───────────────┘     └────────────────────────────┘    │
-│                                                           │
-│  Open Time (opt.)      Close Time (opt.)                  │
-│  ┌───────────────┐     ┌────────────────────────────┐    │
-│  │ — no limit —  │     │ — no limit —               │    │
-│  └───────────────┘     └────────────────────────────┘    │
-│                                                           │
-│  ┌─ Parent Room / Anchor Space ──────────────────────┐   │
-│  │                                             Optional│   │
-│  │  Parent Room   ┌──────────────────────────────┐   │   │
-│  │                │ Conference Hall             ▾ │   │   │
-│  │                └──────────────────────────────┘   │   │
-│  │                                                   │   │
-│  │  Position      ┌────────────┐  Divide Into        │   │
-│  │                │ 1st Half ▾ │  ┌──────────────┐   │   │
-│  │                └────────────┘  │ Halves      ▾│   │   │
-│  │                                └──────────────┘   │   │
-│  └───────────────────────────────────────────────────┘   │
-│                                                           │
-│  [ + Add Room ]                                           │
-└───────────────────────────────────────────────────────────┘
-</pre>
+                        <div class="cfg-mock">
+                            <div class="cfg-mock-hdr">⚙️ <span>Admin Config</span> → Rooms → Add Room</div>
+                            <div class="cfg-mock-body">
+                                <div class="cfg-form-2col">
+                                    <div class="cfg-field cfg-field-full">
+                                        <div class="cfg-label">Room Name</div>
+                                        <div class="cfg-input-mock">Main Hall – North Half</div>
+                                    </div>
+                                    <div class="cfg-field">
+                                        <div class="cfg-label">Capacity</div>
+                                        <div class="cfg-input-mock">100</div>
+                                    </div>
+                                    <div class="cfg-field">
+                                        <div class="cfg-label">Hourly Rate (£)</div>
+                                        <div class="cfg-input-mock">95</div>
+                                    </div>
+                                    <div class="cfg-field">
+                                        <div class="cfg-label">Open Time <span class="cfg-opt">optional</span></div>
+                                        <div class="cfg-input-mock placeholder">— no limit —</div>
+                                    </div>
+                                    <div class="cfg-field">
+                                        <div class="cfg-label">Close Time <span class="cfg-opt">optional</span></div>
+                                        <div class="cfg-input-mock placeholder">— no limit —</div>
+                                    </div>
+                                </div>
+
+                                <div class="cfg-anchor-panel">
+                                    <div class="cfg-anchor-panel-hdr">
+                                        🏛️ Parent Room / Anchor Space
+                                        <span class="cfg-opt-badge">Optional</span>
+                                    </div>
+                                    <div class="cfg-anchor-body">
+                                        <div class="cfg-form-2col">
+                                            <div class="cfg-field cfg-field-full">
+                                                <div class="cfg-label">Parent Room</div>
+                                                <div class="cfg-select-mock">Main Hall <span class="chev">▾</span></div>
+                                            </div>
+                                            <div class="cfg-field">
+                                                <div class="cfg-label">Partition Position</div>
+                                                <div class="cfg-select-mock">1st Half <span class="chev">▾</span></div>
+                                            </div>
+                                            <div class="cfg-field">
+                                                <div class="cfg-label">Divide Into</div>
+                                                <div class="cfg-select-mock">Halves (2) <span class="chev">▾</span></div>
+                                            </div>
+                                        </div>
+                                        <div class="cfg-guard">
+                                            <div class="cfg-guard-badge">✅ Ironclad Hierarchy Guard Verified</div>
+                                            <div class="cfg-guard-path">
+                                                <strong>Ancestral conflict path:</strong> Main Hall → North Half [0/2]<br>
+                                                Booking North Half blocks Main Hall (ancestor check ↑)<br>
+                                                Booking Main Hall blocks North Half + 1st &amp; 2nd Quarter (descendant check ↓)<br>
+                                                Integer cross-multiply: (0×1) &lt; (0+1)×2 <strong>AND</strong> (0×2) &lt; (0+1)×1 → <strong>OVERLAP CONFIRMED</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cfg-submit-mock">+ Add Room</div>
+                            </div>
                         </div>
 
-                        <!-- Rooms table with hierarchy badges mockup -->
-                        <h3 style="margin-bottom:0.75rem">How partitions appear in the Rooms table</h3>
-                        <div class="sub-card" style="background:var(--bg-muted);font-family:monospace;font-size:0.8rem;margin-bottom:1rem">
-<pre style="margin:0;color:var(--text-main);overflow-x:auto">
- Name                      Cap.   Rate      Hours      Status
- ──────────────────────────────────────────────────────────
- Conference Hall            200   £200/hr   08–22     ● Active
-   ⊞ 2 partitions
- ──────────────────────────────────────────────────────────
- North Half                 100   £95/hr    08–22     ● Active
-   ⊢ Conference Hall · 1st Half
- ──────────────────────────────────────────────────────────
- South Half                 100   £95/hr    08–22     ● Active
-   ⊢ Conference Hall · 2nd Half
-</pre>
+                        <!-- ── 4. ROOMS TABLE MOCK ─────────────────────────────────────────────── -->
+                        <h3 style="margin-bottom:.75rem">How partitions appear in the Rooms table</h3>
+                        <div class="rm-mock">
+                            <div class="rm-mock-row rm-mock-head">
+                                <div>Name</div><div>Cap.</div><div>Rate</div><div>Hours</div><div>Status</div>
+                            </div>
+                            <div class="rm-mock-row">
+                                <div>
+                                    <div class="rm-name">Main Hall</div>
+                                    <div class="rm-sub"><span class="rm-badge-partition">⊞ 2 partition(s)</span></div>
+                                </div>
+                                <div class="rm-cell">200</div>
+                                <div class="rm-cell-rate">£200/hr</div>
+                                <div class="rm-cell">08–22</div>
+                                <div><span class="rm-status-dot"></span><span style="font-size:.77rem;color:var(--success)">Active</span></div>
+                            </div>
+                            <div class="rm-mock-row">
+                                <div>
+                                    <div class="rm-name">North Half</div>
+                                    <div class="rm-sub">⊢ Main Hall · 1st Half</div>
+                                </div>
+                                <div class="rm-cell">100</div>
+                                <div class="rm-cell-rate">£95/hr</div>
+                                <div class="rm-cell">08–22</div>
+                                <div><span class="rm-status-dot"></span><span style="font-size:.77rem;color:var(--success)">Active</span></div>
+                            </div>
+                            <div class="rm-mock-row">
+                                <div>
+                                    <div class="rm-name">South Half</div>
+                                    <div class="rm-sub">⊢ Main Hall · 2nd Half</div>
+                                </div>
+                                <div class="rm-cell">100</div>
+                                <div class="rm-cell-rate">£95/hr</div>
+                                <div class="rm-cell">08–22</div>
+                                <div><span class="rm-status-dot"></span><span style="font-size:.77rem;color:var(--success)">Active</span></div>
+                            </div>
                         </div>
 
-                        <div class="info-box" style="background:var(--primary-light);border-left:4px solid var(--primary);padding:1rem 1.25rem;border-radius:var(--radius-sm)">
-                            <strong>💡 Staff tip:</strong> You never need to think about which room to block manually. If you book <em>North Half</em> and a colleague tries to book <em>Conference Hall</em> on the same day and time, the system will automatically reject their booking with a clear conflict message. Each partition is a fully independent room from a staff perspective — just select it from the Room dropdown as you normally would.
+                        <div class="info-box">
+                            <strong>💡 Staff tip:</strong> You never need to think about which room to block manually. If you book <em>North Half</em> and a colleague tries to book <em>Main Hall</em> on the same day and time, the system will automatically reject their booking with a clear conflict message. Each partition is a fully independent room from a staff perspective — just select it from the Room dropdown as you normally would.
                         </div>
                     </div>
                 </section>
@@ -2665,6 +2897,33 @@
             const isOpen = body.classList.contains('open');
             body.classList.toggle('open', !isOpen);
             btn.setAttribute('aria-expanded', String(!isOpen));
+        }
+
+        // --- 1c. ROOM TREE HOVER INTERACTION ---
+        const _rtConflicts = {
+            'rt-parent': ['rt-nh','rt-sh','rt-q1','rt-q2','rt-q3','rt-q4'],
+            'rt-nh':     ['rt-parent','rt-q1','rt-q2'],
+            'rt-sh':     ['rt-parent','rt-q3','rt-q4'],
+            'rt-q1':     ['rt-parent','rt-nh'],
+            'rt-q2':     ['rt-parent','rt-nh'],
+            'rt-q3':     ['rt-parent','rt-sh'],
+            'rt-q4':     ['rt-parent','rt-sh'],
+        };
+        const _rtAllows = {
+            'rt-nh': ['rt-sh'],
+            'rt-sh': ['rt-nh'],
+            'rt-q1': ['rt-sh','rt-q3','rt-q4'],
+            'rt-q2': ['rt-sh','rt-q3','rt-q4'],
+            'rt-q3': ['rt-nh','rt-q1','rt-q2'],
+            'rt-q4': ['rt-nh','rt-q1','rt-q2'],
+        };
+        function rtHover(id) {
+            document.querySelectorAll('[data-rt]').forEach(el => el.classList.remove('conflict-highlight','allowed-highlight'));
+            (_rtConflicts[id]||[]).forEach(t => { const el = document.querySelector('[data-rt="'+t+'"]'); if(el) el.classList.add('conflict-highlight'); });
+            (_rtAllows[id]||[]).forEach(t => { const el = document.querySelector('[data-rt="'+t+'"]'); if(el) el.classList.add('allowed-highlight'); });
+        }
+        function rtClear() {
+            document.querySelectorAll('[data-rt]').forEach(el => el.classList.remove('conflict-highlight','allowed-highlight'));
         }
 
         // --- 2. DYNAMIC NAVIGATION HIGHLIGHTING (Intersection Observer) ---
