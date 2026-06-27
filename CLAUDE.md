@@ -1553,7 +1553,7 @@ Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-co
 | 6b No TCP drops | status 0 on 4 threads | Known — the 23505 catch closes the connection before the losing threads receive a clean 409; functionally correct, test assertion too strict |
 | 7a No auth header | Returns 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct behaviour |
 
-**Current QA baseline (June 25 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+**Current QA baseline (June 27 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
 
 ---
 
@@ -2001,7 +2001,114 @@ Postgres nodes. Both archived in n8n June 25 2026.
 **QA suite:** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — pre-existing test artefacts) · 0 SKIP.
 Confirmed June 25 2026.
 
-**Playwright suite:** 60 PASS · 0 FAIL. Confirmed June 25 2026.
+**Playwright suite:** 60 PASS · 0 FAIL. Confirmed June 27 2026.
+
+---
+
+## 12. Hierarchical Space Partitioning (Parent-Child Rooms) ✅ DONE (June 27 2026)
+
+Commit `b3d68f0`.
+
+Enables divisible venue spaces — a "Main Hall" can be split into halves, thirds, or quarters
+that each retain independent rates, operating hours, and booking calendars.
+
+### Schema — migration 028
+
+```sql
+-- bookings.rooms
+ADD COLUMN parent_room_id  UUID REFERENCES bookings.rooms(id) ON DELETE SET NULL
+ADD COLUMN partition_order INTEGER   -- 0-based position within siblings
+ADD COLUMN partition_total INTEGER   -- total equal parts: 2 = halves, 3 = thirds, 4 = quarters
+```
+
+Constraints: `chk_no_self_parent` (id ≠ parent_room_id), `chk_partition_consistency`
+(both fields null together, or both valid with 0 ≤ order < total ≥ 2).
+Index: `idx_rooms_parent_room` on `parent_room_id WHERE NOT NULL`.
+
+### Conflict resolution — recursive CTE
+
+All four clash-check paths (`/bookings/create`, `/bookings/check-clashes`,
+`/bookings/clash-guard`, `/bookings/check-availability`) now run a `WITH RECURSIVE`
+`conflict_set` CTE before querying `confirmed_bookings`. The conflict set for any
+target room includes:
+
+- **Ancestors** — parent → grandparent (booking a child blocks the parent)
+- **Descendants** — children → grandchildren (booking a parent blocks all children)
+- **Overlapping siblings** — siblings whose fractional footprint `[order/total, (order+1)/total]`
+  intersects the target's footprint, using integer cross-multiplication to avoid float drift:
+
+```sql
+(s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+AND
+(t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+```
+
+This allows "2nd Half" and "3rd Quarter" (which physically overlap [0.5, 0.75]) to
+correctly block each other, while "1st Half" and "3rd Quarter" (non-overlapping) can
+be booked simultaneously.
+
+### Frontend — admin-config.html
+
+- **Add Room form**: "Parent Room / Anchor Space" collapsible section with Parent Room
+  dropdown + hidden Partition row (Position + Divide Into selectors). Position options
+  regenerate when Divide Into changes (Halves/Thirds/Quarters → 2/3/4 options).
+- **Edit Room modal**: same section injected into dynamically-generated HTML, parent
+  dropdown excludes the room being edited (prevents self-parent cycles).
+- **Rooms table**: parent rooms show a "N partition(s)" badge; child rooms show
+  `⊢ Parent Name · Nth Half/Third/Quarter` sub-label under the room name.
+- **`populateParentDropdown(selectId, excludeId)`**: rebuilds the dropdown after
+  every `loadRooms()` call so new rooms appear immediately.
+
+### API — config.js
+
+`GET /config/rooms` returns `parent_room_id`, `partition_order`, `partition_total`.
+`POST /rooms/create` and `POST /rooms/update` accept and persist all three.
+`partition_order` uses `?? null` (not `|| null`) everywhere — 0 is a valid position.
+
+### Test results (June 27 2026)
+
+| Suite | Result |
+|---|---|
+| QA integration | 38 PASS · 0 CRITICAL — no regressions |
+| Playwright | 60/60 |
+| Halves e2e | 7/7 |
+| Thirds isolation | 5/5 |
+| Quarters isolation | 6/6 |
+| Cross-level thirds × quarters | 10/10 |
+
+**Total hierarchy e2e: 28/28.** Verified: ancestor blocked by descendant, sibling overlap
+detected by integer formula, non-overlapping siblings bookable simultaneously at all
+granularities (halves/thirds/quarters and cross-level combinations).
+
+---
+
+## Pattern 27 — Recursive CTE Hierarchy Clash Check
+
+**Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
+rooms), define a `WITH RECURSIVE conflict_set(id)` CTE at the top of the clash query and
+JOIN it to `confirmed_bookings` instead of filtering by a single `room_id`.
+
+**Integer overlap test for fractional siblings** (avoids floating point drift):
+```sql
+-- Target t covers [t.order/t.total, (t.order+1)/t.total]
+-- Sibling s covers [s.order/s.total, (s.order+1)/s.total]
+-- They overlap iff both cross-products hold:
+(s.partition_order * t.partition_total) < (t.partition_order + 1) * s.partition_total
+AND
+(t.partition_order * s.partition_total) < (s.partition_order + 1) * t.partition_total
+```
+
+**Tenant isolation in CTEs:** When CTEs query `bookings.rooms` inside a `systemQuery`
+context (which bypasses RLS), add explicit `AND tenant_id = $N` to the seed row of each
+CTE. In `withTenantContext` (appPool with RLS active), RLS handles isolation automatically
+but explicit filters are still good practice.
+
+**`check-availability` variant:** This endpoint identifies the room by name (`ILIKE $1`)
+not UUID. Add a non-recursive `target_room` CTE as the first step to resolve name → id,
+then seed `ancestors`, `descendants`, and `overlapping_siblings` from it.
+
+**`partition_order` coalescing:** Always use `?? null` not `|| null` for partition fields.
+`0` is a valid order value (1st partition) and `0 || null` evaluates to `null`.
 
 ---
 
@@ -2739,7 +2846,7 @@ npm run test:ui                   # Playwright UI explorer
 
 Exit codes: `0` = all pass, `1` = failures.
 
-**Current baseline (June 25 2026):** 60 PASS · 0 FAIL — confirmed after tenant isolation fixes, PEPPER fix, contact_name migration, and all workflow/frontend jwt-forwarding changes
+**Current baseline (June 27 2026):** 60 PASS · 0 FAIL — confirmed after hierarchical room partitioning feature (no regressions)
 
 ## Test sections
 
