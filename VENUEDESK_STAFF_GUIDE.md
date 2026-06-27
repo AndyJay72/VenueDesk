@@ -1,6 +1,6 @@
 # VenueDesk Staff User Guide – How to Manage Bookings, Customers & Payments
 
-> **Last updated:** June 2026 · **Audience:** Non-technical venue staff  
+> **Last updated:** June 27 2026 · **Audience:** Non-technical venue staff  
 > **Live site:** https://andyjay72.github.io/VenueDesk
 
 ---
@@ -11,6 +11,7 @@
 |------|-------------|---------------------|
 | Make a booking (planned enquiry) | **Calendar** → click a day | **Record Deposit / Full Payment / Save as Pending** |
 | Make a booking (walk-in / on-site) | **Walk-In Booking** page | **Confirm Booking** button |
+| Book half, third, or quarter of a room | **Calendar** → click a day → Room dropdown | Select the partition (e.g. "North Half") |
 | Add notes to a customer or booking | **Customers** → click customer → Log Interaction | **Save Interaction** |
 | View bookings (calendar view) | **Calendar** in sidebar | Month (chips) / Week & Day (time-block grid) / List tabs |
 | View bookings (filterable list) | **Bookings** in sidebar | Filter buttons at top |
@@ -19,6 +20,7 @@
 | Cancel a full recurring series | **Bookings → Recurring Series** tab | **Cancel** on individual sessions |
 | Record a manual payment | **Bookings** → **Pay** button | Choose method → **Confirm Payment** |
 | View payment history / invoices | **Accounts** in sidebar | Click any transaction row |
+| Set up a divisible room | **Admin Config** → Rooms tab | Add room → set Parent Room + Position |
 
 ---
 
@@ -57,7 +59,7 @@ Use this when a customer contacts you in advance and you want to check availabil
 3. **Click on the date** you want to book. A **Quick Booking** panel slides open on the right.
 4. Fill in the form:
    - **Customer** – type the customer's name and phone number (email optional).
-   - **Room** – select from the dropdown. Available rooms for that date are shown.
+   - **Room** – select from the dropdown. Available rooms for that date are shown. If your venue uses divisible spaces (see Section 6), you will see both the full room and its partitions (North Half, 1st Third, etc.) listed separately.
    - **Event Type** – select from the dropdown (e.g. Meeting, Party, Workshop).
    - **Start Time / End Time** – pick from the dropdowns. The **availability status** bar updates automatically:
      - 🟢 **Available** – slot is free, you can proceed.
@@ -171,7 +173,7 @@ There are three places to view bookings, each suited to different purposes.
 ### The Calendar (best for day-to-day view)
 
 1. Click **Calendar** in the sidebar.
-2. Use the **room filter** dropdown at the top left to show only a specific room, or leave on **All Rooms**.
+2. Use the **room filter** dropdown at the top left to show only a specific room (including specific partitions like "North Half"), or leave on **All Rooms**.
 3. Switch between views using the toolbar buttons:
    - **Month** – full month grid with coloured booking chips. Best for a high-level overview.
    - **Week** – time-slotted week grid (07:00–23:00). Bookings appear as **full vertical blocks** spanning their exact start-to-end time — a 9:00–17:00 booking fills the 9am–5pm column space. Best for spotting gaps and overlaps across the week.
@@ -325,6 +327,64 @@ Recurring customers typically pay monthly or per cycle. To record a payment:
 
 ---
 
+## 6. Divisible Spaces — Booking Room Partitions
+
+Some venues divide a large space (e.g. **Main Hall**) into independent bookable sections — **halves**, **thirds**, or **quarters**. Each partition has its own rate, capacity, and operating hours, and can be booked independently of the other sections.
+
+---
+
+### How it works for staff
+
+- The **Room** dropdown in any booking form lists both the full room and its sections. For example:
+  - `Main Hall` — the full space
+  - `Main Hall – North Half` — the left section (own rate, own calendar)
+  - `Main Hall – South Half` — the right section
+- Booking **Main Hall** for a date/time will be **rejected** if any partition (North Half, South Half) is already booked in that slot. The system prevents double-booking automatically.
+- Booking **North Half** will be **rejected** if Main Hall is already booked — the full room occupies both halves.
+- Booking **North Half** when **South Half** is booked is **allowed** — they are physically separate sections with no overlap.
+
+---
+
+### What the system checks automatically
+
+You do not need to manage these rules manually. When you submit a booking the system checks:
+
+| Scenario | Result |
+|----------|--------|
+| Booking a partition when the parent room is already booked | ❌ Rejected — conflict with parent |
+| Booking a parent room when any partition is already booked | ❌ Rejected — conflict with child |
+| Booking a partition when a spatially-overlapping partition is booked | ❌ Rejected — footprint overlap |
+| Booking a partition when a non-overlapping sibling is booked | ✅ Allowed — separate physical areas |
+
+> **Example:** Your venue divides Main Hall into 1st Third, 2nd Third, and 3rd Third. A dance class has booked the **2nd Third** (middle section) on Monday. Another group can still book the **1st Third** (front) or the **3rd Third** (back) on the same day — they do not physically overlap. However, no one can book **Main Hall** (the full room) or **2nd Third** again on that day.
+
+---
+
+### What you see on the calendar
+
+When partitions are booked independently, each appears as its own colour-coded block on the Calendar. Use the **room filter** dropdown to view just one partition, just the parent room, or all rooms at once.
+
+---
+
+### Setting up room partitions (Admin / Manager only)
+
+If you have **Admin** or **Manager** access, you can define partitions in **Admin Config → Rooms**:
+
+1. Go to **Admin Config** → **Rooms** tab.
+2. Create the parent room first (e.g. "Main Hall") with the full-room rate and capacity.
+3. Click **Add Room** for the first partition (e.g. "Main Hall – North Half"):
+   - Fill in **Room Name**, **Capacity**, **Hourly Rate** (its own rate).
+   - Optionally set **Open Time / Close Time** if this partition has different operating hours from the parent.
+   - Open the **Parent Room / Anchor Space** section.
+   - Select the parent room from the **Parent Room** dropdown.
+   - Choose **Divide Into**: Halves, Thirds, or Quarters.
+   - Choose **Position**: 1st Half / 2nd Half (or 1st Third, 2nd Third, 3rd Third, etc.).
+4. Repeat for each partition.
+
+In the **Rooms** table, the parent room shows a "N partition(s)" badge, and each child room shows its parent name and position underneath its name.
+
+---
+
 ## Recording a Manual Payment (Balance or Partial Payment)
 
 When a customer pays a remaining balance by cash, card, or bank transfer:
@@ -350,9 +410,12 @@ The payment is recorded in **Accounts** and the booking status updates automatic
 | Problem | Likely cause | What to do |
 |---------|-------------|------------|
 | **"Unavailable" / red availability bar** | Another booking already exists in that slot | Choose a different time or room. Check the **Calendar** to see the conflict. |
+| **"Conflict with parent/child room"** | A partition or parent room is already booked in that slot | Choose the correct specific section or a different time. See Section 6. |
 | **Guest count warning appears** | Guest number exceeds the room's capacity | Reduce the guest count or select a larger room. |
 | **"Cannot create a booking in the past"** | The date entered is before today | Change the date to today or a future date. |
 | **Booking duration exceeds limit** | Multi-day span is more than 90 days | Shorten the booking period or create two separate bookings. |
+| **"This room does not open until HH:MM"** | The room has operating hours set that your chosen start time falls before | Change the start time to be within the room's operating hours, or choose a different room. |
+| **"This room closes at HH:MM"** | Your chosen end time is after the room's closing time | Move the end time earlier or choose a different room. |
 | **Page shows nothing / blank list** | Session may have expired | Refresh the page. If redirected to login, log back in and try again. |
 | **"Something went wrong" toast** | API or network error | Wait a few seconds and click **Refresh** (top-right button on Dashboard). If it persists, contact your administrator. |
 | **Customer not found in search** | Customer hasn't been added yet | Add them via the walk-in form or enquiry form — the system creates a customer record automatically. |
@@ -379,6 +442,11 @@ The payment is recorded in **Accounts** and the booking status updates automatic
 | **BACS** | Bank Automated Clearing System – UK bank-to-bank payment method |
 | **Outstanding balance** | Amount a customer still owes on a booking |
 | **Tenant** | Your venue's isolated data space in the system |
+| **Parent Room** | A large bookable space that is divided into smaller partitions (e.g. Main Hall) |
+| **Partition / Child Room** | A bookable section of a parent room (e.g. North Half, 2nd Third, 3rd Quarter) |
+| **Anchor Space** | Another name for a parent room — the full space that partitions are anchored to |
+| **Room Operating Hours** | Optional open/close times set per room in Admin Config — bookings outside these hours are automatically rejected |
+| **Clash / Conflict** | When two bookings would overlap in the same physical space — the system rejects the second booking automatically |
 
 ---
 
