@@ -1206,7 +1206,129 @@
             }
         }
 
-        /* RESPONSIVE BREAKPOINTS */
+        /* ── Accordion ──────────────────────────────────────────────────────────── */
+        .acc-trigger {
+            width: 100%; display: flex; justify-content: space-between;
+            align-items: center; padding: .875rem 1.25rem;
+            background: var(--bg-muted); border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); color: var(--text-main); font-weight: 600;
+            cursor: pointer; font-size: .875rem; margin-bottom: .5rem;
+            transition: var(--transition-fast); text-align: left;
+        }
+        .acc-trigger:hover { border-color: var(--primary); color: var(--primary); }
+        .acc-chevron { transition: transform .25s; display: inline-block; }
+        .acc-trigger[aria-expanded="true"] .acc-chevron { transform: rotate(180deg); }
+        .acc-body {
+            max-height: 0; overflow: hidden;
+            transition: max-height .38s ease, padding .2s;
+            padding: 0 1.25rem;
+        }
+        .acc-body.open { max-height: 1400px; padding: 1rem 1.25rem 1.25rem; }
+
+        /* ── Staggered entry animation ───────────────────────────────────────────── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .section-card { animation: fadeUp 0.42s ease both; }
+        .section-card:nth-child(2)   { animation-delay: .04s; }
+        .section-card:nth-child(3)   { animation-delay: .08s; }
+        .section-card:nth-child(4)   { animation-delay: .12s; }
+        .section-card:nth-child(5)   { animation-delay: .16s; }
+        .section-card:nth-child(6)   { animation-delay: .20s; }
+        .section-card:nth-child(7)   { animation-delay: .24s; }
+        .section-card:nth-child(8)   { animation-delay: .28s; }
+        .section-card:nth-child(9)   { animation-delay: .32s; }
+        .section-card:nth-child(10)  { animation-delay: .36s; }
+        .section-card:nth-child(n+11){ animation-delay: .40s; }
+
+        /* ── Frosted-glass sidebar ───────────────────────────────────────────────── */
+        [data-theme="dark"] aside.sidebar {
+            background: rgba(19, 27, 46, 0.84) !important;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        /* ── Dashboard section mockup ────────────────────────────────────────────── */
+        .dash-mock {
+            background: var(--bg-muted); border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); overflow: hidden; margin-bottom: 1.5rem;
+        }
+        .dash-mock-header {
+            background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%);
+            color: #e0e7ff; padding: .75rem 1.25rem;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: .82rem;
+        }
+        .dash-mock-header strong { color: #fff; font-size: .95rem; }
+        .dash-mock-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .dash-stat { padding: 1rem 1.25rem; border-right: 1px solid var(--border-color); }
+        .dash-stat:last-child { border-right: none; }
+        .dash-stat-label { font-size: .73rem; color: var(--text-muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .04em; }
+        .dash-stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .dash-stat-sub   { font-size: .73rem; color: var(--success); margin-top: .15rem; }
+        .dash-mock-tabs  {
+            display: flex; border-bottom: 1px solid var(--border-color);
+            padding: 0 1.25rem; gap: 1.5rem;
+        }
+        .dash-tab {
+            padding: .6rem 0; font-size: .8rem; font-weight: 600;
+            color: var(--text-muted); border-bottom: 2px solid transparent; cursor: default;
+        }
+        .dash-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .dash-mock-rows { padding: .5rem 1.25rem; }
+        .dash-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: .6rem 0; border-bottom: 1px solid var(--border-color); font-size: .82rem;
+        }
+        .dash-row:last-child { border-bottom: none; }
+        .dash-row-name { font-weight: 600; color: var(--text-main); }
+        .dash-row-meta { color: var(--text-muted); font-size: .77rem; }
+        .dash-row-btns { display: flex; gap: .4rem; }
+        .dash-btn { padding: .22rem .65rem; border-radius: 4px; font-size: .72rem; font-weight: 600; border: none; cursor: default; }
+        .dash-btn-g { background: var(--success-bg); color: var(--success-text); }
+        .dash-btn-r { background: var(--danger-bg);  color: var(--danger-text);  }
+
+        /* ── Calendar time-grid mockup ───────────────────────────────────────────── */
+        .cal-tg-mock {
+            display: grid; grid-template-columns: 52px 1fr 1fr;
+            border: 1px solid var(--border-color); border-radius: var(--radius-md);
+            overflow: hidden; margin-bottom: 1.5rem; font-size: .78rem;
+        }
+        .cal-tg-head {
+            padding: .55rem .75rem; background: var(--bg-muted);
+            border-bottom: 1px solid var(--border-color); font-weight: 600;
+            color: var(--text-muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em;
+        }
+        .cal-tg-head:not(:first-child) { border-left: 1px solid var(--border-color); }
+        .cal-tg-time {
+            padding: .52rem .75rem; border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted); font-size: .74rem;
+        }
+        .cal-tg-empty {
+            padding: .52rem .75rem; border-bottom: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+        }
+        .cal-tg-block {
+            background: rgba(99,102,241,.12); border-left: 3px solid var(--primary);
+            padding: .52rem .75rem; font-size: .78rem;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+        }
+        .cal-tg-block strong { color: var(--primary); display: block; font-size: .8rem; }
+        .cal-tg-block span   { color: var(--text-muted); font-size: .72rem; }
+
+        /* ── Info highlight box ──────────────────────────────────────────────────── */
+        .info-box {
+            background: var(--primary-light); border-left: 4px solid var(--primary);
+            padding: 1rem 1.25rem; border-radius: var(--radius-sm); margin-top: 1rem;
+            font-size: .9rem; color: var(--text-main);
+        }
+
+        /* ── RESPONSIVE BREAKPOINTS */
         @media (max-width: 1024px) {
             .app-container {
                 grid-template-columns: 1fr;
@@ -1268,6 +1390,12 @@
                 <a href="#quick-ref" class="nav-item active">
                     <span>⚡</span> Quick Reference
                 </a>
+                <a href="#dashboard-hub" class="nav-item">
+                    <span>📊</span> Dashboard Hub
+                </a>
+                <a href="#calendar-mgmt" class="nav-item">
+                    <span>📆</span> Calendar Management
+                </a>
                 <a href="#sidebar-nav-ref" class="nav-item">
                     <span>🧭</span> Sidebar Guide
                 </a>
@@ -1291,6 +1419,9 @@
                 </a>
                 <a href="#divisible-spaces" class="nav-item">
                     <span>6️⃣</span> Divisible Spaces
+                </a>
+                <a href="#audit-finance" class="nav-item">
+                    <span>🕒</span> Audit &amp; Finance
                 </a>
                 <a href="#troubleshooting" class="nav-item">
                     <span>⚠️</span> Troubleshooting
@@ -1406,6 +1537,213 @@
                                 <strong>🧾 Payment History</strong>
                                 <span class="path">Accounts sidebar &rarr; Click transaction row</span>
                                 <small>📍 Target: Accounts / Ledger</small>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Section A: Dashboard Hub ──────────────────────────────────────── -->
+                <section id="dashboard-hub" class="section-card">
+                    <div class="card-header">
+                        <h2>📊 Dashboard Hub — Your Daily Workspace</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('dashboard-hub')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>The Dashboard (<code>index.html</code>) is the first page you land on after login. It provides a live summary of venue performance, pending work items, and today's schedule — everything you need to manage a shift.</p>
+
+                        <!-- Live mockup -->
+                        <div class="dash-mock">
+                            <div class="dash-mock-header">
+                                <strong>Welcome, Jane Smith</strong>
+                                <span>Sat 28 Jun 2026 · 09:41</span>
+                            </div>
+                            <div class="dash-mock-stats">
+                                <div class="dash-stat">
+                                    <div class="dash-stat-label">Net Revenue (Month)</div>
+                                    <div class="dash-stat-value">£12,840</div>
+                                    <div class="dash-stat-sub">↑ 8% vs last month</div>
+                                </div>
+                                <div class="dash-stat">
+                                    <div class="dash-stat-label">Utilisation</div>
+                                    <div class="dash-stat-value">73%</div>
+                                    <div class="dash-stat-sub">Based on open hours</div>
+                                </div>
+                                <div class="dash-stat">
+                                    <div class="dash-stat-label">Active Requests</div>
+                                    <div class="dash-stat-value">6</div>
+                                    <div class="dash-stat-sub">2 new · 4 pending review</div>
+                                </div>
+                            </div>
+                            <div class="dash-mock-tabs">
+                                <div class="dash-tab active">Pending Requests</div>
+                                <div class="dash-tab">Upcoming Today</div>
+                                <div class="dash-tab">Interactions</div>
+                            </div>
+                            <div class="dash-mock-rows">
+                                <div class="dash-row">
+                                    <div>
+                                        <div class="dash-row-name">Sarah Jenkins · Main Hall</div>
+                                        <div class="dash-row-meta">14 Jul 2026 · 09:00–17:00 · 80 guests · £240 deposit</div>
+                                    </div>
+                                    <div class="dash-row-btns">
+                                        <div class="dash-btn dash-btn-g">Confirm</div>
+                                        <div class="dash-btn dash-btn-r">Decline</div>
+                                    </div>
+                                </div>
+                                <div class="dash-row">
+                                    <div>
+                                        <div class="dash-row-name">Tom Barnes · Conference Room A</div>
+                                        <div class="dash-row-meta">18 Jul 2026 · 10:00–14:00 · 20 guests · £90 deposit</div>
+                                    </div>
+                                    <div class="dash-row-btns">
+                                        <div class="dash-btn dash-btn-g">Confirm</div>
+                                        <div class="dash-btn dash-btn-r">Decline</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid-2-col">
+                            <div class="sub-card">
+                                <h4>📋 KPI Scorecard — What Each Tile Means</h4>
+                                <div class="table-container">
+                                    <table>
+                                        <thead><tr><th>Tile</th><th>What It Shows</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><strong>Net Revenue</strong></td><td>Total confirmed payments collected this calendar month, excluding refunded or cancelled bookings.</td></tr>
+                                            <tr><td><strong>Utilisation</strong></td><td>Percentage of available venue hours that are occupied by confirmed bookings. 100% = fully booked every open hour.</td></tr>
+                                            <tr><td><strong>Active Requests</strong></td><td>Count of enquiries at <code>pending_review</code> status waiting for staff action. Click to jump to the Pending tab.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="sub-card">
+                                <h4>📌 Tab Panels Explained</h4>
+                                <ul class="custom-step-list">
+                                    <li><div class="step-bubble">1</div><div><strong>Pending Requests</strong> — Online enquiries from the public form. Review details, then click <strong>Confirm</strong> (creates a confirmed booking) or <strong>Decline</strong>.</div></li>
+                                    <li><div class="step-bubble">2</div><div><strong>Upcoming Today</strong> — All bookings happening today, sorted by start time. Use this as your check-in list at the start of each shift.</div></li>
+                                    <li><div class="step-bubble">3</div><div><strong>Customer Interactions</strong> — A chronological feed of logged calls, emails, and notes across all customers. Click any row to open the customer profile.</div></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Accordion: session auth -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)">
+                            🔐 How your session is loaded on page start
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem">When the dashboard loads, it reads your login token from <code>sessionStorage</code>. The token contains your name, role, and venue ID — all displayed automatically without any extra login step.</p>
+                            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem">If the token is missing, expired, or incomplete, the page immediately redirects you to <code>login.html</code>. This is normal behaviour — simply log in again. No data is lost.</p>
+                            <p style="font-size:.9rem;color:var(--text-muted)">Sessions end automatically when you close the browser tab or window. This is a security feature — avoid leaving the dashboard open on shared computers.</p>
+                        </div>
+
+                        <div class="info-box" style="margin-top:1.25rem">
+                            <strong>💡 Shift start tip:</strong> Open the Dashboard first every shift. Clear all items in <strong>Pending Requests</strong> before switching to any other page — new enquiries can expire if left unreviewed for more than 48 hours.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Section B: Calendar Management ─────────────────────────────────── -->
+                <section id="calendar-mgmt" class="section-card">
+                    <div class="card-header">
+                        <h2>📆 Calendar Management</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('calendar-mgmt')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>The Calendar page (<code>calendar.html</code>) is a full FullCalendar v6 scheduling interface. It shows every confirmed booking as a visual block, colour-coded by status, and provides a Quick Booking drawer for creating reservations directly from any date cell.</p>
+
+                        <!-- View modes table -->
+                        <div class="table-container" style="margin-bottom:1.5rem">
+                            <table>
+                                <thead><tr><th style="width:160px">View Mode</th><th>Best For</th><th>How to Switch</th></tr></thead>
+                                <tbody>
+                                    <tr><td>📅 <strong>Month</strong></td><td>Spotting overall density — which days are busy at a glance. Bookings appear as coloured chips.</td><td>Click <strong>Month</strong> button in the top-right view switcher.</td></tr>
+                                    <tr><td>📆 <strong>Week</strong></td><td>Seeing exact start/end times across 7 days in a vertical time-grid. Ideal for scheduling adjacent bookings.</td><td>Click <strong>Week</strong> or press the W key.</td></tr>
+                                    <tr><td>🗓️ <strong>Day</strong></td><td>Detailed single-day view with 30-minute slot rows. Use this to resolve clashes or confirm back-to-back bookings.</td><td>Click any date chip in Month view, or click <strong>Day</strong>.</td></tr>
+                                    <tr><td>📋 <strong>List</strong></td><td>Scrollable chronological list of all upcoming bookings — good for printing or quick lookup.</td><td>Click <strong>List</strong> in the view switcher.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Time-grid visual mockup -->
+                        <h3 style="margin-bottom:.75rem">Week / Day time-grid — reading event blocks</h3>
+                        <div class="cal-tg-mock">
+                            <div class="cal-tg-head">Time</div>
+                            <div class="cal-tg-head">Main Hall</div>
+                            <div class="cal-tg-head">Conf. Room A</div>
+                            <div class="cal-tg-time">08:00</div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-time">09:00</div>
+                            <div class="cal-tg-block" style="grid-row: span 4">
+                                <strong>Sarah Jenkins</strong>
+                                <span>09:00 – 13:00 · 80 guests</span>
+                            </div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-time">10:00</div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-time">11:00</div>
+                            <div class="cal-tg-block">
+                                <strong>Tom Barnes</strong>
+                                <span>11:00 – 13:00</span>
+                            </div>
+                            <div class="cal-tg-time">12:00</div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-time">13:00</div>
+                            <div class="cal-tg-empty"></div>
+                            <div class="cal-tg-empty"></div>
+                        </div>
+
+                        <!-- Colour legend -->
+                        <h3 style="margin-bottom:.75rem">Availability colour legend</h3>
+                        <div class="grid-3-col" style="margin-bottom:1.5rem">
+                            <div class="sub-card" style="border-left:4px solid var(--success)">
+                                <h4 style="color:var(--success)">🟢 Green — Available</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted)">No confirmed bookings in this slot. The Quick Booking drawer will open when you click.</p>
+                            </div>
+                            <div class="sub-card" style="border-left:4px solid var(--warning)">
+                                <h4 style="color:var(--warning)">🟡 Amber — Partially Booked</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted)">Some hours are taken but capacity remains. Some rooms or time slots are still bookable.</p>
+                            </div>
+                            <div class="sub-card" style="border-left:4px solid var(--primary)">
+                                <h4>🔵 Indigo — Fully Booked</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted)">All venue hours on this day are occupied. The date cell is marked with an indigo chip.</p>
+                            </div>
+                        </div>
+
+                        <!-- Quick booking accordion -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)">
+                            ✍️ Using the Quick Booking drawer — step by step
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <ul class="custom-step-list">
+                                <li><div class="step-bubble">1</div><div>Click any date cell in Month view, or click a time slot in Week/Day view. The Quick Booking panel slides open on the right.</div></li>
+                                <li><div class="step-bubble">2</div><div>Select a <strong>Room</strong> from the dropdown. The availability indicator updates immediately — 🟢 clear, 🔴 clash detected.</div></li>
+                                <li><div class="step-bubble">3</div><div>Enter <strong>Customer Name</strong>, start/end times, and optional guest count. If the guest count exceeds the room's capacity, a warning appears.</div></li>
+                                <li><div class="step-bubble">4</div><div>Choose a payment option: <span class="status-badge green">Record Deposit</span>, <span class="status-badge blue">Full Payment</span>, or <span class="status-badge amber">Save as Pending</span>.</div></li>
+                                <li><div class="step-bubble">5</div><div>Click <strong>Save Booking</strong>. The event block appears on the calendar grid immediately, and the customer receives an automatic confirmation.</div></li>
+                            </ul>
+                        </div>
+
+                        <!-- FullCalendar config accordion -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)" style="margin-top:.5rem">
+                            ⚙️ Calendar configuration reference (for admins)
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Setting</th><th>Value</th><th>Effect on Staff View</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><code>slotMinTime</code></td><td>07:00:00</td><td>Grid starts at 07:00 — one hour before venue opens, so early bookings never get clipped.</td></tr>
+                                        <tr><td><code>slotMaxTime</code></td><td>23:00:00</td><td>Grid ends at 23:00 — one hour after venue close. Never lower this or evening bookings become invisible.</td></tr>
+                                        <tr><td><code>scrollTime</code></td><td>08:00:00</td><td>On load, the view auto-scrolls to 08:00 so the working day is immediately visible.</td></tr>
+                                        <tr><td><code>slotDuration</code></td><td>00:30:00</td><td>Each row represents 30 minutes — the minimum bookable slot length.</td></tr>
+                                        <tr><td><code>nowIndicator</code></td><td>true</td><td>A purple horizontal line shows the current time in Week/Day view — helps staff quickly see what's happening right now.</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1711,6 +2049,84 @@
                                 <div>Press <strong>Confirm Payment</strong>. The balance ledger will update immediately.</div>
                             </li>
                         </ul>
+                    </div>
+                </section>
+
+                <!-- ── Section D: Audit Log & Financial Tracking ──────────────────────── -->
+                <section id="audit-finance" class="section-card">
+                    <div class="card-header">
+                        <h2>🕒 Audit Log &amp; Financial Tracking</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('audit-finance')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>VenueDesk records every action taken by staff. The <strong>Audit Log</strong> and <strong>Accounts</strong> pages give you a complete, filterable history of bookings, payments, cancellations, and customer communications.</p>
+
+                        <div class="grid-2-col" style="margin-bottom:1.5rem">
+                            <!-- Audit Log -->
+                            <div class="sub-card">
+                                <h4>🕵️ Audit Log (<code>audit-log.html</code>)</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem">A timestamped security log of every booking event, payment, cancellation, and customer interaction — including which staff member performed the action.</p>
+                                <div class="table-container">
+                                    <table>
+                                        <thead><tr><th>Column</th><th>Contains</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><strong>Time</strong></td><td>Exact timestamp of the event (local time).</td></tr>
+                                            <tr><td><strong>Type</strong></td><td>Booking / Payment / Cancellation / Interaction.</td></tr>
+                                            <tr><td><strong>Details</strong></td><td>Room, amount, and a short description of what changed.</td></tr>
+                                            <tr><td><strong>Staff</strong></td><td>The staff member who performed the action.</td></tr>
+                                            <tr><td><strong>Customer</strong></td><td>The customer the action relates to.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="info-box" style="margin-top:1rem;font-size:.85rem">
+                                    Use the <strong>filter chips</strong> at the top to narrow by type, and the <strong>Actor</strong> search to find actions by a specific staff member. Click <strong>Export CSV</strong> to download a printable report.
+                                </div>
+                            </div>
+
+                            <!-- Accounts -->
+                            <div class="sub-card">
+                                <h4>💳 Accounts &amp; Ledger (<code>accounts.html</code>)</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem">The Accounts page consolidates all financial data — cash collected, Stripe online payments, BACS transfers, and outstanding balances.</p>
+                                <ul class="custom-step-list">
+                                    <li><div class="step-bubble">1</div><div>Select the <strong>period</strong> using the month picker at the top. The totals update instantly.</div></li>
+                                    <li><div class="step-bubble">2</div><div>The <strong>summary row</strong> shows: Total Collected · Outstanding · Stripe Processed · Cash/BACS.</div></li>
+                                    <li><div class="step-bubble">3</div><div>Scroll down to see <strong>Recurring Series cards</strong> — each shows the payment status per session (✓ Paid · ⚠ Due · ○ Upcoming).</div></li>
+                                    <li><div class="step-bubble">4</div><div>Click any booking row to open the full invoice detail and record an additional payment if needed.</div></li>
+                                    <li><div class="step-bubble">5</div><div>Click <strong>Export CSV</strong> to download the ledger for the selected period — useful for end-of-month reconciliation.</div></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Outstanding payments -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)">
+                            💰 Outstanding Payments — how to collect a balance
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem">When a customer has a confirmed booking with an unpaid balance, it appears in the <strong>Outstanding Payments</strong> list on the Dashboard and in the Accounts page with an <span class="status-badge amber">Payment Due</span> badge.</p>
+                            <ul class="custom-step-list">
+                                <li><div class="step-bubble">1</div><div>Open <strong>Accounts</strong> → locate the booking row flagged <span class="status-badge amber">Payment Due</span>.</div></li>
+                                <li><div class="step-bubble">2</div><div>Click the row to open the invoice detail panel on the right.</div></li>
+                                <li><div class="step-bubble">3</div><div>Click <strong>Record Payment</strong>. A modal opens showing the outstanding balance.</div></li>
+                                <li><div class="step-bubble">4</div><div>Select payment method (Cash / BACS / Card Terminal / Stripe Link) and enter the amount received.</div></li>
+                                <li><div class="step-bubble">5</div><div>Click <strong>Confirm Payment</strong>. The badge updates to <span class="status-badge green">Fully Paid</span> and the Accounts total refreshes automatically.</div></li>
+                            </ul>
+                            <div class="badge-warning-text" style="margin-top:1rem">⚠️ Always verify physical cash or bank confirmation before clicking Confirm — the system records what you enter immediately.</div>
+                        </div>
+
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)" style="margin-top:.5rem">
+                            📋 Final Payment page — collecting a balance on arrival
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem">The <strong>Final Payment</strong> page (<code>final-payment.html</code>) is a simplified one-screen view designed for use at the front desk on the day of an event. It shows only bookings with an outstanding balance for today, making collection fast.</p>
+                            <ol class="styled-ol" style="font-size:.9rem">
+                                <li>Access via the <strong>Final Payment</strong> link in the sidebar (visible on the day of a booking).</li>
+                                <li>The page auto-loads all today's bookings that have a remaining balance.</li>
+                                <li>Click <strong>Pay Balance</strong> on the relevant row, select the payment method, and confirm.</li>
+                                <li>The booking status updates to <span class="status-badge green">Fully Paid</span> across the whole system instantly.</li>
+                            </ol>
+                        </div>
                     </div>
                 </section>
 
@@ -2209,11 +2625,13 @@
     <!-- JavaScript logic: Themes, Navigation highlight, Filters, Simulator Sandbox -->
     <script>
         // --- 1. THEME TOGGLE LOGIC ---
+        // Uses vp_light_mode key (shared with index.html, calendar.html, etc.)
         const themeToggleBtn = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
 
-        // Load saved theme preference
-        const savedTheme = localStorage.getItem('venuedesk-theme') || 'light';
+        // Load saved theme — vp_light_mode:'1' = light, else dark
+        const isLight = localStorage.getItem('vp_light_mode') === '1';
+        const savedTheme = isLight ? 'light' : 'dark';
         htmlElement.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
 
@@ -2221,7 +2639,7 @@
             const currentTheme = htmlElement.getAttribute('data-theme');
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             htmlElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('venuedesk-theme', newTheme);
+            localStorage.setItem('vp_light_mode', newTheme === 'light' ? '1' : '0');
             updateThemeIcon(newTheme);
         });
 
@@ -2239,6 +2657,14 @@
                     </svg>
                 `;
             }
+        }
+
+        // --- 1b. ACCORDION LOGIC ---
+        function toggleAcc(btn) {
+            const body = btn.nextElementSibling;
+            const isOpen = body.classList.contains('open');
+            body.classList.toggle('open', !isOpen);
+            btn.setAttribute('aria-expanded', String(!isOpen));
         }
 
         // --- 2. DYNAMIC NAVIGATION HIGHLIGHTING (Intersection Observer) ---
