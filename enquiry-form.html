@@ -567,6 +567,7 @@
             if (!dateTo || dateTo < dateFrom) { setAvailStatus('unavailable','Please select a valid end date (on or after start date).'); return; }
             const msPerDay = 86400000;
             const numDays  = Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1;
+            if (numDays > 90) { setAvailStatus('unavailable', 'Booking duration exceeds the 90-day maximum. Please shorten the date range.'); return; }
             for (let i = 0; i < numDays; i++) {
                 const ds = new Date(new Date(dateFrom).getTime() + i*msPerDay).toISOString().split('T')[0];
                 const bl = isDateBlocked(ds);
