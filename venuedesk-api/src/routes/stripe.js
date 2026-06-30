@@ -43,7 +43,8 @@ module.exports = async function stripeRoutes(fastify, _opts) {
     const data = await withTenantContext(tenantId, async (client) => {
       const { rows: tenantRows } = await client.query(
         `SELECT is_stripe_enabled,
-                stripe_publishable_key
+                stripe_publishable_key,
+                name AS venue_name
          FROM bookings.tenants
          WHERE tenant_id = $1
          LIMIT 1`,

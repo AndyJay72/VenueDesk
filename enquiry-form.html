@@ -343,9 +343,27 @@
             </button>
             <p id="depositNote" style="display:none;margin-top:0.6rem;font-size:0.78rem;color:var(--text-muted);text-align:center;">
                 <i class="fa-solid fa-lock" style="color:#34d399;margin-right:4px;"></i>
-                Secure card payment via Stripe — secures your date immediately.
+                Secure card payment via Stripe — secures your enquiry pending staff confirmation.
             </p>
         </form>
+
+        <!-- Success panel — shown after free enquiry is submitted -->
+        <div id="successPanel" style="display:none;">
+            <div class="form-card" style="text-align:center;padding:3rem 2rem;">
+                <i class="fa-solid fa-circle-check" style="color:var(--success);font-size:3.5rem;margin-bottom:1.25rem;display:block;"></i>
+                <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:0.75rem;">Enquiry Submitted!</h2>
+                <p style="color:var(--text-muted);line-height:1.7;margin-bottom:0.5rem;">
+                    We've received your enquiry and a confirmation has been sent to your email.
+                </p>
+                <p style="color:var(--text-muted);line-height:1.7;margin-bottom:2rem;">
+                    A member of our team will be in touch to confirm your booking. If a deposit is required,
+                    you'll have <strong style="color:var(--text-main);">7 days</strong> from today to secure your date.
+                </p>
+                <button onclick="resetForNewEnquiry()" class="submit-btn" style="width:auto;padding:14px 32px;display:inline-flex;">
+                    <i class="fa-solid fa-plus"></i> Submit Another Enquiry
+                </button>
+            </div>
+        </div>
     </div>
 
     <div id="toast-container"></div>
@@ -820,7 +838,7 @@
             const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
             const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
             if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
-                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
+                showToast(`${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests. Please reduce your guest count.`, 'error');
                 document.getElementById('numPeople').focus();
                 _resetSubmitBtn(btn, 'Submit Enquiry');
                 return;
@@ -833,19 +851,34 @@
                 });
                 const j = await res.json().catch(() => ({}));
                 if (res.ok && j.success) {
-                    showToast("Enquiry sent! We'll be in touch shortly.", 'success');
                     // Fire-and-forget: send acknowledgement email to customer + staff notification
                     const p = buildEnquiryPayload(false);
                     fetch('https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ ...p, booking_request_id: j.booking_request_id || null })
                     }).catch(() => {});
+                    // Reset form state fully (native reset doesn't touch JS-managed UI)
                     form.reset();
+                    const mdBtn = document.getElementById('multiDayToggle');
+                    if (mdBtn.dataset.active === 'true') {
+                        mdBtn.dataset.active = 'false';
+                        mdBtn.classList.remove('active');
+                        document.getElementById('singleDateGroup').style.display = '';
+                        document.getElementById('multiDayFields').style.display = 'none';
+                        document.getElementById('eventDate').required = true;
+                        document.getElementById('dateFrom').required = false;
+                        document.getElementById('dateTo').required = false;
+                    }
+                    renderAdditionalRoomsList();
                     document.getElementById('costEstimateRow').style.display = 'none';
                     setAvailStatus('idle', 'Select a room, dates and times to check availability');
                     isAvailable = false;
                     btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> <span>Check Availability First</span>';
                     btn.disabled = true;
+                    // Show success panel
+                    form.style.display = 'none';
+                    document.getElementById('successPanel').style.display = '';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     throw new Error(j.message || 'Server error');
                 }
@@ -892,7 +925,8 @@
             const selectedRoom = enquiryRoomsData.find(r => r.name === document.getElementById('roomName').value);
             const guestCount   = parseInt(document.getElementById('numPeople').value, 10) || 0;
             if (selectedRoom?.capacity && guestCount > parseInt(selectedRoom.capacity, 10)) {
-                alert(`The ${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests.`);
+                showToast(`${selectedRoom.name} has a maximum capacity of ${selectedRoom.capacity} guests. Please reduce your guest count.`, 'error');
+                document.getElementById('numPeople').focus();
                 _resetDepositBtn(depBtn);
                 return;
             }
@@ -953,6 +987,12 @@
             }
             // No finally{ isSubmitting=false } — the success path navigates away
             // (no return to JS land); the error path resets via _resetDepositBtn.
+        }
+
+        function resetForNewEnquiry() {
+            document.getElementById('successPanel').style.display = 'none';
+            document.getElementById('enquiryForm').style.display = '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function showToast(message, type) {
