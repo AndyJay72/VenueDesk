@@ -3138,3 +3138,30 @@ fetch('https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email', {
 
 The n8n workflow (`Jh6nCEqLVFONT8IB`) sends both emails in parallel with the `Respond: OK`
 node, so the response to the frontend is never delayed by email sending.
+
+---
+
+## Staff Notification Email — Per-Venue Configuration (June 30 2026)
+
+The address that receives the new-enquiry staff alert is now configurable per-venue.
+Previously hardcoded to `bookings@venuedesk.co.uk`.
+
+**Setting:** `bookings.settings` key `staff_notification_email`
+
+**Configured via:** Admin Config → Settings → "Staff Notification Email" card
+- Client-side email format validation before saving
+- Saved via `POST /update-setting` n8n webhook → `POST /config/settings/upsert`
+- `loadSettings()` populates the field on tab open and shows current value in status line
+
+**`GET /stripe/config` extended:**
+Now returns `staff_notification_email` alongside `is_stripe_enabled` and
+`stripe_publishable_key`. Source: `SELECT value FROM bookings.settings WHERE key = 'staff_notification_email' LIMIT 1` inside the `withTenantContext` call. Public endpoint; no auth required.
+
+**n8n workflow node added (`Jh6nCEqLVFONT8IB`):**
+`HTTP: Get Tenant Config` (GET `/stripe/config?tenant_id=…`) fires before
+`Code: Staff Notification`. Resolution order in the Code node:
+```javascript
+const staffEmail = cfg.staff_notification_email || 'bookings@venuedesk.co.uk';
+```
+The setting is read fresh on every enquiry — changing it in Admin Config takes effect
+immediately on the next submission, no restart or re-import required.

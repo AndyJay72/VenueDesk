@@ -483,7 +483,7 @@ When a customer submits the **New Booking** enquiry form, they immediately recei
 - A contact button linking to `bookings@venuedesk.co.uk`
 - Their enquiry reference number
 
-At the same time, you (or the designated staff email) receive a **staff alert email** with the customer's full contact details, their request summary, and a **Review in Dashboard** link.
+At the same time, the **staff notification email address** receives a **staff alert email** with the customer's full contact details, their request summary, and a **Review in Dashboard** link. This address is configured in **Admin Config → Settings → Staff Notification Email** (see below).
 
 ---
 
@@ -527,12 +527,25 @@ Once the warning is sent, the system marks it so the same customer does not rece
 
 ---
 
+### Setting your staff notification email address
+
+The new-enquiry staff alert is sent to whichever email address is saved in **Admin Config → Settings**. To set or change it:
+
+1. Log in to the dashboard and go to **Admin Config** in the sidebar.
+2. Click the **Settings** tab.
+3. Find the **Staff Notification Email** card at the top.
+4. Enter the email address that should receive new enquiry alerts (e.g. `manager@yourvenue.co.uk`).
+5. Click **Save Notification Email**.
+
+The change takes effect immediately on the next enquiry submission — no restart required. If the field is left blank, alerts default to `bookings@venuedesk.co.uk`.
+
+---
+
 ### What staff need to do
 
-- **Nothing extra** — all emails fire automatically.
+- **Nothing extra** — all emails fire automatically once the notification address is configured.
 - If a customer says they didn't receive an email, ask them to **check their spam/junk folder** (especially Gmail, which may group emails).
 - The **Audit Log** page records all booking and payment events with timestamps and staff names, which can help trace any email discrepancies.
-- Staff notification emails go to the address set in your venue's Admin Config → Settings. Contact your administrator to update this.
 
 ---
 
@@ -542,7 +555,7 @@ Once the warning is sent, the system marks it so the same customer does not rece
 |---------|-------------|------------|
 | **Customer says they got no confirmation email** | Email in spam; or their address was entered incorrectly | Ask them to check spam. Verify their email address in **Customers** page. |
 | **Customer received duplicate expiry warning emails** | System test issue (rare) | Contact your administrator — this indicates a workflow was tested with a live email address. |
-| **Staff alert email not arriving** | Staff notification email address not configured | Check **Admin Config → Settings** for the staff email address and update if needed. |
+| **Staff alert email not arriving** | Notification address not configured or wrong address | Go to **Admin Config → Settings → Staff Notification Email**, verify the address is correct, and click Save. Changes take effect on the next enquiry. |
 | **BACS email has no bank details** | Venue BACS details not set in Admin Config | Go to **Admin Config → Payments** tab and enter Sort Code, Account Number, and Account Name. |
 
 ---
