@@ -972,7 +972,7 @@
                         amount:             depositAmt,   // validated > 0 at top of function
                         booking_request_id: bookingRequestId,
                         description:        `Deposit — ${payload.event_type} at ${payload.room_name} on ${payload.date_from}`,
-                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}',
+                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}&venue=' + encodeURIComponent(document.getElementById('venueNameDisplay').textContent || '') + '&booking=' + encodeURIComponent(bookingRequestId || ''),
                         cancel_url:  window.location.href,
                     }),
                 });
