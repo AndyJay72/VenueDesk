@@ -2441,6 +2441,7 @@
                             <button class="chip" onclick="filterTrouble('booking')">📅 Bookings & Clashes</button>
                             <button class="chip" onclick="filterTrouble('payment')">💳 Payments & Stripe</button>
                             <button class="chip" onclick="filterTrouble('system')">🔄 System & Errors</button>
+                            <button class="chip" onclick="filterTrouble('email')">✉️ Emails</button>
                         </div>
                         
                         <div class="table-container">
@@ -2522,6 +2523,26 @@
                                         <td><strong>Booking duration exceeds 90 days</strong></td>
                                         <td>Multi-day booking span is over 90 days.</td>
                                         <td>Shorten the booking period or split into two separate bookings.</td>
+                                    </tr>
+                                    <tr data-cat="email">
+                                        <td><strong>✉️ Customer got no confirmation email</strong></td>
+                                        <td>Email landed in spam, or address was entered incorrectly.</td>
+                                        <td>Ask them to check spam. Verify their email address on the <strong>Customers</strong> page.</td>
+                                    </tr>
+                                    <tr data-cat="email">
+                                        <td><strong>✉️ Customer received duplicate expiry warning emails</strong></td>
+                                        <td>System test was run with a live email address (rare).</td>
+                                        <td>Contact your administrator — a workflow was tested against a real inbox.</td>
+                                    </tr>
+                                    <tr data-cat="email">
+                                        <td><strong>✉️ Staff alert email not arriving</strong></td>
+                                        <td>Notification address not configured or wrong address.</td>
+                                        <td>Go to <strong>Admin Config → Settings → Staff Notification Email</strong>, verify the address is correct, and click Save. Changes take effect on the next enquiry.</td>
+                                    </tr>
+                                    <tr data-cat="email">
+                                        <td><strong>✉️ BACS email has no bank details</strong></td>
+                                        <td>Venue BACS details not set in Admin Config.</td>
+                                        <td>Go to <strong>Admin Config → Payments</strong> tab and enter Sort Code, Account Number, and Account Name.</td>
                                     </tr>
                                 </tbody>
                             </table>
