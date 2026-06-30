@@ -108,12 +108,133 @@ Use this for drop-in customers who need to be booked quickly at the front desk.
 
 ### Option C — New Booking Enquiry Form
 
-Use this to send the online enquiry form link to a customer, or to open it yourself for a telephone enquiry.
+Use this to send the online enquiry form link to a customer, or to fill it in yourself during a telephone enquiry.
 
-1. Click **New Booking** in the sidebar (opens in a new tab) or share the link directly with the customer.
-2. The form captures: contact details, room preference, dates, hire type, and optional deposit payment via Stripe.
-3. Once submitted, the enquiry appears on your **Dashboard** under the **Pending Requests** tab, waiting for staff review.
-4. To action a pending request, go to the **Dashboard**, find the request in the list, and use the **Confirm & Record Deposit** button inside the booking detail panel.
+#### Finding and sharing the form URL
+
+The form URL follows this format:
+
+```
+https://andyjay72.github.io/VenueDesk/enquiry-form.html?t=<tenant_id>
+```
+
+The `?t=` parameter is your venue's **Tenant ID** — a 4-digit number (e.g. `?t=1001`). You can find it in **Admin Config** → any settings page (it appears in API requests), or ask your administrator. If the `?t=` parameter is missing or invalid, visitors see an "Invalid Venue Link" error — always include it when sharing.
+
+**Quick access:** Click **New Booking** in the sidebar. This opens the correct pre-configured link in a new tab. You can copy the URL from the address bar and share it with customers by email, WhatsApp, or your website.
+
+---
+
+#### What the form collects
+
+**Contact Details** (all required)
+
+| Field | Notes |
+|-------|-------|
+| Full Name | Customer's full name |
+| Email | Used to identify returning customers |
+| Phone | Primary contact number |
+
+**Event Details** (required unless noted)
+
+| Field | Notes |
+|-------|-------|
+| Preferred Room | Loaded from your room list; shows capacity (e.g. "Main Hall (Cap: 100)") |
+| Event Type | Loaded from your event types list |
+| Event Date | Single date picker; minimum date is today |
+| Start Time / End Time | 30-minute slot dropdowns, 08:00–23:00 |
+| Number of Guests | Integer; checked against room capacity |
+| Notes | Optional — special requirements, accessibility needs, etc. |
+
+**Additional Rooms** (optional)
+
+If your venue has more than one room, a checkbox list appears below the primary room dropdown. Each additional room shows its hourly rate (`+£X.XX/hr`). Customers can tick one or more rooms to include them in the enquiry — this affects the cost estimate and is included in the booking request.
+
+**Multi-day events**
+
+A **"Requires multiple days"** toggle appears next to the date field. When active:
+- The single date picker is replaced by **Date From** and **Date To** fields
+- Maximum span is 90 days (the form shows an error if this is exceeded)
+- Cost estimate multiplies by the number of days
+
+---
+
+#### Real-time cost estimate
+
+As the customer fills in the form, a cost estimate appears automatically:
+
+> `£12.50/hr [+ 1 room] × 4.0h × 2 days = £100.00`
+
+This is an **estimate only** — the confirmed price is set when staff convert the enquiry. The estimate is based on `rooms.day_rate` (an hourly rate) × hours × days, plus any additional rooms. If no rate is configured for the room, the cost panel is hidden.
+
+---
+
+#### Availability check
+
+Once a room, date, and times are all selected, the form automatically checks availability:
+
+- 🟢 **Available** — date and time slot is free for that room. Submit buttons activate.
+- 🔴 **Unavailable** — slot is already booked. Customer must choose different times or dates.
+
+The check also catches:
+- Blocked dates (venue closed days, one-off closures, date ranges)
+- End time not after start time
+- Date range exceeding 90 days
+
+The form sends a `POST /webhook/check-availability` to confirm against existing bookings.
+
+---
+
+#### Submission options
+
+The customer has two ways to submit, depending on whether Stripe is enabled for your venue:
+
+| Option | When available | What it does | Booking status created |
+|--------|---------------|--------------|----------------------|
+| **Submit Enquiry** (blue button) | Always | Submits with no payment | `pending` |
+| **Pay Deposit by Card** (green button) | Stripe enabled only | Collects deposit via Stripe Checkout (20% of estimated total, min £10 / max £500) | `pending_deposit` |
+
+**Free enquiry path:**
+1. Form submitted → booking request created in database
+2. Customer sees a success panel: "Enquiry Submitted!" with a note about the 7-day window
+3. Customer receives an acknowledgement email
+4. Staff receive a notification email (see Section 7 for email configuration)
+5. Enquiry appears in Dashboard → **Pending Requests**
+
+**Stripe deposit path:**
+1. Form submitted → booking request created → customer redirected to Stripe Checkout
+2. Customer pays the deposit amount shown on the button
+3. Customer lands on the **payment confirmation page** (checkout.html) showing "Payment Received" and their booking reference ID
+4. Staff receive a notification email
+5. Enquiry appears in Dashboard → **Pending Requests** (with `pending_deposit` status)
+
+---
+
+#### 7-day window
+
+When a customer submits a free enquiry, the system automatically emails them a warning if **4 or more days pass** without a deposit being paid. After **7 days**, the enquiry expires and is automatically removed. See [Section 7 — Automatic Email Notifications](#7-automatic-email-notifications) for full detail on the expiry warning email.
+
+---
+
+#### The payment confirmation page (checkout.html)
+
+After a successful Stripe payment, the customer lands on a branded confirmation page that shows:
+- "Payment Received" heading with animated green tick
+- The venue name (e.g. "Thank you for your booking at Main Street Hall")
+- A Booking ID reference strip — the customer can quote this ID when contacting you
+- A **Close Window** button (for public customers) or **Back to Dashboard** button (if a staff member is logged in)
+
+---
+
+#### What staff do after an enquiry comes in
+
+1. Go to **Dashboard** → **Pending Requests** tab
+2. Find the enquiry in the list (sorted by date, newest first)
+3. Click the row to open the booking detail panel on the right
+4. Review the details: customer, room, date, time, event type, guests, notes
+5. Click **Confirm** to convert it to a confirmed booking (this triggers a confirmation email to the customer)
+6. Or click **Decline** to remove the request
+
+> No deposit collection is needed at this stage if the customer already paid via Stripe — the `pending_deposit` status tracks that a card payment is expected. Staff should confirm the booking once the Stripe payment is received (the webhook updates the status automatically).
 
 ---
 

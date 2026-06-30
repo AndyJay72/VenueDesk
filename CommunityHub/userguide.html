@@ -2005,14 +2005,66 @@
                                 <span class="badge-warning-text">⚠️ Walk-ins cannot be booked on past dates.</span>
                             </div>
                             
-                            <div class="sub-card">
-                                <h4>📨 Option C — Enquiry Form</h4>
-                                <ol class="styled-ol">
-                                    <li>Provide customer with <strong>New Booking</strong> link.</li>
-                                    <li>Customer enters requirements and optional card details via Stripe.</li>
-                                    <li>Enquiry goes to <strong>Dashboard &rarr; Pending Requests</strong>.</li>
-                                    <li>Staff checks details and hits <strong>Confirm & Record Deposit</strong>.</li>
-                                </ol>
+                            <div class="sub-card" style="grid-column: 1 / -1;">
+                                <h4>📨 Option C — Enquiry Form (Online)</h4>
+                                <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">
+                                    A public-facing booking request page customers fill in themselves. Share the link directly, embed it on your website, or use it during a telephone enquiry. URL format: <code style="background:rgba(99,102,241,0.12);padding:2px 7px;border-radius:5px;font-size:0.85em;">enquiry-form.html?t=&lt;tenant_id&gt;</code>
+                                </p>
+
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.25rem;">
+                                    <div style="background:rgba(0,0,0,0.18);border:1px solid var(--border-color);border-radius:10px;padding:1rem;">
+                                        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--primary);margin-bottom:0.65rem;">Fields collected</div>
+                                        <ul class="styled-ol" style="margin:0;padding-left:0;list-style:none;">
+                                            <li style="padding:3px 0;font-size:0.88rem;">Full Name &bull; Email &bull; Phone</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">Preferred Room (with capacity shown)</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">Event Type &bull; Start &amp; End Time</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">Date (single) or Date From / Date To</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">Number of Guests &bull; Notes (optional)</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;color:var(--primary);">+ Additional Rooms (checkbox, optional)</li>
+                                        </ul>
+                                    </div>
+                                    <div style="background:rgba(0,0,0,0.18);border:1px solid var(--border-color);border-radius:10px;padding:1rem;">
+                                        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--primary);margin-bottom:0.65rem;">Live features</div>
+                                        <ul class="styled-ol" style="margin:0;padding-left:0;list-style:none;">
+                                            <li style="padding:3px 0;font-size:0.88rem;">🗓️ <strong>Multi-day toggle</strong> — reveals Date From / Date To (max 90 days)</li>
+                                            <li style="padding:5px 0;font-size:0.88rem;">🏷️ <strong>Cost estimate</strong> — updates as customer types: <em>£X/hr × Xh × N days</em></li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">🟢 <strong>Availability check</strong> — real-time; submit unlocks only when slot is free</li>
+                                            <li style="padding:3px 0;font-size:0.88rem;">🚫 Blocked dates, time inversions, and 90-day spans caught before submit</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-bottom:0.65rem;">Submission options</div>
+                                <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.25rem;">
+                                    <div style="flex:1;min-width:220px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:0.85rem 1rem;">
+                                        <span class="status-badge blue" style="margin-bottom:0.5rem;display:inline-block;">Free Enquiry</span>
+                                        <p style="font-size:0.85rem;color:var(--text-secondary);margin:0.4rem 0 0;">No payment required. Creates a <strong>pending</strong> booking request. Customer and staff both receive a notification email. 7-day window to add deposit before expiry.</p>
+                                    </div>
+                                    <div style="flex:1;min-width:220px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:0.85rem 1rem;">
+                                        <span class="status-badge green" style="margin-bottom:0.5rem;display:inline-block;">Pay Deposit by Card</span>
+                                        <p style="font-size:0.85rem;color:var(--text-secondary);margin:0.4rem 0 0;">Stripe Checkout — 20% of estimated total (£10–£500). Creates a <strong>pending_deposit</strong> request. Customer lands on a branded payment confirmation page with their Booking ID.</p>
+                                    </div>
+                                </div>
+
+                                <ul class="custom-step-list" style="margin:0;">
+                                    <li>
+                                        <div class="step-bubble">1</div>
+                                        <div>Click <strong>New Booking</strong> in the sidebar to open the form in a new tab, or copy the <code style="font-size:0.85em;">?t=</code> URL and share it with the customer.</div>
+                                    </li>
+                                    <li>
+                                        <div class="step-bubble">2</div>
+                                        <div>Customer fills in their details, selects room and times. The green availability banner confirms the slot is free before they can submit.</div>
+                                    </li>
+                                    <li>
+                                        <div class="step-bubble">3</div>
+                                        <div>Customer submits via <span class="status-badge blue">Submit Enquiry</span> (free) or <span class="status-badge green">Pay Deposit by Card</span> (Stripe). Both paths send a notification email to staff.</div>
+                                    </li>
+                                    <li>
+                                        <div class="step-bubble">4</div>
+                                        <div>Enquiry appears in <strong>Dashboard &rarr; Pending Requests</strong>. Click the row, review details, then click <strong>Confirm</strong> to convert it to a confirmed booking (triggers customer confirmation email).</div>
+                                    </li>
+                                </ul>
+                                <span class="badge-warning-text" style="display:block;margin-top:1rem;">⚠️ Free enquiries expire after 7 days with no deposit. The system sends an automatic warning email at day 4.</span>
                             </div>
                         </div>
                     </div>

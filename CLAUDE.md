@@ -1273,19 +1273,245 @@ PostgreSQL RLS. Never pass `tenant_id` from body into query parameters — alway
 
 ## Skill: Enquiry Form Submission Flow
 
-1. User fills `enquiry-form.html` — room, dates, hire type, contact details
-2. On submit: `POST /enquiry/create-request` (public, no JWT)
-   - Validates tenant is active
-   - Upserts customer by `(email, tenant_id)` UNIQUE constraint
-   - Inserts `bookings.booking_requests` row with `status = 'pending_review'`
-   - Returns `{ booking_request_id, customer_id }`
-3. If deposit selected: `POST /stripe/public-session` with `booking_request_id`
-   - Stripe Checkout created, customer redirected
-   - On payment: webhook updates `booking_requests.status = 'deposit_paid'`
-4. If no deposit: submission complete, staff review pending request in dashboard
+Public-facing online booking request form. Two submission paths:
 
-**Critical:** `booking_request_id` must be captured from step 2 before initiating
-step 3. Previously this was broken because n8n never returned an ID.
+1. **Free enquiry** — `POST /enquiry/create-request` with `status:'pending'`, `deposit_intent:false` → success panel shown → fire-and-forget email to customer + staff. Appears in Dashboard → Pending Requests for staff review.
+2. **Stripe deposit** — same `POST /enquiry/create-request` (gets `booking_request_id`) → fire-and-forget email → `POST /stripe/public-session` → `window.location.href = sj.url` (Stripe redirect) → customer lands on `checkout.html`.
+
+Both paths upsert the customer by `(email, tenant_id)` UNIQUE constraint and insert a `bookings.booking_requests` row. `booking_request_id` is always returned and used to link the Stripe payment back to the request.
+
+See **`# 🌐 enquiry-form.html — Architecture Reference (June 30 2026)`** below for full field reference, cost calculator, client-side guards, multi-day toggle, additional rooms, and checkout.html.
+
+---
+
+# 🌐 enquiry-form.html — Architecture Reference (June 30 2026)
+
+**File:** `enquiry-form.html` (root) + `CommunityHub/enquiry-form.html` (mirror)
+**Purpose:** Public-facing online booking request form. No JWT, no auth — public URL shared with customers.
+
+## URL format
+
+```
+enquiry-form.html?t=<tenant_id>
+```
+
+`?t=` is the tenant ID (must be an integer >= 1000 — tenant_id 1 is system admin). `?tenant=` is also accepted as an alias.
+
+**Invalid/missing tenant_id:** `errorBanner` is shown (`#errorBanner`), `#enquiryForm` is hidden. No API calls are made.
+
+**Security note:** `TENANT_ID` from the URL is used for display and availability lookup only. Both `/enquiry/create-request` and `/stripe/public-session` re-validate the tenant server-side independently. `TENANT_ID` is never trusted for billing or data access.
+
+## Page initialisation
+
+On load: `GET /stripe/config?tenant_id=N` → populates:
+
+- `#venueNameDisplay` (textContent) + `#venueBadge` (shows venue name badge) + `#pageTitle` + `document.title`
+- `efStripeEnabled = true` and `#depositBtn` revealed if `is_stripe_enabled` AND `stripe_publishable_key` are present
+
+`GET /stripe/config` now returns `venue_name` (bug fix June 30 2026 — `name AS venue_name` was missing from SELECT).
+
+## Data loading (n8n webhooks)
+
+All three fire in parallel on page open via `loadRoomsAndTypes()`:
+
+| Webhook | URL | Returns | Used for |
+|---------|-----|---------|----------|
+| `get-rooms` | `BASE_API/get-rooms?tenant_id=N` | `{data: [...]}` | Populate Preferred Room dropdown + additional-rooms checkbox list |
+| `get-event-types` | `BASE_API/get-event-types?tenant_id=N` | `{data: [...]}` | Populate Event Type dropdown |
+| `blocked-dates` | `BLOCKED_API?tenant_id=N` | `{data: [...]}` | Client-side block check in `isDateBlocked()` |
+
+`BASE_API = https://n8n.srv1090894.hstgr.cloud/webhook`
+
+Room entries in the dropdown include capacity: `"Room Name (Cap: N)"`. Only active rooms (`is_active` truthy or undefined) are shown.
+
+Time dropdowns (Start Time / End Time): 08:00–23:00 in 30-minute slots, generated client-side on load. Minimum date for all date pickers: today.
+
+## Form sections
+
+### Contact Details (required)
+- Full Name (`#name`)
+- Email (`#email`, type=email)
+- Phone (`#phone`, type=tel)
+
+### Event Details (required unless noted)
+- **Preferred Room** (`#roomName`) — select from loaded rooms; changing fires `onPrimaryRoomChange()` which re-renders the additional-rooms list, recalculates cost, and re-checks availability
+- **Event Type** (`#eventType`) — select from loaded event types
+- **Event Date** (`#eventDate`) — single-day date picker (hidden when multi-day active)
+- **Multi-day toggle** — see below
+- **Start Time** (`#timeFrom`) / **End Time** (`#timeTo`) — 30-min slot selects, both fire `checkAvailability()` on change
+- **Number of Guests** (`#numPeople`, min=1) — fires `calcCost()` on change
+- **Notes** (`#notes`, textarea) — optional
+- A hidden `#hireType` field always carries value `"hourly"` (hire-type selector UI was removed — `rooms.day_rate` column is always treated as hourly)
+
+### Additional Rooms (optional)
+Checkbox list rendered below the primary room dropdown by `renderAdditionalRoomsList()`. Shows every active room EXCEPT the currently selected primary, with rates: `Room Name (+£X.XX/hr)`. Checked rooms add to the cost estimate and are included in the `additional_rooms` array in the payload. Checkbox state is preserved across re-renders (stored by `data-name`). Container hidden when there are no other rooms.
+
+## Multi-day toggle
+
+Button: `#multiDayToggle` ("Requires multiple days"). `toggleMultiDay()`:
+- Shows `#multiDayFields` (Date From / Date To), hides `#singleDateGroup` (Event Date)
+- Swaps `required` attributes: `eventDate.required = !isMulti`, `dateFrom.required = isMulti`, `dateTo.required = isMulti`
+- On toggle-off: clears `dateFrom` and `dateTo` values
+- Full reset after successful submission: toggle state, required attributes, date fields, and additional room checkboxes all reset via `form.reset()` + explicit JS cleanup
+
+## Client-side guards in `checkAvailability()`
+
+| Guard | Condition | Status shown |
+|-------|-----------|-------------|
+| Missing fields | room, dateFrom, or times empty | idle — "Select a room, dates and times to check availability" |
+| Invalid date range | `dateTo < dateFrom` | unavailable — "Please select a valid end date (on or after start date)." |
+| 90-day span exceeded | `numDays > 90` | unavailable — "Booking duration exceeds the 90-day maximum. Please shorten the date range." |
+| Blocked date | any day in range matches `enquiryBlockedRules` (recurring/oneoff/range) | unavailable — "Sorry, the venue is closed on YYYY-MM-DD (reason)" |
+| Time inversion | `start >= end` | unavailable — "End time must be after start time." |
+| Server check | debounced 500ms → `POST /webhook/check-availability` | available or unavailable from API |
+
+When available: submit button and (if Stripe enabled) deposit button both enable. Deposit button label updates to `Pay £N.NN Deposit by Card`.
+
+## Cost calculator (`calcCost()`)
+
+Fires on: room change, date change, time change, guest count change, additional-room checkbox change.
+
+**Formula:** `total = (primaryRoomHourlyRate + Σ additionalRoomRates) × hours × numDays`
+
+- `rooms.day_rate` is an hourly rate (misnamed column — no day/hourly selector exists)
+- Breakdown label: `£X.XX/hr [+ N rooms] × Xh [× N days]`
+- Row hidden when no rate is available for the primary room or when total = 0
+- **Deposit amount** (`efDepositAmount`): `20% × total`, clamped to £10–£500 (matches server-side `PUBLIC_SESSION` bounds). Falls back to room-level `deposit_amount` or 20% of hourly rate if total is 0; further fallback £50.
+
+## Submit paths
+
+### Free enquiry — `submitEnquiry()`
+
+1. State lock: `isSubmitting = true`, button disabled (blocks double-click)
+2. Guard: `isAvailable` must be true
+3. Guard: `form.checkValidity()` — HTML5 required-field validation
+4. Guard: capacity check — if guest count exceeds `selectedRoom.capacity`, `showToast()` with error (not `alert()`)
+5. `POST /enquiry/create-request` with `buildEnquiryPayload(false)`:
+   - `status: 'pending'`, `payment_method: 'Enquiry — Free Request'`, `deposit_intent: false`
+6. On success (`res.ok && j.success`):
+   - Fire-and-forget `POST /webhook/enquiry-received-email` (customer acknowledgement + staff alert)
+   - `form.reset()` + explicit multi-day toggle reset + additional rooms re-render + cost row hide + availability reset
+   - `#enquiryForm` hidden, `#successPanel` shown, `window.scrollTo(top)`
+7. On error: `setAvailStatus('unavailable', 'Submission failed — ' + e.message)`
+
+### Stripe deposit — `submitWithDeposit()`
+
+1. State lock: `isSubmitting = true`, deposit button disabled
+2. Guards: `isAvailable`, `efStripeEnabled`, `form.checkValidity()`, capacity check, `efDepositAmount > 0`
+3. `POST /enquiry/create-request` with `buildEnquiryPayload(true)`:
+   - `status: 'pending_deposit'`, `payment_method: 'Enquiry / Stripe Pending'`, `deposit_intent: true`, `deposit_amount: efDepositAmount`
+4. On success: fire-and-forget `POST /webhook/enquiry-received-email`
+5. `POST /stripe/public-session`:
+   - Body: `{ tenant_id, amount: efDepositAmount, booking_request_id, description, success_url, cancel_url }`
+   - `success_url` = `checkout.html?session_id={CHECKOUT_SESSION_ID}&venue=<venue_name>&booking=<booking_request_id>`
+   - `cancel_url` = current page URL
+6. On success: `window.location.href = sj.url` (Stripe redirect — `isSubmitting` stays `true` until navigation)
+7. On error: `showToast('Error: ' + e.message, 'error')`, button reset
+
+### `/enquiry/create-request` (db-api, public, no JWT)
+
+- Validates tenant is active
+- Upserts customer by `(email, tenant_id)` UNIQUE constraint
+- Inserts `bookings.booking_requests` row
+- Returns `{ success: true, booking_request_id, customer_id }`
+
+### `/stripe/public-session` (db-api, public)
+
+- Re-validates tenant server-side
+- Enforces amount bounds: £10–£500
+- Creates Stripe Checkout Session
+- Returns `{ url }` — frontend redirects
+
+## Post-submit state
+
+**Free enquiry success panel** (`#successPanel`):
+- Large green check icon
+- "Enquiry Submitted!" heading
+- Explains email confirmation was sent and 7-day deposit window
+- "Submit Another Enquiry" button → `resetForNewEnquiry()` which hides success panel, shows form, scrolls to top
+
+**Stripe path:** No success panel — browser navigates directly to Stripe Checkout, then to `checkout.html` on payment.
+
+## Email notifications fired
+
+Both paths fire `POST /webhook/enquiry-received-email` (fire-and-forget, error swallowed):
+- **Customer acknowledgement email** — confirms enquiry received, lists event details, warns of 7-day expiry window
+- **Staff alert email** — customer contact details, request summary, direct "Review in Dashboard" link
+
+The n8n workflow reads `staff_notification_email` from `GET /stripe/config` per-venue. Falls back to `bookings@venuedesk.co.uk`.
+
+## Bugs fixed June 30 2026
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| Venue badge never showed | `/stripe/config` SELECT missing `name AS venue_name` | Added alias to query |
+| Multi-day toggle not reset on form.reset() | `form.reset()` doesn't touch JS-managed dataset attributes | Explicit JS reset of `multiDayToggle.dataset.active`, class, display, required attrs |
+| Capacity exceeded used `alert()` | Blocking native dialog — bad UX on mobile | Replaced with `showToast(msg, 'error')` |
+| No post-submit success state | Form reset silently with no feedback | `#successPanel` shown, form hidden, scroll to top |
+| Deposit note said "secures your date immediately" | Copy implied immediate confirmation | Changed to "secures your enquiry pending staff confirmation" |
+| No client-side 90-day guard | API enforced it but form showed no message pre-submit | `numDays > 90` guard in `checkAvailability()` |
+| `checkout.html` showed "our venue" with no booking ref | `success_url` had no `?venue=` or `?booking=` params | Both params added to `success_url` construction |
+
+## Test suite (all passing)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `tests/playwright/enquiry_e2e.js` | 13 | All 7 bugs fixed, venue badge, rooms/types load, avail check, cost calc, success panel, reset, capacity toast |
+| `tests/playwright/enquiry_multiday_e2e.js` | 10 | Multi-day toggle, date guards, 3-day availability, cost×days, submit, reset, probes |
+| `tests/playwright/enquiry_90day_probe.js` | 3 | 91d blocked, 90d allowed, 3d unaffected |
+| `tests/playwright/enquiry_stripe_e2e.js` | 19 | API chain, amount bounds, browser UI, payload validation, Stripe navigation |
+| `tests/playwright/checkout_e2e.js` | 18 | All URL param cases, staff vs public CTA, XSS, special chars |
+
+---
+
+# 🧾 checkout.html — Architecture Reference (June 30 2026)
+
+**File:** `checkout.html` (root) + `CommunityHub/checkout.html` (mirror)
+**Purpose:** Stripe redirect target — static confirmation page shown after a successful card payment. No auth guard (customers returning from Stripe have no `vp_token`).
+
+## URL parameters
+
+| Param | Source | Used for |
+|-------|--------|----------|
+| `?session_id=` | Stripe (`{CHECKOUT_SESSION_ID}` placeholder) | Stripe confirmation reference (not currently displayed) |
+| `?venue=` | `enquiry-form.html` success_url builder | Venue name shown in heading (`textContent` — XSS safe) |
+| `?booking=` | `enquiry-form.html` success_url builder (`booking_request_id`) | Shown in the Booking ID strip below the heading |
+
+All three are set by the `success_url` in `submitWithDeposit()`:
+```
+checkout.html?session_id={CHECKOUT_SESSION_ID}&venue=<venue_name>&booking=<booking_request_id>
+```
+
+## Public vs staff CTA
+
+```javascript
+const hasSession = !!sessionStorage.getItem('vp_token');
+if (hasSession) {
+    // Staff returning from Stripe
+    btn-dashboard: display = 'inline-flex';   // "Back to Dashboard"
+    btn-public:    display = 'none';
+} else {
+    // Public customer (default)
+    btn-dashboard: display = 'none';          (already none via style attr)
+    btn-public:    display = 'inline-flex';   // "Close Window" → enquiry-form.html
+}
+```
+
+The "Close Window" button links back to `enquiry-form.html` (without `?t=` — customer would need a fresh link to re-submit).
+
+## Booking reference strip
+
+`#meta-strip` (class `hidden` by default) is revealed when `?booking=` is present. Shows one row: "Booking ID" → the `booking_request_id` UUID in monospace font. Customer can quote this for support.
+
+## XSS safety
+
+Venue name is written via `element.textContent = decodeURIComponent(venue)` — NOT `innerHTML`. No injection risk even with maliciously crafted `?venue=` values.
+
+## Known constraints
+
+- `?session_id=` is captured from the URL but not currently displayed or used to fetch payment details from Stripe or db-api. The page is intentionally simple and static.
+- The "Close Window" button links to `enquiry-form.html` without a `?t=` param — the customer sees the "Invalid Venue Link" error banner. This is a known minor UX gap; no fix is currently planned because the venue's original form link (with `?t=`) should be used for re-enquiries.
+- No SMACSS-style server-side verification that the Stripe session was actually paid is performed on this page — the security gate is the Stripe webhook updating `booking_requests.status`. This page is a UX landing only.
 
 ---
 
