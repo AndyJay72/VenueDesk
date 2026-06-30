@@ -40,17 +40,27 @@ module.exports = async function stripeRoutes(fastify, _opts) {
       return reply.code(400).send({ success: false, message: 'tenant_id required' });
     }
 
-    const { rows } = await withTenantContext(tenantId, (client) =>
-      client.query(
+    const data = await withTenantContext(tenantId, async (client) => {
+      const { rows: tenantRows } = await client.query(
         `SELECT is_stripe_enabled,
                 stripe_publishable_key
          FROM bookings.tenants
          WHERE tenant_id = $1
          LIMIT 1`,
         [tenantId]
-      )
-    );
-    return reply.send({ success: true, data: rows[0] || {} });
+      );
+      const { rows: settingRows } = await client.query(
+        `SELECT value FROM bookings.settings
+         WHERE key = 'staff_notification_email'
+         LIMIT 1`
+      );
+      return {
+        ...(tenantRows[0] || {}),
+        staff_notification_email: settingRows[0]?.value || null,
+      };
+    });
+
+    return reply.send({ success: true, data });
   });
 
   // ── GET /stripe/bacs-details ────────────────────────────────────────────────

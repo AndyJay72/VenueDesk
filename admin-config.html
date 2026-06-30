@@ -920,6 +920,25 @@
     <!-- TAB: SETTINGS                           -->
     <!-- ═══════════════════════════════════════ -->
     <div class="tab-panel" id="tab-settings">
+
+        <!-- Staff Notification Email -->
+        <div class="card" style="max-width:580px;margin-bottom:1.5rem">
+            <div class="card-title"><i class="fa-solid fa-envelope"></i> Staff Notification Email</div>
+            <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.5rem;line-height:1.6">
+                The email address that receives an instant alert whenever a customer submits a new booking enquiry via the online form.
+                Leave blank to use the default <code>bookings@venuedesk.co.uk</code>.
+            </p>
+            <div class="input-group">
+                <label>Notification Email Address</label>
+                <input type="email" id="staffNotifEmailInput" placeholder="e.g. manager@yourvenue.co.uk"
+                    style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-main);font-size:0.9rem;">
+            </div>
+            <div id="staffNotifEmailStatus" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;padding:8px 12px;background:rgba(0,0,0,0.2);border-radius:8px;display:none"></div>
+            <button class="btn btn-primary" id="saveStaffNotifEmailBtn" onclick="saveStaffNotifEmail()">
+                <i class="fa-solid fa-floppy-disk"></i> Save Notification Email
+            </button>
+        </div>
+
         <div class="card" style="max-width:580px">
             <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Booking Turnaround Buffer</div>
             <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.5rem;line-height:1.6">
@@ -1875,6 +1894,17 @@ async function loadSettings() {
         const res = await fetch(API.getSettings + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
         const json = await res.json();
         settings = json.data || (Array.isArray(json) ? json : []);
+
+        // Populate staff notification email field
+        const notifSetting = settings.find(s => s.key === 'staff_notification_email');
+        const notifInput = document.getElementById('staffNotifEmailInput');
+        const notifStatus = document.getElementById('staffNotifEmailStatus');
+        if (notifInput) notifInput.value = notifSetting?.value || '';
+        if (notifStatus && notifSetting?.value) {
+            notifStatus.style.display = 'block';
+            notifStatus.innerHTML = '<i class="fa-solid fa-circle-info"></i> Current: <strong>' + notifSetting.value + '</strong>';
+        }
+
         const bufferSetting = settings.find(s => s.key === 'booking_buffer_minutes');
         const currentVal = bufferSetting ? parseInt(bufferSetting.value) : 60;
         // Update info text
@@ -1923,6 +1953,25 @@ async function saveBufferSetting() {
         await loadSettings();
     } catch(e) { showToast('Failed to save setting', 'error'); }
     finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Buffer Setting'; }
+}
+
+async function saveStaffNotifEmail() {
+    const email = (document.getElementById('staffNotifEmailInput')?.value || '').trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Please enter a valid email address', 'error'); return;
+    }
+    const btn = document.getElementById('saveStaffNotifEmailBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    try {
+        const res = await fetch(API.updateSetting, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'staff_notification_email', value: email || '', tenant_id: parseInt(_TID()) })
+        });
+        if (!res.ok) throw new Error('Save failed');
+        showToast(email ? `Staff notification email set to ${email}` : 'Staff notification email cleared');
+        await loadSettings();
+    } catch(e) { showToast('Failed to save notification email', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Notification Email'; }
 }
 
 // ─────────────────────────────────────────────
