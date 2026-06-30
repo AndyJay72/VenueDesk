@@ -1,6 +1,6 @@
 # VenueDesk Staff User Guide – How to Manage Bookings, Customers & Payments
 
-> **Last updated:** June 27 2026 · **Audience:** Non-technical venue staff  
+> **Last updated:** June 30 2026 · **Audience:** Non-technical venue staff  
 > **Live site:** https://andyjay72.github.io/VenueDesk
 
 ---
@@ -21,6 +21,7 @@
 | Record a manual payment | **Bookings** → **Pay** button | Choose method → **Confirm Payment** |
 | View payment history / invoices | **Accounts** in sidebar | Click any transaction row |
 | Set up a divisible room | **Admin Config** → Rooms tab | Add room → set Parent Room + Position |
+| Check what email a customer was sent | **Audit Log** → filter by customer name | See email events in the activity log |
 
 ---
 
@@ -447,6 +448,123 @@ The payment is recorded in **Accounts** and the booking status updates automatic
 | **Anchor Space** | Another name for a parent room — the full space that partitions are anchored to |
 | **Room Operating Hours** | Optional open/close times set per room in Admin Config — bookings outside these hours are automatically rejected |
 | **Clash / Conflict** | When two bookings would overlap in the same physical space — the system rejects the second booking automatically |
+
+---
+
+---
+
+## 7. Automatic Email Notifications
+
+VenueDesk sends automated emails to customers at key points in the booking journey. These emails are sent from **bookings@venuedesk.co.uk** and require no manual action from staff — they fire automatically.
+
+---
+
+### Emails customers receive
+
+| When | Email subject | Colour |
+|------|---------------|--------|
+| Customer submits the online enquiry form | 📬 Enquiry Received — [Venue Name] | Indigo |
+| Staff click **Confirm** on a pending request | ✅ Booking Confirmed — [Date] | Green |
+| Deposit payment recorded (cash/card/BACS) | Deposit Payment Confirmed — [Date] | Indigo |
+| Partial balance payment recorded | Payment Received — Remaining Balance: £X | Amber |
+| Full balance settled | Balance Fully Settled — Booking Confirmed ✓ | Green |
+| BACS payment method selected | Booking Reserved — Awaiting BACS Payment | Amber |
+| Online card payment confirmed via Stripe | Card Payment Confirmed ✓ — [Date] | Green |
+| Enquiry not confirmed after 4 days (no deposit) | ⏰ Action required: Your enquiry expires in X days | Amber |
+
+---
+
+### Enquiry received email
+
+When a customer submits the **New Booking** enquiry form, they immediately receive a confirmation that their request was received. It includes:
+
+- A summary of what they requested (space, date, time, event type, guests)
+- A clear notice that their enquiry will **expire after 7 days** if no deposit is paid
+- A contact button linking to `bookings@venuedesk.co.uk`
+- Their enquiry reference number
+
+At the same time, you (or the designated staff email) receive a **staff alert email** with the customer's full contact details, their request summary, and a **Review in Dashboard** link.
+
+---
+
+### Booking confirmed email
+
+When you click **Confirm** on a pending request from the Dashboard, the customer automatically receives a confirmation email containing:
+
+- Date, time, room, event type, and guest count
+- Total hire fee, deposit paid (with payment method), and any remaining balance
+- A callout box if a balance is still owed
+- Contact details for queries
+
+> No manual email to the customer is needed — this fires automatically the moment you confirm the booking.
+
+---
+
+### Payment emails
+
+Every time a payment is recorded (by you or automatically via Stripe), the customer receives a payment receipt. The email content varies by payment type:
+
+- **Deposit** — indigo header, shows deposit amount paid and remaining balance
+- **Partial balance** — amber header, shows amount paid and remaining balance
+- **Full balance** — green header, "Fully Paid ✓" confirmation
+- **BACS** — amber header with your venue's bank account details, sort code, and account number (so the customer can make the transfer), using the booking ID as the payment reference
+- **Stripe card** — green header with the Stripe payment reference
+
+---
+
+### 7-day expiry warning email
+
+The system runs a check every morning at **08:00**. Any customer who submitted an enquiry **4 or more days ago** without paying a deposit receives an expiry warning email. The email shows:
+
+- How many days are remaining (e.g. "3 days remaining")
+- The date their enquiry was submitted
+- Clear consequences of not acting (enquiry will be permanently deleted)
+- A contact button
+
+Once the warning is sent, the system marks it so the same customer does not receive duplicate warnings. After **7 days** with no deposit, the enquiry is automatically removed.
+
+> If a customer contacts you after receiving a warning email, use the Dashboard → Pending Requests tab to confirm their booking before the 7-day window expires.
+
+---
+
+### What staff need to do
+
+- **Nothing extra** — all emails fire automatically.
+- If a customer says they didn't receive an email, ask them to **check their spam/junk folder** (especially Gmail, which may group emails).
+- The **Audit Log** page records all booking and payment events with timestamps and staff names, which can help trace any email discrepancies.
+- Staff notification emails go to the address set in your venue's Admin Config → Settings. Contact your administrator to update this.
+
+---
+
+## Troubleshooting — Email Issues
+
+| Problem | Likely cause | What to do |
+|---------|-------------|------------|
+| **Customer says they got no confirmation email** | Email in spam; or their address was entered incorrectly | Ask them to check spam. Verify their email address in **Customers** page. |
+| **Customer received duplicate expiry warning emails** | System test issue (rare) | Contact your administrator — this indicates a workflow was tested with a live email address. |
+| **Staff alert email not arriving** | Staff notification email address not configured | Check **Admin Config → Settings** for the staff email address and update if needed. |
+| **BACS email has no bank details** | Venue BACS details not set in Admin Config | Go to **Admin Config → Payments** tab and enter Sort Code, Account Number, and Account Name. |
+
+---
+
+## Troubleshooting — Booking & System Issues
+
+| Problem | Likely cause | What to do |
+|---------|-------------|------------|
+| **"Unavailable" / red availability bar** | Another booking already exists in that slot | Choose a different time or room. Check the **Calendar** to see the conflict. |
+| **"Conflict with parent/child room"** | A partition or parent room is already booked in that slot | Choose the correct specific section or a different time. See Section 6. |
+| **Guest count warning appears** | Guest number exceeds the room's capacity | Reduce the guest count or select a larger room. |
+| **"Cannot create a booking in the past"** | The date entered is before today | Change the date to today or a future date. |
+| **Booking duration exceeds limit** | Multi-day span is more than 90 days | Shorten the booking period or create two separate bookings. |
+| **"This room does not open until HH:MM"** | The room has operating hours set that your chosen start time falls before | Change the start time to be within the room's operating hours, or choose a different room. |
+| **"This room closes at HH:MM"** | Your chosen end time is after the room's closing time | Move the end time earlier or choose a different room. |
+| **Page shows nothing / blank list** | Session may have expired | Refresh the page. If redirected to login, log back in and try again. |
+| **"Something went wrong" toast** | API or network error | Wait a few seconds and click **Refresh** (top-right button on Dashboard). If it persists, contact your administrator. |
+| **Customer not found in search** | Customer hasn't been added yet | Add them via the walk-in form or enquiry form — the system creates a customer record automatically. |
+| **"Balance Due" still showing after payment** | Payment not yet saved | Ensure you clicked **Confirm Payment** in the payment modal, not just closed it. Check **Accounts** for the transaction. |
+| **Calendar not loading** | Browser cache or connectivity issue | Hard-refresh the page (Ctrl+Shift+R on Windows / Cmd+Shift+R on Mac). Try an incognito/private window. |
+| **Logged out unexpectedly** | Session token expired (tokens last up to 1 hour) | Log back in. Your data is safe — nothing is lost. |
+| **Recurring payment button missing** | No payment is currently due for this period | The **Record Payment** button only appears when a payment period is due or overdue. Check the series card's payment status badge. |
 
 ---
 

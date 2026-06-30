@@ -1573,6 +1573,9 @@
                 <a href="#divisible-spaces" class="nav-item">
                     <span>6️⃣</span> Divisible Spaces
                 </a>
+                <a href="#email-notifications" class="nav-item">
+                    <span>📧</span> Email Notifications
+                </a>
                 <a href="#audit-finance" class="nav-item">
                     <span>🕒</span> Audit &amp; Finance
                 </a>
@@ -1631,7 +1634,7 @@
                         <h1>📘 VenueDesk Staff User Guide</h1>
                         <p>Learn how to manage bookings, process payments, and support venue customers. Tailored specifically for on-site staff and administrators.</p>
                         <div class="metadata-badge-group">
-                            <span class="meta-badge">🗓️ Last Updated: June 27 2026</span>
+                            <span class="meta-badge">🗓️ Last Updated: June 30 2026</span>
                             <a href="https://andyjay72.github.io/VenueDesk" class="meta-badge" target="_blank">🔗 Web Portal &rarr;</a>
                             <span class="meta-badge">⚡ Interactive Mode</span>
                         </div>
@@ -2202,6 +2205,145 @@
                                 <div>Press <strong>Confirm Payment</strong>. The balance ledger will update immediately.</div>
                             </li>
                         </ul>
+                    </div>
+                </section>
+
+                <!-- ── Email Notifications ───────────────────────────────────────────────── -->
+                <section id="email-notifications" class="section-card">
+                    <div class="card-header">
+                        <h2>📧 Automatic Email Notifications</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('email-notifications')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>VenueDesk sends automated emails at every key point in the booking journey. All emails come from <strong>bookings@venuedesk.co.uk</strong> and fire without any manual action from staff.</p>
+
+                        <!-- Email journey table -->
+                        <div class="table-container" style="margin-bottom:1.5rem">
+                            <table>
+                                <thead>
+                                    <tr><th>When it fires</th><th>Recipient</th><th>Email subject</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Customer submits the online enquiry form</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge blue">📬 Enquiry Received — [Venue Name]</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Customer submits the online enquiry form</td>
+                                        <td>Staff</td>
+                                        <td><span class="status-badge blue">🔔 New Venue Enquiry — [Customer] | [Date]</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Staff confirm a pending request</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge green">✅ Booking Confirmed — [Date]</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Deposit payment recorded</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge blue">Deposit Payment Confirmed — [Date] | Ref: DEP-…</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Partial balance payment recorded</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge amber">Payment Received — Remaining Balance: £X</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Full balance settled</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge green">Balance Fully Settled — Booking Confirmed ✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>BACS payment method selected</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge amber">Booking Reserved — Awaiting BACS Payment</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Stripe card payment confirmed</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge green">Card Payment Confirmed ✓ — [Date]</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Enquiry pending 4–7 days with no deposit (daily at 08:00)</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge amber">⏰ Action required: Your enquiry expires in X days</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="grid-2-col" style="margin-bottom:1.5rem">
+                            <div class="sub-card">
+                                <h4>📬 Enquiry Received (Customer)</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:.75rem">Fires the instant the online enquiry form is submitted successfully. The customer receives this even before staff review it.</p>
+                                <ul style="font-size:.85rem;color:var(--text-muted);padding-left:1.25rem;line-height:1.8">
+                                    <li>Summary of the request: space, date, time, event type, guests</li>
+                                    <li>Clear notice of the <strong>7-day confirmation window</strong></li>
+                                    <li>Enquiry reference number</li>
+                                    <li>Contact button → bookings@venuedesk.co.uk</li>
+                                </ul>
+                            </div>
+                            <div class="sub-card">
+                                <h4>🔔 New Enquiry (Staff Alert)</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:.75rem">Staff receive this at the same moment as the customer acknowledgement. No manual check required.</p>
+                                <ul style="font-size:.85rem;color:var(--text-muted);padding-left:1.25rem;line-height:1.8">
+                                    <li>Customer name, email, and phone</li>
+                                    <li>Event details: space, type, date, time, guests</li>
+                                    <li>Enquiry reference ID</li>
+                                    <li><strong>Review in Dashboard</strong> deep link → one click to the pending requests list</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 7-day window accordion -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)">
+                            ⏰ The 7-day confirmation window — how it works
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body" style="margin-bottom:.5rem">
+                            <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:.75rem">Every enquiry has a <strong>7-day window</strong> to receive a deposit. The system runs a check daily at 08:00 and sends one warning email to any customer whose enquiry is between 4 and 7 days old with no deposit paid.</p>
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Day</th><th>What happens</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><strong>Day 0</strong></td><td>Enquiry submitted → customer receives acknowledgement + staff receive alert</td></tr>
+                                        <tr><td><strong>Days 1–3</strong></td><td>Staff review and contact the customer to arrange a deposit</td></tr>
+                                        <tr><td><strong>Day 4–6</strong> (at 08:00)</td><td>System sends one <strong>⏰ expiry warning email</strong> showing days remaining. Once sent, it won't re-send to the same customer.</td></tr>
+                                        <tr><td><strong>Day 7</strong> (at 08:00)</td><td>Enquiry is <strong>permanently deleted</strong> from the system if no deposit has been paid</td></tr>
+                                        <tr><td><strong>Any day</strong></td><td>Staff confirm the booking → 7-day clock stops, customer receives booking confirmation</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="badge-warning-text" style="margin-top:1rem">⚠️ Once an enquiry is purged on day 7, it cannot be recovered. Contact the customer promptly after day 4 if they haven't paid a deposit.</div>
+                        </div>
+
+                        <!-- Payment emails accordion -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)" style="margin-top:.5rem">
+                            💳 Payment confirmation emails — what each one contains
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Payment type</th><th>Header</th><th>Key content</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Deposit</td><td style="color:var(--primary);font-weight:600">Indigo</td><td>Amount paid, room, date/time, balance remaining, DEP- reference</td></tr>
+                                        <tr><td>Partial balance</td><td style="color:var(--warning);font-weight:600">Amber</td><td>Amount paid, remaining balance, REF- reference</td></tr>
+                                        <tr><td>Full balance settled</td><td style="color:var(--success);font-weight:600">Green</td><td>"Fully Paid ✓", payment amount, REF- reference</td></tr>
+                                        <tr><td>BACS bank transfer</td><td style="color:var(--warning);font-weight:600">Amber</td><td>Account name, sort code, account number, booking ID as payment reference, amount due — customer uses these to make the bank transfer</td></tr>
+                                        <tr><td>Stripe card</td><td style="color:var(--success);font-weight:600">Green</td><td>"Card Payment Confirmed ✓", amount, STR- reference — only sent after Stripe confirms the charge</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="info-box" style="margin-top:1rem">
+                                <strong>💡 BACS tip:</strong> Customers must use their Booking ID as the payment reference when making a BACS transfer. This allows you to match incoming bank payments to the correct booking automatically. The booking ID is included prominently in the BACS email.
+                            </div>
+                        </div>
+
+                        <div class="info-box" style="margin-top:1.25rem">
+                            <strong>💡 Customer didn't receive an email?</strong> Ask them to check their spam/junk folder first — automated emails from new senders are often filtered. If the email address on the booking is wrong, update it in <strong>Customers → edit customer</strong> and re-send a manual follow-up from your own email client.
+                        </div>
                     </div>
                 </section>
 

@@ -3040,3 +3040,101 @@ await page.locator('.ob-vd-close').click();
 // CORRECT — scoped to the specific modal
 await page.locator('#venueDetailModal .ob-vd-close').click();
 ```
+
+---
+
+# ✉️ Email Trigger System (June 30 2026 Audit)
+
+## Audit Findings — What Was Missing / Broken
+
+| # | Workflow | Bug | Fix |
+|---|---|---|---|
+| 1 | PendingLifecycleScheduler | `Email: Day 4 Warning` had subject but **no HTML body** — sent blank email | Added `Code: Build Warning Email` node with full styled template |
+| 2 | VenuePro - Confirm Booking | **No email sent at all** when staff confirm a pending request | Added `DB: Get Customer For Email` → `Code: Build Confirmation Email` → `Email: Booking Confirmed` |
+| 3 | Financial Ops (Stripe Fork) | Stripe confirmation email fired **before verifying payment was recorded** | Added `DB: Verify Stripe Payment` + `IF: Stripe Payment Recorded?` gate; false branch returns HTTP 202 |
+| 4 | (missing) | No acknowledgement email to customer on enquiry submit; no staff alert | Created `NewEnquiryNotification.json` (new workflow) + fire-and-forget call in `enquiry-form.html` |
+
+## Live Workflow Map
+
+| Trigger | Workflow | n8n ID | Recipients |
+|---------|----------|--------|------------|
+| Customer submits enquiry form | VenueDesk - New Enquiry Notification | `Jh6nCEqLVFONT8IB` | Customer (acknowledgement) + Staff (alert with dashboard link) |
+| Staff confirm a pending request | VenuePro - Confirm Booking | `MXCss5PTB3YpiQuV` | Customer (booking confirmation with payment summary) |
+| Cash/BACS/card payment recorded | VenueDesk - Financial Operations (Stripe + Manual Fork) | `qqmg9R1HRZdsljgt` | Customer (payment receipt — 4 variants: deposit/partial/full/BACS) |
+| Stripe payment verified + recorded | VenueDesk - Financial Operations (Stripe + Manual Fork) | `qqmg9R1HRZdsljgt` | Customer (card payment confirmed — only after Stripe webhook records it) |
+| Customer pending 4–7 days, no deposit | VenueDesk - Pending Lifecycle (Scheduler) | `B0Nuq8kTqfT4f0Sx` | Customer (expiry warning — runs daily at 08:00) |
+
+## Email Content Summary
+
+| Email | Header colour | Key content |
+|-------|--------------|-------------|
+| Enquiry received (customer) | Indigo | Space, date, time, guests, 7-day window warning, contact CTA |
+| New enquiry (staff alert) | Dark slate | Customer name/email/phone, event details, ref ID, dashboard deep link |
+| Booking confirmed | Green | Date, time, space, event type, guests, total/deposit/balance, balance-due callout if applicable |
+| Deposit confirmed | Indigo | Amount paid, room, date/time, reference number, balance remaining |
+| Partial payment | Amber | Amount paid, remaining balance, reference number |
+| Balance fully settled | Green | Final payment amount, "Fully Paid ✓", reference number |
+| BACS awaiting payment | Amber | Sort code, account number, account name, booking ID as payment ref |
+| Stripe card confirmed | Green | Card payment amount, reference, room, date/time |
+| Expiry warning | Amber | Countdown days remaining, submitted-on date, consequences of inaction, mailto CTA |
+
+## SMTP Credential
+All email nodes use **Hostinger SMTP** (n8n credential ID: `J0qWHzypu4SvoXyg`).
+`fromEmail` on all transactional emails: `bookings@venuedesk.co.uk`.
+
+## Stripe Email Safety Gate (Pattern 28)
+
+**Problem:** The Stripe path in the Financial Operations workflow previously built and sent a
+confirmation email immediately when `payment_method === 'stripe'` was received — before
+verifying that the Stripe webhook had actually recorded the payment in the database. A caller
+could trigger the confirmation email on an unpaid booking.
+
+**Fix:** Before `Code: Build Stripe Email`, the workflow now calls `GET /bookings/{booking_id}`
+and checks if `balance_due` has decreased (proof the Stripe webhook fired). If not, it returns
+HTTP 202 `STRIPE_PAYMENT_PENDING` without sending an email.
+
+```
+IF: Is Stripe? (true)
+  → DB: Verify Stripe Payment  (GET /bookings/{id})
+  → IF: Stripe Payment Recorded?
+      true  → Code: Build Stripe Email → Respond: Success → Email: Stripe Confirmation
+      false → Respond: Payment Not Yet Recorded (HTTP 202)
+```
+
+## Pattern 29 — Never Pin a SplitInBatches Node in test_workflow
+
+**Problem:** Pinning a `splitInBatches` node directly in `test_workflow` strips its internal
+queue state. On every loop-back from the downstream chain (`Email → Mark Warning Sent → Split`),
+the pinned node returns the same item again instead of terminating. This creates an infinite
+loop, sending real emails on every iteration until n8n's execution limit is reached.
+
+**Symptom:** 100+ duplicate emails sent during testing.
+
+**Rule:** Never add a `splitInBatches` node to `pinData` in `test_workflow`. Instead:
+- Pin only the HTTP Request nodes that feed INTO the loop
+- Let the SplitInBatches node run normally — it will process the pinned data correctly
+- If you need to test just the Code/Email logic inside the loop, pin the HTTP nodes that
+  the Code nodes read from (e.g. `HTTP: Get Pending Warnings`) but leave `Split: Warning Batch`
+  unpinned
+
+**Also note:** `test_workflow` does NOT automatically pin credential-based nodes (emailSend).
+Real emails will be sent. If testing against a real inbox, use a test email address or
+ensure SMTP rate limits won't be hit by rapid consecutive test runs.
+
+## Enquiry Form → Notification Webhook
+
+Both submission paths in `enquiry-form.html` now fire a fire-and-forget POST to
+`https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email` after a successful
+`POST /enquiry/create-request`. The payload includes all enquiry fields plus `booking_request_id`
+from the db-api response.
+
+```javascript
+// Both submitEnquiry() (free) and submitWithDeposit() (Stripe) paths:
+fetch('https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...payload, booking_request_id: j.booking_request_id || null })
+}).catch(() => {});  // fire-and-forget — never blocks the user flow
+```
+
+The n8n workflow (`Jh6nCEqLVFONT8IB`) sends both emails in parallel with the `Respond: OK`
+node, so the response to the frontend is never delayed by email sending.
