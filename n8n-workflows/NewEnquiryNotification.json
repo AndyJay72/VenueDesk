@@ -1,0 +1,164 @@
+{
+  "name": "VenueDesk - New Enquiry Notification",
+  "nodes": [
+    {
+      "id": "nen-webhook-001",
+      "name": "Webhook: New Enquiry Email",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enquiry-received-email",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "nen-code-cust-001",
+      "name": "Code: Customer Acknowledgement",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        720,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const b = ($input.first().json.body) ? $input.first().json.body : $input.first().json;\n\nconst customerName  = b.customer_name  || b.full_name || b.name || 'Valued Customer';\nconst customerEmail = b.customer_email || b.email     || '';\nconst eventType     = b.event_type     || 'Event';\nconst roomName      = b.room_name      || b.rooms?.[0]?.name || 'TBC';\nconst eventDate     = b.event_date     || b.date_from || null;\nconst startTime     = b.start_time     || null;\nconst endTime       = b.end_time       || null;\nconst guestCount    = b.guest_count    || b.num_people || null;\nconst venueName     = b.venue_name     || 'our venue';\nconst requestId     = b.booking_request_id || b.request_id || '';\n\nconst fmtDate = d => {\n  if (!d) return '\u2014';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\n\nif (!customerEmail) return [];\n\nconst subject = `\ud83d\udcec Enquiry Received \u2014 ${venueName} | VenueDesk`;\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk \u00b7 Booking System</p>\n      <h1 style=\"margin:0 0 6px;color:#fff;font-size:22px;font-weight:700;\">\ud83d\udcec Enquiry Received</h1>\n      <p style=\"margin:0;color:rgba(255,255,255,.9);font-size:14px;\">We'll review your request shortly</p>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        Thank you for your enquiry! We've received your request to hire <strong>${venueName}</strong> \n        and a member of our team will review it and be in touch within <strong>24\u201348 hours</strong> \n        to confirm availability and next steps.\n      </p>\n      \n      <!-- Enquiry Summary -->\n      <div style=\"background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:24px;\">\n        <h3 style=\"margin:0 0 14px;color:#111827;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;\">\ud83d\udccb Your Enquiry Summary</h3>\n        <table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n          <tr><td style=\"padding:5px 0;color:#6b7280;width:38%;\">Space Requested</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${roomName}</td></tr>\n          <tr><td style=\"padding:5px 0;color:#6b7280;\">Event Type</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${eventType}</td></tr>\n          ${eventDate ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Preferred Date</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${fmtDate(eventDate)}</td></tr>` : ''}\n          ${(startTime && endTime) ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Preferred Time</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${String(startTime).slice(0,5)} \u2013 ${String(endTime).slice(0,5)}</td></tr>` : ''}\n          ${guestCount ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Number of Guests</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${guestCount}</td></tr>` : ''}\n        </table>\n      </div>\n      \n      <!-- Important notice -->\n      <div style=\"background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #6366f1;border-radius:8px;padding:14px 16px;margin-bottom:24px;\">\n        <p style=\"margin:0;color:#1e40af;font-size:13px;font-weight:600;\">\ud83d\udccc Important: 7-Day Confirmation Window</p>\n        <p style=\"margin:8px 0 0;color:#1e3a8a;font-size:13px;line-height:1.55;\">\n          Your enquiry will remain active for <strong>7 days</strong>. To secure your booking, \n          a deposit must be paid within this period. Our team will contact you with payment options \n          after reviewing your request.\n        </p>\n      </div>\n      \n      <p style=\"margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        If you have any questions in the meantime, don't hesitate to reach out \u2014 we're here to help make your event a success!\n      </p>\n      \n      <div style=\"text-align:center;margin:24px 0 20px;\">\n        <a href=\"mailto:bookings@venuedesk.co.uk?subject=Following%20up%20on%20my%20venue%20enquiry\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Get in Touch \u2192\n        </a>\n      </div>\n      \n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">\ud83d\udce7 bookings@venuedesk.co.uk</p>\n        ${requestId ? `<p style=\"margin:10px 0 0;font-size:11px;color:#9ca3af;\">Enquiry Reference: ${requestId}</p>` : ''}\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: customerEmail, subject, html, customer_name: customerName } }];"
+      }
+    },
+    {
+      "id": "nen-code-staff-001",
+      "name": "Code: Staff Notification",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        720,
+        420
+      ],
+      "parameters": {
+        "jsCode": "const b = $('Webhook: New Enquiry Email').first().json.body || $('Webhook: New Enquiry Email').first().json;\n\nconst customerName  = b.customer_name  || b.full_name || b.name || 'Unknown';\nconst customerEmail = b.customer_email || b.email     || '\u2014';\nconst customerPhone = b.phone || '\u2014';\nconst eventType     = b.event_type     || '\u2014';\nconst roomName      = b.room_name      || b.rooms?.[0]?.name || 'TBC';\nconst eventDate     = b.event_date     || b.date_from || null;\nconst startTime     = b.start_time     || null;\nconst endTime       = b.end_time       || null;\nconst guestCount    = b.guest_count    || b.num_people || '\u2014';\nconst staffEmail    = b.staff_notification_email || 'bookings@venuedesk.co.uk';\nconst requestId     = b.booking_request_id || b.request_id || 'N/A';\nconst tenantId      = b.tenant_id || '';\n\nconst fmtDate = d => {\n  if (!d) return '\u2014';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\n\nconst now = new Date().toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'short', timeStyle: 'short' });\n\nconst subject = `\ud83d\udd14 New Venue Enquiry \u2014 ${customerName} | ${fmtDate(eventDate)}`;\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:560px;margin:0 auto;padding:24px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-radius:10px 10px 0 0;padding:20px 24px;\">\n      <p style=\"margin:0 0 3px;color:#94a3b8;font-size:10px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk \u00b7 Staff Alert</p>\n      <h1 style=\"margin:0;color:#fff;font-size:18px;font-weight:700;\">\ud83d\udd14 New Enquiry Received</h1>\n      <p style=\"margin:6px 0 0;color:#64748b;font-size:12px;\">${now}</p>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:24px;\">\n      <table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n        <tr style=\"background:#f8fafc;\"><th colspan=\"2\" style=\"padding:8px 10px;text-align:left;color:#6366f1;font-size:11px;text-transform:uppercase;letter-spacing:.05em;\">Customer Details</th></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;width:35%;\">Name</td><td style=\"padding:6px 10px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;\">${customerName}</td></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Email</td><td style=\"padding:6px 10px;border-bottom:1px solid #f1f5f9;\"><a href=\"mailto:${customerEmail}\" style=\"color:#6366f1;\">${customerEmail}</a></td></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Phone</td><td style=\"padding:6px 10px;color:#111827;border-bottom:1px solid #f1f5f9;\">${customerPhone}</td></tr>\n        <tr style=\"background:#f8fafc;\"><th colspan=\"2\" style=\"padding:8px 10px;text-align:left;color:#6366f1;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:14px;\">Booking Request</th></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Space</td><td style=\"padding:6px 10px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;\">${roomName}</td></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Event Type</td><td style=\"padding:6px 10px;color:#111827;border-bottom:1px solid #f1f5f9;\">${eventType}</td></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Date</td><td style=\"padding:6px 10px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;\">${fmtDate(eventDate)}</td></tr>\n        ${(startTime && endTime) ? `<tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Time</td><td style=\"padding:6px 10px;color:#111827;border-bottom:1px solid #f1f5f9;\">${String(startTime).slice(0,5)} \u2013 ${String(endTime).slice(0,5)}</td></tr>` : ''}\n        <tr><td style=\"padding:6px 10px;color:#6b7280;border-bottom:1px solid #f1f5f9;\">Guests</td><td style=\"padding:6px 10px;color:#111827;border-bottom:1px solid #f1f5f9;\">${guestCount}</td></tr>\n        <tr><td style=\"padding:6px 10px;color:#6b7280;\">Ref ID</td><td style=\"padding:6px 10px;color:#111827;font-family:monospace;font-size:11px;\">${requestId}</td></tr>\n      </table>\n      <div style=\"text-align:center;margin:20px 0 4px;\">\n        <a href=\"https://andyjay72.github.io/VenueDesk/index.html\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:11px 24px;border-radius:7px;font-size:13px;font-weight:600;\">\n          Review in Dashboard \u2192\n        </a>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: staffEmail, subject, html } }];"
+      }
+    },
+    {
+      "id": "nen-email-cust-001",
+      "name": "Email: Customer Acknowledgement",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        960,
+        180
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "replyTo": "bookings@venuedesk.co.uk"
+        }
+      }
+    },
+    {
+      "id": "nen-email-staff-001",
+      "name": "Email: Staff New Enquiry",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        960,
+        420
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "replyTo": "bookings@venuedesk.co.uk"
+        }
+      }
+    },
+    {
+      "id": "nen-respond-001",
+      "name": "Respond: OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        720,
+        560
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: New Enquiry Email": {
+      "main": [
+        [
+          {
+            "node": "Code: Customer Acknowledgement",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code: Staff Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond: OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Customer Acknowledgement": {
+      "main": [
+        [
+          {
+            "node": "Email: Customer Acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Staff Notification": {
+      "main": [
+        [
+          {
+            "node": "Email: Staff New Enquiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

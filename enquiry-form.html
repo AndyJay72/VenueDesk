@@ -834,6 +834,12 @@
                 const j = await res.json().catch(() => ({}));
                 if (res.ok && j.success) {
                     showToast("Enquiry sent! We'll be in touch shortly.", 'success');
+                    // Fire-and-forget: send acknowledgement email to customer + staff notification
+                    const p = buildEnquiryPayload(false);
+                    fetch('https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...p, booking_request_id: j.booking_request_id || null })
+                    }).catch(() => {});
                     form.reset();
                     document.getElementById('costEstimateRow').style.display = 'none';
                     setAvailStatus('idle', 'Select a room, dates and times to check availability');
@@ -913,6 +919,12 @@
                 if (!eRes.ok || !ej.success) throw new Error(ej.message || 'Enquiry submission failed');
                 // booking_request_id is now guaranteed — endpoint always returns it
                 const bookingRequestId = ej.booking_request_id || null;
+
+                // Fire-and-forget: acknowledgement email + staff notification
+                fetch('https://n8n.srv1090894.hstgr.cloud/webhook/enquiry-received-email', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload, booking_request_id: bookingRequestId })
+                }).catch(() => {});
 
                 // Step 2 — create Stripe Checkout Session (public endpoint, no JWT)
                 // SECURITY: /public-session re-validates tenant server-side and enforces

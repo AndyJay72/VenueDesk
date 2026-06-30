@@ -218,6 +218,76 @@
         1168,
         480
       ]
+    },
+    {
+      "id": "vcb-http-003",
+      "name": "DB: Get Customer For Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1700,
+        480
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.venuedesk.co.uk/customers/{{ $('Webhook: Confirm Booking').first().json.body?.customer_id || 'unknown' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Webhook: Confirm Booking').first().json.body?.jwt || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 8000
+        }
+      }
+    },
+    {
+      "id": "vcb-code-003",
+      "name": "Code: Build Confirmation Email",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1900,
+        480
+      ],
+      "parameters": {
+        "jsCode": "// Build booking confirmation email\n// Data comes from Webhook body + DB: Get Customer response\nconst wb    = $('Webhook: Confirm Booking').first().json.body || {};\nconst custR = $input.first().json;\n\n// Customer fields \u2014 prefer DB response, fall back to webhook body\nconst customer_name  = custR?.data?.full_name   || custR?.full_name   || wb.customer_name  || 'Valued Customer';\nconst customer_email = custR?.data?.email        || custR?.email       || wb.customer_email || '';\n\nif (!customer_email) return [];   // no email \u2014 skip gracefully\n\nconst fmt     = n  => '\u00a3' + parseFloat(n || 0).toFixed(2);\nconst fmtDate = d  => {\n  if (!d) return '\u2014';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\n\n// Extract booking details from webhook body\nconst total       = parseFloat(wb.total_amount  || 0);\nconst balanceDue  = parseFloat(wb.balance_due   || 0);\nconst deposit     = parseFloat(wb.deposit_amount || Math.max(0, total - balanceDue));\nconst rooms       = Array.isArray(wb.rooms) ? wb.rooms : [];\nconst roomList    = rooms.length ? rooms.map(r => r.name || r).join(', ') : 'Your reserved space';\nconst eventDate   = wb.event_date  || wb.date_from  || custR?.data?.event_date  || null;\nconst startTime   = wb.start_time  || custR?.data?.start_time  || null;\nconst endTime     = wb.end_time    || custR?.data?.end_time    || null;\nconst eventType   = wb.event_type  || custR?.data?.event_type  || 'Event';\nconst guestCount  = wb.guest_count || wb.guests || custR?.data?.guests_count || null;\nconst payMethod   = (wb.payment_method || 'cash').toLowerCase();\nconst isDepositOnly = deposit > 0 && balanceDue > 0;\n\nconst payMethodLabel = {\n  'cash':         'Cash',\n  'bacs':         'Bank Transfer (BACS)',\n  'bank_transfer':'Bank Transfer (BACS)',\n  'cheque':       'Cheque',\n  'card':         'Card Terminal',\n  'stripe':       'Online Card Payment'\n}[payMethod] || payMethod;\n\nconst subject = `\u2705 Booking Confirmed \u2014 ${fmtDate(eventDate)} | VenueDesk`;\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk \u00b7 Booking System</p>\n      <h1 style=\"margin:0 0 6px;color:#fff;font-size:22px;font-weight:700;\">\u2705 Booking Confirmed</h1>\n      <p style=\"margin:0;color:rgba(255,255,255,.9);font-size:14px;\">Your venue reservation is secured</p>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 20px;color:#111827;font-size:15px;\">Hi <strong>${customer_name}</strong>,</p>\n      <p style=\"margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        Great news! Your venue booking has been confirmed by our team. \n        Here's a summary of your reservation:\n      </p>\n      \n      <!-- Booking Details -->\n      <div style=\"background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:24px;\">\n        <h3 style=\"margin:0 0 14px;color:#111827;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;\">\ud83d\udccb Booking Details</h3>\n        <table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n          ${eventDate ? `<tr><td style=\"padding:5px 0;color:#6b7280;width:40%;\">Date</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${fmtDate(eventDate)}</td></tr>` : ''}\n          ${(startTime && endTime) ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Time</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${String(startTime).slice(0,5)} \u2013 ${String(endTime).slice(0,5)}</td></tr>` : ''}\n          <tr><td style=\"padding:5px 0;color:#6b7280;\">Space</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${roomList}</td></tr>\n          ${eventType ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Event Type</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${eventType}</td></tr>` : ''}\n          ${guestCount ? `<tr><td style=\"padding:5px 0;color:#6b7280;\">Guests</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">${guestCount}</td></tr>` : ''}\n        </table>\n      </div>\n      \n      <!-- Payment Summary -->\n      <div style=\"background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px;margin-bottom:24px;\">\n        <h3 style=\"margin:0 0 14px;color:#065f46;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;\">\ud83d\udcb3 Payment Summary</h3>\n        <table style=\"width:100%;border-collapse:collapse;font-size:13px;\">\n          <tr><td style=\"padding:5px 0;color:#065f46;width:40%;\">Total Hire Fee</td><td style=\"padding:5px 0;color:#111827;font-weight:700;\">${fmt(total)}</td></tr>\n          ${deposit > 0 ? `<tr><td style=\"padding:5px 0;color:#065f46;\">Deposit Paid</td><td style=\"padding:5px 0;color:#10b981;font-weight:700;\">${fmt(deposit)} via ${payMethodLabel}</td></tr>` : ''}\n          ${balanceDue > 0 ? `<tr style=\"border-top:1px solid #bbf7d0;\"><td style=\"padding:8px 0 0;color:#065f46;font-weight:700;\">Balance Due</td><td style=\"padding:8px 0 0;color:#d97706;font-weight:700;\">${fmt(balanceDue)}</td></tr>` : `<tr><td style=\"padding:5px 0;color:#065f46;font-weight:700;\">Status</td><td style=\"padding:5px 0;color:#10b981;font-weight:700;\">Fully Paid \u2713</td></tr>`}\n        </table>\n      </div>\n      \n      ${balanceDue > 0 ? `\n      <div style=\"background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin-bottom:24px;\">\n        <p style=\"margin:0;color:#92400e;font-size:13px;font-weight:600;\">\ud83d\udca1 Outstanding Balance</p>\n        <p style=\"margin:6px 0 0;color:#78350f;font-size:13px;line-height:1.55;\">\n          You have an outstanding balance of <strong>${fmt(balanceDue)}</strong> which is due on or before your event date.\n          Our team will be in touch to arrange payment.\n        </p>\n      </div>` : ''}\n      \n      <div style=\"text-align:center;margin:24px 0 20px;\">\n        <a href=\"mailto:bookings@venuedesk.co.uk\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us \u2192\n        </a>\n      </div>\n      \n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">\ud83d\udce7 bookings@venuedesk.co.uk</p>\n        <p style=\"margin:10px 0 0;font-size:11px;color:#9ca3af;\">\n          Please keep this email for your records. If any details are incorrect, contact us immediately.\n        </p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: customer_email, subject, html, customer_name } }];"
+      }
+    },
+    {
+      "id": "vcb-email-001",
+      "name": "Email: Booking Confirmed",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        2100,
+        480
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "oWx6QKxXljDdeSDP",
+          "name": "SMTP account"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "replyTo": "bookings@venuedesk.co.uk"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -279,6 +349,11 @@
             "node": "DB: Log Confirm Interaction (New)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "DB: Get Customer For Email",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -295,6 +370,11 @@
             "node": "DB: Log Confirm Interaction (Upd)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "DB: Get Customer For Email",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -304,6 +384,28 @@
         [
           {
             "node": "DB: Close Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Get Customer For Email": {
+      "main": [
+        [
+          {
+            "node": "Code: Build Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Email: Booking Confirmed",
             "type": "main",
             "index": 0
           }

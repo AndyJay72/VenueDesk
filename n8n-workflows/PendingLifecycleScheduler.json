@@ -77,17 +77,18 @@
       "parameters": {
         "fromEmail": "bookings@venuedesk.co.uk",
         "toEmail": "={{ $json.email }}",
-        "subject": "Your venue enquiry expires in {{ 7 - $json.days_pending }} day(s) \u2014 VenueDesk",
+        "subject": "={{ $json.subject }}",
         "options": {
-          "allowUnauthorizedCerts": false
-        }
+          "replyTo": "bookings@venuedesk.co.uk"
+        },
+        "html": "={{ $json.html }}"
       },
       "id": "08f84ed8-47a3-4cb2-8303-a6b909be2c69",
       "name": "Email: Day 4 Warning",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1728,
+        1848,
         272
       ],
       "webhookId": "dd67b9fd-c63e-4c14-bca9-5430321c5331",
@@ -165,6 +166,18 @@
         1008,
         672
       ]
+    },
+    {
+      "id": "pls-code-002",
+      "name": "Code: Build Warning Email",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1608,
+        272
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst daysLeft = Math.max(1, Math.ceil(7 - parseFloat(r.days_pending || 4)));\nconst customerName = r.full_name || 'Valued Customer';\nconst email = r.email || '';\n\nconst fmtDate = d => {\n  if (!d) return '\u2014';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst submittedOn = r.created_at ? fmtDate(r.created_at) : 'recently';\nconst dayWord = daysLeft === 1 ? 'day' : 'days';\nconst subject = `\u23f0 Action required: Your venue enquiry expires in ${daysLeft} ${dayWord} \u2014 VenueDesk`;\n\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk \u00b7 Booking System</p>\n      <h1 style=\"margin:0 0 10px;color:#fff;font-size:20px;font-weight:700;\">\u23f0 Your Enquiry Expires Soon</h1>\n      <div style=\"background:rgba(0,0,0,.18);border-radius:8px;padding:8px 20px;display:inline-block;\">\n        <span style=\"color:#fff;font-size:32px;font-weight:800;\">${daysLeft}</span>\n        <span style=\"color:rgba(255,255,255,.9);font-size:15px;font-weight:600;\"> ${dayWord} remaining</span>\n      </div>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        Your venue enquiry submitted on <strong>${submittedOn}</strong> is still awaiting confirmation.\n        A deposit must be paid within <strong style=\"color:#d97706;\">${daysLeft} ${dayWord}</strong>\n        or your enquiry will expire and be automatically removed from our system.\n      </p>\n      <div style=\"background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin:20px 0;\">\n        <p style=\"margin:0;color:#92400e;font-size:13px;font-weight:700;\">\u26a0\ufe0f What happens if I don\u2019t act?</p>\n        <p style=\"margin:8px 0 0;color:#78350f;font-size:13px;line-height:1.55;\">\n          Your enquiry will be permanently removed. You\u2019ll need to submit a new enquiry to re-start the process and availability cannot be guaranteed.\n        </p>\n      </div>\n      <div style=\"margin:24px 0;\">\n        <p style=\"margin:0 0 10px;color:#111827;font-size:14px;font-weight:600;\">To secure your booking, you can:</p>\n        <ul style=\"margin:0;padding-left:20px;color:#4b5563;font-size:13px;line-height:1.9;\">\n          <li>Call or email us to arrange a deposit payment</li>\n          <li>Reply to this email to discuss your requirements</li>\n        </ul>\n      </div>\n      <div style=\"text-align:center;margin:28px 0 20px;\">\n        <a href=\"mailto:bookings@venuedesk.co.uk?subject=Confirming%20my%20venue%20enquiry%20\u2014%20${encodeURIComponent(customerName)}\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us to Confirm \u2192\n        </a>\n      </div>\n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">\ud83d\udce7 bookings@venuedesk.co.uk</p>\n        <p style=\"margin:12px 0 0;font-size:11px;color:#9ca3af;\">\n          This is an automated reminder. If you have already been in touch, please disregard this message.\n          Reference: ${r.id || 'N/A'}\n        </p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email, subject, html, customer_id: r.id, customer_name: customerName, days_left: daysLeft } }];"
+      }
     }
   ],
   "pinData": {},
@@ -211,7 +224,7 @@
       "main": [
         [
           {
-            "node": "Email: Day 4 Warning",
+            "node": "Code: Build Warning Email",
             "type": "main",
             "index": 0
           }
@@ -234,6 +247,17 @@
         [
           {
             "node": "Split: Warning Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Warning Email": {
+      "main": [
+        [
+          {
+            "node": "Email: Day 4 Warning",
             "type": "main",
             "index": 0
           }
