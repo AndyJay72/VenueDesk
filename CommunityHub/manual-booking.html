@@ -494,6 +494,13 @@
                         <i class="fa-solid fa-chevron-down icon-right"></i>
                     </div>
                 </div>
+                <!-- Room operating hours hint — shown when selected room has set hours -->
+                <div class="input-group full-width" id="mbRoomHoursHintRow" style="display:none;">
+                    <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:8px;font-size:0.82rem;color:var(--text-muted);">
+                        <i class="fa-solid fa-clock" style="color:var(--primary);flex-shrink:0;"></i>
+                        <span id="mbRoomHoursHintText"></span>
+                    </div>
+                </div>
                 <div class="input-group full-width">
                     <label>Notes (optional)</label>
                     <div class="input-wrapper">
@@ -736,8 +743,25 @@
             document.getElementById('roomId').value   = sel.value;
             document.getElementById('roomName').value = opt ? opt.text.replace(/\s*\(Cap:.*\)$/, '').trim() : '';
             calculateCost();
+            _updateMBRoomHoursHint();
             checkAvailability();
             checkGuestCapacity();
+        }
+
+        function _updateMBRoomHoursHint() {
+            const roomId = document.getElementById('roomId').value;
+            const room   = roomsData.find(r => String(r.id) === String(roomId));
+            const row    = document.getElementById('mbRoomHoursHintRow');
+            const txt    = document.getElementById('mbRoomHoursHintText');
+            if (!row || !txt) return;
+            if (room && (room.open_time || room.close_time)) {
+                const open  = room.open_time  ? String(room.open_time).slice(0, 5)  : '—';
+                const close = room.close_time ? String(room.close_time).slice(0, 5) : '—';
+                txt.textContent = `${room.name} operating hours: ${open} – ${close}`;
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         }
 
         function checkGuestCapacity() {
@@ -837,6 +861,7 @@
                 setButtons(false);
                 return;
             }
+            clearTimeout(_availTimeout);  // cancel any pending debounce before running guards
 
             // Blocked date check — scan every date in the selected range
             const msPerDay = 86400000;
@@ -855,6 +880,34 @@
                 }
             }
 
+            // ── Start/end order guard ────────────────────────────────────────────────
+            if (start && end && start >= end) {
+                el.className = 'avail-status unavailable';
+                el.querySelector('i').className = 'fa-solid fa-circle-xmark';
+                txt.textContent = 'End time must be after start time';
+                setButtons(false);
+                return;
+            }
+            // ── Per-room operating hours guard (fail-fast — no API call) ──────────────
+            const _mbRoomId = document.getElementById('roomId').value;
+            const _mbRoom   = roomsData.find(r => String(r.id) === String(_mbRoomId));
+            if (_mbRoom) {
+                const _hh = t => String(t).slice(0, 5);
+                if (_mbRoom.open_time && start < _hh(_mbRoom.open_time)) {
+                    el.className = 'avail-status unavailable';
+                    el.querySelector('i').className = 'fa-solid fa-circle-xmark';
+                    txt.textContent = `${_mbRoom.name} doesn't open until ${_hh(_mbRoom.open_time)} — choose a later start time`;
+                    setButtons(false);
+                    return;
+                }
+                if (_mbRoom.close_time && end > _hh(_mbRoom.close_time)) {
+                    el.className = 'avail-status unavailable';
+                    el.querySelector('i').className = 'fa-solid fa-circle-xmark';
+                    txt.textContent = `${_mbRoom.name} closes at ${_hh(_mbRoom.close_time)} — choose an earlier end time`;
+                    setButtons(false);
+                    return;
+                }
+            }
             clearTimeout(_availTimeout);
             _availTimeout = setTimeout(async () => {
                 el.className = 'avail-status checking';

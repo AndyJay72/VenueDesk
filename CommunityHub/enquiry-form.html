@@ -295,6 +295,13 @@
                         <i class="fa-solid fa-chevron-down icon-right"></i>
                     </div>
                 </div>
+                <!-- Room operating hours hint — shown when selected room has set hours -->
+                <div class="input-group full-width" id="roomHoursHintRow" style="display:none;">
+                    <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:8px;font-size:0.82rem;color:var(--text-muted);">
+                        <i class="fa-solid fa-clock" style="color:var(--primary);flex-shrink:0;"></i>
+                        <span id="roomHoursHintText"></span>
+                    </div>
+                </div>
                 <div class="input-group">
                     <label>Number of Guests <span style="color:var(--danger)">*</span></label>
                     <div class="input-wrapper">
@@ -507,7 +514,23 @@
         function onPrimaryRoomChange() {
             renderAdditionalRoomsList();
             calcCost();
+            _updateRoomHoursHint();
             checkAvailability();
+        }
+
+        function _updateRoomHoursHint() {
+            const room = enquiryRoomsData.find(r => r.name === (document.getElementById('roomName').value || ''));
+            const row  = document.getElementById('roomHoursHintRow');
+            const txt  = document.getElementById('roomHoursHintText');
+            if (!row || !txt) return;
+            if (room && (room.open_time || room.close_time)) {
+                const open  = room.open_time  ? String(room.open_time).slice(0, 5)  : '—';
+                const close = room.close_time ? String(room.close_time).slice(0, 5) : '—';
+                txt.textContent = `${room.name} operating hours: ${open} – ${close}`;
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         }
 
         const todayStr = new Date().toISOString().split('T')[0];
@@ -564,6 +587,7 @@
             const dep = document.getElementById('depositBtn');
             if (dep) { dep.disabled = true; document.getElementById('depositNote').style.display = 'none'; }
             if (!room || !dateFrom || !start || !end) { setAvailStatus('idle','Select a room, dates and times to check availability'); return; }
+            clearTimeout(_availTimeout);  // cancel any pending debounce before running guards
             if (!dateTo || dateTo < dateFrom) { setAvailStatus('unavailable','Please select a valid end date (on or after start date).'); return; }
             const msPerDay = 86400000;
             const numDays  = Math.round((new Date(dateTo) - new Date(dateFrom)) / msPerDay) + 1;
@@ -574,7 +598,19 @@
                 if (bl) { setAvailStatus('unavailable', 'Sorry, the venue is closed on ' + ds + ' (' + bl + ').'); return; }
             }
             if (start >= end) { setAvailStatus('unavailable','End time must be after start time.'); return; }
-            clearTimeout(_availTimeout);
+            // ── Per-room operating hours guard (fail-fast — no API call) ──────────────
+            const _hrRoom = enquiryRoomsData.find(r => r.name === room);
+            if (_hrRoom) {
+                const _hh = t => String(t).slice(0, 5);
+                if (_hrRoom.open_time && start < _hh(_hrRoom.open_time)) {
+                    setAvailStatus('unavailable', `${room} doesn't open until ${_hh(_hrRoom.open_time)} — please choose a later start time.`);
+                    return;
+                }
+                if (_hrRoom.close_time && end > _hh(_hrRoom.close_time)) {
+                    setAvailStatus('unavailable', `${room} closes at ${_hh(_hrRoom.close_time)} — please choose an earlier end time.`);
+                    return;
+                }
+            }
             _availTimeout = setTimeout(async () => {
                 setAvailStatus('checking', 'Checking availability for ' + (numDays > 1 ? numDays+'-day booking' : dateFrom) + '...');
                 try {
