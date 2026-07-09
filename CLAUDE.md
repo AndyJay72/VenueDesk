@@ -2633,6 +2633,101 @@ Returns HTTP 400. NULL = unconstrained (venue-wide window applies). Comparison i
 
 **Data flow:** browser → n8n (full `$json.body` passthrough) → db-api `/config/rooms/create|update` → `bookings.rooms.open_time / close_time`.
 
+### Phase 3 — Client-side fail-fast guards (July 2026)
+
+**Problem (before):** Backend enforced room hours correctly (400 on violation), but `enquiry-form.html` and `manual-booking.html` were blind to these rules. The user could select an invalid time, fill out the rest of the form, then discover the error on submit — the "Bouncer at the back door" problem.
+
+**Three changes per page:**
+
+**1. Room hours hint strip** — appears below the time selectors immediately when a room is selected. Hidden when both columns are NULL.
+
+`enquiry-form.html` — `_updateRoomHoursHint()` called from `onPrimaryRoomChange()`:
+```javascript
+function _updateRoomHoursHint() {
+    const room = enquiryRoomsData.find(r => r.name === (document.getElementById('roomName').value || ''));
+    const row  = document.getElementById('roomHoursHintRow');
+    const txt  = document.getElementById('roomHoursHintText');
+    if (room && (room.open_time || room.close_time)) {
+        const open  = room.open_time  ? String(room.open_time).slice(0, 5)  : '—';
+        const close = room.close_time ? String(room.close_time).slice(0, 5) : '—';
+        txt.textContent = `${room.name} operating hours: ${open} – ${close}`;
+        row.style.display = '';
+    } else { row.style.display = 'none'; }
+}
+```
+
+`manual-booking.html` — `_updateMBRoomHoursHint()` called from `onRoomChange()`. Same logic, looks up by `roomId` (UUID) in `roomsData`, uses `#mbRoomHoursHintRow` / `#mbRoomHoursHintText`.
+
+**2. Synchronous guard in `checkAvailability()` — fires before the 500ms debounce:**
+```javascript
+const _hrRoom = enquiryRoomsData.find(r => r.name === room);
+if (_hrRoom) {
+    const _hh = t => String(t).slice(0, 5);
+    if (_hrRoom.open_time && start < _hh(_hrRoom.open_time)) {
+        setAvailStatus('unavailable', `${room} doesn't open until ${_hh(_hrRoom.open_time)} — please choose a later start time.`);
+        return;
+    }
+    if (_hrRoom.close_time && end > _hh(_hrRoom.close_time)) {
+        setAvailStatus('unavailable', `${room} closes at ${_hh(_hrRoom.close_time)} — please choose an earlier end time.`);
+        return;
+    }
+}
+```
+Same guard in `manual-booking.html` with lookup by `roomId` from `roomsData`.
+
+**3. `clearTimeout` moved before all guards (critical fix)**
+
+`clearTimeout(_availTimeout)` was previously called only immediately before `setTimeout(fn, 500)`. When a guard fired and returned early, the pending debounce from the *previous* field change was still live and would fire the API call 500ms later.
+
+**Fix:** Move `clearTimeout` to immediately after the missing-fields check:
+```javascript
+if (!room || !dateFrom || !start || !end) { setAvailStatus('idle', '...'); return; }
+clearTimeout(_availTimeout);  // cancel any pending debounce BEFORE running guards
+// ... all guards that can return early ...
+_availTimeout = setTimeout(async () => { ... }, 500);
+```
+
+**Also fixed in `manual-booking.html`:** `start >= end` guard added (was missing).
+
+**Full-stack coverage after Phase 3:**
+
+| Page | Hint strip | Client guard | API guard |
+|---|---|---|---|
+| `calendar.html` | ✅ availability box shows room window | ✅ `_getRoomWindow()` in `qbCheckAvailability` | ✅ `/bookings/create` → 400 |
+| `enquiry-form.html` | ✅ `#roomHoursHintRow` below time selectors | ✅ guard before debounce | ✅ `/enquiry/create-request` → 400 |
+| `manual-booking.html` | ✅ `#mbRoomHoursHintRow` below time selectors | ✅ guard before debounce | ✅ `/bookings/create` → 400 |
+
+**Test:** `tests/playwright/room_hours_guard_e2e.js` — 16 PASS · 0 FAIL (July 2026). Intercepts `check-availability` to confirm zero API calls on violations; confirms API IS called on valid times.
+
+---
+
+## Pattern 30 — Fail-Fast UX: Mirror Backend Constraints Client-Side
+
+**Problem:** A backend that strictly enforces constraints (room hours, capacity, 90-day ceiling) creates a "Bouncer at the back door" scenario when the frontend is blind to those rules. The user invests effort into a selection the system already knows is invalid — discovering the error only on submit or after an API round-trip.
+
+**Rule:** Any constraint enforced by the API that is derivable from data already present on the page MUST also be enforced client-side, in the validation function, BEFORE the debounced API call. The data you need is already captured — you just need to read it.
+
+**Implementation checklist:**
+1. **Capture:** Constraint data is usually already in the page-load fetch (rooms, event types, etc.) — no extra API calls or sessionStorage needed.
+2. **Guard placement:** Synchronous check in `checkAvailability()`, after the missing-fields guard but before `clearTimeout` / debounce.
+3. **`clearTimeout` position (critical):** Move `clearTimeout(_availTimeout)` to immediately after the missing-fields guard, before ALL other guards. Without this, a pending debounce from the previous field change fires an API call even after a guard returns early.
+4. **Proactive hint:** Show the constraint value proactively (e.g., room hours strip shown on room select) so the user knows the valid range before picking an invalid value.
+
+**Test pattern:**
+```javascript
+let apiCallMade = false;
+await page.route('**/check-availability**', route => { apiCallMade = true; route.continue(); });
+// Select invalid time...
+await page.waitForTimeout(700);  // longer than debounce
+log(!apiCallMade ? '✅' : '❌', 'Guard fires — no API call');
+// Select valid time...
+await page.waitForTimeout(700);
+log(apiCallMade ? '✅' : '❌', 'Valid times — API IS called');
+```
+
+**Currently applied to:** room hours on `enquiry-form.html` and `manual-booking.html` (Phase 3 of Pattern 19).
+**Already present on:** `calendar.html` via `_getRoomWindow()` (June 2026).
+
 ---
 
 ## Customer Interactions — Endpoint & Workflow Reference (June 2026)

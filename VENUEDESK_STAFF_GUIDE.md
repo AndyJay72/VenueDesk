@@ -64,7 +64,8 @@ Use this when a customer contacts you in advance and you want to check availabil
    - **Event Type** – select from the dropdown (e.g. Meeting, Party, Workshop).
    - **Start Time / End Time** – pick from the dropdowns. The **availability status** bar updates automatically:
      - 🟢 **Available** – slot is free, you can proceed.
-     - 🔴 **Unavailable** – another booking exists. Choose different times.
+     - 🔴 **Unavailable** – another booking exists, or the time falls outside the room's operating hours. Choose different times.
+     - If the room has set operating hours, the panel shows them as a hint (e.g. "Main Hall operating hours: 09:00 – 21:00") and rejects out-of-hours selections without a server round-trip.
    - **Number of Guests** – enter the expected guest count. A warning appears if it exceeds the room's capacity.
    - **Notes** – optional, e.g. "requires projector".
    - **Multi-day event?** – click **"Requires multiple days"** to reveal **Date From / Date To** fields. Maximum span is 90 days.
@@ -95,7 +96,7 @@ Use this for drop-in customers who need to be booked quickly at the front desk.
    - **Number of Guests** *(required)*
    - **Start Time / End Time** *(required)*
    - **Notes** *(optional)*
-4. The **availability status bar** shows whether the slot is free.
+4. The **availability status bar** shows whether the slot is free. If the selected room has operating hours configured, a hint strip appears below the time dropdowns showing the valid window (e.g. "Main Hall operating hours: 09:00 – 21:00"). Choosing a time outside those hours marks the slot unavailable immediately, before any server check.
 5. The **Total Cost** box calculates automatically.
 6. Under **Payment**, select the payment method (Cash, Card, Bank Transfer, etc.).
 7. Choose an action:
@@ -179,6 +180,7 @@ The check also catches:
 - Blocked dates (venue closed days, one-off closures, date ranges)
 - End time not after start time
 - Date range exceeding 90 days
+- **Room operating hours** — if the selected room has set open/close times, the form shows a hint strip ("Main Hall operating hours: 09:00 – 21:00") as soon as the room is chosen, and immediately marks the slot unavailable if the chosen start or end time is outside those hours — without waiting for a server round-trip
 
 The form sends a `POST /webhook/check-availability` to confirm against existing bookings.
 

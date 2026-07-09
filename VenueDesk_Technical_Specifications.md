@@ -1373,7 +1373,19 @@ if (room.close_time && end_time.slice(0, 5) > toHHMM(room.close_time))
 
 `calendar.html` respects per-room hours in the quick-book panel via `_getRoomWindow(roomName)` (falls back to `VENUE_OPEN_MINS`/`VENUE_CLOSE_MINS` when NULL).
 
-`enquiry-form.html` does not enforce room hours client-side — the API enforces on submission.
+**Client-side enforcement (July 2026 — Phase 3):** `enquiry-form.html` and `manual-booking.html` now enforce room hours before the debounced API call:
+
+1. **Room hours hint strip** — shown immediately when a room is selected (`#roomHoursHintRow`). Hidden when both columns are NULL.
+2. **Synchronous guard** in `checkAvailability()` — if `start < room.open_time` or `end > room.close_time`, sets `unavailable` status and returns without making an API call. `clearTimeout` is moved to after the missing-fields check so a pending debounce from the previous field change is always cancelled before any guard can return early.
+3. **`start >= end` guard** also added to `manual-booking.html` (was missing).
+
+| Page | Hint strip | Client guard | API guard |
+|---|---|---|---|
+| `calendar.html` | availability box shows room window | `_getRoomWindow()` in `qbCheckAvailability` | `/bookings/create` → 400 |
+| `enquiry-form.html` | `#roomHoursHintRow` below time selectors | guard before debounce | `/enquiry/create-request` → 400 |
+| `manual-booking.html` | `#mbRoomHoursHintRow` below time selectors | guard before debounce | `/bookings/create` → 400 |
+
+Test: `tests/playwright/room_hours_guard_e2e.js` — 16 PASS · 0 FAIL (July 2026). See CLAUDE.md Pattern 19 (Phase 3) and Pattern 30 for implementation detail.
 
 ### 10.6 UTC Date Guards (Pattern 12)
 
