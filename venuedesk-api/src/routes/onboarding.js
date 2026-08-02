@@ -303,10 +303,10 @@ async function onboardingRoutes(fastify) {
 
 
   // ─── POST /onboarding/update-venue ───────────────────────────────────────
-  // Updates tenant name/slug and staff user full_name in a single transaction.
+  // Updates tenant name/slug, contact name, and optionally the admin username.
   // Blank strings leave existing values intact (CASE WHEN pattern).
   //
-  // Body: { tenant_id, venue_name?, slug?, full_name? }
+  // Body: { tenant_id, venue_name?, slug?, full_name?, new_username? }
   fastify.post('/update-venue', {
     preHandler: [requireAdminKey],
     schema: {
@@ -314,26 +314,31 @@ async function onboardingRoutes(fastify) {
         type: 'object',
         required: ['tenant_id'],
         properties: {
-          tenant_id:  { type: 'integer' },
-          venue_name: { type: 'string' },
-          slug:       { type: 'string' },
-          full_name:  { type: 'string' },
-          admin_key:  { type: 'string' },
+          tenant_id:    { type: 'integer' },
+          venue_name:   { type: 'string' },
+          slug:         { type: 'string' },
+          full_name:    { type: 'string' },
+          new_username: { type: 'string' },
+          admin_key:    { type: 'string' },
         },
       },
     },
   }, async (request) => {
     const {
       tenant_id,
-      venue_name = '',
-      slug       = '',
-      full_name  = '',
+      venue_name   = '',
+      slug         = '',
+      full_name    = '',
+      new_username = '',
     } = request.body;
+
+    const normUsername = new_username.trim().toLowerCase();
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      // Update tenant row
       await client.query(
         `UPDATE bookings.tenants
          SET name         = CASE WHEN $1 <> '' THEN $1 ELSE name END,
@@ -343,18 +348,24 @@ async function onboardingRoutes(fastify) {
         [venue_name, slug, full_name, tenant_id]
       );
 
-      if (full_name) {
+      // Update staff user full_name and/or username
+      if (full_name || normUsername) {
         await client.query(
           `UPDATE bookings.staff_users
-           SET full_name = $1
-           WHERE tenant_id = $2`,
-          [full_name, tenant_id]
+           SET full_name = CASE WHEN $1 <> '' THEN $1 ELSE full_name END,
+               username  = CASE WHEN $2 <> '' THEN $2 ELSE username  END
+           WHERE tenant_id = $3`,
+          [full_name, normUsername, tenant_id]
         );
       }
 
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
+      // Username conflict
+      if (err.code === '23505') {
+        return { ok: false, code: 'CONFLICT', message: `Username '${normUsername}' is already taken` };
+      }
       throw err;
     } finally {
       client.release();

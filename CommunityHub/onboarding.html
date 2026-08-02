@@ -1056,9 +1056,15 @@ body.sidebar-collapsed .nav-link:hover::after {
         <input type="text" id="editSlug" placeholder="e.g. park-suite">
       </div>
     </div>
-    <div class="input-group">
-      <label>Contact Name</label>
-      <input type="text" id="editFullName" placeholder="e.g. Jane Smith">
+    <div class="row2">
+      <div class="input-group">
+        <label>Contact Name</label>
+        <input type="text" id="editFullName" placeholder="e.g. Jane Smith">
+      </div>
+      <div class="input-group">
+        <label>Admin Username</label>
+        <input type="text" id="editUsername" placeholder="e.g. parksuite" autocomplete="off" style="font-family:monospace">
+      </div>
     </div>
     <div class="input-group" style="margin-bottom:0.5rem">
       <label>Staff Seats</label>
@@ -1673,6 +1679,7 @@ function openEditModal(tenantId) {
   document.getElementById('editVenueName').value  = v.venue_name || '';
   document.getElementById('editSlug').value       = v.slug || '';
   document.getElementById('editFullName').value   = v.full_name || '';
+  document.getElementById('editUsername').value   = v.username || '';
   document.getElementById('editModalLabel').textContent = `Editing: ${v.venue_name} (#${tenantId})`;
   const curSeats = v.max_users || v.max_seats || 1;
   document.getElementById('editSeats').textContent = curSeats;
@@ -1690,10 +1697,11 @@ function autoEditSlug() {
 async function confirmEditVenue() {
   const btn = document.getElementById('editSaveBtn');
   const tenantId  = parseInt(document.getElementById('editTenantId').value, 10);
-  const venueName = document.getElementById('editVenueName').value.trim();
-  const slug      = document.getElementById('editSlug').value.trim();
-  const fullName  = document.getElementById('editFullName').value.trim();
-  const active    = document.getElementById('editVenueActive').value === 'true';
+  const venueName   = document.getElementById('editVenueName').value.trim();
+  const slug        = document.getElementById('editSlug').value.trim();
+  const fullName    = document.getElementById('editFullName').value.trim();
+  const newUsername = document.getElementById('editUsername').value.trim().toLowerCase();
+  const active      = document.getElementById('editVenueActive').value === 'true';
   if (!venueName) { showToast('Venue name is required', 'error'); return; }
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
@@ -1701,7 +1709,7 @@ async function confirmEditVenue() {
     const r = await fetch(N8N + '/onboarding/update-venue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id: tenantId, venue_name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
+      body: JSON.stringify({ tenant_id: tenantId, venue_name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, new_username: newUsername, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
     });
     const d = await _safeJSON(r);
     if (!_isOK(d)) throw new Error(d.message || 'Update failed');
