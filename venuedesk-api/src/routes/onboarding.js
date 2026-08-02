@@ -422,7 +422,7 @@ async function onboardingRoutes(fastify) {
       await client.query(`DELETE FROM bookings.customer_interactions     WHERE tenant_id = $1`, [tenant_id]);
       await client.query(`DELETE FROM bookings.customers                 WHERE tenant_id = $1`, [tenant_id]);
       await client.query(`DELETE FROM bookings.rooms                     WHERE tenant_id = $1`, [tenant_id]);
-      await client.query(`DELETE FROM bookings.settings                  WHERE tenant_id = $1`, [tenant_id]);
+      // bookings.settings has no tenant_id (global key-value store, RLS-scoped via session)
       await client.query(`DELETE FROM bookings.add_on_services           WHERE tenant_id = $1`, [tenant_id]);
       await client.query(`DELETE FROM bookings.policy_templates          WHERE tenant_id = $1`, [tenant_id]);
       await client.query(`DELETE FROM bookings.staff_users               WHERE tenant_id = $1`, [tenant_id]);
