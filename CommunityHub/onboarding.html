@@ -1545,6 +1545,25 @@ async function toggleVenue(tenantId, name, currentlyActive) {
   }
 }
 
+// ─── Delete tenant ─────────────────────────────────────
+async function deleteTenant(tenantId, name) {
+  if (!confirm(`⚠️ PERMANENTLY DELETE venue "${name}" (#${tenantId})?\n\nThis will remove ALL data — bookings, customers, rooms, payments and staff users.\n\nThis cannot be undone. Are you sure?`)) return;
+  if (!confirm(`Final confirmation: delete "${name}" and all its data?`)) return;
+  try {
+    const r = await fetch(DASH_DB_API + '/onboarding/delete-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant_id: tenantId, confirm: true, admin_key: AUTH })
+    });
+    const d = await _safeJSON(r);
+    if (!_isOK(d)) throw new Error(d.message || 'Delete failed');
+    await loadVenues();
+    showToast(`Venue "${name}" permanently deleted.`, 'error');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
 // ─── Copy enquiry link ─────────────────────────────────
 function copyEnquiryLink(tenantId, venueName) {
   const base = window.location.href.split('/').slice(0, -1).join('/');
@@ -1597,6 +1616,9 @@ function openVenueDetail(tenantId) {
     </button>
     <button class="btn btn-sm btn-danger" onclick="closeVenueDetail();toggleVenue(${v.tenant_id},'${esc(v.venue_name)}',${v.active})">
       <i class="fa-solid fa-${v.active ? 'pause' : 'play'}"></i> ${v.active ? 'Deactivate' : 'Reactivate'}
+    </button>
+    <button class="btn btn-sm" onclick="closeVenueDetail();deleteTenant(${v.tenant_id},'${esc(v.venue_name)}')" style="background:rgba(239,68,68,0.10);color:#f87171;border-color:rgba(239,68,68,0.35);margin-top:0.5rem">
+      <i class="fa-solid fa-trash-can"></i> Delete Venue
     </button>`;
 
   // Launch grid

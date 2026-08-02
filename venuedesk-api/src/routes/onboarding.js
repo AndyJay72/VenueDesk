@@ -363,6 +363,83 @@ async function onboardingRoutes(fastify) {
     return { ok: true };
   });
 
+
+  // ─── POST /onboarding/delete-tenant ──────────────────────────────────────
+  // Permanently deletes a tenant and ALL associated data in a transaction.
+  // Cascades through: staff_users, customers, interactions, booking_requests,
+  // confirmed_bookings, payments, rooms, settings, recurring data, etc.
+  //
+  // Safety guards:
+  //   • tenant_id 1 (system admin) is never deletable
+  //   • requires confirm: true in body to prevent accidental deletion
+  //
+  // Body: { tenant_id, confirm: true }
+  fastify.post('/delete-tenant', {
+    preHandler: [requireAdminKey],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['tenant_id', 'confirm'],
+        properties: {
+          tenant_id: { type: 'integer', minimum: 1 },
+          confirm:   { type: 'boolean' },
+          admin_key: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { tenant_id, confirm } = request.body;
+
+    if (tenant_id === 1) {
+      return { ok: false, code: 'FORBIDDEN', message: 'System admin tenant cannot be deleted' };
+    }
+    if (confirm !== true) {
+      return { ok: false, code: 'CONFIRMATION_REQUIRED', message: 'Pass confirm: true to proceed' };
+    }
+
+    // Verify tenant exists first
+    const { rowCount: exists } = await pool.query(
+      `SELECT 1 FROM bookings.tenants WHERE tenant_id = $1`, [tenant_id]
+    );
+    if (exists === 0) {
+      return { ok: false, code: 'NOT_FOUND', message: `Tenant ${tenant_id} not found` };
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete in dependency order to avoid FK violations
+      await client.query(`DELETE FROM bookings.recurring_payment_schedule WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.recurring_series          WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.recurring_rules           WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.payments
+                          WHERE booking_id IN (
+                            SELECT id FROM bookings.confirmed_bookings WHERE tenant_id = $1
+                          )`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.confirmed_bookings        WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.booking_requests          WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.customer_interactions     WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.customers                 WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.rooms                     WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.settings                  WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.add_on_services           WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.policy_templates          WHERE tenant_id = $1`, [tenant_id]);
+      await client.query(`DELETE FROM bookings.staff_users               WHERE tenant_id = $1`, [tenant_id]);
+      const { rows } = await client.query(
+        `DELETE FROM bookings.tenants WHERE tenant_id = $1 RETURNING tenant_id, name`, [tenant_id]
+      );
+
+      await client.query('COMMIT');
+      return { ok: true, deleted: { tenant_id, name: rows[0]?.name } };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  });
+
 }
 
 module.exports = onboardingRoutes;
