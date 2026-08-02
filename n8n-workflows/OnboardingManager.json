@@ -522,7 +522,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Update Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Update Venue').first().json.body?.venue_name || '', slug: $('Webhook: Update Venue').first().json.body?.slug || '', full_name: $('Webhook: Update Venue').first().json.body?.full_name || '', max_users: parseInt($('Webhook: Update Venue').first().json.body?.max_users || '1') }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Update Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Update Venue').first().json.body?.venue_name || '', slug: $('Webhook: Update Venue').first().json.body?.slug || '', full_name: $('Webhook: Update Venue').first().json.body?.full_name || '', new_username: $('Webhook: Update Venue').first().json.body?.new_username || '', max_users: parseInt($('Webhook: Update Venue').first().json.body?.max_users || '1') }) }}",
         "options": {
           "continueOnFail": true
         }
