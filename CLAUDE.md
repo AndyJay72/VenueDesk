@@ -2308,6 +2308,68 @@ granularities (halves/thirds/quarters and cross-level combinations).
 
 ---
 
+## 13. Onboarding — Duplicate Venue Display + Add User Fix + Delete Tenant ✅ DONE (August 2 2026)
+
+Commits `9506b5f`, `49b6dee`, `9dc6f26`.
+
+### Bug A — Duplicate tenant 1001 in venues list
+
+`GET /onboarding/venues` used a plain `LEFT JOIN bookings.staff_users ON u.tenant_id = t.tenant_id`.
+With two staff users (arj72, sun80) for tenant 1001, the join returned two rows — both rendered
+as separate "venues" in the onboarding page.
+
+**Fix:** Added `DISTINCT ON (t.tenant_id)` to the query, ordered by `u.role = 'admin' DESC` then
+`u.created_at ASC`. The primary admin user always wins; secondary users are hidden from the list.
+
+### Bug B — "Set Login" called `create-venue` (wrong endpoint)
+
+`confirmResetPw()` in `onboarding.html` called `N8N + '/onboarding/create-venue'` for new users.
+`create-venue` also runs `UPDATE bookings.tenants SET name, slug` — an unwanted side-effect when
+just adding a staff login to an existing venue.
+
+**Fix:** New `POST /onboarding/create-staff-user` endpoint that only inserts into `bookings.staff_users`
+and verifies the tenant exists first. `confirmResetPw()` now calls this directly on db-api.
+
+### New endpoints (all `X-Admin-Key` protected, cross-tenant, use systemPool)
+
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| `POST` | `/onboarding/create-staff-user` | `{tenant_id, username, password, full_name?}` | Add staff login to existing tenant — does NOT touch `bookings.tenants` |
+| `POST` | `/onboarding/delete-staff-user` | `{username}` | Delete a staff user by username (cleanup of accidental duplicates) |
+| `POST` | `/onboarding/delete-tenant` | `{tenant_id, confirm:true}` | Permanently delete a tenant and ALL associated data in a transaction |
+
+### delete-tenant cascade order
+
+Deletes in FK dependency order inside a single transaction. Rolls back on any error.
+
+1. `bookings.recurring_payment_schedule` — WHERE tenant_id
+2. `bookings.recurring_series` — WHERE tenant_id
+3. `bookings.recurring_rules` — WHERE tenant_id
+4. `bookings.payments` — WHERE booking_id IN (SELECT id FROM confirmed_bookings WHERE tenant_id)
+5. `bookings.confirmed_bookings` — WHERE tenant_id
+6. `bookings.booking_requests` — WHERE tenant_id
+7. `bookings.customer_interactions` — WHERE tenant_id
+8. `bookings.customers` — WHERE tenant_id
+9. `bookings.rooms` — WHERE tenant_id
+10. `bookings.add_on_services` — WHERE tenant_id
+11. `bookings.policy_templates` — WHERE tenant_id
+12. `bookings.staff_users` — WHERE tenant_id
+13. `bookings.tenants` — WHERE tenant_id (RETURNING name for response)
+
+**`bookings.settings` is NOT in the cascade** — it has no `tenant_id` column (global key-value
+store; tenant isolation is via RLS session variable `app.tenant_id`, not a column).
+
+**Safety guards:** `tenant_id = 1` (System Admin) is permanently blocked. `confirm: true` must
+be present in the body or the endpoint returns `CONFIRMATION_REQUIRED` without touching the DB.
+
+### onboarding.html UI change
+
+**Delete Venue** button added to the venue detail panel (click a venue row → bottom of panel).
+Two `window.confirm()` dialogs prevent accidental deletion. Calls `DASH_DB_API + /onboarding/delete-tenant`
+directly (not via n8n proxy).
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
@@ -3023,6 +3085,16 @@ Renders: Timestamp / Action / Target Tenant / Admin / Details grid.
 | `onboarding/toggle-venue` | POST | `POST /onboarding/toggle-venue` | `X-Admin-Key` header |
 | `onboarding/update-venue` | POST | `POST /onboarding/update-venue` | `X-Admin-Key` header |
 | `onboarding/system-logs` | GET | `GET /admin/system-logs` | Service JWT (Authorization header) |
+
+## db-api direct endpoints (not proxied through n8n)
+
+These are called directly from `onboarding.html` — no n8n workflow involved.
+
+| Method | Path | Called from | Purpose |
+|--------|------|-------------|---------|
+| `POST` | `/onboarding/create-staff-user` | `confirmResetPw()` (isNew) | Add staff login to existing tenant |
+| `POST` | `/onboarding/delete-staff-user` | (admin cleanup only) | Delete a staff user by username |
+| `POST` | `/onboarding/delete-tenant` | `deleteTenant()` button | Permanently delete tenant + all data |
 
 ## Audit fan-out pattern (v3)
 
