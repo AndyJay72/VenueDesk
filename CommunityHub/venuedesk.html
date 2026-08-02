@@ -222,9 +222,11 @@
         /* ── DEMO VIDEO ──────────────────────────────────────────────── */
         .demo-video { background: var(--bg); }
         .demo-video-player {
-            width: 100%; max-width: 860px; margin: 2.5rem auto 0;
-            display: block; border-radius: 16px;
-            box-shadow: var(--shadow-lg);
+            width: 100%; max-width: 1100px; margin: 2.5rem auto 0;
+            display: block; border-radius: 10px;
+            box-shadow: 0 24px 64px rgba(99,102,241,.22);
+            aspect-ratio: 16/9;
+            background: #000;
         }
 
         /* ── CTA BANNER ─────────────────────────────────────────────── */
@@ -642,6 +644,22 @@
             document.getElementById('hamIcon').className = 'fa-solid fa-bars';
         }
     });
+
+    // Autoplay demo video when scrolled into view; pause when scrolled out
+    (function () {
+        const vid = document.querySelector('.demo-video-player');
+        if (!vid) return;
+        const io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    vid.play().catch(function () {});
+                } else {
+                    vid.pause();
+                }
+            });
+        }, { threshold: 0.5 });
+        io.observe(vid);
+    })();
 </script>
 </body>
 </html>
