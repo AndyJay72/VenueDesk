@@ -3486,3 +3486,57 @@ const staffEmail = cfg.staff_notification_email || 'bookings@venuedesk.co.uk';
 ```
 The setting is read fresh on every enquiry — changing it in Admin Config takes effect
 immediately on the next submission, no restart or re-import required.
+
+---
+
+# 🎙️ venuedesk.html Demo Video — Voiceover Script
+
+**File:** `demo.mp4` (repo root + served via `venuedesk.co.uk/demo.mp4`)
+**Duration:** 2 minutes 8 seconds across 10 scenes
+**Contact for replacement recordings:** deliver as `Scene 1.m4a` – `Scene 10.m4a` to `~/Downloads/voiceover/`, then run `python3 mix_voiceover.py` to process and re-mix.
+
+## Replacing recordings
+
+1. Drop new files into `~/Downloads/voiceover/` using the same filenames (`Scene 1.m4a` – `Scene 10.m4a`)
+2. Run: `python3 mix_voiceover.py` from the repo root
+3. The script processes audio (highpass 80Hz + loudnorm –14 LUFS), resizes scenes to fit, regenerates video and mixes in one pass
+4. Commit and push `demo.mp4`
+
+## Script by scene
+
+**Scene 1 — Title (target ~7s)**
+> "Welcome to VenueDesk — the simple room booking CRM built for community venues."
+
+**Scene 2 — Dashboard (target ~10s)**
+> "Your real-time dashboard gives you an instant overview of monthly revenue, pending requests, and upcoming bookings — all in one place."
+
+**Scene 3 — Calendar (target ~10s)**
+> "The visual booking calendar shows every room at a glance, colour-coded by status, with month, week, and day views."
+
+**Scene 4 — Walk-In Booking (target ~10s)**
+> "Take walk-in bookings in seconds. Enter the customer's details, select a room, date, and time — and the system handles the rest."
+
+**Scene 5 — Recurring Bookings (target ~10s)**
+> "Manage weekly and monthly recurring series with ease. Cancel individual sessions or an entire series — with full payment tracking throughout."
+
+**Scene 6 — Customer CRM (target ~10s)**
+> "Full customer profiles give you a complete picture — booking history, payment records, staff notes, and interaction logs, all in one view."
+
+**Scene 7 — Payments & Accounts (target ~10s)**
+> "Track outstanding balances, record cash, card, and bank transfer payments, and keep your accounts reconciled — without a spreadsheet in sight."
+
+**Scene 8 — Enquiry Form (target ~10s)**
+> "Your public enquiry form lets customers check live availability and submit booking requests directly — appearing instantly in your dashboard."
+
+**Scene 9 — Admin Config (target ~10s)**
+> "Full admin control over your rooms, pricing grids, cancellation policies, staff logins, and Stripe payment settings."
+
+**Scene 10 — CTA (target ~8s)**
+> "Ready to fill your rooms? Book a free 30-minute demo today — no commitment and no credit card required."
+
+## Recording notes
+
+- Record each scene as a **separate file** — the script pads silence around each clip automatically
+- Speak at a natural pace; target durations above are approximate, the script adjusts scene length to fit
+- Any format accepted: M4A, MP3, WAV
+- Current recordings: Andrew Johnson (temp), August 2026 — to be replaced by voiceover artist
