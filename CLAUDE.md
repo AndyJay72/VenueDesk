@@ -2338,6 +2338,26 @@ and verifies the tenant exists first. `confirmResetPw()` now calls this directly
 | `POST` | `/onboarding/delete-staff-user` | `{username}` | Delete a staff user by username (cleanup of accidental duplicates) |
 | `POST` | `/onboarding/delete-tenant` | `{tenant_id, confirm:true}` | Permanently delete a tenant and ALL associated data in a transaction |
 
+### ⚠️ Auth key architecture — critical (August 2 2026)
+
+**Problem:** `onboarding.html` has two auth constants that are NOT the same value:
+
+| Constant | Value | Used for |
+|----------|-------|----------|
+| `AUTH` (frontend) | `'vp-api-2026-Kj9mXqR4wZ'` (plain text) | Sent in body to n8n webhooks |
+| `ONBOARDING_ADMIN_KEY` (env var) | SHA256 hash (different value) | n8n injects as `X-Admin-Key` to db-api |
+
+**Rule:** `onboarding.html` must NEVER call db-api directly for admin operations. All calls must go through n8n, which injects `$env.ONBOARDING_ADMIN_KEY` as the `X-Admin-Key` header.
+
+Direct db-api calls with `admin_key: AUTH` (plain text) → db-api returns `401 INVALID_ADMIN_KEY` because `AUTH ≠ ONBOARDING_ADMIN_KEY`.
+
+**Fix applied:** Both `create-staff-user` and `delete-tenant` were initially calling `DASH_DB_API` directly (returning 401 silently). Fixed by adding n8n webhooks and changing frontend calls to `N8N + '/onboarding/...'`.
+
+**Whenever adding a new onboarding operation:**
+1. Add a db-api endpoint to `onboarding.js`
+2. Add a corresponding webhook to `OnboardingManager.json` using `X-Admin-Key: $env.ONBOARDING_ADMIN_KEY`
+3. Call `N8N + '/onboarding/<path>'` from `onboarding.html` — never `DASH_DB_API` directly
+
 ### delete-tenant cascade order
 
 Deletes in FK dependency order inside a single transaction. Rolls back on any error.
@@ -2365,8 +2385,8 @@ be present in the body or the endpoint returns `CONFIRMATION_REQUIRED` without t
 ### onboarding.html UI change
 
 **Delete Venue** button added to the venue detail panel (click a venue row → bottom of panel).
-Two `window.confirm()` dialogs prevent accidental deletion. Calls `DASH_DB_API + /onboarding/delete-tenant`
-directly (not via n8n proxy).
+Two `window.confirm()` dialogs prevent accidental deletion. Calls `N8N + '/onboarding/delete-tenant'`
+(proxied through n8n — see auth key architecture note above).
 
 ---
 
@@ -3086,15 +3106,17 @@ Renders: Timestamp / Action / Target Tenant / Admin / Details grid.
 | `onboarding/update-venue` | POST | `POST /onboarding/update-venue` | `X-Admin-Key` header |
 | `onboarding/system-logs` | GET | `GET /admin/system-logs` | Service JWT (Authorization header) |
 
-## db-api direct endpoints (not proxied through n8n)
+## New n8n webhooks (added August 2 2026)
 
-These are called directly from `onboarding.html` — no n8n workflow involved.
+These are proxied through n8n like all other onboarding operations.
+n8n injects `X-Admin-Key: $env.ONBOARDING_ADMIN_KEY` — never use `DASH_DB_API` directly from the browser for admin endpoints.
 
-| Method | Path | Called from | Purpose |
-|--------|------|-------------|---------|
-| `POST` | `/onboarding/create-staff-user` | `confirmResetPw()` (isNew) | Add staff login to existing tenant |
-| `POST` | `/onboarding/delete-staff-user` | (admin cleanup only) | Delete a staff user by username |
-| `POST` | `/onboarding/delete-tenant` | `deleteTenant()` button | Permanently delete tenant + all data |
+| n8n webhook path | db-api endpoint | Called from |
+|-----------------|-----------------|-------------|
+| `onboarding/create-staff-user` | `POST /onboarding/create-staff-user` | `confirmResetPw()` (isNew=true) |
+| `onboarding/delete-tenant` | `POST /onboarding/delete-tenant` | `deleteTenant()` button |
+
+`POST /onboarding/delete-staff-user` is admin-only cleanup — called directly with `X-Admin-Key` from server tools, not from the browser UI.
 
 ## Audit fan-out pattern (v3)
 
