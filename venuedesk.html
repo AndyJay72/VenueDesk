@@ -219,47 +219,13 @@
         .sr-sub  { font-size: .72rem; color: #64748b; }
         .sr-amount { font-size: .85rem; font-weight: 700; color: white; font-family: 'JetBrains Mono', monospace; }
 
-        /* ── PRICING ─────────────────────────────────────────────────── */
-        .pricing { background: var(--bg); }
-        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 3rem; }
-        .price-card {
-            background: var(--white); border: 1px solid var(--border); border-radius: 18px;
-            padding: 2.25rem; position: relative; transition: all .25s;
+        /* ── DEMO VIDEO ──────────────────────────────────────────────── */
+        .demo-video { background: var(--bg); }
+        .demo-video-player {
+            width: 100%; max-width: 860px; margin: 2.5rem auto 0;
+            display: block; border-radius: 16px;
+            box-shadow: var(--shadow-lg);
         }
-        .price-card.featured {
-            border-color: var(--indigo); background: var(--dark);
-            box-shadow: var(--shadow-lg); transform: scale(1.03);
-        }
-        .price-card:hover:not(.featured) { border-color: var(--indigo); box-shadow: var(--shadow); }
-        .price-popular { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--indigo); color: white; font-size: .72rem; font-weight: 700; padding: .3rem 1rem; border-radius: 999px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
-        .price-name { font-size: .85rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: .5rem; }
-        .featured .price-name { color: #94a3b8; }
-        .price-amount { display: flex; align-items: flex-end; gap: 4px; margin-bottom: .5rem; }
-        .price-amount .currency { font-size: 1.3rem; font-weight: 700; color: var(--dark); line-height: 1.8; }
-        .featured .price-amount .currency, .featured .price-num { color: white; }
-        .price-num { font-size: 3rem; font-weight: 800; color: var(--dark); line-height: 1; }
-        .price-period { font-size: .85rem; color: var(--muted); margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
-        .featured .price-period { border-color: rgba(255,255,255,.1); color: #94a3b8; }
-        .price-features { list-style: none; display: flex; flex-direction: column; gap: .75rem; margin-bottom: 2rem; }
-        .price-features li { display: flex; align-items: center; gap: .75rem; font-size: .88rem; color: var(--text); }
-        .featured .price-features li { color: #cbd5e1; }
-        .price-features li i { color: var(--green); font-size: .8rem; flex-shrink: 0; }
-        .price-features li.off { color: var(--muted); opacity: .5; }
-        .price-features li.off i { color: var(--muted); }
-
-        /* ── TESTIMONIALS ────────────────────────────────────────────── */
-        .testimonials { background: var(--white); }
-        .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 3rem; }
-        .testi-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; }
-        .testi-stars { color: var(--amber); font-size: .85rem; margin-bottom: 1rem; }
-        .testi-text { font-size: .9rem; color: var(--text); line-height: 1.7; margin-bottom: 1.5rem; font-style: italic; }
-        .testi-author { display: flex; align-items: center; gap: .75rem; }
-        .testi-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: white; flex-shrink: 0; }
-        .ta1 { background: linear-gradient(135deg,#6366f1,#8b5cf6); }
-        .ta2 { background: linear-gradient(135deg,#10b981,#059669); }
-        .ta3 { background: linear-gradient(135deg,#f59e0b,#ef4444); }
-        .testi-name { font-size: .9rem; font-weight: 700; color: var(--dark); }
-        .testi-role { font-size: .78rem; color: var(--muted); }
 
         /* ── CTA BANNER ─────────────────────────────────────────────── */
         .cta-banner {
@@ -299,7 +265,7 @@
             .nav-mobile.open a { color: var(--text); text-decoration: none; font-weight: 500; padding: .5rem 0; border-bottom: 1px solid var(--border); }
             .hero-inner, .showcase-inner { grid-template-columns: 1fr; }
             .hero-mock { order: -1; }
-            .features-grid, .pricing-grid, .testi-grid { grid-template-columns: 1fr; }
+            .features-grid { grid-template-columns: 1fr; }
             .steps { grid-template-columns: 1fr 1fr; }
             .steps::before { display: none; }
             .price-card.featured { transform: scale(1); }
@@ -330,19 +296,16 @@
     <ul class="nav-links">
         <li><a href="#features">Features</a></li>
         <li><a href="#how">How it works</a></li>
-        <li><a href="#pricing">Pricing</a></li>
-        <li><a href="#testimonials">Reviews</a></li>
+        <li><a href="#demo-video">Demo</a></li>
     </ul>
     <div class="nav-cta">
-        <a href="#pricing" class="btn btn-ghost">View Pricing</a>
         <a href="#demo" class="btn btn-primary"><i class="fa-solid fa-rocket"></i> Get a Demo</a>
     </div>
     <button class="nav-ham" onclick="toggleNav()" aria-label="Menu"><i class="fa-solid fa-bars" id="hamIcon"></i></button>
     <div class="nav-mobile" id="navMobile">
         <a href="#features" onclick="toggleNav()">Features</a>
         <a href="#how" onclick="toggleNav()">How it works</a>
-        <a href="#pricing" onclick="toggleNav()">Pricing</a>
-        <a href="#testimonials" onclick="toggleNav()">Reviews</a>
+        <a href="#demo-video" onclick="toggleNav()">Demo</a>
         <a href="#demo" onclick="toggleNav()" style="color:var(--indigo);font-weight:700;">Get a Demo →</a>
     </div>
 </nav>
@@ -408,6 +371,18 @@
                 </div>
             </div>
         </div>
+    </div>
+</section>
+
+<!-- ── DEMO VIDEO ────────────────────────────────────────────────────── -->
+<section class="demo-video" id="demo-video">
+    <div class="section-inner center">
+        <span class="section-tag">See it in action</span>
+        <h2 class="section-title">Watch VenueDesk in 60 seconds</h2>
+        <p class="section-sub">See how simple it is to take a booking, track a payment and manage your rooms.</p>
+        <video class="demo-video-player" src="demo.mp4" controls muted loop playsinline>
+            Your browser does not support the video tag.
+        </video>
     </div>
 </section>
 
@@ -580,115 +555,14 @@
     </div>
 </section>
 
-<!-- ── PRICING ───────────────────────────────────────────────────────── -->
-<section class="pricing" id="pricing">
-    <div class="section-inner">
-        <div class="center">
-            <span class="section-tag">Simple, honest pricing</span>
-            <h2 class="section-title">No hidden fees. Cancel anytime.</h2>
-            <p class="section-sub">Every plan includes setup, unlimited bookings and UK-based support.</p>
-        </div>
-        <div class="pricing-grid">
-            <!-- Starter -->
-            <div class="price-card fade-in">
-                <div class="price-name">Starter</div>
-                <div class="price-amount"><span class="currency">£</span><span class="price-num">49</span></div>
-                <div class="price-period">per month · billed monthly</div>
-                <ul class="price-features">
-                    <li><i class="fa-solid fa-check"></i> Up to 3 rooms</li>
-                    <li><i class="fa-solid fa-check"></i> Unlimited bookings</li>
-                    <li><i class="fa-solid fa-check"></i> Online enquiry form</li>
-                    <li><i class="fa-solid fa-check"></i> Payment tracking</li>
-                    <li><i class="fa-solid fa-check"></i> Customer CRM</li>
-                    <li class="off"><i class="fa-solid fa-xmark"></i> Calendar export</li>
-                    <li class="off"><i class="fa-solid fa-xmark"></i> Multi-staff logins</li>
-                    <li class="off"><i class="fa-solid fa-xmark"></i> API access</li>
-                </ul>
-                <a href="#demo" class="btn btn-ghost" style="width:100%;justify-content:center;">Get started</a>
-            </div>
-            <!-- Growth (featured) -->
-            <div class="price-card featured fade-in">
-                <div class="price-popular">Most Popular</div>
-                <div class="price-name">Growth</div>
-                <div class="price-amount"><span class="currency">£</span><span class="price-num">89</span></div>
-                <div class="price-period">per month · billed monthly</div>
-                <ul class="price-features">
-                    <li><i class="fa-solid fa-check"></i> Unlimited rooms</li>
-                    <li><i class="fa-solid fa-check"></i> Unlimited bookings</li>
-                    <li><i class="fa-solid fa-check"></i> Online enquiry form</li>
-                    <li><i class="fa-solid fa-check"></i> Payment tracking</li>
-                    <li><i class="fa-solid fa-check"></i> Customer CRM</li>
-                    <li><i class="fa-solid fa-check"></i> Calendar export</li>
-                    <li><i class="fa-solid fa-check"></i> 5 staff logins</li>
-                    <li class="off"><i class="fa-solid fa-xmark"></i> API access</li>
-                </ul>
-                <a href="#demo" class="btn btn-primary" style="width:100%;justify-content:center;">Get started</a>
-            </div>
-            <!-- Pro -->
-            <div class="price-card fade-in">
-                <div class="price-name">Pro</div>
-                <div class="price-amount"><span class="currency">£</span><span class="price-num">149</span></div>
-                <div class="price-period">per month · billed monthly</div>
-                <ul class="price-features">
-                    <li><i class="fa-solid fa-check"></i> Unlimited rooms</li>
-                    <li><i class="fa-solid fa-check"></i> Unlimited bookings</li>
-                    <li><i class="fa-solid fa-check"></i> Online enquiry form</li>
-                    <li><i class="fa-solid fa-check"></i> Payment tracking</li>
-                    <li><i class="fa-solid fa-check"></i> Customer CRM</li>
-                    <li><i class="fa-solid fa-check"></i> Calendar export</li>
-                    <li><i class="fa-solid fa-check"></i> Unlimited staff logins</li>
-                    <li><i class="fa-solid fa-check"></i> Full API access</li>
-                </ul>
-                <a href="#demo" class="btn btn-ghost" style="width:100%;justify-content:center;">Get started</a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ── TESTIMONIALS ──────────────────────────────────────────────────── -->
-<section class="testimonials" id="testimonials">
-    <div class="section-inner">
-        <div class="center">
-            <span class="section-tag">Real venues, real results</span>
-            <h2 class="section-title">Loved by hall managers</h2>
-        </div>
-        <div class="testi-grid">
-            <div class="testi-card fade-in">
-                <div class="testi-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
-                <p class="testi-text">"We went from a shared spreadsheet to having everything in one place. Bookings, payments, customer details — it's transformed how we run the hall. I can't imagine going back."</p>
-                <div class="testi-author">
-                    <div class="testi-avatar ta1">SH</div>
-                    <div><div class="testi-name">Sandra Hughes</div><div class="testi-role">Manager · Thornfield Village Hall</div></div>
-                </div>
-            </div>
-            <div class="testi-card fade-in">
-                <div class="testi-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
-                <p class="testi-text">"The capacity enforcement alone has saved us from a potential safety incident. VenueDesk blocked an over-capacity booking automatically — something we never caught before."</p>
-                <div class="testi-author">
-                    <div class="testi-avatar ta2">MK</div>
-                    <div><div class="testi-name">Marcus Kelly</div><div class="testi-role">Treasurer · Meridian Sports Club</div></div>
-                </div>
-            </div>
-            <div class="testi-card fade-in">
-                <div class="testi-stars"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i></div>
-                <p class="testi-text">"The enquiry form has been brilliant. Customers check availability themselves and submit all the details we need. Our enquiry-to-booking conversion has gone through the roof."</p>
-                <div class="testi-author">
-                    <div class="testi-avatar ta3">JB</div>
-                    <div><div class="testi-name">Janet Brooks</div><div class="testi-role">Events Co-ordinator · The Grange Centre</div></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
 <!-- ── CTA BANNER ────────────────────────────────────────────────────── -->
 <section class="cta-banner" id="demo">
     <div>
         <h2>Ready to fill your rooms?</h2>
         <p>Book a free 30-minute demo and see VenueDesk running with your rooms and pricing.</p>
         <div class="cta-banner-btns">
-            <a href="mailto:hello@venuedesk.co.uk?subject=Demo Request" class="btn btn-white btn-lg"><i class="fa-solid fa-calendar-check"></i> Book a Free Demo</a>
-            <a href="mailto:hello@venuedesk.co.uk" class="btn btn-outline-white btn-lg"><i class="fa-solid fa-envelope"></i> Email Us</a>
+            <a href="mailto:sunita.sooryia@venuedesk.co.uk?subject=Demo Request" class="btn btn-white btn-lg"><i class="fa-solid fa-calendar-check"></i> Book a Free Demo</a>
+            <a href="mailto:sunita.sooryia@venuedesk.co.uk" class="btn btn-outline-white btn-lg"><i class="fa-solid fa-envelope"></i> Email Us</a>
         </div>
         <p class="cta-note">No credit card required &nbsp;·&nbsp; Setup included &nbsp;·&nbsp; Cancel anytime</p>
     </div>
@@ -708,15 +582,15 @@
                     <a href="#"><i class="fa-brands fa-twitter"></i></a>
                     <a href="#"><i class="fa-brands fa-linkedin"></i></a>
                     <a href="#"><i class="fa-brands fa-facebook"></i></a>
-                    <a href="mailto:hello@venuedesk.co.uk"><i class="fa-solid fa-envelope"></i></a>
+                    <a href="mailto:sunita.sooryia@venuedesk.co.uk"><i class="fa-solid fa-envelope"></i></a>
                 </div>
             </div>
             <div class="footer-col">
                 <h4>Product</h4>
                 <ul>
                     <li><a href="#features">Features</a></li>
-                    <li><a href="#pricing">Pricing</a></li>
                     <li><a href="#how">How it works</a></li>
+                    <li><a href="#demo-video">Watch Demo</a></li>
                     <li><a href="#demo">Get a Demo</a></li>
                 </ul>
             </div>
@@ -735,7 +609,7 @@
                     <li><a href="#">About</a></li>
                     <li><a href="#">Privacy Policy</a></li>
                     <li><a href="#">Terms of Service</a></li>
-                    <li><a href="mailto:hello@venuedesk.co.uk">Contact</a></li>
+                    <li><a href="mailto:sunita.sooryia@venuedesk.co.uk">Contact</a></li>
                 </ul>
             </div>
         </div>
