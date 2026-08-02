@@ -679,6 +679,158 @@
         288,
         2560
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboarding/create-staff-user",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-create-staff-user-001",
+      "name": "Webhook: Create Staff User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1120
+      ],
+      "webhookId": "onboarding-create-staff-user",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/onboarding/create-staff-user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Create Staff User').first().json.body?.tenant_id || '0'), username: $('Webhook: Create Staff User').first().json.body?.username || '', password: $('Webhook: Create Staff User').first().json.body?.password || '', full_name: $('Webhook: Create Staff User').first().json.body?.full_name || '' }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "api-create-staff-user-001",
+      "name": "API: Create Staff User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), data: ($json && $json.data) || null, message: $json && $json.message }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "resp-create-staff-user-001",
+      "name": "Respond: Staff User Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboarding/delete-tenant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-delete-tenant-001",
+      "name": "Webhook: Delete Tenant",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1320
+      ],
+      "webhookId": "onboarding-delete-tenant",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.venuedesk.co.uk/onboarding/delete-tenant",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Admin-Key",
+              "value": "={{ $env.ONBOARDING_ADMIN_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Delete Tenant').first().json.body?.tenant_id || '0'), confirm: true }) }}",
+        "options": {
+          "continueOnFail": true
+        }
+      },
+      "id": "api-delete-tenant-001",
+      "name": "API: Delete Tenant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        1320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: !!($json && ($json.ok || $json.success)), deleted: $json && $json.deleted, message: $json && $json.message }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "resp-delete-tenant-001",
+      "name": "Respond: Tenant Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        1240
+      ]
     }
   ],
   "pinData": {},
@@ -862,6 +1014,50 @@
         [
           {
             "node": "HTTP: Health Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Create Staff User": {
+      "main": [
+        [
+          {
+            "node": "API: Create Staff User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Create Staff User": {
+      "main": [
+        [
+          {
+            "node": "Respond: Staff User Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Delete Tenant": {
+      "main": [
+        [
+          {
+            "node": "API: Delete Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: Delete Tenant": {
+      "main": [
+        [
+          {
+            "node": "Respond: Tenant Deleted",
             "type": "main",
             "index": 0
           }

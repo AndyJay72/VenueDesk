@@ -1550,7 +1550,7 @@ async function deleteTenant(tenantId, name) {
   if (!confirm(`⚠️ PERMANENTLY DELETE venue "${name}" (#${tenantId})?\n\nThis will remove ALL data — bookings, customers, rooms, payments and staff users.\n\nThis cannot be undone. Are you sure?`)) return;
   if (!confirm(`Final confirmation: delete "${name}" and all its data?`)) return;
   try {
-    const r = await fetch(DASH_DB_API + '/onboarding/delete-tenant', {
+    const r = await fetch(N8N + '/onboarding/delete-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant_id: tenantId, confirm: true, admin_key: AUTH })
@@ -1757,7 +1757,7 @@ async function confirmResetPw() {
     let r, d;
     if (isNew) {
       // Add staff user to existing tenant — use dedicated endpoint (not create-venue)
-      r = await fetch(DASH_DB_API + '/onboarding/create-staff-user', {
+      r = await fetch(N8N + '/onboarding/create-staff-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), username, password, full_name: venueName, admin_key: AUTH })
