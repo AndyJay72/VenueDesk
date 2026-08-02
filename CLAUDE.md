@@ -3513,8 +3513,8 @@ immediately on the next submission, no restart or re-import required.
 **Scene 3 — Calendar (target ~10s)**
 > "The visual booking calendar shows every room at a glance, colour-coded by status, with month, week, and day views."
 
-**Scene 4 — Walk-In Booking (target ~10s)**
-> "Take walk-in bookings in seconds. Enter the customer's details, select a room, date, and time — and the system handles the rest."
+**Scene 4 — Quick Booking from the Calendar (target ~10s)**
+> "Click any available date on the calendar to open the Quick Booking drawer — fill in the customer details, select a room and times, and confirm in seconds."
 
 **Scene 5 — Recurring Bookings (target ~10s)**
 > "Manage weekly and monthly recurring series with ease. Cancel individual sessions or an entire series — with full payment tracking throughout."
