@@ -2455,6 +2455,42 @@ db-api `GET /dashboard/monthly-revenue` returns `{ success: true, data: { total_
 **Fix:** Changed to `$json.data?.total_revenue || 0`. Requires re-import of
 `hBclMCxbgmz7f3Za_clean.json` into n8n to take effect.
 
+### Bug 6 — Pending Request Modal Missing Room / Dates / Time / Cost
+
+Discovered during post-fix testing (August 3 2026). Commit `779dd39`.
+
+The `recent_customers` subqueries in `GET /dashboard/recent` and `GET /dashboard/all`
+read `room_name`, `date_from`, `date_to`, `start_time`, `end_time`, and `total_amount`
+exclusively from `booking_requests`. Calendar-created pending bookings exist only in
+`confirmed_bookings` (no `booking_requests` row is created by `/bookings/create`) so all
+six subqueries returned NULL → every detail field in the pending request modal showed N/A.
+
+**Root cause exposed by Bug 3 fix:** Bug 3 made calendar-pending bookings visible in the
+Pending Requests tab for the first time. The missing-detail issue was always latent but
+could not be seen while those requests were hidden.
+
+**Fix:** Wrapped every detail subquery in `COALESCE(booking_requests_subquery, confirmed_bookings_fallback)`.
+The `confirmed_bookings` fallback filters `WHERE cb.status = 'pending'`. Applied in both
+query sites in `dashboard.js`. `booking_requests` retains precedence (enquiry-form path
+unchanged). Example for `room_name`:
+```sql
+COALESCE(
+  (SELECT r.name FROM bookings.booking_requests br
+   JOIN bookings.rooms r ON br.room_id = r.id
+   WHERE br.customer_id = c.id
+     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+   ORDER BY br.created_at DESC LIMIT 1),
+  (SELECT r.name FROM bookings.confirmed_bookings cb
+   JOIN bookings.rooms r ON cb.room_id = r.id
+   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+   ORDER BY cb.created_at DESC LIMIT 1)
+) AS room_name
+```
+
+**Known remaining N/A fields for calendar-created bookings:** `event_type` and `notes`
+come from `bookings.customers` directly and are not set by the calendar quick-book flow.
+This is expected — no fix needed.
+
 ---
 
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
