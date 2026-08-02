@@ -72,6 +72,7 @@ tests/
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| GET | `/config/public/rooms` | **Public — no auth.** Returns active rooms for `?tenant_id=N`. Used by `enquiry-form.html` (no user session). Uses `withTenantContext` parameterised by query param — safe RLS isolation without a JWT. |
 | GET | `/config/rooms` | List rooms for tenant — returns `id, name, capacity, day_rate, half_rate, description, is_active, open_time, close_time` |
 | POST | `/config/rooms/create` | Insert room — accepts `open_time`, `close_time` (TIME strings); stores NULL when blank (no restriction) |
 | POST | `/config/rooms/update` | Update room fields — accepts `open_time`, `close_time`; blank clears to NULL; omitted preserves current |

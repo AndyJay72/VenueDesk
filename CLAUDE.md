@@ -2390,6 +2390,73 @@ Two `window.confirm()` dialogs prevent accidental deletion. Calls `N8N + '/onboa
 
 ---
 
+## 14. Five Dashboard Regressions ✅ DONE (August 3 2026)
+
+Commit `26523e7`.
+
+### Bug 1 — Cross-Tenant Rooms on Enquiry Form
+
+`enquiry-form.html` (public, no user session) called `GET /webhook/get-rooms?tenant_id=N`
+via n8n. n8n's `DB: List Rooms` node used `$env.N8N_SERVICE_JWT` as fallback auth when no
+`?jwt=` query param was present. `N8N_SERVICE_JWT` has `tenant_id: 1001` hardcoded → RLS
+locked to tenant 1001 → tenant 1002's enquiry form showed tenant 1001's rooms.
+
+**Fix:** New `GET /config/public/rooms?tenant_id=N` endpoint in `config.js` — no auth
+required, uses `withTenantContext` parameterised by query param, returns active rooms only.
+`enquiry-form.html` updated to call `EF_DB_API + '/config/public/rooms'` directly, bypassing
+n8n entirely (Pattern 26).
+
+### Bug 2 — Guest Count Silently Lost on Calendar Bookings
+
+`/bookings/make-booking` schema had `guest_count: { anyOf: [{ type: 'number' }, { type: 'null' }] }`.
+Fastify AJV with `coerceTypes: true` coerced valid integer counts through the null branch → stored
+as NULL in DB → guest count always blank on confirmed bookings created via the calendar.
+
+**Fix:** Changed schema to plain `{ type: 'number' }` — null case handled by JS destructuring
+default `guest_count = null`. Handler-level guard already enforces `>= 1` if provided (Pattern 8).
+
+### Bug 3 — Pending Bookings Skipped Pending Requests Tab
+
+`GET /dashboard/all` and `GET /dashboard/recent` both had:
+```sql
+CASE WHEN EXISTS(
+    SELECT 1 FROM bookings.confirmed_bookings cb
+    WHERE cb.customer_id = c.id AND cb.status != 'cancelled'
+) THEN true ELSE false END AS has_booking
+```
+A calendar booking with `status='pending'` is not cancelled → `has_booking = true` → frontend
+filtered the customer OUT of the Pending Requests tab. Staff had no way to see or action it.
+
+**Fix:** Changed to `cb.status NOT IN ('cancelled', 'pending')` in both query sites in
+`dashboard.js`. Pending-status bookings no longer count as "has a booking" for this check —
+the customer correctly appears in Pending Requests for staff to review and confirm.
+
+### Bug 4 — Upcoming Events Show N/A for Contact Details
+
+`renderCard()` in `index.html` sets `isRequest = true` when `item.status === 'pending'`.
+Pending-status bookings from `allUpcomingEvents` (which have `customer_name`, `customer_email`,
+`customer_phone` from `/bookings/list`) were therefore opened via `openModal()` instead of
+`openBookingModal()`. `openModal` read `data.full_name`, `data.email`, `data.phone` —
+fields absent on booking objects — showing N/A for all three.
+
+**Fix:** `openModal()` now falls back: `data.full_name || data.customer_name`, `data.email ||
+data.customer_email`, `data.phone || data.customer_phone` (Pattern 20 — carry all rendered
+fields, or provide fallbacks for both field-name conventions).
+
+### Bug 5 — Monthly Revenue Always Empty
+
+n8n `Respond: Monthly Revenue` node body:
+```
+={{ JSON.stringify({ total_revenue: $json.total_revenue, ... }) }}
+```
+db-api `GET /dashboard/monthly-revenue` returns `{ success: true, data: { total_revenue: X } }`.
+`$json.total_revenue` was therefore `undefined` → revenue always showed £0.00 (Pattern 14 variant).
+
+**Fix:** Changed to `$json.data?.total_revenue || 0`. Requires re-import of
+`hBclMCxbgmz7f3Za_clean.json` into n8n to take effect.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
