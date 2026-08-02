@@ -66,7 +66,8 @@ async function onboardingRoutes(fastify) {
     preHandler: [requireAdminKey],
   }, async () => {
     const { rows } = await pool.query(
-      `SELECT t.tenant_id,
+      `SELECT DISTINCT ON (t.tenant_id)
+              t.tenant_id,
               t.venue_id,
               t.name        AS venue_name,
               t.slug,
@@ -78,7 +79,7 @@ async function onboardingRoutes(fastify) {
               u.id::text    AS user_id
        FROM   bookings.tenants t
        LEFT JOIN bookings.staff_users u ON u.tenant_id = t.tenant_id
-       ORDER BY t.tenant_id`,
+       ORDER BY t.tenant_id, u.role = 'admin' DESC NULLS LAST, u.created_at ASC NULLS LAST`,
     );
     return { success: true, data: rows };
   });
@@ -145,6 +146,87 @@ async function onboardingRoutes(fastify) {
       data:        rows,
       prospect_id: prospect_id || null,   // returned so caller can fire lead-converted if needed
     };
+  });
+
+
+  // ─── POST /onboarding/create-staff-user ──────────────────────────────────
+  // Adds a staff user to an EXISTING tenant without touching the tenant row.
+  // Use this when a venue already exists but needs a login set or a new user added.
+  //
+  // Body: { tenant_id, username, password, full_name? }
+  fastify.post('/create-staff-user', {
+    preHandler: [requireAdminKey],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['tenant_id', 'username', 'password'],
+        properties: {
+          tenant_id: { type: 'integer', minimum: 1 },
+          username:  { type: 'string', minLength: 1 },
+          password:  { type: 'string', minLength: 6 },
+          full_name: { type: 'string' },
+          admin_key: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { tenant_id, username, password, full_name = '' } = request.body;
+    const normUsername   = username.trim().toLowerCase();
+    const hashedPassword = hashPassword(password);
+
+    // Verify tenant exists
+    const { rowCount: tenantExists } = await pool.query(
+      `SELECT 1 FROM bookings.tenants WHERE tenant_id = $1`, [tenant_id]
+    );
+    if (tenantExists === 0) {
+      return { ok: false, code: 'NOT_FOUND', message: `Tenant ${tenant_id} not found` };
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO bookings.staff_users
+         (username, hashed_password, role, full_name, is_active, tenant_id)
+       VALUES ($1, $2, 'admin', $3, TRUE, $4)
+       ON CONFLICT (username) DO UPDATE
+         SET hashed_password = EXCLUDED.hashed_password,
+             full_name       = CASE WHEN EXCLUDED.full_name <> '' THEN EXCLUDED.full_name ELSE bookings.staff_users.full_name END,
+             tenant_id       = EXCLUDED.tenant_id
+       RETURNING id::text, username, role, full_name, tenant_id`,
+      [normUsername, hashedPassword, full_name.trim(), tenant_id]
+    );
+
+    return { ok: true, data: rows[0] };
+  });
+
+
+  // ─── POST /onboarding/delete-staff-user ──────────────────────────────────
+  // Deletes a staff user by username (cross-tenant, admin-key protected).
+  // Use to remove accidental duplicate users.
+  //
+  // Body: { username }
+  fastify.post('/delete-staff-user', {
+    preHandler: [requireAdminKey],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['username'],
+        properties: {
+          username:  { type: 'string', minLength: 1 },
+          admin_key: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { username } = request.body;
+    const normUsername = username.trim().toLowerCase();
+
+    const { rowCount } = await pool.query(
+      `DELETE FROM bookings.staff_users WHERE username = $1`, [normUsername]
+    );
+
+    if (rowCount === 0) {
+      return { ok: false, code: 'NOT_FOUND', message: `User '${normUsername}' not found` };
+    }
+    return { ok: true, deleted: normUsername };
   });
 
 

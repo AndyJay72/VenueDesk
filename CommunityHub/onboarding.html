@@ -1734,11 +1734,11 @@ async function confirmResetPw() {
   try {
     let r, d;
     if (isNew) {
-      // Create staff user for existing tenant
-      r = await fetch(N8N + '/onboarding/create-venue', {
+      // Add staff user to existing tenant — use dedicated endpoint (not create-venue)
+      r = await fetch(DASH_DB_API + '/onboarding/create-staff-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), venue_name: venueName, username, password, full_name: venueName, slug: venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''), admin_key: AUTH })
+        body: JSON.stringify({ tenant_id: parseInt(tenantId, 10), username, password, full_name: venueName, admin_key: AUTH })
       });
       d = await _safeJSON(r);
       if (!_isOK(d)) throw new Error(d.message || 'Failed to set login');
