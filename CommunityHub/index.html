@@ -2122,7 +2122,13 @@
 
             let cardOnclick = '';
 
-            if (isRequest) {
+            if (isRecurring) {
+                // Recurring items always get Manage — never Remove, regardless of status
+                statusHtml = `<span class="status-pill status-outstanding">${formatCurrency(balance)} Cycle</span>`;
+                actionHtml = `<a href="recurring-bookings.html" class="pay-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation()"><i class="fa-solid fa-repeat"></i> Manage</a>`;
+                metaHtml = `<span><i class="fa-solid fa-rotate"></i> ${item.series_reference || 'Contract'}</span>`;
+                cardOnclick = '';
+            } else if (isRequest) {
                 const daysPassed = item.created_at ? Math.floor((Date.now() - new Date(item.created_at).getTime()) / 86400000) : 0;
                 const daysLeft = Math.max(0, 7 - daysPassed);
                 const overdue = daysPassed >= 7;
@@ -2133,18 +2139,11 @@
                 const reqDataStr = encodeURIComponent(JSON.stringify(item));
                 cardOnclick = `openModal('${reqDataStr}')`;
             } else if (isOutstanding) {
-                const typeLabel = isRecurring ? 'Cycle' : 'Due';
-                statusHtml = `<span class="status-pill status-outstanding">${formatCurrency(balance)} ${typeLabel}</span>`;
-                
-                if (isRecurring) {
-                    actionHtml = `<a href="recurring-bookings.html" class="pay-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation()"><i class="fa-solid fa-repeat"></i> Manage</a>`;
-                    metaHtml = `<span><i class="fa-solid fa-rotate"></i> ${item.series_reference || 'Contract'}</span>`;
-                } else {
-                    actionHtml = `<button class="pay-btn" onclick="event.stopPropagation();payBooking('${item.booking_id || item.id}', '${item.customer_id}', ${balance})"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
-                    metaHtml = `<span><i class="fa-solid fa-door-open"></i> ${room}</span><span><i class="fa-solid fa-user-group"></i> ${guests > 0 ? guests + ' guests' : '—'}</span>`;
-                }
+                statusHtml = `<span class="status-pill status-outstanding">${formatCurrency(balance)} Due</span>`;
+                actionHtml = `<button class="pay-btn" onclick="event.stopPropagation();payBooking('${item.booking_id || item.id}', '${item.customer_id}', ${balance})"><i class="fa-solid fa-credit-card"></i> Pay</button>`;
+                metaHtml = `<span><i class="fa-solid fa-door-open"></i> ${room}</span><span><i class="fa-solid fa-user-group"></i> ${guests > 0 ? guests + ' guests' : '—'}</span>`;
                 const outDataStr = encodeURIComponent(JSON.stringify(item));
-                cardOnclick = isRecurring ? '' : `openBookingModal('${outDataStr}')`;
+                cardOnclick = `openBookingModal('${outDataStr}')`;
             } else {
                 statusHtml = `<span class="status-pill status-upcoming">Confirmed</span>`;
                 actionHtml = `<button class="view-btn" onclick="event.stopPropagation();viewBookingDetails('${item.booking_id || item.id}')"><i class="fa-solid fa-eye"></i> View</button>`;

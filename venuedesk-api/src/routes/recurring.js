@@ -1448,6 +1448,21 @@ async function recurringRoutes(fastify) {
          WHERE rps.tenant_id        = $1::int
            AND rps.migration_source = 'phase3'
            AND rps.status IN ('pending', 'overdue')
+           -- Exclude series where every confirmed booking has been cancelled
+           -- (series was cancelled piecemeal rather than via cancel-series flow)
+           AND NOT (
+             EXISTS (
+               SELECT 1 FROM bookings.confirmed_bookings cb_any
+               WHERE cb_any.recurring_series_id = rps.recurring_series_id
+                 AND cb_any.tenant_id           = rps.tenant_id
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM bookings.confirmed_bookings cb_active
+               WHERE cb_active.recurring_series_id = rps.recurring_series_id
+                 AND cb_active.tenant_id            = rps.tenant_id
+                 AND cb_active.status              != 'cancelled'
+             )
+           )
          ORDER BY rps.recurring_series_id, rps.due_date ASC`,
         [tenantId]
       );
