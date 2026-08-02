@@ -110,42 +110,85 @@ async function dashboardRoutes(fastify) {
                   SELECT 1 FROM bookings.confirmed_bookings cb
                   WHERE cb.customer_id = c.id AND cb.status NOT IN ('cancelled', 'pending')
                 ) THEN true ELSE false END AS has_booking,
-                (SELECT br.requested_date
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS requested_date,
-                (SELECT r.name
-                 FROM bookings.booking_requests br
-                 JOIN bookings.rooms r ON br.room_id = r.id
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS room_name,
-                (SELECT br.date_from
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS date_from,
-                (SELECT br.date_to
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS date_to,
-                (SELECT br.start_time
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS start_time,
-                (SELECT br.end_time
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS end_time,
-                (SELECT br.estimated_cost
-                 FROM bookings.booking_requests br
-                 WHERE br.customer_id = c.id
-                   AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                 ORDER BY br.created_at DESC LIMIT 1) AS total_amount
+                COALESCE(
+                  (SELECT br.requested_date
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT COALESCE(cb.date_from, cb.booking_date)
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS requested_date,
+                COALESCE(
+                  (SELECT r.name
+                   FROM bookings.booking_requests br
+                   JOIN bookings.rooms r ON br.room_id = r.id
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT r.name
+                   FROM bookings.confirmed_bookings cb
+                   JOIN bookings.rooms r ON cb.room_id = r.id
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS room_name,
+                COALESCE(
+                  (SELECT br.date_from
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT COALESCE(cb.date_from, cb.booking_date)
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS date_from,
+                COALESCE(
+                  (SELECT br.date_to
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT COALESCE(cb.date_to, cb.booking_date)
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS date_to,
+                COALESCE(
+                  (SELECT br.start_time
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT cb.start_time
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS start_time,
+                COALESCE(
+                  (SELECT br.end_time
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT cb.end_time
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS end_time,
+                COALESCE(
+                  (SELECT br.estimated_cost
+                   FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT cb.total_amount
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1)
+                ) AS total_amount
          FROM bookings.customers c
          WHERE c.status IN ('pending', 'contacted')
            AND c.tenant_id = $1::integer
@@ -346,35 +389,78 @@ async function dashboardRoutes(fastify) {
                     SELECT 1 FROM bookings.confirmed_bookings cb
                     WHERE cb.customer_id = c.id AND cb.status NOT IN ('cancelled', 'pending')
                   ) THEN true ELSE false END AS has_booking,
-                  (SELECT br.requested_date FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS requested_date,
-                  (SELECT r.name FROM bookings.booking_requests br
-                   JOIN bookings.rooms r ON br.room_id = r.id
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS room_name,
-                  (SELECT br.date_from FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS date_from,
-                  (SELECT br.date_to FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS date_to,
-                  (SELECT br.start_time FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS start_time,
-                  (SELECT br.end_time FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS end_time,
-                  (SELECT br.estimated_cost FROM bookings.booking_requests br
-                   WHERE br.customer_id = c.id
-                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
-                   ORDER BY br.created_at DESC LIMIT 1) AS total_amount
+                  COALESCE(
+                    (SELECT br.requested_date FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT COALESCE(cb.date_from, cb.booking_date)
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS requested_date,
+                  COALESCE(
+                    (SELECT r.name FROM bookings.booking_requests br
+                     JOIN bookings.rooms r ON br.room_id = r.id
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT r.name
+                     FROM bookings.confirmed_bookings cb
+                     JOIN bookings.rooms r ON cb.room_id = r.id
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS room_name,
+                  COALESCE(
+                    (SELECT br.date_from FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT COALESCE(cb.date_from, cb.booking_date)
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS date_from,
+                  COALESCE(
+                    (SELECT br.date_to FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT COALESCE(cb.date_to, cb.booking_date)
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS date_to,
+                  COALESCE(
+                    (SELECT br.start_time FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT cb.start_time
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS start_time,
+                  COALESCE(
+                    (SELECT br.end_time FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT cb.end_time
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS end_time,
+                  COALESCE(
+                    (SELECT br.estimated_cost FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT cb.total_amount
+                     FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1)
+                  ) AS total_amount
            FROM bookings.customers c
            WHERE c.status IN ('pending', 'contacted')
              AND c.tenant_id = $1::integer
