@@ -34,9 +34,15 @@ function hashPassword(password) {
 }
 
 // ── Prehandler: validate X-Admin-Key on every route ──────────────────────────
+// Accepts two forms of the key:
+//   1. The hash directly (n8n sends $env.ONBOARDING_ADMIN_KEY — the stored hash)
+//   2. The plain-text key (browser sends AUTH constant; we hash it here to compare)
+// This lets the onboarding.html frontend call db-api directly without routing
+// every new endpoint through an n8n proxy webhook.
 async function requireAdminKey(request, reply) {
-  const key = request.headers['x-admin-key'] || request.body?.admin_key || '';
-  if (key !== ADMIN_KEY) {
+  const key       = request.headers['x-admin-key'] || request.body?.admin_key || '';
+  const keyHashed = crypto.createHash('sha256').update(key).digest('hex');
+  if (key !== ADMIN_KEY && keyHashed !== ADMIN_KEY) {
     reply.code(401).send({ success: false, code: 'INVALID_ADMIN_KEY', message: 'Invalid admin key' });
   }
 }
