@@ -1381,7 +1381,7 @@ async function customersRoutes(fastify) {
           payment_date:       { type: 'string' },
           txn_reference:      { type: 'string' },
           request_id:         { anyOf: [{ type: 'string' }, { type: 'null' }] },
-          guest_count:        { anyOf: [{ type: 'number' }, { type: 'null' }] },
+          guest_count:        { type: 'number' },
           jwt:                { type: 'string' },
         },
         additionalProperties: true,

@@ -50,6 +50,32 @@ async function configRoutes(fastify) {
   // ROOMS
   // ══════════════════════════════════════════════════════════════════════════
 
+  // ─── GET /config/public/rooms ─────────────────────────────────────────────
+  // Public endpoint — no JWT required. Used by enquiry-form.html which has no
+  // user session. tenant_id comes from the query string and is used to set the
+  // RLS context via withTenantContext. Returns active rooms only.
+  // Pattern 26: bypasses n8n (which falls back to N8N_SERVICE_JWT → tenant 1001)
+  fastify.get('/public/rooms', async (request, reply) => {
+    reply.header('Access-Control-Allow-Origin', '*');
+    const tenantId = parseInt(request.query?.tenant_id || '0', 10);
+    if (!tenantId || tenantId < 1000) {
+      return reply.code(400).send({ success: false, message: 'tenant_id required' });
+    }
+    const { rows } = await withTenantContext(tenantId, (client) =>
+      client.query(
+        `SELECT id, name, capacity, day_rate, half_rate, is_active,
+                open_time, close_time
+         FROM   bookings.rooms
+         WHERE  tenant_id = $1::integer
+           AND  is_active = TRUE
+         ORDER  BY name`,
+        [tenantId]
+      )
+    );
+    return { success: true, data: rows };
+  });
+
+
   // ─── GET /config/rooms ────────────────────────────────────────────────────
   // Mirrors baGN4RUcgtsDTISA → DB: List Rooms.
   fastify.get('/rooms', {

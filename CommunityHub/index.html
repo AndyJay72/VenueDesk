@@ -2212,9 +2212,9 @@
             const meta = parseEnquiryMeta(data.notes);
 
             document.getElementById('m-id').innerText = data.id || 'N/A';
-            document.getElementById('m-name').innerText = data.full_name || 'N/A';
-            document.getElementById('m-email').innerText = data.email || 'N/A';
-            document.getElementById('m-phone').innerText = data.phone || 'N/A';
+            document.getElementById('m-name').innerText = data.full_name || data.customer_name || 'N/A';
+            document.getElementById('m-email').innerText = data.email || data.customer_email || 'N/A';
+            document.getElementById('m-phone').innerText = data.phone || data.customer_phone || 'N/A';
             document.getElementById('m-event').innerText = data.event_type || 'N/A';
 
             // Room(s): use meta rooms array if available, fall back to room_name

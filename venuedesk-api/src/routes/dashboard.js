@@ -108,7 +108,7 @@ async function dashboardRoutes(fastify) {
                 COALESCE(c.warning_sent, false) AS warning_sent,
                 CASE WHEN EXISTS(
                   SELECT 1 FROM bookings.confirmed_bookings cb
-                  WHERE cb.customer_id = c.id AND cb.status != 'cancelled'
+                  WHERE cb.customer_id = c.id AND cb.status NOT IN ('cancelled', 'pending')
                 ) THEN true ELSE false END AS has_booking,
                 (SELECT br.requested_date
                  FROM bookings.booking_requests br
@@ -344,7 +344,7 @@ async function dashboardRoutes(fastify) {
                   COALESCE(c.warning_sent, false) AS warning_sent,
                   CASE WHEN EXISTS(
                     SELECT 1 FROM bookings.confirmed_bookings cb
-                    WHERE cb.customer_id = c.id AND cb.status != 'cancelled'
+                    WHERE cb.customer_id = c.id AND cb.status NOT IN ('cancelled', 'pending')
                   ) THEN true ELSE false END AS has_booking,
                   (SELECT br.requested_date FROM bookings.booking_requests br
                    WHERE br.customer_id = c.id

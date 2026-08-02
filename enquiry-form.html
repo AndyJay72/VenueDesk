@@ -447,7 +447,7 @@
             try {
                 const tenantParam = TENANT_ID ? `?tenant_id=${TENANT_ID}` : '';
                 const [rooms, types, bRes] = await Promise.all([
-                    fetch(BASE_API + '/get-rooms' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
+                    fetch(EF_DB_API + '/config/public/rooms' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
                     fetch(BASE_API + '/get-event-types' + tenantParam).then(r => r.ok ? r.json().then(j => j.data || (Array.isArray(j) ? j : [])) : []).catch(() => []),
                     fetch(BLOCKED_API + tenantParam).catch(() => null)
                 ]);

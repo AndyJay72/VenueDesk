@@ -716,7 +716,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ total_revenue: $json.total_revenue, month: $json.month, year: $json.year }) }}",
+        "responseBody": "={{ JSON.stringify({ total_revenue: $json.data?.total_revenue || 0, month: $json.data?.month, year: $json.data?.year }) }}",
         "options": {
           "responseHeaders": {
             "entries": [
