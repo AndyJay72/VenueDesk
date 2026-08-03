@@ -570,11 +570,13 @@ async function customersRoutes(fastify) {
              (tenant_id, customer_id, room_id,
               booking_date, date_from, date_to,
               start_time, end_time,
-              total_amount, deposit_paid, balance_due, status)
+              total_amount, deposit_paid, balance_due, status,
+              payment_method, booking_request_id)
            VALUES ($1, $2::uuid, $3::uuid,
                    $4::date, $5::date, $6::date,
                    $7::time, $8::time,
-                   $9, $10, $11, 'deposit_pending')
+                   $9, $10, $11, 'deposit_pending',
+                   $12, $13)
            ON CONFLICT DO NOTHING
            RETURNING id`,
           [
@@ -582,6 +584,7 @@ async function customersRoutes(fastify) {
             req.booking_date, req.date_from, req.date_to,
             req.start_time,   req.end_time,
             perRoomTotal, deposit_amount, perRoomBalance,
+            payment_method, request_id,
           ]
         );
         if (bk) bookingIds.push(bk.id);
