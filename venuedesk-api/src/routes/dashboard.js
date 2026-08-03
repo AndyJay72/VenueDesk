@@ -98,8 +98,32 @@ async function dashboardRoutes(fastify) {
 
     return withTenantContext(tenantId, async (client) => {
       const { rows } = await client.query(
-        `SELECT c.id, c.full_name, c.email, c.phone, c.event_type, c.event_date,
-                c.guests_count, c.status, c.created_at, c.notes,
+        `SELECT c.id, c.full_name, c.email, c.phone, c.event_date,
+                c.status, c.created_at,
+                COALESCE(
+                  (SELECT br.event_type FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  c.event_type
+                ) AS event_type,
+                COALESCE(
+                  (SELECT br.guest_count FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  (SELECT cb.guest_count FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1),
+                  c.guests_count
+                ) AS guest_count,
+                COALESCE(
+                  (SELECT br.notes FROM bookings.booking_requests br
+                   WHERE br.customer_id = c.id
+                     AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                   ORDER BY br.created_at DESC LIMIT 1),
+                  c.notes
+                ) AS notes,
                 (SELECT br.id
                  FROM bookings.booking_requests br
                  WHERE br.customer_id = c.id
@@ -188,7 +212,11 @@ async function dashboardRoutes(fastify) {
                    FROM bookings.confirmed_bookings cb
                    WHERE cb.customer_id = c.id AND cb.status = 'pending'
                    ORDER BY cb.created_at DESC LIMIT 1)
-                ) AS total_amount
+                ) AS total_amount,
+                (SELECT cb.id
+                 FROM bookings.confirmed_bookings cb
+                 WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                 ORDER BY cb.created_at DESC LIMIT 1) AS booking_id
          FROM bookings.customers c
          WHERE c.status IN ('pending', 'contacted')
            AND c.tenant_id = $1::integer
@@ -378,8 +406,32 @@ async function dashboardRoutes(fastify) {
 
       withTenantContext(tenantId, async (client) => {
         const { rows } = await client.query(
-          `SELECT c.id, c.full_name, c.email, c.phone, c.event_type, c.event_date,
-                  c.guests_count, c.status, c.created_at, c.notes,
+          `SELECT c.id, c.full_name, c.email, c.phone, c.event_date,
+                  c.status, c.created_at,
+                  COALESCE(
+                    (SELECT br.event_type FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    c.event_type
+                  ) AS event_type,
+                  COALESCE(
+                    (SELECT br.guest_count FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    (SELECT cb.guest_count FROM bookings.confirmed_bookings cb
+                     WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                     ORDER BY cb.created_at DESC LIMIT 1),
+                    c.guests_count
+                  ) AS guest_count,
+                  COALESCE(
+                    (SELECT br.notes FROM bookings.booking_requests br
+                     WHERE br.customer_id = c.id
+                       AND br.status NOT IN ('booked', 'cancelled', 'completed')
+                     ORDER BY br.created_at DESC LIMIT 1),
+                    c.notes
+                  ) AS notes,
                   (SELECT br.id FROM bookings.booking_requests br
                    WHERE br.customer_id = c.id
                      AND br.status NOT IN ('booked', 'cancelled', 'completed')
@@ -460,7 +512,11 @@ async function dashboardRoutes(fastify) {
                      FROM bookings.confirmed_bookings cb
                      WHERE cb.customer_id = c.id AND cb.status = 'pending'
                      ORDER BY cb.created_at DESC LIMIT 1)
-                  ) AS total_amount
+                  ) AS total_amount,
+                  (SELECT cb.id
+                   FROM bookings.confirmed_bookings cb
+                   WHERE cb.customer_id = c.id AND cb.status = 'pending'
+                   ORDER BY cb.created_at DESC LIMIT 1) AS booking_id
            FROM bookings.customers c
            WHERE c.status IN ('pending', 'contacted')
              AND c.tenant_id = $1::integer

@@ -2660,49 +2660,75 @@
             const method  = document.getElementById('m-confirm-method').value;
             if (!total || total <= 0) { showToast('Please enter the total booking price', 'error'); return; }
             const balance = Math.max(0, total - deposit);
-            const payAmt  = deposit;   // amount to charge upfront via Stripe (deposit path)
+            const payAmt  = deposit;
             const btn         = document.getElementById('m-confirm-btn');
             const originalLbl = btn ? btn.innerHTML : '';
             btn.disabled = true;
             try {
-                const p = currentPendingData;
-                const res = await fetch(CONFIRM_BOOKING_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        request_id:     p.request_id || p.id,
-                        customer_id:    p.id,
-                        total_amount:   total,
-                        balance_due:    balance,
-                        deposit_amount: deposit,
-                        payment_method: method,
-                        services:       mGetServicesPayload(),
-                        rooms:          mGetRoomsPayload(),
-                        tenant_id:      parseInt(sessionStorage.getItem('vp_tenant_id') || '0'),
-                        jwt:            sessionStorage.getItem('vp_token') || ''
-                    })
-                });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json().catch(()=>({}));
+                const p   = currentPendingData;
+                const jwt = sessionStorage.getItem('vp_token') || '';
+                let bookingId = null;
 
-                // ── Card → Stripe redirect (ghost-buster) ────────────────────
-                // Only fire when: card selected, n8n surfaced booking_id, amount>0,
-                // and Stripe is enabled for this tenant. Otherwise fall through to
-                // the standard "Booking confirmed!" path.
-                if (method === 'card' && data.booking_id && payAmt > 0) {
+                if (p.request_id) {
+                    // Enquiry-form path: booking_request exists → confirm-request (atomic: creates
+                    // confirmed_booking, records deposit, closes request, marks customer booked).
+                    // Calls db-api directly — bypasses n8n so real HTTP errors surface.
+                    const res = await fetch(DASH_DB_API + '/bookings/confirm-request', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            request_id:     p.request_id,
+                            customer_id:    p.id,
+                            total_amount:   total,
+                            balance_due:    balance,
+                            deposit_amount: deposit,
+                            payment_method: method,
+                            rooms:          mGetRoomsPayload(),
+                            jwt
+                        })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.message || ('Confirm failed (' + res.status + ')'));
+                    }
+                    const data = await res.json().catch(() => ({}));
+                    bookingId = (data.data && data.data.booking_ids && data.data.booking_ids[0]) || null;
+
+                } else if (p.booking_id) {
+                    // Calendar-pending path: confirmed_booking already exists with status='pending'.
+                    // Update its status + financials via /bookings/update.
+                    const res = await fetch(DASH_DB_API + '/bookings/update', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            booking_id:   p.booking_id,
+                            status:       deposit > 0 ? 'deposit_paid' : 'confirmed',
+                            total_amount: total,
+                            balance_due:  balance,
+                            jwt
+                        })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.message || ('Update failed (' + res.status + ')'));
+                    }
+                    bookingId = p.booking_id;
+
+                } else {
+                    throw new Error('Cannot confirm: no booking request or booking ID found. Please refresh and try again.');
+                }
+
+                // ── Card → Stripe redirect ───────────────────────────────────
+                if (method === 'card' && bookingId && payAmt > 0) {
                     const cfg = await loadPayConfig();
                     if (cfg && cfg.is_stripe_enabled) {
                         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Redirecting to Stripe...';
                         try {
-                            const url = await createStripeSession(payAmt, data.booking_id, {
-                                customer_id: data.customer_id || p.id || '',
+                            const url = await createStripeSession(payAmt, bookingId, {
+                                customer_id: p.id || '',
                                 description: `Deposit — ${p.full_name || p.customer_name || ''} · £${payAmt.toFixed(2)}`,
                             });
                             window.location.href = url;
-                            return; // hard-exit — do NOT toast, do NOT close modal, do NOT loadDashboard
+                            return;
                         } catch (e) {
-                            // Stripe failed — do NOT remove the pending card.
-                            // The booking IS confirmed server-side, but staff should
-                            // see the error and decide how to proceed (manual pay etc.)
                             btn.disabled  = false;
                             btn.innerHTML = originalLbl;
                             showToast('Confirmed, but Stripe link failed: ' + (e.message || e) + ' — open the booking to retry.', 'error');
@@ -2711,7 +2737,6 @@
                     }
                 }
 
-                // ── Standard success path (non-card OR Stripe disabled) ──────
                 showToast('Booking confirmed!', 'success');
                 document.getElementById('custModal').classList.remove('open');
                 setTimeout(() => loadDashboard(), 1500);
