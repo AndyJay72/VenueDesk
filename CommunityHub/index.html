@@ -2741,10 +2741,10 @@
                 document.getElementById('custModal').classList.remove('open');
                 setTimeout(() => loadDashboard(), 1500);
             } catch(e) {
-                btn.innerHTML = originalLbl;
-                showToast('Error confirming: ' + e.message, 'error');
+                try { if (btn) btn.innerHTML = originalLbl; } catch(_) {}
+                showToast('Error confirming: ' + (e.message || 'Unknown error'), 'error');
             }
-            finally { btn.disabled = false; }
+            finally { try { if (btn) btn.disabled = false; } catch(_) {} }
         }
 
         async function submitConfirmNoDepositDashboard() {
