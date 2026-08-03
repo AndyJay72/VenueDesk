@@ -595,14 +595,17 @@ async function customersRoutes(fastify) {
       }
 
       // Step 4 — Record deposit against the first created booking
-      // (skip card — Stripe webhook owns it; otherwise we duplicate)
-      if (deposit_amount > 0 && payment_method !== 'card') {
+      // Card payments via Stripe: Stripe webhook records the payment row when
+      // checkout.session.completed fires. Record it here too when Stripe is
+      // NOT the active processor (cash/bank_transfer/bacs) so accounts.html
+      // always shows the deposit immediately.
+      if (deposit_amount > 0) {
         await client.query(
           `INSERT INTO bookings.payments
              (booking_id, customer_id, amount, payment_type, payment_method,
-              status, tenant_id, reference_number)
+              status, payment_date, tenant_id, reference_number)
            VALUES ($1::uuid, $2::uuid, $3::numeric, 'deposit', $4,
-                   'received', $5,
+                   'received', NOW(), $5,
                    'DEP-' || TO_CHAR(NOW(), 'YYYYMMDDHH24MISS') || '-' || UPPER(LEFT(MD5(RANDOM()::text), 4)))`,
           [bookingIds[0], customer_id, deposit_amount, payment_method, tenantId]
         );
