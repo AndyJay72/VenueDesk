@@ -676,28 +676,33 @@ async function customersRoutes(fastify) {
         type: 'object',
         required: ['booking_id'],
         properties: {
-          booking_id: { type: 'string' },
+          booking_id:     { type: 'string' },
           status: {
             type: 'string',
             enum: ['confirmed', 'pending', 'provisional', 'deposit_paid',
                    'cancelled', 'fully_paid', 'paid', 'overridden'],
           },
-          total_amount: { type: 'number' },
-          balance_due:  { type: 'number' },
-          notes:        { type: 'string' },
-          jwt:          { type: 'string' },
-          tenant_id:    { type: 'integer' },
+          total_amount:   { type: 'number' },
+          balance_due:    { type: 'number' },
+          deposit_amount: { type: 'number' },
+          payment_method: { type: 'string' },
+          notes:          { type: 'string' },
+          jwt:            { type: 'string' },
+          tenant_id:      { type: 'integer' },
         },
       },
     },
   }, async (request) => {
     const tenantId = request.user.tenant_id;
-    const { booking_id, status, total_amount, balance_due, notes } = request.body;
+    const {
+      booking_id, status, total_amount, balance_due, notes,
+      deposit_amount = 0, payment_method = 'cash',
+    } = request.body;
 
     assertUUID(booking_id, 'booking_id');
 
-    if (status == null && total_amount == null && balance_due == null && notes == null) {
-      throw unprocessable('At least one field (status, total_amount, balance_due, notes) must be provided');
+    if (status == null && total_amount == null && balance_due == null && notes == null && !(deposit_amount > 0)) {
+      throw unprocessable('At least one field (status, total_amount, balance_due, deposit_amount, notes) must be provided');
     }
 
     return withTenantContext(tenantId, async (client) => {
@@ -708,25 +713,40 @@ async function customersRoutes(fastify) {
            total_amount = COALESCE($4::numeric,  total_amount),
            balance_due  = COALESCE($5::numeric,  balance_due),
            notes        = COALESCE($6,           notes),
+           deposit_paid = COALESCE($7::numeric,  deposit_paid),
            updated_at   = NOW()
          WHERE id        = $1::uuid
            AND tenant_id = $2
-         RETURNING id, status, total_amount, balance_due, updated_at`,
+         RETURNING id, customer_id::text, status, total_amount, balance_due, updated_at`,
         [
           booking_id, tenantId,
-          status       ?? null,
-          total_amount != null ? String(total_amount) : null,
-          balance_due  != null ? String(balance_due)  : null,
-          notes        ?? null,
+          status         ?? null,
+          total_amount   != null ? String(total_amount)   : null,
+          balance_due    != null ? String(balance_due)    : null,
+          notes          ?? null,
+          deposit_amount > 0     ? String(deposit_amount) : null,
         ]
       );
 
       if (!rows.length) throw notFound('Booking', booking_id);
 
+      // Record deposit payment row when a deposit is being taken on update
+      if (deposit_amount > 0) {
+        await client.query(
+          `INSERT INTO bookings.payments
+             (booking_id, customer_id, amount, payment_type, payment_method,
+              status, payment_date, tenant_id, reference_number)
+           VALUES ($1::uuid, $2::uuid, $3::numeric, 'deposit', $4,
+                   'received', NOW(), $5,
+                   'DEP-' || TO_CHAR(NOW(), 'YYYYMMDDHH24MISS') || '-' || UPPER(LEFT(MD5(RANDOM()::text), 4)))`,
+          [booking_id, rows[0].customer_id, deposit_amount, payment_method, tenantId]
+        );
+      }
+
       await logger.info(
         'BookingsRoute',
         `Booking updated: ${booking_id}`,
-        { booking_id, tenant_id: tenantId, fields: { status, total_amount, balance_due } },
+        { booking_id, tenant_id: tenantId, fields: { status, total_amount, balance_due, deposit_amount } },
         tenantId
       );
 

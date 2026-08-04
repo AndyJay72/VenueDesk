@@ -2699,10 +2699,12 @@
                     const res = await fetch(DASH_DB_API + '/bookings/update', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            booking_id:   p.booking_id,
-                            status:       deposit > 0 ? 'deposit_paid' : 'confirmed',
-                            total_amount: total,
-                            balance_due:  balance,
+                            booking_id:     p.booking_id,
+                            status:         deposit > 0 ? 'deposit_paid' : 'confirmed',
+                            total_amount:   total,
+                            balance_due:    balance,
+                            deposit_amount: deposit,
+                            payment_method: method,
                             jwt
                         })
                     });
