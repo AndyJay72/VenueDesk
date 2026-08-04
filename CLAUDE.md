@@ -2521,6 +2521,58 @@ See **Pattern 31** below for diagnosis + recovery procedure.
 
 ---
 
+## 16. Deposit payment not recorded on accounts page ✅ DONE (August 4 2026)
+
+Commit `a689b7b`.
+
+**Bug:** Creating a booking via the calendar sets status `pending`. When staff confirmed
+it via the Pending Requests modal and entered a deposit, the dashboard called
+`POST /bookings/update` — which only changed `status`, `total_amount`, and `balance_due`.
+It never updated `confirmed_bookings.deposit_paid` and never inserted a row into
+`bookings.payments`. The deposit was silently lost; nothing appeared on accounts.html.
+
+This only affected the **calendar-pending path**. The enquiry-form path (where a
+`booking_requests` row exists) correctly called `/bookings/confirm-request` which
+atomically records the deposit. The two paths diverge at `submitConfirmFromDashboard()`
+in `index.html` (line 2672: `if (p.request_id)` vs `else if (p.booking_id)`).
+
+**Fix:**
+- `/bookings/update` now accepts `deposit_amount` and `payment_method` in the schema
+- When `deposit_amount > 0`: updates `confirmed_bookings.deposit_paid` via `$7::numeric`
+  and inserts a `bookings.payments` row (same pattern as `/bookings/confirm-request`)
+- `index.html` calendar-pending confirm path now passes both fields in the POST body
+
+**Data note:** Deposits confirmed before this fix have `deposit_paid = 0` and no payments
+row. Use Pattern 31 manual backfill procedure for any affected bookings.
+
+---
+
+## 17. Staff column showing 'System' on payment interactions ✅ DONE (August 4 2026)
+
+Commit `894ef81`.
+
+**Bug:** After the `staffActor` fix (item 3 above), payment_received interactions still
+showed `'System'` instead of the staff name. `staffActor` correctly fell back to `'System'`
+because `request.user.full_name` was undefined — the `DB: Record Payment` HTTP Request
+node in `KHvxUBua7hi5e1x1` (Financial Operations) had a **hardcoded service JWT** baked
+into the Authorization header. Service JWTs carry `tenant_id` and `role` but no `full_name`,
+`name`, or `username` claims.
+
+`Code: Sanitize` in the same workflow already outputs `jwt` (the user's browser token,
+explicitly trimmed). All other HTTP Request nodes in that workflow already used
+`$('Code: Sanitize').first().json.jwt` — only `DB: Record Payment` was missed.
+
+**Fix:** Changed `DB: Record Payment` auth header in both workflow variants:
+```
+Before: "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Im..."
+After:  "Authorization": "={{ 'Bearer ' + $('Code: Sanitize').first().json.jwt }}"
+```
+Applied to: `KHvxUBua7hi5e1x1_clean.json` and `KHvxUBua7hi5e1x1_stripe_fork.json`.
+Re-import the stripe_fork variant into n8n (the clean variant is not active — only one
+workflow can own the `pay-balance` webhook path at a time).
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
@@ -3239,6 +3291,11 @@ const staffActor = req => req.user?.full_name || req.user?.name || req.user?.use
 All 9 hardcoded `'VenueDesk API'` sites in `staff_member` column replaced with a
 parameterised `$N` slot using `staffActor(request)`. Fallback `'System'` applies to
 service-account tokens (scheduled jobs) that carry no `full_name`.
+
+**Second stage (commit `894ef81`):** Payment interactions still showed `'System'` after
+the above fix because `DB: Record Payment` in the Financial Operations n8n workflow used
+a hardcoded service JWT (no `full_name`). Fixed by forwarding the user JWT from
+`Code: Sanitize` output — see **item 17** above for full detail.
 
 **Note:** Historical rows in DB still say `'VenueDesk API'` — no backfill attempted.
 All new interactions from August 4 2026 onward show the real staff name.
