@@ -1,5 +1,7 @@
 'use strict';
 
+const staffActor = req => req.user?.full_name || req.user?.name || req.user?.username || 'System';
+
 /**
  * /payments routes — Phase 2 migration.
  * Replaces n8n Postgres nodes for payment recording across all booking types.
@@ -294,13 +296,14 @@ async function paymentsRoutes(fastify) {
                  'Payment received: £' || $4::text,
                  'payment_received',
                  $5,
-                 'VenueDesk API', NOW())`,
+                 $6, NOW())`,
         [
           tenantId,
           customerId,
           resolvedBookingId ?? null,
           amount,
           `Method: ${payment_method} | Ref: ${ref}${notes ? ` | ${notes}` : ''}`,
+          staffActor(request),
         ]
       );
 

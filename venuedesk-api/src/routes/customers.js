@@ -1,5 +1,7 @@
 'use strict';
 
+const staffActor = req => req.user?.full_name || req.user?.name || req.user?.username || 'System';
+
 /**
  * /customers routes — Phase 2 migration.
  * Replaces: UpdateCustomerWF (n8n Postgres nodes → API).
@@ -229,7 +231,7 @@ async function customersRoutes(fastify) {
            (tenant_id, customer_id, customer_name, customer_email, customer_phone,
             booking_id, room_name, subject, interaction_type, notes, staff_member, timestamp)
          VALUES ($1, $2, $3, $4, $5, NULL, NULL,
-                 $7, 'customer_updated', $6, 'VenueDesk API', NOW())`,
+                 $7, 'customer_updated', $6, $8, NOW())`,
         [
           tenantId,
           customer.id,
@@ -238,6 +240,7 @@ async function customersRoutes(fastify) {
           customer.phone   ?? '',
           interaction_note || `Fields updated via API: ${[full_name && 'name', email && 'email', phone && 'phone'].filter(Boolean).join(', ') || 'no changes'}`,
           `Customer record updated: ${customer.full_name}`,
+          staffActor(request),
         ]
       );
 
@@ -311,12 +314,13 @@ async function customersRoutes(fastify) {
       await client.query(
         `INSERT INTO bookings.customer_interactions
            (tenant_id, customer_id, subject, interaction_type, notes, staff_member, timestamp)
-         VALUES ($1, $2::uuid, $3, 'status_updated', $4, 'VenueDesk API', NOW())`,
+         VALUES ($1, $2::uuid, $3, 'status_updated', $4, $5, NOW())`,
         [
           tenantId,
           customer_id,
           subject,
           assigned_to ? `Assigned to: ${assigned_to}` : 'No assignment change',
+          staffActor(request),
         ]
       ).catch(() => { /* non-fatal */ });
 

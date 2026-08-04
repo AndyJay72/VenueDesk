@@ -1,5 +1,9 @@
 'use strict';
 
+// Resolves the display name of the acting staff member from the verified JWT.
+// Falls back to 'System' for service-account tokens that lack full_name.
+const staffActor = req => req.user?.full_name || req.user?.name || req.user?.username || 'System';
+
 /**
  * /bookings routes — Phase 2 migration.
  * Replaces n8n Postgres nodes for the core booking lifecycle.
@@ -462,10 +466,10 @@ async function customersRoutes(fastify) {
                 'Booking confirmed: ' || COALESCE(r.name, '') || ' | ' || $4::text,
                 'booking_confirmed',
                 'Created via VenueDesk API',
-                'VenueDesk API', NOW()
+                $6, NOW()
          FROM   bookings.rooms r
          WHERE  r.id = $5::uuid`,
-        [tenantId, customer_id, booking.id, booking_date, room_id]
+        [tenantId, customer_id, booking.id, booking_date, room_id, staffActor(request)]
       );
 
       await logger.info(
@@ -643,8 +647,8 @@ async function customersRoutes(fastify) {
          VALUES ($1, $2::uuid, $3::uuid,
                  $4, 'booking_confirmed',
                  'New booking created and confirmed via VenueDesk API',
-                 'VenueDesk API', NOW())`,
-        [tenantId, customer_id, bookingIds[0], subject]
+                 $5, NOW())`,
+        [tenantId, customer_id, bookingIds[0], subject, staffActor(request)]
       );
 
       await logger.info(
@@ -767,10 +771,10 @@ async function customersRoutes(fastify) {
             subject, interaction_type, notes, staff_member, timestamp)
          SELECT $1, cb.customer_id, cb.id,
                 $3, 'booking_updated', $4,
-                'VenueDesk API', NOW()
+                $5, NOW()
          FROM   bookings.confirmed_bookings cb
          WHERE  cb.id = $2::uuid AND cb.tenant_id = $1`,
-        [tenantId, booking_id, updateSubject, updateNotes]
+        [tenantId, booking_id, updateSubject, updateNotes, staffActor(request)]
       ).catch(() => { /* non-fatal — log failure must not roll back the update */ });
 
       return { success: true, data: rows[0] };
@@ -862,12 +866,13 @@ async function customersRoutes(fastify) {
         await client.query(
           `INSERT INTO bookings.customer_interactions
              (tenant_id, customer_id, subject, interaction_type, notes, staff_member, timestamp)
-           VALUES ($1, $2, $3, 'booking_cancelled', $4, 'VenueDesk API', NOW())`,
+           VALUES ($1, $2, $3, 'booking_cancelled', $4, $5, NOW())`,
           [
             tenantId,
             series.customer_id,
             `Recurring series cancelled: ${series.series_name}`,
             `${cancelledSessions.length} future sessions cancelled. Reason: ${reason || 'not specified'}. Cancelled by: ${cancelled_by}`,
+            staffActor(request),
           ]
         );
 
@@ -997,7 +1002,7 @@ async function customersRoutes(fastify) {
                  $7,
                  'booking_cancelled',
                  $8,
-                 'VenueDesk API', NOW())`,
+                 $9, NOW())`,
         [
           tenantId,
           booking.customer_id,
@@ -1007,6 +1012,7 @@ async function customersRoutes(fastify) {
           booking.room_name ?? '',
           `Booking cancelled: ${booking.room_name ?? ''} | ${booking.booking_date ?? ''}`,
           `Reason: ${reason || 'not specified'}. Cancelled by: ${cancelled_by}${refund_amount > 0 ? `. Refund: £${refund_amount} (${refund_type})` : ''}`,
+          staffActor(request),
         ]
       );
 
@@ -1083,12 +1089,13 @@ async function customersRoutes(fastify) {
       await client.query(
         `INSERT INTO bookings.customer_interactions
            (tenant_id, customer_id, subject, interaction_type, notes, staff_member, timestamp)
-         VALUES ($1, $2::uuid, $3, 'booking_cancelled', $4, 'VenueDesk API', NOW())`,
+         VALUES ($1, $2::uuid, $3, 'booking_cancelled', $4, $5, NOW())`,
         [
           tenantId,
           customer_id,
           cancelSubject,
           `${reqCount} booking request(s) cancelled`,
+          staffActor(request),
         ]
       ).catch(() => { /* non-fatal */ });
 
