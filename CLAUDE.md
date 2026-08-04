@@ -2493,6 +2493,34 @@ This is expected — no fix needed.
 
 ---
 
+## 15. Container crash loop — empty bookings.js + deposit backfill ✅ DONE (August 3 2026)
+
+**Root cause:** A previous failed deployment wiped `bookings.js` inside the container to
+0 bytes. `require('./routes/bookings')` on an empty file returns `{}` (empty object).
+Fastify threw `Plugin must be a function or a promise. Received: 'object'` at the
+`fastify.register(bookingsRoutes, ...)` line in `server.js`, crash-looping the container.
+
+The VPS host path file (`/opt/n8n_postgres/venuedesk-api/src/routes/bookings.js`) still
+existed and was correct (May 12 timestamp), but the **container's** writable layer copy
+was 0 bytes — host path and container had diverged after a failed deployment.
+
+**Diagnosis:** `docker cp venuedesk-api:/app/src/routes /tmp/cr` + `grep -rn "module.exports" /tmp/cr/`
+— `bookings.js` was absent from the output, confirming 0 bytes.
+
+**Fix:** Pulled from GitHub via `curl`, `docker cp` into running container, restarted.
+Also deployed `dashboard.js` (COALESCE fixes for pending modal) and migration
+`029_confirmed_bookings_notes.sql` (adds `notes` column to `confirmed_bookings`).
+
+**Ghost-confirm payment backfill:** Booking `66ba7418` had `status = deposit_paid` but
+`deposit_paid = 0.00` with no row in `bookings.payments` — the confirm-request fired while
+the container was crashed; n8n's `neverError: true` swallowed the 404 and showed success.
+Manually inserted the missing £12.00 deposit payment row via interactive psql and set
+`deposit_paid = 12.00` on the confirmed_bookings row.
+
+See **Pattern 31** below for diagnosis + recovery procedure.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
@@ -2915,6 +2943,69 @@ log(apiCallMade ? '✅' : '❌', 'Valid times — API IS called');
 
 ---
 
+## Pattern 31 — Container File Wipe: Diagnosis + Recovery
+
+**Problem:** A failed `docker cp` or interrupted deployment can leave a route file in the
+container as 0 bytes. Node.js `require()` on an empty file returns `{}` (empty object).
+When Fastify tries to `fastify.register({})`, it throws:
+```
+Plugin must be a function or a promise. Received: 'object'
+```
+The stack points to the `fastify.register()` line in `server.js` — not the `require()` line —
+making it appear the registered variable is wrong, when the real issue is the file content.
+
+**Key trap:** The VPS host path (`/opt/n8n_postgres/venuedesk-api/src/routes/`) may be
+correct while the container's writable layer copy is empty. They diverge after failed
+deployments. Host path age (`ls -la`) doesn't reveal the container's state.
+
+**Diagnosis (works even during crash loop):**
+```bash
+# Extract all route files from container
+docker cp venuedesk-api:/app/src/routes /tmp/cr
+# Find any file missing a module.exports
+grep -rn "module.exports" /tmp/cr/
+# Any required route file absent from this list = the culprit
+# Cross-reference against require() lines in server.js
+```
+
+**Recovery:**
+```bash
+B=https://raw.githubusercontent.com/AndyJay72/VenueDesk/main/venuedesk-api/src
+curl -s $B/routes/<file>.js -o /tmp/<file>.js
+docker cp /tmp/<file>.js venuedesk-api:/app/src/routes/<file>.js
+docker restart venuedesk-api && sleep 8 && docker logs venuedesk-api --tail 5
+# Also sync back to host path to keep them in step:
+cp /tmp/<file>.js /opt/n8n_postgres/venuedesk-api/src/routes/<file>.js
+```
+
+**Ghost-confirm payment backfill:** When a confirm-request fires while the container is
+crashed, n8n's `neverError: true` swallows the 404 and shows success on the frontend.
+The booking status may be partially updated (via a different code path) but the payment
+INSERT never ran. Diagnose with interactive psql:
+```bash
+docker exec -it n8n_postgres-postgres-1 psql -U n8n -d bookings_db
+```
+```sql
+-- Check for deposit_paid = 0 with deposit_paid status
+SELECT status, deposit_paid, balance_due, total_amount
+FROM bookings.confirmed_bookings WHERE id = '<uuid>';
+
+-- If deposit_paid = 0 despite status = deposit_paid:
+INSERT INTO bookings.payments
+  (booking_id, customer_id, amount, payment_type, payment_method,
+   status, payment_date, tenant_id, reference_number)
+SELECT id, customer_id, <deposit_amount>, 'deposit', payment_method,
+       'received', NOW(), tenant_id,
+       'DEP-MANUAL-' || TO_CHAR(NOW(),'YYYYMMDDHH24MISS')
+FROM bookings.confirmed_bookings WHERE id = '<uuid>';
+
+UPDATE bookings.confirmed_bookings
+SET deposit_paid = <deposit_amount>
+WHERE id = '<uuid>';
+```
+
+---
+
 ## Customer Interactions — Endpoint & Workflow Reference (June 2026)
 
 ### db-api endpoints
@@ -3124,6 +3215,36 @@ See original pending item — `ports: "5432:5432"` in docker-compose.yml exposes
 ## 2. Tenant Lifecycle & CRM Dashboard ✅ DONE (June 24 2026)
 
 Delivered in commit `76615b9`. See `# 🛠️ onboarding.html — Architecture Reference` below.
+
+---
+
+## 3. audit-log.html — Staff column shows real staff name ✅ FIXED (August 4 2026)
+
+Commits `12bda18` (API fix) + `1fd9bfc` (Playwright suite). 5/5 tests passing.
+
+**Root cause:** 9 SQL INSERT statements across `bookings.js`, `customers.js`, and
+`payments.js` hardcoded `staff_member = 'VenueDesk API'` as a SQL string literal on
+every system-generated interaction (confirm booking, update, cancel, record payment,
+update customer). The `request.user` object had `full_name` available from the verified
+JWT all along — it just wasn't being read.
+
+The frontend rendering path (audit-log.html reads `t.staff_member`) and the manual
+log-interaction flow (frontend sends `vp_user_name` in POST body) were both correct.
+Only the API auto-logged interactions were wrong.
+
+**Fix:** Added `staffActor(req)` helper to `bookings.js`, `customers.js`, `payments.js`:
+```javascript
+const staffActor = req => req.user?.full_name || req.user?.name || req.user?.username || 'System';
+```
+All 9 hardcoded `'VenueDesk API'` sites in `staff_member` column replaced with a
+parameterised `$N` slot using `staffActor(request)`. Fallback `'System'` applies to
+service-account tokens (scheduled jobs) that carry no `full_name`.
+
+**Note:** Historical rows in DB still say `'VenueDesk API'` — no backfill attempted.
+All new interactions from August 4 2026 onward show the real staff name.
+
+**Test suite:** `tests/playwright/audit_log_staff_e2e.spec.js` — 5 tests covering
+render, mixed rows, filter-by-staff, and sessionStorage send-path verification.
 
 ---
 
