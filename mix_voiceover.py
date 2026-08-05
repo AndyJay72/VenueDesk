@@ -40,7 +40,18 @@ raw_durs   = []
 proc_files = []
 
 for i in range(1, 11):
-    src  = os.path.join(VO_DIR, f'Scene {i}.m4a')
+    # Accept any capitalisation and common audio extensions
+    src = None
+    for name in [f'Scene {i}', f'scene {i}']:
+        for ext in ['.m4a', '.mp3', '.wav', '.aac', '.ogg']:
+            candidate = os.path.join(VO_DIR, name + ext)
+            if os.path.exists(candidate):
+                src = candidate
+                break
+        if src:
+            break
+    if not src:
+        raise FileNotFoundError(f'No audio file found for Scene {i} in {VO_DIR}')
     proc = f'{TMP}/scene_{i:02d}_proc.wav'
 
     raw_dur = get_dur(src)

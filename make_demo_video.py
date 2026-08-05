@@ -175,24 +175,24 @@ def build_cta():
 # ── scene list ────────────────────────────────────────────────────────────────
 # (type, duration_secs, *args)
 SCENES = [
-    ('title', 10),
-    ('screenshot', 14, 'dashboard.png', 'Real-time Dashboard',
+    ('title', 9),
+    ('screenshot', 11, 'dashboard.png', 'Real-time Dashboard',
         'Revenue, pending requests and upcoming bookings — everything you need at a glance.'),
-    ('screenshot', 14, 'calendar.png', 'Visual Booking Calendar',
+    ('screenshot', 12, 'calendar.png', 'Visual Booking Calendar',
         'See every room, every day. Colour-coded by room and status with month, week and day views.'),
-    ('screenshot', 13, 'calendar-walkin.png', 'Quick Booking from the Calendar',
+    ('screenshot', 12, 'calendar-walkin.png', 'Quick Booking from the Calendar',
         'Click any available date on the calendar to open the Quick Booking drawer — fill details, check availability and confirm in seconds.'),
     ('screenshot', 13, 'recurring.png', 'Recurring Bookings',
         'Manage weekly and monthly recurring series. Cancel individual sessions or the entire series.'),
-    ('screenshot', 14, 'customers.png', 'Customer CRM',
+    ('screenshot', 13, 'customers.png', 'Customer CRM',
         'Full profiles with booking history, payment records, notes and staff interaction logs.'),
     ('screenshot', 14, 'accounts.png', 'Payments & Accounts',
         'Track outstanding balances, record payments and keep your accounts reconciled effortlessly.'),
-    ('screenshot', 12, 'enquiry-form.png', 'Online Booking Requests',
+    ('screenshot', 13, 'enquiry-form.png', 'Online Booking Requests',
         'Customers check live availability and submit enquiries — straight into your dashboard inbox.'),
-    ('screenshot', 12, 'admin-config.png', 'Full Admin Control',
+    ('screenshot', 11, 'admin-config.png', 'Full Admin Control',
         'Configure rooms, pricing grids, cancellation policies, staff logins and payment settings.'),
-    ('cta', 12),
+    ('cta', 11),
 ]
 
 # ── frame generation ──────────────────────────────────────────────────────────
