@@ -28,7 +28,7 @@ def get_dur(path):
 
 LEAD_PAD  = 1.2   # silence before speech (seconds)
 TRAIL_PAD = 1.4   # silence after speech
-MUSIC_VOL = 0.08  # music bed level: 0.08 ≈ -22 dB (raise to 0.12 if too quiet)
+MUSIC_VOL = 0.10  # music bed level: 0.10 ≈ -20 dB (raise to 0.12 if too quiet)
 
 # ── scene metadata (must stay in sync with make_demo_video.py) ────────────────
 SCENE_TYPES = [
