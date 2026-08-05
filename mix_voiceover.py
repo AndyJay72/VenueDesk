@@ -2,6 +2,7 @@
 1. Applies professional audio processing to each recorded scene.
 2. Recalculates video scene durations to fit actual recording lengths.
 3. Regenerates demo.mp4 with new timings + processed human voiceover.
+4. Optionally mixes in a music bed (drop music.* into ~/Downloads/voiceover/).
 """
 
 import subprocess, os, shutil, re, math
@@ -25,8 +26,9 @@ def get_dur(path):
     m = re.search(r'Duration: (\d+):(\d+):([\d.]+)', r.stderr)
     return (int(m.group(1))*3600 + int(m.group(2))*60 + float(m.group(3))) if m else 0.0
 
-LEAD_PAD = 1.2   # silence before speech (seconds)
-TRAIL_PAD = 1.4  # silence after speech
+LEAD_PAD  = 1.2   # silence before speech (seconds)
+TRAIL_PAD = 1.4   # silence after speech
+MUSIC_VOL = 0.05  # music bed level: 0.05 ≈ -26 dB (raise to 0.08 if too quiet)
 
 # ── scene metadata (must stay in sync with make_demo_video.py) ────────────────
 SCENE_TYPES = [
@@ -175,5 +177,34 @@ subprocess.run([
     tmp_out
 ], check=True, capture_output=True)
 shutil.move(tmp_out, VIDEO)
+
+# ── step 7: mix in music bed (optional) ──────────────────────────────────────
+music_src = None
+for ext in ['.mp3', '.m4a', '.wav', '.aac', '.ogg', '.flac']:
+    candidate = os.path.join(VO_DIR, 'music' + ext)
+    if os.path.exists(candidate):
+        music_src = candidate
+        break
+
+if music_src:
+    print(f"\n── Step 7: Mixing music bed ─────────────────────────────────────────")
+    print(f"  Source: {os.path.basename(music_src)}  volume={MUSIC_VOL} (~{round(20*math.log10(MUSIC_VOL))}dB)")
+    tmp_out = VIDEO + '.music.mp4'
+    subprocess.run([
+        FFMPEG, '-y',
+        '-i', VIDEO,
+        '-stream_loop', '-1', '-i', music_src,
+        '-filter_complex',
+            f'[1:a]volume={MUSIC_VOL}[bed];[0:a][bed]amix=inputs=2:duration=first[aout]',
+        '-map', '0:v',
+        '-map', '[aout]',
+        '-c:v', 'copy',
+        '-c:a', 'aac', '-b:a', '128k',
+        tmp_out
+    ], check=True, capture_output=True)
+    shutil.move(tmp_out, VIDEO)
+    print(f"  Music bed mixed ✓")
+else:
+    print(f"\n  (No music bed — drop music.mp3 into {VO_DIR} to enable)")
 
 print(f"\nAll done — {os.path.getsize(VIDEO)//1024:,} KB → {VIDEO}")
