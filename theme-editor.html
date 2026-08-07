@@ -1146,13 +1146,16 @@ function buildInspectScript() {
     } else if(cmd==='vd_editText'){
       if(!selEl) return;
       selEl.contentEditable='true'; selEl.focus();
-      selEl.addEventListener('keydown',function onKey(e){
-        if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); selEl.blur(); }
-        if(e.key==='Escape'){ selEl.removeEventListener('keydown',onKey); selEl.blur(); }
-      });
-      selEl.addEventListener('blur',function onBlur(){
-        selEl.contentEditable='false';
-        selEl.removeEventListener('blur',onBlur);
+      var editTarget=selEl;
+      function onKey(e){
+        if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); editTarget.blur(); }
+        if(e.key==='Escape'){ editTarget.blur(); }
+      }
+      editTarget.addEventListener('keydown',onKey);
+      editTarget.addEventListener('blur',function onBlur(){
+        editTarget.contentEditable='false';
+        editTarget.removeEventListener('keydown',onKey);  // always cleaned up on blur
+        editTarget.removeEventListener('blur',onBlur);
         sendMutation();
         window.parent.postMessage({type:'vd_edittextdone'},'*');
       });
@@ -1232,7 +1235,8 @@ window.addEventListener('message', function(e) {
     parsedDark = parseCSSBlock(originalHtml, [':root']);
     const light = parseLightBlock(originalHtml);
     parsedLight = light.vars; lightSelector = light.selector; lightClassName = extractClass(lightSelector);
-    renderPreview();
+    // Do NOT call renderPreview() here — the iframe's DOM is already correct.
+    // Reloading srcdoc would destroy scroll position and reset the iframe's selEl.
     updateUndoRedoBtns();
     showToast('DOM updated', 'success');
   } else if (e.data.type === 'vd_edittextdone') {
