@@ -389,7 +389,15 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
 .font-picker-select:focus { border-color: var(--sh-accent); }
 
 /* ── DOM Actions toolbar ─────────────────────────────────────────────────── */
-.dom-actions { display: flex; gap: 5px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sh-border); }
+.dom-actions { display: flex; gap: 5px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sh-border); flex-wrap: wrap; }
+.dom-add-select {
+  flex: 1; min-width: 0; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-label); font-size: 10px; font-weight: 600;
+  cursor: pointer; transition: all 0.12s; outline: none;
+}
+.dom-add-select:hover { border-color: #334155; color: var(--sh-text); }
+.dom-add-select:focus { border-color: var(--sh-accent); color: var(--sh-text); }
+.dom-add-select option { background: #090e18; color: var(--sh-text); }
 .dom-action-btn {
   flex: 1; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--sh-border);
   background: transparent; color: var(--sh-label); font-size: 10px; font-weight: 600;
@@ -518,6 +526,15 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
               <button class="dom-action-btn danger" onclick="domDelete()"    title="Delete element from DOM">🗑️ Delete</button>
               <button class="dom-action-btn"        onclick="domDuplicate()" title="Clone element after itself">📄 Duplicate</button>
               <button class="dom-action-btn" id="btn-edittext" onclick="domEditText()" title="Edit text content inline">✏️ Edit Text</button>
+              <select class="dom-add-select" title="Insert a new element near the selected one"
+                onchange="domAddElement(this.value); this.selectedIndex=0;">
+                <option value="" disabled selected>➕ Add Element…</option>
+                <option value="button">Primary Button</option>
+                <option value="div">Container / Grid Box</option>
+                <option value="img">Image Placeholder</option>
+                <option value="video">Video Container</option>
+                <option value="p">Paragraph Text</option>
+              </select>
             </div>
           </div>
           <!-- Property category tabs -->
@@ -719,12 +736,17 @@ function applySplitScale(pct) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM actions
 // ─────────────────────────────────────────────────────────────────────────────
-function sendDomCommand(cmd) {
+function sendDomCommand(cmd, payload) {
   const iframe = document.getElementById('preview-iframe');
-  if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({type: 'vd_' + cmd}, '*');
+  if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage(Object.assign({type: 'vd_' + cmd}, payload || {}), '*');
 }
 function domDelete()    { if (!selectedElem) return; sendDomCommand('delete'); selectedElem = null; renderElemPanel(); }
 function domDuplicate() { if (!selectedElem) return; sendDomCommand('duplicate'); }
+function domAddElement(type) {
+  if (!type) return;
+  if (!selectedElem) { showToast('Select an element first to add near it', 'error'); return; }
+  sendDomCommand('addElement', { elemType: type });
+}
 function domEditText()  {
   if (!selectedElem) return;
   const btn = document.getElementById('btn-edittext');
@@ -1134,6 +1156,28 @@ function buildInspectScript() {
         sendMutation();
         window.parent.postMessage({type:'vd_edittextdone'},'*');
       });
+    } else if(cmd==='vd_addElement'){
+      if(!selEl) return;
+      var t=e.data.elemType, newEl=document.createElement(t);
+      if(t==='button'){
+        newEl.className='btn btn-primary'; newEl.textContent='New Button';
+      } else if(t==='div'){
+        newEl.style.cssText='padding:1rem;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;';
+        newEl.textContent='New Container';
+      } else if(t==='img'){
+        newEl.src='https://placehold.co/300x200';
+        newEl.alt='Placeholder'; newEl.style.cssText='max-width:100%;border-radius:8px;display:block;';
+      } else if(t==='video'){
+        newEl.controls=true; newEl.src='';
+        newEl.style.cssText='width:100%;border-radius:8px;background:#0f172a;min-height:150px;display:block;';
+      } else if(t==='p'){
+        newEl.style.color='inherit'; newEl.textContent='New text block. Edit me.';
+      }
+      var CONTAINERS={'DIV':1,'SECTION':1,'HEADER':1,'MAIN':1,'ASIDE':1,'FOOTER':1,'ARTICLE':1,'NAV':1,'FORM':1,'UL':1,'OL':1,'LI':1};
+      if(CONTAINERS[selEl.tagName]) selEl.appendChild(newEl);
+      else selEl.after(newEl);
+      postSelected(newEl);
+      sendMutation();
     }
   });
 
