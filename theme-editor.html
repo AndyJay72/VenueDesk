@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VenueDesk WYSIWYG Theme Editor</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sh-bg:      #05090f;
+  --sh-panel:   #090e18;
+  --sh-border:  #141f30;
+  --sh-accent:  #6366f1;
+  --sh-text:    #e2e8f0;
+  --sh-muted:   #4a5568;
+  --sh-label:   #8892a4;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--sh-bg);
+  color: var(--sh-text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────── */
+.hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 44px;
+  background: var(--sh-panel);
+  border-bottom: 1px solid var(--sh-border);
+  flex-shrink: 0;
+}
+.hdr-logo { font-size: 13px; font-weight: 700; color: var(--sh-text); flex-shrink: 0; }
+.hdr-logo span { color: var(--sh-accent); }
+.hdr-file {
+  font-size: 11px; color: var(--sh-muted);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--sh-border);
+  border-radius: 5px; padding: 3px 9px;
+  max-width: 160px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.hdr-sep { flex: 1; }
+.hdr-zoom { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--sh-muted); }
+.hdr-zoom input { width: 70px; accent-color: var(--sh-accent); }
+.hdr-zoom-val { min-width: 34px; text-align: right; font-family: monospace; font-size: 11px; color: var(--sh-label); }
+
+.hdr-btn {
+  padding: 5px 10px; border-radius: 6px; border: none;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+}
+.hdr-btn-primary { background: var(--sh-accent); color: #fff; }
+.hdr-btn-primary:hover { background: #4f46e5; }
+.hdr-btn-ghost { background: transparent; color: var(--sh-label); border: 1px solid var(--sh-border); }
+.hdr-btn-ghost:hover { border-color: #334155; color: var(--sh-text); }
+.hdr-btn-inspect { background: transparent; color: var(--sh-label); border: 1px solid var(--sh-border); }
+.hdr-btn-inspect.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: #6366f1; }
+.hdr-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+/* ── Body ────────────────────────────────────────────────────────────────────── */
+.body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Control panel ───────────────────────────────────────────────────────────── */
+.ctrl {
+  width: 290px; flex-shrink: 0;
+  background: var(--sh-panel);
+  border-right: 1px solid var(--sh-border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Panel tabs: Variables | Element */
+.panel-tabs {
+  display: flex; border-bottom: 1px solid var(--sh-border); flex-shrink: 0;
+}
+.ptab {
+  flex: 1; padding: 9px 0;
+  background: transparent; border: none;
+  color: var(--sh-muted); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.12s;
+  letter-spacing: 0.03em; border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.ptab:hover { color: var(--sh-text); }
+.ptab.active { color: var(--sh-accent); border-bottom-color: var(--sh-accent); background: rgba(99,102,241,0.05); }
+.ptab .ptab-badge {
+  display: inline-block;
+  background: var(--sh-accent); color: #fff;
+  font-size: 9px; padding: 0px 5px; border-radius: 10px;
+  margin-left: 4px; vertical-align: middle;
+}
+
+/* ── Variables panel ─────────────────────────────────────────────────────────── */
+#pane-vars { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+.mode-toggle { display: flex; gap: 0; padding: 9px 11px 0; flex-shrink: 0; }
+.mode-btn {
+  flex: 1; padding: 6px 0;
+  border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-muted);
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.mode-btn:first-child { border-radius: 6px 0 0 6px; border-right: none; }
+.mode-btn:last-child  { border-radius: 0 6px 6px 0; }
+.mode-btn.active-dark  { background: #1a1f35; color: #818cf8; border-color: #3730a3; }
+.mode-btn.active-light { background: #fffbea; color: #92400e; border-color: #d97706; }
+
+.light-notice {
+  margin: 7px 11px 0;
+  padding: 6px 9px;
+  border-radius: 5px; font-size: 10px; line-height: 1.5;
+  display: none;
+}
+.light-notice.show { display: block; }
+.light-notice.info { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); color: #b45309; }
+.light-notice.warn { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); color: #dc2626; }
+
+.ctrl-search { padding: 8px 11px; border-bottom: 1px solid var(--sh-border); flex-shrink: 0; }
+.ctrl-search input {
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--sh-border); border-radius: 5px;
+  padding: 5px 9px; font-size: 12px; color: var(--sh-text); outline: none;
+}
+.ctrl-search input:focus { border-color: var(--sh-accent); }
+.ctrl-search input::placeholder { color: var(--sh-muted); }
+
+.ctrl-body { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #1e2d45 transparent; }
+
+/* Sections */
+.cs { border-bottom: 1px solid #0d1624; }
+.cs-head {
+  display: flex; align-items: center; gap: 7px; padding: 8px 11px;
+  cursor: pointer; user-select: none; background: rgba(255,255,255,0.01);
+  transition: background 0.12s;
+}
+.cs-head:hover { background: rgba(255,255,255,0.03); }
+.cs-title { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #3d5070; flex: 1; }
+.cs-count { font-size: 10px; color: var(--sh-muted); background: rgba(255,255,255,0.05); border-radius: 20px; padding: 1px 6px; }
+.cs-chevron { font-size: 10px; color: var(--sh-muted); transition: transform 0.15s; }
+.cs.collapsed .cs-chevron { transform: rotate(-90deg); }
+.cs-body { padding: 3px 0 7px; }
+.cs.collapsed .cs-body { display: none; }
+
+/* Var rows */
+.cr { display: flex; align-items: center; gap: 7px; padding: 5px 11px; transition: background 0.1s; }
+.cr:hover { background: rgba(255,255,255,0.025); }
+.cr.hidden { display: none; }
+.cr.cr-inherited { opacity: 0.5; }
+.cr.cr-inherited:hover { opacity: 1; }
+.cr-label { flex: 1; min-width: 0; }
+.cr-name { font-size: 11px; color: var(--sh-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+.cr-name.md { color: #818cf8; }
+.cr-name.ml { color: #d97706; }
+.cr-sub { font-size: 9px; margin-top: 1px; font-family: monospace; }
+.cr-sub.from-root { color: #2d4a6e; }
+.cr-sub.in-light  { color: #92400e; }
+
+input[type="color"] {
+  width: 28px; height: 22px; border: 1px solid #1e2d45; border-radius: 4px;
+  cursor: pointer; background: #0d1a2d; padding: 2px; flex-shrink: 0;
+}
+input[type="color"]:hover { border-color: var(--sh-accent); }
+.cr-range-wrap { display: flex; align-items: center; gap: 5px; flex: 1; }
+input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; }
+.cr-val { font-size: 10px; color: var(--sh-muted); min-width: 36px; text-align: right; font-family: monospace; }
+.cr-text {
+  flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--sh-border);
+  border-radius: 4px; padding: 3px 6px; font-size: 11px; color: var(--sh-text);
+  font-family: monospace; outline: none; min-width: 0;
+}
+.cr-text:focus { border-color: var(--sh-accent); }
+.cr-text[readonly] { opacity: 0.35; cursor: default; }
+.cr-reset {
+  background: none; border: none; color: var(--sh-muted); cursor: pointer;
+  font-size: 13px; padding: 0 1px; line-height: 1; opacity: 0; flex-shrink: 0;
+}
+.cr:hover .cr-reset { opacity: 1; }
+.cr-reset:hover { color: #ef4444; }
+
+/* ── Element panel ───────────────────────────────────────────────────────────── */
+#pane-elem { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+
+.elem-prompt {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; padding: 24px; text-align: center;
+}
+.elem-prompt-icon { font-size: 36px; opacity: 0.25; }
+.elem-prompt-title { font-size: 13px; font-weight: 600; color: var(--sh-label); }
+.elem-prompt-sub { font-size: 11px; color: var(--sh-muted); line-height: 1.6; }
+.elem-prompt .inspect-cta {
+  padding: 8px 18px; background: var(--sh-accent);
+  color: #fff; border: none; border-radius: 7px;
+  font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 4px;
+}
+.elem-prompt .inspect-cta:hover { background: #4f46e5; }
+
+/* Element breadcrumb */
+.elem-crumb {
+  padding: 9px 11px 8px;
+  border-bottom: 1px solid var(--sh-border);
+  flex-shrink: 0;
+}
+.elem-crumb-tag {
+  font-size: 13px; font-weight: 700; color: var(--sh-text);
+  font-family: monospace;
+}
+.elem-crumb-id { color: #f87171; }
+.elem-crumb-cls { color: #818cf8; }
+.elem-crumb-path {
+  font-size: 10px; color: var(--sh-muted); margin-top: 3px;
+  font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.elem-crumb-actions { display: flex; gap: 6px; margin-top: 7px; }
+.elem-crumb-btn {
+  padding: 3px 9px; border-radius: 5px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-label); font-size: 10px; font-weight: 600;
+  cursor: pointer; transition: all 0.12s;
+}
+.elem-crumb-btn:hover { color: var(--sh-text); border-color: #334155; }
+.elem-crumb-btn.danger:hover { color: #ef4444; border-color: #ef4444; }
+
+/* Element CSS tabs */
+.elem-tabs { display: flex; border-bottom: 1px solid var(--sh-border); flex-shrink: 0; }
+.etab {
+  flex: 1; padding: 7px 2px; background: transparent; border: none;
+  color: var(--sh-muted); font-size: 10px; font-weight: 700; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s;
+  letter-spacing: 0.04em;
+}
+.etab:hover { color: var(--sh-text); }
+.etab.active { color: var(--sh-accent); border-bottom-color: var(--sh-accent); }
+
+/* Element prop rows */
+.ep-body { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #1e2d45 transparent; padding: 4px 0 8px; }
+.ep-row {
+  display: flex; align-items: center; gap: 6px; padding: 4px 11px;
+  transition: background 0.1s;
+}
+.ep-row:hover { background: rgba(255,255,255,0.025); }
+.ep-label { font-size: 11px; color: var(--sh-label); min-width: 0; flex-basis: 110px; flex-shrink: 0; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ep-computed { font-size: 10px; color: #2a3d5a; font-family: monospace; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.ep-computed.overridden { color: var(--sh-accent); }
+.ep-input {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--sh-border);
+  border-radius: 4px; padding: 3px 6px; font-size: 11px; color: var(--sh-text);
+  font-family: monospace; outline: none; min-width: 0;
+}
+.ep-input:focus { border-color: var(--sh-accent); background: rgba(255,255,255,0.08); }
+.ep-input.has-val { border-color: rgba(99,102,241,0.4); color: #818cf8; }
+.ep-color { width: 26px; height: 20px; border: 1px solid #1e2d45; border-radius: 4px; cursor: pointer; background: #0d1a2d; padding: 1px; flex-shrink: 0; }
+.ep-select {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--sh-border);
+  border-radius: 4px; padding: 3px 5px; font-size: 11px; color: var(--sh-text); outline: none;
+}
+.ep-select:focus { border-color: var(--sh-accent); }
+.ep-reset {
+  background: none; border: none; color: var(--sh-muted); cursor: pointer;
+  font-size: 12px; opacity: 0; padding: 0 2px;
+}
+.ep-row:hover .ep-reset { opacity: 1; }
+.ep-reset:hover { color: #ef4444; }
+
+/* Custom property tab */
+.ep-custom-add { padding: 8px 11px; border-bottom: 1px solid var(--sh-border); }
+.ep-custom-add-row { display: flex; gap: 5px; margin-bottom: 5px; }
+.ep-custom-inp {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--sh-border);
+  border-radius: 4px; padding: 5px 7px; font-size: 11px; color: var(--sh-text);
+  font-family: monospace; outline: none;
+}
+.ep-custom-inp:focus { border-color: var(--sh-accent); }
+.ep-custom-inp::placeholder { color: var(--sh-muted); font-style: italic; }
+.ep-add-btn {
+  padding: 5px 10px; background: var(--sh-accent); color: #fff;
+  border: none; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.ep-add-btn:hover { background: #4f46e5; }
+.ep-override-list { padding: 4px 0; }
+.ep-override-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 11px; font-size: 11px; font-family: monospace;
+}
+.ep-override-prop { color: var(--sh-accent); flex-shrink: 0; }
+.ep-override-colon { color: var(--sh-muted); flex-shrink: 0; }
+.ep-override-val { color: #6ee7b7; flex: 1; min-width: 0; }
+.ep-override-del { background: none; border: none; color: var(--sh-muted); cursor: pointer; font-size: 12px; padding: 0 2px; }
+.ep-override-del:hover { color: #ef4444; }
+
+/* No element selected inside element panel */
+#elem-content { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+#elem-prompt  { display: flex; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────────── */
+.ctrl-footer {
+  border-top: 1px solid var(--sh-border);
+  padding: 9px 11px; display: flex; gap: 7px; flex-shrink: 0;
+}
+.ctrl-footer button {
+  flex: 1; padding: 7px 0; border-radius: 6px; border: none;
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-dl { background: var(--sh-accent); color: #fff; }
+.btn-dl:hover { background: #4f46e5; }
+.btn-dl:disabled, .btn-copy-css:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+.btn-copy-css { background: rgba(255,255,255,0.06); color: var(--sh-label); border: 1px solid var(--sh-border) !important; }
+.btn-copy-css:hover { color: var(--sh-text); }
+
+/* ── Preview ─────────────────────────────────────────────────────────────────── */
+.preview { flex: 1; overflow: hidden; background: #020509; position: relative; }
+.preview-empty {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; color: var(--sh-muted);
+}
+.preview-empty-icon { font-size: 48px; opacity: 0.2; }
+.preview-empty-title { font-size: 15px; font-weight: 600; color: var(--sh-label); }
+.preview-empty-sub { font-size: 12px; line-height: 1.6; text-align: center; max-width: 300px; }
+.drop-zone-btn { padding: 10px 22px; background: var(--sh-accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.drop-zone-btn:hover { background: #4f46e5; }
+.preview-frame-wrap { width: 100%; height: 100%; overflow: auto; display: flex; }
+#preview-iframe { border: none; display: block; transform-origin: top left; }
+
+/* Inspect mode cursor indicator on preview */
+.preview.inspect-active { cursor: crosshair; }
+.inspect-banner {
+  display: none;
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(99,102,241,0.9); color: #fff;
+  padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  z-index: 10; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.inspect-banner.show { display: block; }
+
+.drop-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(99,102,241,0.12); border: 3px dashed var(--sh-accent); z-index: 1000;
+  align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--sh-accent);
+}
+.drop-overlay.active { display: flex; }
+
+.ctrl-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; padding: 20px; text-align: center;
+}
+.ctrl-empty-icon { font-size: 30px; opacity: 0.3; }
+.ctrl-empty-text { font-size: 12px; color: var(--sh-muted); line-height: 1.6; }
+
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #0f172a; border: 1px solid #1e2d45; border-radius: 8px;
+  padding: 9px 14px; font-size: 12px; font-weight: 600; color: var(--sh-text);
+  z-index: 999; transform: translateY(60px); opacity: 0; transition: all 0.25s;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-left: 3px solid #10b981; }
+.toast.error   { border-left: 3px solid #ef4444; }
+
+/* ── Undo/Redo / Split buttons ───────────────────────────────────────────── */
+.hdr-btn-undo { background: transparent; color: var(--sh-label); border: 1px solid var(--sh-border); }
+.hdr-btn-undo:hover:not(:disabled) { color: var(--sh-text); border-color: #334155; }
+.hdr-btn-split.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: #6366f1; }
+
+/* ── Presets bar ─────────────────────────────────────────────────────────── */
+.presets-bar { padding: 8px 11px 6px; border-bottom: 1px solid var(--sh-border); flex-shrink: 0; }
+.presets-label { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #3d5070; margin-bottom: 6px; }
+.presets-swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+.preset-btn {
+  padding: 3px 9px; border-radius: 4px; border: 1px solid var(--sh-border);
+  font-size: 10px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.04);
+  color: var(--sh-label); transition: all 0.12s; white-space: nowrap;
+}
+.preset-btn:hover { border-color: var(--sh-accent); color: var(--sh-text); }
+.preset-btn[data-preset="original"] { border-color: #334155; }
+
+/* ── Font picker ─────────────────────────────────────────────────────────── */
+.font-picker-bar { padding: 6px 11px 7px; border-bottom: 1px solid var(--sh-border); flex-shrink: 0; display: flex; align-items: center; gap: 7px; }
+.font-picker-bar label { font-size: 10px; font-weight: 700; color: var(--sh-muted); white-space: nowrap; }
+.font-picker-select {
+  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--sh-border);
+  border-radius: 4px; padding: 3px 6px; font-size: 11px; color: var(--sh-text); outline: none;
+}
+.font-picker-select:focus { border-color: var(--sh-accent); }
+
+/* ── DOM Actions toolbar ─────────────────────────────────────────────────── */
+.dom-actions { display: flex; gap: 5px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sh-border); }
+.dom-action-btn {
+  flex: 1; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-label); font-size: 10px; font-weight: 600;
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.dom-action-btn:hover { color: var(--sh-text); border-color: #334155; }
+.dom-action-btn.danger:hover { color: #ef4444; border-color: #ef4444; }
+.dom-action-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: #6366f1; }
+
+/* ── Split view ──────────────────────────────────────────────────────────── */
+.split-wrap { display: none; flex: 1; gap: 0; overflow: hidden; }
+.split-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--sh-border); }
+.split-pane:last-child { border-right: none; }
+.split-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; background: var(--sh-panel); border-bottom: 1px solid var(--sh-border); color: var(--sh-muted); flex-shrink: 0; }
+.split-label.modified { color: #818cf8; }
+.split-frame-wrap { flex: 1; overflow: auto; display: flex; }
+.split-iframe { border: none; display: block; transform-origin: top left; }
+</style>
+</head>
+<body>
+
+<input type="file" id="file-input" accept=".html,.htm" style="display:none">
+<div class="drop-overlay" id="drop-overlay">Drop HTML file to open</div>
+
+<!-- ── Header ── -->
+<header class="hdr">
+  <div class="hdr-logo">Venue<span>Desk</span> WYSIWYG</div>
+  <div class="hdr-file" id="hdr-file">No file loaded</div>
+  <button class="hdr-btn hdr-btn-ghost" onclick="document.getElementById('file-input').click()">Open File</button>
+  <div class="hdr-sep"></div>
+  <div class="hdr-zoom">
+    <span>Zoom</span>
+    <input type="range" id="scale-slider" min="30" max="100" value="100" step="5" oninput="onScale(this.value)">
+    <span class="hdr-zoom-val" id="scale-val">100%</span>
+  </div>
+  <button class="hdr-btn hdr-btn-undo"    id="btn-undo"     onclick="undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+  <button class="hdr-btn hdr-btn-undo"    id="btn-redo"     onclick="redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+  <button class="hdr-btn hdr-btn-inspect hdr-btn-split" id="btn-split" onclick="toggleSplit()" disabled title="Side-by-side before/after">⇌ Split</button>
+  <button class="hdr-btn hdr-btn-inspect" id="btn-inspect" onclick="toggleInspect()" disabled title="Click elements in the preview to edit their CSS">🔲 Inspect</button>
+  <button class="hdr-btn hdr-btn-ghost"   id="btn-patch"    onclick="exportCssPatch()" disabled>⎘ CSS Patch</button>
+  <button class="hdr-btn hdr-btn-ghost"   id="btn-copy-root" onclick="copyRootBlock()" disabled>⎘ Copy CSS</button>
+  <button class="hdr-btn hdr-btn-primary" id="btn-download"  onclick="downloadModifiedHtml()" disabled>⬇ Download</button>
+</header>
+
+<!-- ── Body ── -->
+<div class="body">
+
+  <!-- Control Panel -->
+  <aside class="ctrl">
+
+    <!-- No-file state -->
+    <div class="ctrl-empty" id="ctrl-empty">
+      <div class="ctrl-empty-icon">⎘</div>
+      <div class="ctrl-empty-text">Open any VenueDesk <code>.html</code> file to edit its CSS live.<br><br>Drag & drop a file or click <strong>Open File</strong>.</div>
+    </div>
+
+    <!-- Loaded state -->
+    <div id="ctrl-loaded" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+
+      <!-- Panel tabs -->
+      <div class="panel-tabs">
+        <button class="ptab active" id="ptab-vars"  onclick="switchPanel('vars')">CSS Variables</button>
+        <button class="ptab"        id="ptab-elem"  onclick="switchPanel('elem')">
+          Element CSS <span class="ptab-badge" id="elem-count-badge" style="display:none">0</span>
+        </button>
+      </div>
+
+      <!-- ── Variables pane ── -->
+      <div id="pane-vars">
+        <!-- Presets -->
+        <div class="presets-bar">
+          <div class="presets-label">Presets</div>
+          <div class="presets-swatches">
+            <button class="preset-btn" data-preset="original" onclick="applyPreset('original')">↺ Original</button>
+            <button class="preset-btn" data-preset="indigo"   onclick="applyPreset('indigo')"  style="border-color:#4338ca;color:#818cf8">⬤ Indigo</button>
+            <button class="preset-btn" data-preset="slate"    onclick="applyPreset('slate')"   style="border-color:#0369a1;color:#38bdf8">⬤ Slate</button>
+            <button class="preset-btn" data-preset="emerald"  onclick="applyPreset('emerald')" style="border-color:#065f46;color:#34d399">⬤ Emerald</button>
+            <button class="preset-btn" data-preset="crimson"  onclick="applyPreset('crimson')" style="border-color:#991b1b;color:#f87171">⬤ Crimson</button>
+            <button class="preset-btn" data-preset="amber"    onclick="applyPreset('amber')"   style="border-color:#92400e;color:#fbbf24">⬤ Amber</button>
+          </div>
+        </div>
+        <!-- Font picker -->
+        <div class="font-picker-bar">
+          <label for="font-picker">Font</label>
+          <select id="font-picker" class="font-picker-select" onchange="changeFontFamily(this.value)">
+            <option value="">— system default —</option>
+            <option>Inter</option><option>Outfit</option><option>Poppins</option>
+            <option>Roboto</option><option>Open Sans</option><option>Lato</option>
+            <option>Montserrat</option><option>Nunito</option><option>DM Sans</option>
+            <option>Raleway</option><option>Playfair Display</option><option>Merriweather</option>
+          </select>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn active-dark" id="btn-mode-dark"  onclick="setMode('dark')">☾ Dark</button>
+          <button class="mode-btn"             id="btn-mode-light" onclick="setMode('light')">☀ Light</button>
+        </div>
+        <div class="light-notice" id="light-notice"></div>
+        <div class="ctrl-search">
+          <input type="text" id="var-search" placeholder="Filter variables…" oninput="filterVars(this.value)">
+        </div>
+        <div class="ctrl-body" id="ctrl-groups"></div>
+      </div>
+
+      <!-- ── Element pane ── -->
+      <div id="pane-elem">
+
+        <!-- Prompt when nothing selected -->
+        <div id="elem-prompt" class="elem-prompt">
+          <div class="elem-prompt-icon">🔲</div>
+          <div class="elem-prompt-title">No element selected</div>
+          <div class="elem-prompt-sub">Click <strong>Inspect</strong> in the header, then click any element in the preview to edit its CSS properties.</div>
+          <button class="inspect-cta" onclick="toggleInspect()">Enable Inspect Mode</button>
+        </div>
+
+        <!-- Element editor (shows once element selected) -->
+        <div id="elem-content">
+          <!-- Breadcrumb -->
+          <div class="elem-crumb">
+            <div class="elem-crumb-tag" id="elem-crumb-tag"></div>
+            <div class="elem-crumb-path" id="elem-crumb-path"></div>
+            <div class="elem-crumb-actions">
+              <button class="elem-crumb-btn" onclick="clearElemOverrides()" title="Remove all overrides for this element">Clear overrides</button>
+              <button class="elem-crumb-btn" onclick="deselectElem()">✕ Deselect</button>
+            </div>
+            <div class="dom-actions">
+              <button class="dom-action-btn danger" onclick="domDelete()"    title="Delete element from DOM">🗑️ Delete</button>
+              <button class="dom-action-btn"        onclick="domDuplicate()" title="Clone element after itself">📄 Duplicate</button>
+              <button class="dom-action-btn" id="btn-edittext" onclick="domEditText()" title="Edit text content inline">✏️ Edit Text</button>
+            </div>
+          </div>
+          <!-- Property category tabs -->
+          <div class="elem-tabs">
+            <button class="etab active" onclick="setElemTab('layout')">Layout</button>
+            <button class="etab"        onclick="setElemTab('type')">Type</button>
+            <button class="etab"        onclick="setElemTab('appear')">Color</button>
+            <button class="etab"        onclick="setElemTab('custom')">+ Custom</button>
+          </div>
+          <div class="ep-body" id="ep-body"></div>
+        </div>
+      </div>
+
+    </div><!-- /ctrl-loaded -->
+
+    <!-- Footer -->
+    <div class="ctrl-footer">
+      <button class="btn-dl"       id="btn-dl-foot"   onclick="downloadModifiedHtml()" disabled>⬇ Download</button>
+      <button class="btn-copy-css" id="btn-copy-foot" onclick="copyRootBlock()"        disabled>⎘ Copy CSS</button>
+    </div>
+  </aside>
+
+  <!-- Preview -->
+  <div class="preview" id="preview-panel" ondragover="onDragOver(event)" ondrop="onDrop(event)">
+    <div class="inspect-banner" id="inspect-banner">🔲 Inspect mode — click any element</div>
+    <div class="preview-empty" id="preview-empty">
+      <div class="preview-empty-icon">🖼</div>
+      <div class="preview-empty-title">No page loaded</div>
+      <div class="preview-empty-sub">Open any VenueDesk <code>.html</code> file — it renders here and updates live as you edit.</div>
+      <button class="drop-zone-btn" onclick="document.getElementById('file-input').click()">Open HTML File</button>
+    </div>
+    <div class="preview-frame-wrap" id="frame-wrap" style="display:none">
+      <iframe id="preview-iframe" title="Page Preview"></iframe>
+    </div>
+    <!-- Split view -->
+    <div class="split-wrap" id="split-wrap">
+      <div class="split-pane">
+        <div class="split-label">Original</div>
+        <div class="split-frame-wrap" id="split-wrap-orig"><iframe id="split-orig" class="split-iframe" title="Original"></iframe></div>
+      </div>
+      <div class="split-pane">
+        <div class="split-label modified">Modified</div>
+        <div class="split-frame-wrap" id="split-wrap-mod"><iframe id="split-mod" class="split-iframe" title="Modified"></iframe></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let originalHtml   = '';
+let fileName       = '';
+let parsedDark     = {};
+let parsedLight    = {};
+let lightSelector  = 'body.light-mode';
+let lightClassName = 'light-mode';
+let overrideDark   = {};
+let overrideLight  = {};
+let currentMode    = 'dark';    // 'dark' | 'light'
+let currentPanel   = 'vars';   // 'vars' | 'elem'
+let inspectMode    = false;
+let selectedElem   = null;     // { selector, tagName, id, classes, styles }
+let elemOverrides  = {};       // { selector: { prop: value } }
+let currentElemTab = 'layout';
+let _updateTimer   = null;
+let splitMode      = false;
+let overrideFontLink = '';
+let history        = [];
+let histIdx        = -1;
+const MAX_HISTORY  = 50;
+let _histTimer     = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History / Undo / Redo
+// ─────────────────────────────────────────────────────────────────────────────
+function snapshot() {
+  return { originalHtml, overrideDark: {...overrideDark}, overrideLight: {...overrideLight}, elemOverrides: JSON.parse(JSON.stringify(elemOverrides)) };
+}
+function pushHistory() {
+  history = history.slice(0, histIdx + 1);
+  history.push(snapshot());
+  if (history.length > MAX_HISTORY) history.shift();
+  histIdx = history.length - 1;
+  updateUndoRedoBtns();
+}
+function scheduleHistoryPush() {
+  clearTimeout(_histTimer);
+  _histTimer = setTimeout(pushHistory, 1000);
+}
+function undo() {
+  if (histIdx <= 0) return;
+  histIdx--;
+  restoreSnapshot(history[histIdx]);
+  showToast('Undone', 'success');
+}
+function redo() {
+  if (histIdx >= history.length - 1) return;
+  histIdx++;
+  restoreSnapshot(history[histIdx]);
+  showToast('Redone', 'success');
+}
+function restoreSnapshot(snap) {
+  originalHtml  = snap.originalHtml;
+  overrideDark  = {...snap.overrideDark};
+  overrideLight = {...snap.overrideLight};
+  elemOverrides = JSON.parse(JSON.stringify(snap.elemOverrides));
+  parsedDark    = parseCSSBlock(originalHtml, [':root']);
+  const light   = parseLightBlock(originalHtml);
+  parsedLight = light.vars; lightSelector = light.selector; lightClassName = extractClass(lightSelector);
+  buildVarControls(); updateLightNotice(); renderPreview(); updateUndoRedoBtns(); updateElemBadge();
+}
+function updateUndoRedoBtns() {
+  const u = document.getElementById('btn-undo'), r = document.getElementById('btn-redo');
+  if (u) u.disabled = histIdx <= 0 || !originalHtml;
+  if (r) r.disabled = histIdx >= history.length - 1 || !originalHtml;
+}
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset themes
+// ─────────────────────────────────────────────────────────────────────────────
+const PRESET_THEMES = {
+  indigo:  { '--primary':'#6366f1','--primary-hover':'#4f46e5','--primary-light':'#1e1b4b','--bg-page':'#0b0f19','--bg-card':'#131b2e','--bg-sidebar':'#131b2e','--bg-input':'#1e293b','--bg-muted':'#1e293b','--border-color':'#1e293b','--text-main':'#f8fafc','--text-muted':'#94a3b8' },
+  slate:   { '--primary':'#38bdf8','--primary-hover':'#0ea5e9','--primary-light':'#0c2233','--bg-page':'#0a0f14','--bg-card':'#111823','--bg-sidebar':'#111823','--bg-input':'#1a2535','--bg-muted':'#1a2535','--border-color':'#1e2d3f','--text-main':'#e2e8f0','--text-muted':'#64748b' },
+  emerald: { '--primary':'#34d399','--primary-hover':'#10b981','--primary-light':'#0a2318','--bg-page':'#050d0a','--bg-card':'#0d1f17','--bg-sidebar':'#0d1f17','--bg-input':'#122a1e','--bg-muted':'#122a1e','--border-color':'#163325','--text-main':'#ecfdf5','--text-muted':'#6ee7b7' },
+  crimson: { '--primary':'#f87171','--primary-hover':'#ef4444','--primary-light':'#2d0a0a','--bg-page':'#0d0505','--bg-card':'#1a0a0a','--bg-sidebar':'#1a0a0a','--bg-input':'#241010','--bg-muted':'#241010','--border-color':'#2d1414','--text-main':'#fef2f2','--text-muted':'#fca5a5' },
+  amber:   { '--primary':'#fbbf24','--primary-hover':'#f59e0b','--primary-light':'#291d05','--bg-page':'#0d0900','--bg-card':'#1a1200','--bg-sidebar':'#1a1200','--bg-input':'#241a00','--bg-muted':'#241a00','--border-color':'#2d2000','--text-main':'#fffbeb','--text-muted':'#fde68a' },
+};
+function applyPreset(name) {
+  pushHistory();
+  if (name === 'original') { overrideDark = {}; overrideLight = {}; }
+  else { const p = PRESET_THEMES[name]; if (!p) return; Object.assign(overrideDark, p); }
+  buildVarControls(); scheduleUpdate();
+  showToast('Preset: ' + name, 'success');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Font picker
+// ─────────────────────────────────────────────────────────────────────────────
+function changeFontFamily(font) {
+  pushHistory();
+  if (!font) { overrideFontLink = ''; scheduleUpdate(); return; }
+  overrideFontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">`;
+  // Override known font-family CSS variables if the loaded page has them
+  ['--font-body','--font-sans','--font-heading','--font-base'].forEach(v => { if (parsedDark[v] !== undefined) overrideDark[v] = `'${font}', -apple-system, sans-serif`; });
+  scheduleUpdate(); showToast('Font: ' + font, 'success');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export CSS patch
+// ─────────────────────────────────────────────────────────────────────────────
+function exportCssPatch() {
+  if (!originalHtml) return;
+  let patch = '/* VenueDesk Theme Patch */\n\n';
+  if (Object.keys(overrideDark).length)  patch += ':root {\n'          + Object.entries(overrideDark).map(([k,v])=>`  ${k}: ${v};`).join('\n')  + '\n}\n\n';
+  if (Object.keys(overrideLight).length) patch += `${lightSelector} {\n` + Object.entries(overrideLight).map(([k,v])=>`  ${k}: ${v};`).join('\n') + '\n}\n\n';
+  Object.entries(elemOverrides).forEach(([sel,props]) => { if (Object.keys(props).length) patch += `${sel} {\n${Object.entries(props).map(([p,v])=>`  ${p}: ${v};`).join('\n')}\n}\n\n`; });
+  if (patch.trim() === '/* VenueDesk Theme Patch */') { showToast('No changes to export', 'error'); return; }
+  const blob = new Blob([patch], {type:'text/css'});
+  const url  = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), {href:url, download:(fileName.replace(/\.html?$/i,'')||'theme')+'-patch.css'}).click();
+  URL.revokeObjectURL(url);
+  showToast('CSS patch downloaded', 'success');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Split view
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleSplit() {
+  splitMode = !splitMode;
+  document.getElementById('btn-split').classList.toggle('active', splitMode);
+  document.getElementById('frame-wrap').style.display  = splitMode ? 'none' : '';
+  document.getElementById('split-wrap').style.display  = splitMode ? 'flex' : 'none';
+  if (splitMode && inspectMode) toggleInspect();
+  document.getElementById('btn-inspect').disabled = splitMode || !originalHtml;
+  renderPreview();
+  if (splitMode) applySplitScale(parseInt(document.getElementById('scale-slider').value));
+}
+function applySplitScale(pct) {
+  ['split-orig','split-mod'].forEach((id,i) => {
+    const iframe = document.getElementById(id);
+    const wrap   = document.getElementById(i===0?'split-wrap-orig':'split-wrap-mod');
+    const scale  = pct / 100;
+    const ww = (wrap.clientWidth  || (window.innerWidth  - 290) / 2) / scale;
+    const wh = (wrap.clientHeight || window.innerHeight - 44)        / scale;
+    iframe.style.width = Math.round(ww) + 'px'; iframe.style.height = Math.round(wh) + 'px';
+    iframe.style.transform = `scale(${scale})`;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM actions
+// ─────────────────────────────────────────────────────────────────────────────
+function sendDomCommand(cmd) {
+  const iframe = document.getElementById('preview-iframe');
+  if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({type: 'vd_' + cmd}, '*');
+}
+function domDelete()    { if (!selectedElem) return; pushHistory(); sendDomCommand('delete'); selectedElem = null; renderElemPanel(); }
+function domDuplicate() { if (!selectedElem) return; pushHistory(); sendDomCommand('duplicate'); }
+function domEditText()  {
+  if (!selectedElem) return;
+  const btn = document.getElementById('btn-edittext');
+  btn.classList.toggle('active');
+  sendDomCommand('editText');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// File loading
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0]; if (f) loadFile(f); e.target.value = '';
+});
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-overlay').classList.add('active'); }
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('drop-overlay').classList.remove('active'); });
+document.addEventListener('dragend',   ()  => document.getElementById('drop-overlay').classList.remove('active'));
+function onDrop(e) {
+  e.preventDefault(); document.getElementById('drop-overlay').classList.remove('active');
+  const f = e.dataTransfer.files[0];
+  if (f && /\.html?$/i.test(f.name)) loadFile(f); else showToast('Drop an .html file', 'error');
+}
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    originalHtml  = ev.target.result;
+    fileName      = file.name;
+    parsedDark    = parseCSSBlock(originalHtml, [':root']);
+    const light   = parseLightBlock(originalHtml);
+    parsedLight   = light.vars;
+    lightSelector = light.selector;
+    lightClassName = extractClass(lightSelector);
+    overrideDark  = {};
+    overrideLight = {};
+    elemOverrides = {};
+    currentMode   = 'dark';
+    currentPanel  = 'vars';
+    inspectMode   = false;
+    selectedElem  = null;
+    overrideFontLink = '';
+    document.getElementById('font-picker').value = '';
+    splitMode = false;
+    document.getElementById('btn-split').classList.remove('active');
+    document.getElementById('frame-wrap').style.display  = '';
+    document.getElementById('split-wrap').style.display  = 'none';
+    history = []; histIdx = -1;
+    setLoaded(true);
+    buildVarControls();
+    updateLightNotice();
+    renderPreview();
+    pushHistory();
+    updateUndoRedoBtns();
+    showToast(`Loaded: ${file.name}`, 'success');
+  };
+  reader.readAsText(file);
+}
+
+function setLoaded(on) {
+  document.getElementById('ctrl-empty').style.display    = on ? 'none'  : '';
+  document.getElementById('ctrl-loaded').style.display   = on ? 'flex'  : 'none';
+  document.getElementById('preview-empty').style.display = on ? 'none'  : '';
+  document.getElementById('frame-wrap').style.display    = on ? ''      : 'none';
+  document.getElementById('hdr-file').textContent        = on ? fileName : 'No file loaded';
+  ['btn-copy-root','btn-download','btn-dl-foot','btn-copy-foot','btn-inspect','btn-split','btn-patch'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = !on;
+  });
+  if (!on) { updateUndoRedoBtns(); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CSS parsing
+// ─────────────────────────────────────────────────────────────────────────────
+function getStyleContent(html) {
+  return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
+}
+
+function parseCSSBlock(html, selectors) {
+  const content = getStyleContent(html).replace(/\/\*[\s\S]*?\*\//g, '');
+  const vars = {};
+  for (const sel of selectors) {
+    const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re  = new RegExp(esc + '\\s*\\{', 'g');
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const start = m.index + m[0].length;
+      let depth = 1, j = start;
+      while (j < content.length && depth > 0) { if (content[j]==='{') depth++; else if (content[j]==='}') depth--; j++; }
+      const inner = content.slice(start, j - 1);
+      for (const v of inner.matchAll(/--([a-zA-Z0-9_-]+)\s*:\s*([^;]+?)\s*;/g)) {
+        const name = '--' + v[1].trim();
+        if (!vars[name]) vars[name] = v[2].trim();
+      }
+    }
+  }
+  return vars;
+}
+
+const LIGHT_PATTERNS = [
+  { sel: 'body.light-mode', cls: 'light-mode' }, { sel: '.light-mode', cls: 'light-mode' },
+  { sel: 'body.light-theme', cls: 'light-theme' }, { sel: '.light-theme', cls: 'light-theme' },
+  { sel: 'html.light-mode', cls: 'light-mode' }, { sel: 'body.light', cls: 'light' },
+];
+
+function parseLightBlock(html) {
+  for (const { sel, cls } of LIGHT_PATTERNS) {
+    const vars = parseCSSBlock(html, [sel]);
+    if (Object.keys(vars).length > 0) return { vars, selector: sel, cls };
+  }
+  return { vars: {}, selector: 'body.light-mode', cls: 'light-mode' };
+}
+
+function extractClass(sel) { const m = sel.match(/\.([a-zA-Z0-9_-]+)/); return m ? m[1] : 'light-mode'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Value helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const HEX_RE  = /^#([0-9a-fA-F]{3,8})$/;
+const PX_RE   = /^-?\d+(\.\d+)?\s*px$/;
+const NUM_RE  = /^-?\d+(\.\d+)?$/;
+const DERIVED = /var\(|color-mix\(|calc\(|linear-gradient\(|radial-gradient\(/;
+
+function isDerived(v) { return DERIVED.test(v); }
+function isHex(v)     { return HEX_RE.test(v.trim()); }
+function isPx(v)      { return PX_RE.test(v.trim()); }
+
+function normalizeHex(v) {
+  v = v.trim();
+  if (v.length === 4) return '#'+v[1]+v[1]+v[2]+v[2]+v[3]+v[3];
+  if (v.length >= 9)  return v.slice(0,7);
+  return v.slice(0,7);
+}
+
+function rgbToHex(rgb) {
+  const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return null;
+  return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+}
+
+function getSliderConfig(name) {
+  const n = name.toLowerCase();
+  if (n.includes('sidebar')||(n.includes('width')&&!n.includes('border'))) return {min:100,max:500,step:4,unit:'px'};
+  if (n.includes('radius')||n.includes('corner')) return {min:0,max:28,step:1,unit:'px'};
+  if (n.includes('padding')||n.includes('gap')||n.includes('margin')) return {min:0,max:64,step:2,unit:'px'};
+  if (n.includes('font')||n.includes('size')) return {min:8,max:36,step:1,unit:'px'};
+  return {min:0,max:200,step:1,unit:'px'};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Variable grouping
+// ─────────────────────────────────────────────────────────────────────────────
+const VAR_GROUPS = [
+  { key:'brand',   label:'Brand & Primary',  test: n => /^--(primary|accent|brand|highlight|focus)/.test(n) },
+  { key:'bg',      label:'Backgrounds',      test: n => /^--(bg|background|surface)/.test(n) },
+  { key:'text',    label:'Typography',       test: n => /^--(text|font(?!-size)|color(?!.*border)(?!.*badge)(?!.*status))/.test(n) },
+  { key:'border',  label:'Borders',          test: n => /^--(border|outline|divider)/.test(n) },
+  { key:'status',  label:'Status & Badges',  test: n => /^--(status|badge|state|tag)/.test(n) },
+  { key:'layout',  label:'Layout & Size',    test: n => /radius|width|height|sidebar|col/.test(n) },
+  { key:'spacing', label:'Spacing',          test: n => /padding|margin|gap|space/.test(n) },
+  { key:'shadow',  label:'Shadows & Glows',  test: n => /shadow|glow|blur|ring/.test(n) },
+  { key:'other',   label:'Other',            test: () => true },
+];
+
+function classifyVar(name) { for (const g of VAR_GROUPS) if (g.test(name)) return g.key; return 'other'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Panel switching
+// ─────────────────────────────────────────────────────────────────────────────
+function switchPanel(p) {
+  currentPanel = p;
+  document.getElementById('ptab-vars').classList.toggle('active', p==='vars');
+  document.getElementById('ptab-elem').classList.toggle('active', p==='elem');
+  document.getElementById('pane-vars').style.display = p==='vars' ? 'flex' : 'none';
+  document.getElementById('pane-elem').style.display = p==='elem' ? 'flex' : 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode (dark / light)
+// ─────────────────────────────────────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-mode-dark').className  = 'mode-btn' + (mode==='dark'  ? ' active-dark'  : '');
+  document.getElementById('btn-mode-light').className = 'mode-btn' + (mode==='light' ? ' active-light' : '');
+  document.getElementById('var-search').value = '';
+  buildVarControls(); updateLightNotice(); renderPreview();
+}
+
+function updateLightNotice() {
+  const el = document.getElementById('light-notice');
+  if (currentMode !== 'light') { el.classList.remove('show'); return; }
+  const cnt = Object.keys(parsedLight).length;
+  if (cnt === 0) {
+    el.className = 'light-notice show warn';
+    el.textContent = `No ${lightSelector} block found. Changes will create a new block on download.`;
+  } else {
+    el.className = 'light-notice show info';
+    el.innerHTML = `Editing <code>${lightSelector}</code> · ${cnt} override${cnt!==1?'s':''} found. Dimmed = inherited from dark.`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build variable controls
+// ─────────────────────────────────────────────────────────────────────────────
+function buildVarControls() {
+  const container = document.getElementById('ctrl-groups');
+  container.innerHTML = '';
+  const allNames = currentMode === 'dark'
+    ? Object.keys(parsedDark)
+    : [...new Set([...Object.keys(parsedDark), ...Object.keys(parsedLight)])];
+
+  const grouped = {}; VAR_GROUPS.forEach(g => grouped[g.key] = []);
+  allNames.forEach(n => grouped[classifyVar(n)].push(n));
+
+  VAR_GROUPS.forEach(g => {
+    const items = grouped[g.key]; if (!items.length) return;
+    const sec = document.createElement('div'); sec.className = 'cs'; sec.id = 'cs-'+g.key;
+    sec.innerHTML = `<div class="cs-head" onclick="toggleSection('${g.key}')"><div class="cs-title">${g.label}</div><div class="cs-count">${items.length}</div><div class="cs-chevron">▾</div></div><div class="cs-body" id="csb-${g.key}"></div>`;
+    container.appendChild(sec);
+    const body = sec.querySelector('.cs-body');
+    items.forEach(name => body.appendChild(buildVarRow(name)));
+  });
+}
+
+function buildVarRow(name) {
+  const row = document.createElement('div');
+  row.className = 'cr'; row.dataset.var = name;
+  let origValue, isInherited, subText, subClass;
+  if (currentMode === 'dark') {
+    origValue = overrideDark[name] ?? parsedDark[name] ?? '';
+    isInherited = false; subText = truncate(parsedDark[name]||'',22); subClass = '';
+  } else {
+    const lv = overrideLight[name] ?? parsedLight[name];
+    const dv = parsedDark[name];
+    if (lv !== undefined) { origValue = lv; isInherited = false; subText = '▲ overrides dark'; subClass = 'in-light'; }
+    else { origValue = dv ?? ''; isInherited = true; subText = '↓ from :root'; subClass = 'from-root'; }
+  }
+  if (isInherited) row.classList.add('cr-inherited');
+
+  const isDeriv = isDerived(origValue);
+  const isColor = isHex(origValue);
+  const isPxVal = isPx(origValue)||/^-?\d+(\.\d+)?$/.test(origValue.trim());
+  const vid = varId(name);
+  const isModified = currentMode==='dark' ? overrideDark[name]!==undefined : overrideLight[name]!==undefined;
+  const modClass = isModified ? (currentMode==='dark' ? 'md' : 'ml') : '';
+  let ctrl = '';
+
+  if (isDeriv) {
+    ctrl = `<input class="cr-text" type="text" value="${escHtml(origValue)}" readonly>`;
+  } else if (isColor) {
+    const hex6 = normalizeHex(origValue);
+    ctrl = `<input type="color" value="${hex6}" oninput="onVarChange('${name}',this.value)" onchange="onVarChange('${name}',this.value)">`;
+  } else if (isPxVal) {
+    const cfg = getSliderConfig(name); const cur = parseFloat(origValue);
+    const safe = isNaN(cur)?cfg.min:Math.min(Math.max(cur,cfg.min),cfg.max);
+    const unit = isPx(origValue)?'px':'';
+    ctrl = `<div class="cr-range-wrap"><input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${safe}" data-var="${name}" data-unit="${unit}" oninput="onVarRangeInput(this)"><div class="cr-val" id="crv-${vid}">${cur}${unit}</div></div>`;
+  } else {
+    ctrl = `<input class="cr-text" type="text" value="${escHtml(origValue)}" oninput="onVarTextChange('${name}',this.value)">`;
+  }
+
+  row.innerHTML = `<div class="cr-label"><div class="cr-name ${modClass}" id="crn-${vid}">${escHtml(name)}</div><div class="cr-sub ${subClass}">${subText}</div></div>${ctrl}${isDeriv?'':` <button class="cr-reset" onclick="resetVar('${name}')">↺</button>`}`;
+  return row;
+}
+
+function onVarChange(name, value) {
+  if (currentMode==='dark') overrideDark[name]=value; else { overrideLight[name]=value; const row=document.querySelector(`.cr[data-var="${CSS.escape(name)}"]`); if(row) row.classList.remove('cr-inherited'); }
+  markVarModified(name); scheduleUpdate(); scheduleHistoryPush();
+}
+function onVarRangeInput(el) {
+  const name=el.dataset.var, unit=el.dataset.unit||'', val=el.value+unit;
+  const vEl=document.getElementById('crv-'+varId(name)); if(vEl) vEl.textContent=val;
+  onVarChange(name, val);
+}
+function onVarTextChange(name, value) { onVarChange(name, value); }
+function markVarModified(name) {
+  const el=document.getElementById('crn-'+varId(name)); if(!el) return;
+  const on=currentMode==='dark'?overrideDark[name]!==undefined:overrideLight[name]!==undefined;
+  el.className='cr-name'+(on?(currentMode==='dark'?' md':' ml'):'');
+}
+function resetVar(name) {
+  if(currentMode==='dark') delete overrideDark[name]; else delete overrideLight[name];
+  const old=document.querySelector(`.cr[data-var="${CSS.escape(name)}"]`); if(old) old.replaceWith(buildVarRow(name));
+  scheduleUpdate();
+}
+function toggleSection(key) { document.getElementById('cs-'+key).classList.toggle('collapsed'); }
+function filterVars(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.cr').forEach(r => r.classList.toggle('hidden', q.length>0&&!r.dataset.var.toLowerCase().includes(q)));
+  document.querySelectorAll('.cs').forEach(s => { const has=[...s.querySelectorAll('.cr')].some(r=>!r.classList.contains('hidden')); s.style.display=has?'':'none'; if(has&&q.length) s.classList.remove('collapsed'); });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inspect mode
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleInspect() {
+  inspectMode = !inspectMode;
+  document.getElementById('btn-inspect').classList.toggle('active', inspectMode);
+  document.getElementById('preview-panel').classList.toggle('inspect-active', inspectMode);
+  document.getElementById('inspect-banner').classList.toggle('show', inspectMode);
+  if (inspectMode) switchPanel('elem');
+  renderPreview();
+}
+
+// Script injected into iframe — inspect + two-way commands + drag-and-drop
+function buildInspectScript() {
+  if (!inspectMode) return '';
+  return `<script id="__vd_inspect__">
+(function(){
+  var hover=null, selEl=null, dragSrc=null;
+  var sty=document.createElement('style');
+  sty.textContent='[data-vdhov]{outline:2px solid #6366f1 !important;outline-offset:2px !important;cursor:crosshair !important;}'
+    +'[data-vdsel]{outline:2px solid #f59e0b !important;outline-offset:2px !important;}'
+    +'[data-vddrop-before]{border-top:3px solid #f59e0b !important;}'
+    +'[data-vddrop-after]{border-bottom:3px solid #f59e0b !important;}';
+  document.head.appendChild(sty);
+
+  function clearDropIndicators(){
+    document.querySelectorAll('[data-vddrop-before],[data-vddrop-after]').forEach(function(el){
+      el.removeAttribute('data-vddrop-before'); el.removeAttribute('data-vddrop-after');
+    });
+  }
+
+  function buildSel(el){
+    var parts=[],cur=el,d=0;
+    while(cur&&cur.tagName&&cur.tagName!=='HTML'&&d<6){
+      var p=cur.tagName.toLowerCase();
+      if(cur.id){parts.unshift('#'+cur.id);break;}
+      var cls=Array.from(cur.classList).filter(function(c){return c&&!c.startsWith('vd');}).slice(0,2);
+      if(cls.length){p+='.'+cls.join('.');}
+      else{var sibs=cur.parentElement?Array.from(cur.parentElement.children):[],idx=sibs.indexOf(cur)+1;if(idx>1)p+=':nth-child('+idx+')';}
+      parts.unshift(p);cur=cur.parentElement;d++;
+    }
+    return parts.join(' > ');
+  }
+
+  function sendMutation(){
+    var clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll('#__vd_override__,#__vd_inspect__,#__vd_theme_enforce__').forEach(function(n){n.remove();});
+    clone.querySelectorAll('[draggable],[data-vdhov],[data-vdsel],[data-vddrop-before],[data-vddrop-after],[contenteditable]').forEach(function(n){
+      n.removeAttribute('draggable'); n.removeAttribute('data-vdhov'); n.removeAttribute('data-vdsel');
+      n.removeAttribute('data-vddrop-before'); n.removeAttribute('data-vddrop-after'); n.removeAttribute('contenteditable');
+    });
+    window.parent.postMessage({type:'vd_dom_mutated',html:'<!DOCTYPE html>\\n'+clone.outerHTML},'*');
+  }
+
+  function postSelected(el){
+    if(selEl){ selEl.removeAttribute('data-vdsel'); selEl.removeAttribute('draggable'); }
+    selEl=el;
+    selEl.setAttribute('data-vdsel','');
+    selEl.draggable=true;
+    var comp=window.getComputedStyle(el);
+    var PROPS=['display','width','height','min-width','max-width','min-height','max-height',
+      'padding','padding-top','padding-right','padding-bottom','padding-left',
+      'margin','margin-top','margin-right','margin-bottom','margin-left',
+      'gap','row-gap','column-gap','flex-direction','align-items','justify-content',
+      'flex','flex-wrap','grid-template-columns','grid-template-rows',
+      'position','top','right','bottom','left','z-index','overflow',
+      'color','background-color','background','opacity',
+      'font-size','font-weight','font-family','line-height','letter-spacing',
+      'text-align','text-transform','text-decoration','white-space',
+      'border','border-width','border-style','border-color','border-radius',
+      'border-top-left-radius','border-top-right-radius','border-bottom-left-radius','border-bottom-right-radius',
+      'outline','box-shadow','cursor','transform','transition','pointer-events'];
+    var styles={}; PROPS.forEach(function(p){styles[p]=comp.getPropertyValue(p).trim();});
+    var tagLabel=el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(el.className&&typeof el.className==='string'?'.'+Array.from(el.classList).filter(function(c){return c&&!c.startsWith('vd');}).slice(0,3).join('.'):'');
+    window.parent.postMessage({type:'vd_selected',selector:buildSel(el),tagLabel:tagLabel,styles:styles},'*');
+  }
+
+  // Hover
+  document.addEventListener('mouseover',function(e){
+    if(hover&&hover!==e.target) hover.removeAttribute('data-vdhov');
+    hover=e.target; hover.setAttribute('data-vdhov','');
+  },true);
+  document.addEventListener('mouseleave',function(){if(hover){hover.removeAttribute('data-vdhov');hover=null;}},true);
+
+  // Click to select
+  document.addEventListener('click',function(e){
+    if(e.target.contentEditable==='true') return;
+    e.preventDefault(); e.stopPropagation();
+    var el=e.target; if(el.hasAttribute('data-vdhov')) el.removeAttribute('data-vdhov');
+    postSelected(el);
+  },true);
+
+  // Commands from parent
+  window.addEventListener('message',function(e){
+    if(!e.data) return;
+    var cmd=e.data.type;
+    if(cmd==='vd_delete'){
+      if(!selEl) return;
+      selEl.removeAttribute('data-vdsel'); selEl.removeAttribute('draggable');
+      selEl.remove(); selEl=null; sendMutation();
+    } else if(cmd==='vd_duplicate'){
+      if(!selEl) return;
+      var clone=selEl.cloneNode(true);
+      clone.removeAttribute('data-vdsel'); clone.removeAttribute('draggable');
+      selEl.after(clone); sendMutation();
+    } else if(cmd==='vd_editText'){
+      if(!selEl) return;
+      selEl.contentEditable='true'; selEl.focus();
+      selEl.addEventListener('blur',function onBlur(){
+        selEl.contentEditable='false';
+        selEl.removeEventListener('blur',onBlur);
+        sendMutation();
+        window.parent.postMessage({type:'vd_edittextdone'},'*');
+      });
+    }
+  });
+
+  // Drag-and-drop
+  document.addEventListener('dragstart',function(e){
+    if(!selEl||e.target!==selEl) return;
+    dragSrc=selEl;
+    e.dataTransfer.effectAllowed='move';
+    setTimeout(function(){if(dragSrc) dragSrc.style.opacity='0.4';},0);
+  },true);
+  document.addEventListener('dragover',function(e){
+    if(!dragSrc) return;
+    var tgt=e.target; if(tgt===dragSrc||dragSrc.contains(tgt)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect='move';
+    clearDropIndicators();
+    var box=tgt.getBoundingClientRect();
+    if(e.clientY<box.top+box.height/2) tgt.setAttribute('data-vddrop-before','');
+    else tgt.setAttribute('data-vddrop-after','');
+  },true);
+  document.addEventListener('dragleave',function(e){
+    if(e.target&&e.target.removeAttribute){ e.target.removeAttribute('data-vddrop-before'); e.target.removeAttribute('data-vddrop-after'); }
+  },true);
+  document.addEventListener('drop',function(e){
+    if(!dragSrc) return;
+    var tgt=e.target; if(tgt===dragSrc||dragSrc.contains(tgt)) return;
+    e.preventDefault(); clearDropIndicators();
+    var box=tgt.getBoundingClientRect();
+    if(e.clientY<box.top+box.height/2) tgt.parentNode.insertBefore(dragSrc,tgt);
+    else tgt.after(dragSrc);
+    postSelected(dragSrc);
+    sendMutation();
+  },true);
+  document.addEventListener('dragend',function(){
+    if(dragSrc){ dragSrc.style.opacity=''; dragSrc=null; }
+    clearDropIndicators();
+  },true);
+})();
+<\/script>`;
+}
+
+// Handle messages from iframe
+window.addEventListener('message', function(e) {
+  if (!e.data) return;
+  if (e.data.type === 'vd_selected') {
+    selectedElem = e.data;
+    renderElemPanel();
+    if (currentPanel !== 'elem') switchPanel('elem');
+  } else if (e.data.type === 'vd_dom_mutated') {
+    originalHtml = e.data.html;
+    // Re-parse CSS vars from new DOM (structure only changed; CSS vars should be same)
+    parsedDark = parseCSSBlock(originalHtml, [':root']);
+    const light = parseLightBlock(originalHtml);
+    parsedLight = light.vars; lightSelector = light.selector; lightClassName = extractClass(lightSelector);
+    renderPreview();
+    updateUndoRedoBtns();
+    showToast('DOM updated', 'success');
+  } else if (e.data.type === 'vd_edittextdone') {
+    document.getElementById('btn-edittext').classList.remove('active');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Element CSS panel
+// ─────────────────────────────────────────────────────────────────────────────
+const ELEM_TABS = {
+  layout: [
+    {p:'display',       t:'select', opts:['block','inline','inline-block','flex','inline-flex','grid','inline-grid','none','contents']},
+    {p:'width',         t:'text'},
+    {p:'height',        t:'text'},
+    {p:'min-width',     t:'text'},
+    {p:'max-width',     t:'text'},
+    {p:'min-height',    t:'text'},
+    {p:'max-height',    t:'text'},
+    {p:'padding',       t:'text'},
+    {p:'margin',        t:'text'},
+    {p:'gap',           t:'text'},
+    {p:'flex-direction',t:'select', opts:['row','column','row-reverse','column-reverse']},
+    {p:'align-items',   t:'select', opts:['stretch','flex-start','flex-end','center','baseline']},
+    {p:'justify-content',t:'select',opts:['flex-start','flex-end','center','space-between','space-around','space-evenly']},
+    {p:'flex-wrap',     t:'select', opts:['nowrap','wrap','wrap-reverse']},
+    {p:'overflow',      t:'select', opts:['visible','hidden','scroll','auto','clip']},
+    {p:'position',      t:'select', opts:['static','relative','absolute','fixed','sticky']},
+    {p:'top',           t:'text'},
+    {p:'right',         t:'text'},
+    {p:'bottom',        t:'text'},
+    {p:'left',          t:'text'},
+    {p:'z-index',       t:'text'},
+  ],
+  type: [
+    {p:'font-size',     t:'text'},
+    {p:'font-weight',   t:'select', opts:['100','200','300','400','500','600','700','800','900','bold','normal']},
+    {p:'font-family',   t:'text'},
+    {p:'line-height',   t:'text'},
+    {p:'letter-spacing',t:'text'},
+    {p:'text-align',    t:'select', opts:['left','center','right','justify','start','end']},
+    {p:'text-transform',t:'select', opts:['none','uppercase','lowercase','capitalize']},
+    {p:'text-decoration',t:'text'},
+    {p:'white-space',   t:'select', opts:['normal','nowrap','pre','pre-wrap','pre-line']},
+  ],
+  appear: [
+    {p:'color',          t:'color'},
+    {p:'background-color',t:'color'},
+    {p:'opacity',        t:'range', min:0, max:1, step:0.05},
+    {p:'border-radius',  t:'text'},
+    {p:'border',         t:'text'},
+    {p:'border-color',   t:'color'},
+    {p:'border-width',   t:'text'},
+    {p:'border-style',   t:'select', opts:['none','solid','dashed','dotted','double','groove','ridge']},
+    {p:'outline',        t:'text'},
+    {p:'box-shadow',     t:'text'},
+    {p:'transform',      t:'text'},
+    {p:'transition',     t:'text'},
+    {p:'cursor',         t:'select', opts:['auto','default','pointer','text','not-allowed','grab','crosshair','zoom-in','zoom-out']},
+  ],
+};
+
+function setElemTab(tab) {
+  currentElemTab = tab;
+  document.querySelectorAll('.etab').forEach((b, i) => {
+    const tabs = ['layout','type','appear','custom'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  renderElemProps();
+}
+
+function renderElemPanel() {
+  const hasElem = !!selectedElem;
+  document.getElementById('elem-prompt').style.display  = hasElem ? 'none' : 'flex';
+  document.getElementById('elem-content').style.display = hasElem ? 'flex' : 'none';
+
+  if (!hasElem) return;
+
+  // Breadcrumb
+  const tag = selectedElem.tagLabel || selectedElem.selector;
+  document.getElementById('elem-crumb-tag').textContent  = tag;
+  document.getElementById('elem-crumb-path').textContent = selectedElem.selector;
+
+  renderElemProps();
+  updateElemBadge();
+}
+
+function renderElemProps() {
+  const body = document.getElementById('ep-body');
+  body.innerHTML = '';
+  if (!selectedElem) return;
+
+  const sel      = selectedElem.selector;
+  const overrides = elemOverrides[sel] || {};
+  const computed  = selectedElem.styles || {};
+
+  if (currentElemTab === 'custom') {
+    renderCustomTab(body, sel, overrides);
+    return;
+  }
+
+  const props = ELEM_TABS[currentElemTab] || [];
+
+  props.forEach(({ p, t, opts, min, max, step }) => {
+    const computedVal = computed[p] || '';
+    const overrideVal = overrides[p];
+    const displayVal  = overrideVal ?? computedVal;
+    const hasOverride = overrideVal !== undefined;
+
+    const row = document.createElement('div');
+    row.className = 'ep-row';
+
+    let ctrl = '';
+
+    if (t === 'color') {
+      const hexVal = isHex(displayVal) ? normalizeHex(displayVal)
+                   : (displayVal.startsWith('rgb') ? (rgbToHex(displayVal)||'#000000') : '#000000');
+      const compHex = computedVal.startsWith('rgb') ? (rgbToHex(computedVal)||'') : (isHex(computedVal)?normalizeHex(computedVal):'');
+      ctrl = `<input type="color" class="ep-color" value="${hexVal}" title="Current: ${escHtml(computedVal)}"
+        oninput="onElemPropChange('${sel}','${p}',this.value)"
+        onchange="onElemPropChange('${sel}','${p}',this.value)">
+        <input class="ep-input ${hasOverride?'has-val':''}" style="max-width:90px" type="text" value="${escHtml(displayVal)}"
+        oninput="onElemPropChange('${sel}','${p}',this.value);syncElemColorPicker(this,'${p}')"
+        placeholder="${escHtml(computedVal)}"
+        title="Computed: ${escHtml(computedVal)}">`;
+    } else if (t === 'select') {
+      const safeOpts = opts||[];
+      ctrl = `<select class="ep-select ${hasOverride?'has-val':''}" onchange="onElemPropChange('${sel}','${p}',this.value)">
+        ${!hasOverride ? `<option value="" selected>(${truncate(computedVal,16)||'auto'})</option>` : ''}
+        ${safeOpts.map(o=>`<option value="${o}" ${overrideVal===o?'selected':''}>${o}</option>`).join('')}
+      </select>`;
+    } else if (t === 'range') {
+      const cur = hasOverride ? parseFloat(overrideVal) : parseFloat(computedVal);
+      const safe = isNaN(cur) ? (min||0) : Math.min(Math.max(cur,min||0),max||1);
+      ctrl = `<div class="cr-range-wrap">
+        <input type="range" min="${min||0}" max="${max||1}" step="${step||0.1}" value="${safe}"
+          oninput="onElemPropChange('${sel}','${p}',this.value);this.nextElementSibling.textContent=this.value">
+        <div class="cr-val">${safe}</div>
+      </div>`;
+    } else {
+      ctrl = `<input class="ep-input ${hasOverride?'has-val':''}" type="text" value="${escHtml(overrideVal??'')}"
+        placeholder="${escHtml(truncate(computedVal,18))}"
+        title="Computed: ${escHtml(computedVal)}"
+        oninput="onElemPropChange('${sel}','${p}',this.value)">`;
+    }
+
+    const resetBtn = hasOverride ? `<button class="ep-reset" title="Remove override" onclick="resetElemProp('${sel}','${p}')">↺</button>` : '';
+    row.innerHTML = `<div class="ep-label" title="${escHtml(p)}">${p}</div>${ctrl}${resetBtn}`;
+    body.appendChild(row);
+  });
+}
+
+function renderCustomTab(body, sel, overrides) {
+  // Add new property form
+  const addDiv = document.createElement('div');
+  addDiv.className = 'ep-custom-add';
+  addDiv.innerHTML = `
+    <div class="ep-custom-add-row">
+      <input class="ep-custom-inp" id="custom-prop-inp" type="text" placeholder="property" list="css-prop-list">
+      <input class="ep-custom-inp" id="custom-val-inp"  type="text" placeholder="value">
+      <button class="ep-add-btn" onclick="addCustomProp('${sel}')">Add</button>
+    </div>
+    <datalist id="css-prop-list">
+      ${['display','width','height','padding','margin','color','background-color','font-size','font-weight',
+         'border','border-radius','opacity','transform','transition','box-shadow','gap','flex','grid',
+         'position','top','left','right','bottom','z-index','overflow','cursor','letter-spacing','line-height']
+        .map(p=>`<option value="${p}">`).join('')}
+    </datalist>`;
+  body.appendChild(addDiv);
+
+  // Existing overrides list
+  const list = document.createElement('div');
+  list.className = 'ep-override-list';
+  Object.entries(overrides).forEach(([prop, val]) => {
+    const item = document.createElement('div');
+    item.className = 'ep-override-item';
+    item.innerHTML = `
+      <span class="ep-override-prop">${escHtml(prop)}</span>
+      <span class="ep-override-colon">:</span>
+      <input class="ep-input has-val" style="flex:1;min-width:0" type="text" value="${escHtml(val)}"
+        oninput="onElemPropChange('${escHtml(sel)}','${escHtml(prop)}',this.value)">
+      <button class="ep-override-del" onclick="resetElemProp('${escHtml(sel)}','${escHtml(prop)}')">✕</button>`;
+    list.appendChild(item);
+  });
+
+  if (!Object.keys(overrides).length) {
+    list.innerHTML = '<div style="padding:12px 11px;font-size:11px;color:var(--sh-muted)">No custom properties added yet.</div>';
+  }
+  body.appendChild(list);
+}
+
+function addCustomProp(sel) {
+  const propEl = document.getElementById('custom-prop-inp');
+  const valEl  = document.getElementById('custom-val-inp');
+  const prop   = propEl.value.trim();
+  const val    = valEl.value.trim();
+  if (!prop || !val) { showToast('Enter both property and value', 'error'); return; }
+  onElemPropChange(sel, prop, val);
+  propEl.value = ''; valEl.value = '';
+}
+
+function onElemPropChange(sel, prop, value) {
+  if (!value.trim()) { resetElemProp(sel, prop); return; }
+  if (!elemOverrides[sel]) elemOverrides[sel] = {};
+  elemOverrides[sel][prop] = value.trim();
+  updateElemBadge();
+  scheduleUpdate(); scheduleHistoryPush();
+}
+
+function resetElemProp(sel, prop) {
+  if (elemOverrides[sel]) { delete elemOverrides[sel][prop]; if (!Object.keys(elemOverrides[sel]).length) delete elemOverrides[sel]; }
+  updateElemBadge();
+  renderElemProps();
+  scheduleUpdate();
+}
+
+function clearElemOverrides() {
+  if (!selectedElem) return;
+  delete elemOverrides[selectedElem.selector];
+  updateElemBadge(); renderElemProps(); scheduleUpdate();
+}
+
+function deselectElem() {
+  selectedElem = null; renderElemPanel();
+}
+
+function syncElemColorPicker(input, prop) {
+  const prev = input.previousElementSibling;
+  if (prev && prev.type === 'color' && isHex(input.value)) prev.value = normalizeHex(input.value);
+}
+
+function updateElemBadge() {
+  const total = Object.values(elemOverrides).reduce((n,v)=>n+Object.keys(v).length,0);
+  const badge = document.getElementById('elem-count-badge');
+  badge.style.display = total > 0 ? '' : 'none';
+  badge.textContent   = total;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preview rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function scheduleUpdate() { clearTimeout(_updateTimer); _updateTimer = setTimeout(renderPreview, 80); }
+
+function buildOverrideCSS() {
+  // IMPORTANT: only inject the user's delta values, never re-inject the full
+  // parsedDark/parsedLight sets. The original HTML already contains those blocks.
+  // Injecting all parsedDark into :root would cause dark-mode values to bleed
+  // into the light-mode cascade and vice versa.
+  let css = '';
+
+  if (Object.keys(overrideDark).length) {
+    css += ':root {\n' + Object.entries(overrideDark).map(([k,v])=>`  ${k}: ${v};`).join('\n') + '\n}\n';
+  }
+
+  if (Object.keys(overrideLight).length) {
+    css += `${lightSelector} {\n` + Object.entries(overrideLight).map(([k,v])=>`  ${k}: ${v};`).join('\n') + '\n}\n';
+  }
+
+  Object.entries(elemOverrides).forEach(([sel, props]) => {
+    if (!Object.keys(props).length) return;
+    css += `${sel} {\n${Object.entries(props).map(([p,v])=>`  ${p}: ${v};`).join('\n')}\n}\n`;
+  });
+
+  return css ? `<style id="__vd_override__">\n${css}\n</style>` : '';
+}
+
+function buildBaseHtml(withOverrides) {
+  if (!originalHtml) return '';
+  let html = originalHtml
+    .replace(/<style id="__vd_override__">[\s\S]*?<\/style>/g, '')
+    .replace(/<script id="__vd_inspect__">[\s\S]*?<\/script>/g, '')
+    .replace(/<script id="__vd_theme_enforce__">[\s\S]*?<\/script>/g, '');
+
+  // Font link
+  if (overrideFontLink) {
+    html = html.includes('</head>') ? html.replace('</head>', overrideFontLink + '\n</head>') : overrideFontLink + '\n' + html;
+  }
+
+  if (withOverrides) {
+    const overrideStyle = buildOverrideCSS();
+    if (overrideStyle) html = html.includes('</head>') ? html.replace('</head>', overrideStyle + '\n</head>') : overrideStyle + '\n' + html;
+    const inspectScript = buildInspectScript();
+    if (inspectScript) html = html.includes('</head>') ? html.replace('</head>', inspectScript + '\n</head>') : inspectScript + '\n' + html;
+  }
+
+  const cls = lightClassName;
+  const themeScript = currentMode === 'light'
+    ? `<script id="__vd_theme_enforce__">document.body.classList.add('${cls}');<\/script>`
+    : `<script id="__vd_theme_enforce__">document.body.classList.remove('${cls}','light-mode','light-theme','light');<\/script>`;
+  html = html.includes('</body>') ? html.replace('</body>', themeScript + '\n</body>') : html + '\n' + themeScript;
+  return html;
+}
+
+function renderPreview() {
+  if (!originalHtml) return;
+  if (splitMode) {
+    document.getElementById('split-orig').srcdoc = buildBaseHtml(false);
+    document.getElementById('split-mod').srcdoc  = buildBaseHtml(true);
+    applySplitScale(parseInt(document.getElementById('scale-slider').value));
+  } else {
+    document.getElementById('preview-iframe').srcdoc = buildBaseHtml(true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scale
+// ─────────────────────────────────────────────────────────────────────────────
+function onScale(val) {
+  document.getElementById('scale-val').textContent = val + '%';
+  applyScale(parseInt(val));
+}
+function applyScale(pct) {
+  if (splitMode) { applySplitScale(pct); return; }
+  const iframe = document.getElementById('preview-iframe');
+  const wrap   = document.getElementById('frame-wrap');
+  const scale  = pct / 100;
+  const ww = (wrap.clientWidth  || window.innerWidth  - 290) / scale;
+  const wh = (wrap.clientHeight || window.innerHeight - 44)  / scale;
+  iframe.style.width     = Math.round(ww) + 'px';
+  iframe.style.height    = Math.round(wh) + 'px';
+  iframe.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', () => applyScale(parseInt(document.getElementById('scale-slider').value)));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export
+// ─────────────────────────────────────────────────────────────────────────────
+function buildModifiedHtml() {
+  if (!originalHtml) return '';
+  const darkVars  = { ...parsedDark,  ...overrideDark  };
+  const lightVars = { ...parsedLight, ...overrideLight };
+
+  const newRoot  = ':root {\n'     + Object.entries(darkVars).map(([k,v])=>`  ${k}: ${v};`).join('\n') + '\n}';
+  const newLight = `${lightSelector} {\n` + Object.entries(lightVars).map(([k,v])=>`  ${k}: ${v};`).join('\n') + '\n}';
+
+  let elemCSS = '';
+  Object.entries(elemOverrides).forEach(([sel, props]) => {
+    if (!Object.keys(props).length) return;
+    elemCSS += `\n/* VenueDesk editor: ${sel} */\n${sel} {\n${Object.entries(props).map(([p,v])=>`  ${p}: ${v};`).join('\n')}\n}\n`;
+  });
+
+  let html = originalHtml;
+  let rootReplaced = false, lightReplaced = false;
+
+  html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, (match, open, body, close) => {
+    let nb = body;
+    if (!rootReplaced && /:root\s*\{/.test(body)) {
+      nb = replaceFirstBlock(nb, ':root', newRoot);
+      rootReplaced = true;
+    }
+    if (!lightReplaced && Object.keys(lightVars).length > 0) {
+      const esc = lightSelector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(esc+'\\s*\\{').test(body)) {
+        nb = replaceFirstBlock(nb, lightSelector, newLight);
+        lightReplaced = true;
+      }
+    }
+    return open + nb + close;
+  });
+
+  if (!rootReplaced) {
+    const inject = `<style>\n${newRoot}\n</style>`;
+    html = html.includes('</head>') ? html.replace('</head>', inject+'\n</head>') : inject+'\n'+html;
+  }
+  if (!lightReplaced && Object.keys(lightVars).length) {
+    const inject = `<style>\n${newLight}\n</style>`;
+    html = html.includes('</head>') ? html.replace('</head>', inject+'\n</head>') : html+'\n'+inject;
+  }
+  if (elemCSS) {
+    const inject = `<style>${elemCSS}</style>`;
+    html = html.includes('</head>') ? html.replace('</head>', inject+'\n</head>') : html+'\n'+inject;
+  }
+  if (overrideFontLink) {
+    html = html.includes('</head>') ? html.replace('</head>', overrideFontLink+'\n</head>') : overrideFontLink+'\n'+html;
+  }
+  return html;
+}
+
+function replaceFirstBlock(css, selector, replacement) {
+  const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m   = new RegExp(esc+'\\s*\\{').exec(css); if (!m) return css;
+  const start = m.index+m[0].length-1;
+  let depth=1, j=start+1;
+  while(j<css.length&&depth>0){if(css[j]==='{')depth++;else if(css[j]==='}')depth--;j++;}
+  return css.slice(0,m.index)+replacement+css.slice(j);
+}
+
+function downloadModifiedHtml() {
+  if (!originalHtml) return;
+  const html = buildModifiedHtml();
+  const blob = new Blob([html], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {href:url, download: fileName.replace(/\.html?$/i,'')+'-themed.html'});
+  a.click(); URL.revokeObjectURL(url);
+  showToast('HTML downloaded', 'success');
+}
+
+function copyRootBlock() {
+  if (!originalHtml) return;
+  const darkVars  = { ...parsedDark,  ...overrideDark  };
+  const lightVars = { ...parsedLight, ...overrideLight };
+  let block = `:root {\n${Object.entries(darkVars).map(([k,v])=>`  ${k}: ${v};`).join('\n')}\n}`;
+  if (Object.keys(lightVars).length) block += `\n\n${lightSelector} {\n${Object.entries(lightVars).map(([k,v])=>`  ${k}: ${v};`).join('\n')}\n}`;
+  if (Object.keys(elemOverrides).length) {
+    block += '\n\n/* Element overrides */';
+    Object.entries(elemOverrides).forEach(([sel,props]) => {
+      block += `\n${sel} {\n${Object.entries(props).map(([p,v])=>`  ${p}: ${v};`).join('\n')}\n}`;
+    });
+  }
+  navigator.clipboard.writeText(block).then(() => showToast('CSS copied to clipboard', 'success'));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+function varId(name)   { return name.replace(/[^a-zA-Z0-9]/g,'_'); }
+function escHtml(s)    { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function truncate(s,n) { return String(s).length>n?String(s).slice(0,n)+'…':String(s); }
+let _toastTimer;
+function showToast(msg, type='success') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast ${type} show`;
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  applyScale(100);
+  switchPanel('vars');
+  document.getElementById('elem-prompt').style.display  = 'flex';
+  document.getElementById('elem-content').style.display = 'none';
+  updateUndoRedoBtns();
+});
+</script>
+</body>
+</html>
