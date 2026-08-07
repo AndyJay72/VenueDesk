@@ -1229,14 +1229,16 @@ window.addEventListener('message', function(e) {
     renderElemPanel();
     if (currentPanel !== 'elem') switchPanel('elem');
   } else if (e.data.type === 'vd_dom_mutated') {
-    pushHistory();                // snapshot pre-mutation state first
-    originalHtml = e.data.html;
+    originalHtml = e.data.html;   // update state first so pushHistory snapshots the new DOM
+    pushHistory();
     // Re-parse CSS vars from new DOM (structure only changed; CSS vars should be same)
     parsedDark = parseCSSBlock(originalHtml, [':root']);
     const light = parseLightBlock(originalHtml);
     parsedLight = light.vars; lightSelector = light.selector; lightClassName = extractClass(lightSelector);
-    // Do NOT call renderPreview() here — the iframe's DOM is already correct.
+    // Do NOT call renderPreview() here — the main iframe's DOM is already correct.
     // Reloading srcdoc would destroy scroll position and reset the iframe's selEl.
+    // Only sync the split-mod pane when split view is active.
+    if (splitMode) { document.getElementById('split-mod').srcdoc = buildBaseHtml(true, originalHtml); }
     updateUndoRedoBtns();
     showToast('DOM updated', 'success');
   } else if (e.data.type === 'vd_edittextdone') {
