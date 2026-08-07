@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1141,6 +1141,62 @@
             gap: 0.5rem;
         }
 
+        /* Screenshot figures */
+        .screenshot-figure {
+            margin: 1.5rem 0 0.5rem;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+        }
+        .screenshot-figure img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .screenshot-figure figcaption {
+            background-color: var(--bg-muted);
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Demo video card */
+        .video-card {
+            background: #0d1117;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid #1e293b;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2.5rem;
+        }
+        .video-card-header {
+            padding: 1.25rem 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid #1e293b;
+        }
+        .video-card-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin: 0;
+        }
+        .video-card-header p {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin: 0;
+            margin-left: auto;
+        }
+        .video-card video {
+            display: block;
+            width: 100%;
+            background: #000;
+        }
+
         /* PRINT STYLING FOR PDF */
         @media print {
             body {
@@ -1648,6 +1704,19 @@
                     </div>
                 </div>
 
+                <!-- Demo Video -->
+                <div class="video-card">
+                    <div class="video-card-header">
+                        <span style="font-size:1.25rem">▶</span>
+                        <h2>Platform Overview — 2-minute Demo</h2>
+                        <p>Watch before you start</p>
+                    </div>
+                    <video controls preload="metadata" poster="">
+                        <source src="demo.mp4" type="video/mp4">
+                        Your browser does not support the video element.
+                    </video>
+                </div>
+
                 <!-- Quick Reference -->
                 <section id="quick-ref" class="section-card">
                     <div class="card-header">
@@ -1713,6 +1782,11 @@
                     </div>
                     <div class="card-body">
                         <p>The Dashboard (<code>index.html</code>) is the first page you land on after login. It provides a live summary of venue performance, pending work items, and today's schedule — everything you need to manage a shift.</p>
+
+                        <figure class="screenshot-figure">
+                            <img src="screenshots/dashboard.png" alt="VenueDesk Dashboard showing revenue stats, pending requests, and upcoming bookings">
+                            <figcaption>Dashboard — revenue scorecard, pending requests, upcoming events, and customer interactions all visible from one screen.</figcaption>
+                        </figure>
 
                         <!-- Live mockup -->
                         <div class="dash-mock">
@@ -1816,6 +1890,11 @@
                     <div class="card-body">
                         <p>The Calendar page (<code>calendar.html</code>) is a full FullCalendar v6 scheduling interface. It shows every confirmed booking as a visual block, colour-coded by status, and provides a Quick Booking drawer for creating reservations directly from any date cell.</p>
 
+                        <figure class="screenshot-figure">
+                            <img src="screenshots/calendar.png" alt="VenueDesk Calendar showing bookings in week view with coloured time blocks">
+                            <figcaption>Calendar week view — bookings appear as coloured time blocks spanning their exact start/end times. Click any block to view details.</figcaption>
+                        </figure>
+
                         <!-- View modes table -->
                         <div class="table-container" style="margin-bottom:1.5rem">
                             <table>
@@ -1888,6 +1967,10 @@
                                 <li><div class="step-bubble">4</div><div>Choose a payment option: <span class="status-badge green">Record Deposit</span>, <span class="status-badge blue">Full Payment</span>, or <span class="status-badge amber">Save as Pending</span>.</div></li>
                                 <li><div class="step-bubble">5</div><div>Click <strong>Save Booking</strong>. The event block appears on the calendar grid immediately, and the customer receives an automatic confirmation.</div></li>
                             </ul>
+                            <figure class="screenshot-figure" style="margin-top:1.25rem">
+                                <img src="screenshots/calendar-walkin.png" alt="Calendar with Quick Booking drawer open showing customer and room fields">
+                                <figcaption>Quick Booking drawer — opens when you click any date or time slot. Availability indicator updates in real time.</figcaption>
+                            </figure>
                         </div>
 
                         <!-- FullCalendar config accordion -->
@@ -1977,6 +2060,11 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <figure class="screenshot-figure" style="margin-top:1.5rem">
+                            <img src="screenshots/admin-config.png" alt="Admin Config showing rooms, event types, pricing grid, and settings tabs">
+                            <figcaption>Admin Config — configure rooms, event types, pricing grids, cancellation policies, staff logins, and Stripe payment settings.</figcaption>
+                        </figure>
                     </div>
                 </section>
 
@@ -2074,6 +2162,17 @@
                                 <span class="badge-warning-text" style="display:block;margin-top:1rem;">⚠️ Free enquiries expire after 7 days with no deposit. The system sends an automatic warning email at day 4.</span>
                             </div>
                         </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
+                            <figure class="screenshot-figure" style="margin:0">
+                                <img src="screenshots/enquiry-form.png" alt="Public enquiry form showing room selection, dates, times, and availability check">
+                                <figcaption>Enquiry form — customers check availability and submit booking requests online.</figcaption>
+                            </figure>
+                            <figure class="screenshot-figure" style="margin:0">
+                                <img src="screenshots/manual-booking.png" alt="Walk-in booking form for staff to create bookings on the spot">
+                                <figcaption>Walk-In Booking — staff-side form for same-day or telephone bookings.</figcaption>
+                            </figure>
+                        </div>
                     </div>
                 </section>
 
@@ -2085,6 +2184,12 @@
                     </div>
                     <div class="card-body">
                         <p>Customer Interaction Logs help keep track of telephone calls, agreements, or site visits relative to bookings.</p>
+
+                        <figure class="screenshot-figure">
+                            <img src="screenshots/customers.png" alt="Customers page showing customer list and interaction log modal">
+                            <figcaption>Customers page — search customers, view booking history, and log phone calls, emails, or site visits.</figcaption>
+                        </figure>
+
                         <ul class="custom-step-list">
                             <li>
                                 <div class="step-bubble">1</div>
@@ -2162,6 +2267,11 @@
                         <a class="header-anchor" onclick="copyAnchorLink('recurring-payments')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
+                        <figure class="screenshot-figure">
+                            <img src="screenshots/recurring.png" alt="Recurring bookings page showing series cards with payment tracking">
+                            <figcaption>Recurring Bookings — manage weekly and monthly series, track per-session payments, and cancel individual sessions or entire series.</figcaption>
+                        </figure>
+
                         <div class="grid-2-col">
                             <div class="sub-card">
                                 <h4>Create a Recurring Series</h4>
@@ -2417,6 +2527,11 @@
                     </div>
                     <div class="card-body">
                         <p>VenueDesk records every action taken by staff. The <strong>Audit Log</strong> and <strong>Accounts</strong> pages give you a complete, filterable history of bookings, payments, cancellations, and customer communications.</p>
+
+                        <figure class="screenshot-figure">
+                            <img src="screenshots/accounts.png" alt="Accounts page showing transaction ledger with payment amounts and dates">
+                            <figcaption>Accounts — full transaction ledger with deposit, partial payment, and balance columns for every booking.</figcaption>
+                        </figure>
 
                         <div class="grid-2-col" style="margin-bottom:1.5rem">
                             <!-- Audit Log -->
