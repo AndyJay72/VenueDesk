@@ -573,6 +573,7 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
 // State
 // ─────────────────────────────────────────────────────────────────────────────
 let originalHtml   = '';
+let initialHtml    = '';    // frozen at load time — never mutated; used by split-orig pane
 let fileName       = '';
 let parsedDark     = {};
 let parsedLight    = {};
@@ -722,8 +723,8 @@ function sendDomCommand(cmd) {
   const iframe = document.getElementById('preview-iframe');
   if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({type: 'vd_' + cmd}, '*');
 }
-function domDelete()    { if (!selectedElem) return; pushHistory(); sendDomCommand('delete'); selectedElem = null; renderElemPanel(); }
-function domDuplicate() { if (!selectedElem) return; pushHistory(); sendDomCommand('duplicate'); }
+function domDelete()    { if (!selectedElem) return; sendDomCommand('delete'); selectedElem = null; renderElemPanel(); }
+function domDuplicate() { if (!selectedElem) return; sendDomCommand('duplicate'); }
 function domEditText()  {
   if (!selectedElem) return;
   const btn = document.getElementById('btn-edittext');
@@ -750,6 +751,7 @@ function loadFile(file) {
   const reader = new FileReader();
   reader.onload = ev => {
     originalHtml  = ev.target.result;
+    initialHtml   = ev.target.result;   // frozen reference for split-orig
     fileName      = file.name;
     parsedDark    = parseCSSBlock(originalHtml, [':root']);
     const light   = parseLightBlock(originalHtml);
@@ -1122,6 +1124,10 @@ function buildInspectScript() {
     } else if(cmd==='vd_editText'){
       if(!selEl) return;
       selEl.contentEditable='true'; selEl.focus();
+      selEl.addEventListener('keydown',function onKey(e){
+        if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); selEl.blur(); }
+        if(e.key==='Escape'){ selEl.removeEventListener('keydown',onKey); selEl.blur(); }
+      });
       selEl.addEventListener('blur',function onBlur(){
         selEl.contentEditable='false';
         selEl.removeEventListener('blur',onBlur);
@@ -1176,6 +1182,7 @@ window.addEventListener('message', function(e) {
     renderElemPanel();
     if (currentPanel !== 'elem') switchPanel('elem');
   } else if (e.data.type === 'vd_dom_mutated') {
+    pushHistory();                // snapshot pre-mutation state first
     originalHtml = e.data.html;
     // Re-parse CSS vars from new DOM (structure only changed; CSS vars should be same)
     parsedDark = parseCSSBlock(originalHtml, [':root']);
@@ -1448,9 +1455,10 @@ function buildOverrideCSS() {
   return css ? `<style id="__vd_override__">\n${css}\n</style>` : '';
 }
 
-function buildBaseHtml(withOverrides) {
-  if (!originalHtml) return '';
-  let html = originalHtml
+function buildBaseHtml(withOverrides, sourceHtml) {
+  const src = sourceHtml || originalHtml;
+  if (!src) return '';
+  let html = src
     .replace(/<style id="__vd_override__">[\s\S]*?<\/style>/g, '')
     .replace(/<script id="__vd_inspect__">[\s\S]*?<\/script>/g, '')
     .replace(/<script id="__vd_theme_enforce__">[\s\S]*?<\/script>/g, '');
@@ -1478,8 +1486,8 @@ function buildBaseHtml(withOverrides) {
 function renderPreview() {
   if (!originalHtml) return;
   if (splitMode) {
-    document.getElementById('split-orig').srcdoc = buildBaseHtml(false);
-    document.getElementById('split-mod').srcdoc  = buildBaseHtml(true);
+    document.getElementById('split-orig').srcdoc = buildBaseHtml(false, initialHtml);
+    document.getElementById('split-mod').srcdoc  = buildBaseHtml(true,  originalHtml);
     applySplitScale(parseInt(document.getElementById('scale-slider').value));
   } else {
     document.getElementById('preview-iframe').srcdoc = buildBaseHtml(true);
