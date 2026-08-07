@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VenueDesk — Theme Editor Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-page:#f8fafc;--bg-card:#ffffff;--bg-sidebar:#ffffff;--bg-input:#f1f5f9;--bg-muted:#f8fafc;
+  --border-color:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;--text-inverse:#ffffff;
+  --primary:#4f46e5;--primary-hover:#4338ca;--primary-light:#e0e7ff;--primary-glow:rgba(79,70,229,0.15);
+  --success:#10b981;--success-bg:#d1fae5;--success-text:#065f46;
+  --warning:#f59e0b;--warning-bg:#fef3c7;--warning-text:#78350f;
+  --danger:#ef4444;--danger-bg:#fee2e2;--danger-text:#991b1b;
+  --info:#3b82f6;--info-bg:#dbeafe;--info-text:#1e40af;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,.05),0 2px 4px -2px rgba(0,0,0,.05);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -4px rgba(0,0,0,.08);
+  --shadow-glow:0 0 20px rgba(79,70,229,.1);
+  --radius-lg:1rem;--radius-md:.75rem;--radius-sm:.5rem;
+  --transition-all:all .3s cubic-bezier(.4,0,.2,1);--transition-fast:all .15s ease;
+}
+[data-theme="dark"] {
+  --bg-page:#0b0f19;--bg-card:#131b2e;--bg-sidebar:#131b2e;--bg-input:#1e293b;--bg-muted:#1e293b;
+  --border-color:#1e293b;--text-main:#f8fafc;--text-muted:#94a3b8;--text-inverse:#0f172a;
+  --primary:#6366f1;--primary-hover:#4f46e5;--primary-light:#1e1b4b;--primary-glow:rgba(99,102,241,.25);
+  --success:#34d399;--success-bg:#064e3b;--success-text:#a7f3d0;
+  --warning:#fbbf24;--warning-bg:#78350f;--warning-text:#fde68a;
+  --danger:#f87171;--danger-bg:#7f1d1d;--danger-text:#fca5a5;
+  --info:#60a5fa;--info-bg:#1e3a8a;--info-text:#bfdbfe;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,.3),0 2px 4px -2px rgba(0,0,0,.3);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.4),0 4px 6px -4px rgba(0,0,0,.4);
+  --shadow-glow:0 0 25px rgba(99,102,241,.15);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-page);color:var(--text-main);line-height:1.6;transition:var(--transition-all);}
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:var(--bg-page);}
+::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+
+.app-container{display:grid;grid-template-columns:260px 1fr;min-height:100vh;}
+
+/* Sidebar */
+aside.sidebar{position:sticky;top:0;height:100vh;background:var(--bg-sidebar);border-right:1px solid var(--border-color);padding:1.75rem 1.25rem;display:flex;flex-direction:column;gap:1.25rem;z-index:100;overflow-y:auto;}
+.sidebar-logo{display:flex;align-items:center;gap:.75rem;font-family:'Outfit',sans-serif;font-size:1.25rem;font-weight:700;color:var(--primary);}
+.sidebar-logo-icon{background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);color:#fff;width:2rem;height:2rem;border-radius:.5rem;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:.9rem;flex-shrink:0;}
+.sidebar-tag{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:.5rem .25rem 0;}
+nav.sidebar-nav{display:flex;flex-direction:column;gap:.2rem;}
+.nav-item{display:flex;align-items:center;gap:.65rem;padding:.55rem .875rem;border-radius:var(--radius-sm);color:var(--text-muted);text-decoration:none;font-size:.83rem;font-weight:500;transition:var(--transition-fast);border:1px solid transparent;}
+.nav-item:hover{color:var(--primary);background:var(--bg-muted);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-color:rgba(79,70,229,.15);font-weight:600;}
+.sidebar-footer{margin-top:auto;font-size:.72rem;color:var(--text-muted);padding-top:.875rem;border-top:1px solid var(--border-color);display:flex;flex-direction:column;gap:.35rem;}
+.sidebar-footer a{color:var(--primary);text-decoration:none;}
+
+/* Top bar */
+header.top-bar{position:sticky;top:0;z-index:90;background:rgba(248,250,252,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border-color);padding:.875rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;transition:var(--transition-all);}
+[data-theme="dark"] header.top-bar{background:rgba(11,15,25,.85);}
+.search-container{position:relative;flex-grow:1;max-width:440px;}
+.search-input{width:100%;padding:.625rem 1rem .625rem 2.25rem;border-radius:9999px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);font-size:.875rem;outline:none;transition:var(--transition-all);}
+.search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+.search-icon{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;font-size:.8rem;}
+.action-buttons{display:flex;align-items:center;gap:.75rem;}
+.btn-action{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:9999px;font-size:.8rem;font-weight:500;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);transition:var(--transition-fast);text-decoration:none;}
+.btn-action:hover{border-color:var(--primary);color:var(--primary);}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-hover);color:#fff;}
+.theme-toggle-btn{background:var(--bg-card);border:1px solid var(--border-color);cursor:pointer;padding:.4rem;border-radius:50%;color:var(--text-muted);display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;transition:var(--transition-fast);}
+.theme-toggle-btn:hover{color:var(--primary);}
+
+/* Main */
+main.main-content{padding:2rem 2.25rem;overflow-x:hidden;}
+
+/* Hero */
+.hero-banner{background:linear-gradient(135deg,#0d0f1f 0%,#1e1b4b 40%,#312e81 100%);color:#fff;border-radius:var(--radius-lg);padding:2.5rem 2.5rem 2rem;margin-bottom:2rem;position:relative;overflow:hidden;box-shadow:var(--shadow-lg);}
+.hero-banner::after{content:'';position:absolute;top:-30%;right:-8%;width:280px;height:280px;background:radial-gradient(circle,rgba(99,102,241,.45) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+.hero-banner::before{content:'';position:absolute;bottom:-40%;left:15%;width:360px;height:360px;background:radial-gradient(circle,rgba(139,92,246,.18) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+.hero-content{position:relative;z-index:2;}
+.hero-banner h1{font-family:'Outfit',sans-serif;font-size:2.25rem;font-weight:800;letter-spacing:-.025em;margin-bottom:.5rem;}
+.hero-banner p{color:#c7d2fe;font-size:1rem;max-width:600px;margin-bottom:1.25rem;}
+.meta-badges{display:flex;flex-wrap:wrap;gap:.6rem;}
+.meta-badge{background:rgba(255,255,255,.1);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.12);padding:.35rem .875rem;border-radius:9999px;font-size:.78rem;font-weight:500;color:#e0e7ff;display:inline-flex;align-items:center;gap:.35rem;}
+
+/* Cards */
+.section-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);margin-bottom:2rem;overflow:hidden;transition:var(--transition-all);}
+.section-card:hover{box-shadow:var(--shadow-lg),var(--shadow-glow);}
+.card-header{padding:1.25rem 1.75rem;border-bottom:1px solid var(--border-color);background:var(--bg-muted);display:flex;align-items:center;justify-content:space-between;}
+.card-header h2{font-family:'Outfit',sans-serif;font-size:1.3rem;color:var(--text-main);font-weight:700;display:flex;align-items:center;gap:.65rem;}
+.card-body{padding:1.75rem;}
+.card-body>p{margin-bottom:1rem;color:var(--text-muted);font-size:.9rem;}
+
+/* Grids */
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem;}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;}
+
+/* Step list */
+.step-list{list-style:none;display:flex;flex-direction:column;gap:.875rem;}
+.step-list li{background:var(--bg-muted);padding:.875rem 1.1rem;border-radius:var(--radius-md);display:flex;gap:.875rem;align-items:flex-start;border:1px solid var(--border-color);transition:var(--transition-fast);}
+.step-list li:hover{border-color:var(--primary);}
+.step-bubble{background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);color:#fff;width:1.75rem;height:1.75rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;flex-shrink:0;margin-top:.1rem;box-shadow:0 2px 4px rgba(79,70,229,.2);}
+.step-list li div{font-size:.875rem;color:var(--text-main);}
+
+/* Feature cards */
+.feature-card{background:var(--bg-muted);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:1.25rem;transition:var(--transition-all);}
+.feature-card:hover{transform:translateY(-2px);border-color:var(--primary);}
+.feature-card h4{font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:.625rem;display:flex;align-items:center;gap:.4rem;}
+.feature-card p,.feature-card li{font-size:.83rem;color:var(--text-muted);line-height:1.6;}
+.feature-card ul{padding-left:1rem;margin-top:.4rem;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .65rem;border-radius:9999px;font-size:.72rem;font-weight:600;}
+.badge-purple{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);}
+.badge-green{background:var(--success-bg);color:var(--success-text);}
+.badge-amber{background:var(--warning-bg);color:var(--warning-text);}
+.badge-red{background:var(--danger-bg);color:var(--danger-text);}
+.badge-blue{background:var(--info-bg);color:var(--info-text);}
+
+/* KBD */
+kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;padding:1px 6px;font-family:'Fira Code',monospace;font-size:.75rem;color:var(--text-main);box-shadow:0 1px 2px rgba(0,0,0,.15);}
+
+/* Code blocks */
+.code-block{background:#0d1117;border:1px solid #1e2d3f;border-radius:var(--radius-md);padding:1rem 1.25rem;font-family:'Fira Code',monospace;font-size:.8rem;line-height:1.7;overflow-x:auto;position:relative;margin:.875rem 0;}
+.code-block .tok-sel{color:#818cf8;}
+.code-block .tok-prop{color:#7dd3fc;}
+.code-block .tok-val{color:#6ee7b7;}
+.code-block .tok-cmt{color:#3d5070;font-style:italic;}
+.code-lang{position:absolute;top:.5rem;right:.75rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3d5070;}
+
+/* Callout boxes */
+.callout{padding:.875rem 1.1rem;border-radius:var(--radius-md);display:flex;gap:.75rem;align-items:flex-start;font-size:.85rem;margin:.875rem 0;}
+.callout-tip{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);color:#a5b4fc;}
+.callout-warn{background:var(--warning-bg);border:1px solid rgba(245,158,11,.25);color:var(--warning-text);}
+.callout-info{background:var(--info-bg);border:1px solid rgba(59,130,246,.25);color:var(--info-text);}
+.callout-icon{font-size:1rem;flex-shrink:0;margin-top:.05rem;}
+
+/* ── Editor UI mockups ────────────────────────────────────────────────── */
+.editor-mock{background:#05090f;border:1px solid #141f30;border-radius:var(--radius-md);overflow:hidden;font-size:.78rem;}
+.editor-mock-hdr{background:#090e18;border-bottom:1px solid #141f30;padding:.5rem .875rem;display:flex;align-items:center;gap:.5rem;}
+.em-logo{font-weight:700;font-size:.75rem;color:#e2e8f0;white-space:nowrap;}
+.em-logo span{color:#6366f1;}
+.em-badge{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);border-radius:4px;padding:1px 7px;font-size:.65rem;font-weight:600;}
+.em-sep{flex:1;}
+.em-btn{padding:3px 9px;border-radius:5px;border:1px solid #1e2d45;background:transparent;color:#8892a4;font-size:.68rem;font-weight:600;white-space:nowrap;}
+.em-btn-primary{background:#6366f1;border-color:#6366f1;color:#fff;}
+.em-btn-active{background:rgba(99,102,241,.15);color:#818cf8;border-color:#6366f1;}
+.editor-mock-body{display:grid;grid-template-columns:220px 1fr;min-height:200px;}
+.em-panel{background:#090e18;border-right:1px solid #141f30;padding:0;display:flex;flex-direction:column;}
+.em-tabs{display:flex;border-bottom:1px solid #141f30;}
+.em-tab{flex:1;padding:7px 0;background:transparent;border:none;color:#4a5568;font-size:.68rem;font-weight:700;border-bottom:2px solid transparent;cursor:pointer;}
+.em-tab.active{color:#6366f1;border-bottom-color:#6366f1;background:rgba(99,102,241,.05);}
+.em-section-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid #0d1624;background:rgba(255,255,255,.01);}
+.em-section-title{font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#3d5070;flex:1;}
+.em-var-row{display:flex;align-items:center;gap:6px;padding:4px 10px;}
+.em-var-name{font-size:.68rem;color:#8892a4;font-family:'Fira Code',monospace;flex:1;}
+.em-var-name.mod{color:#818cf8;}
+.em-swatch{width:20px;height:16px;border-radius:3px;border:1px solid #1e2d45;flex-shrink:0;}
+.em-preview{background:linear-gradient(135deg,#0b0f19 0%,#131b2e 100%);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.em-preview-inner{text-align:center;color:#3d5070;font-size:.75rem;}
+.em-crumb{padding:8px 10px;border-bottom:1px solid #141f30;}
+.em-crumb-tag{font-size:.8rem;font-weight:700;color:#e2e8f0;font-family:'Fira Code',monospace;}
+.em-crumb-path{font-size:.65rem;color:#4a5568;font-family:'Fira Code',monospace;margin-top:2px;}
+.em-dom-actions{display:flex;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid #141f30;}
+.em-action-btn{flex:1;padding:3px 5px;border-radius:4px;border:1px solid #1e2d45;background:transparent;color:#8892a4;font-size:.65rem;font-weight:600;text-align:center;}
+.em-action-btn.danger{border-color:rgba(239,68,68,.3);color:#f87171;}
+.em-prop-row{display:flex;align-items:center;gap:5px;padding:4px 10px;}
+.em-prop-label{font-size:.65rem;color:#8892a4;font-family:'Fira Code',monospace;width:90px;flex-shrink:0;}
+.em-prop-input{flex:1;background:rgba(255,255,255,.05);border:1px solid #1e2d45;border-radius:3px;padding:2px 5px;font-size:.65rem;color:#e2e8f0;font-family:'Fira Code',monospace;}
+.em-prop-input.active{border-color:rgba(99,102,241,.5);color:#818cf8;}
+
+/* Preset swatches demo */
+.preset-demo{display:flex;gap:.5rem;flex-wrap:wrap;margin:.75rem 0;}
+.preset-demo-swatch{padding:.3rem .75rem;border-radius:.35rem;border:1px solid;font-size:.75rem;font-weight:600;}
+
+/* Keyboard shortcut table */
+.shortcut-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+.shortcut-table th{text-align:left;padding:.625rem 1rem;background:var(--bg-muted);font-weight:600;color:var(--text-main);border-bottom:2px solid var(--border-color);}
+.shortcut-table td{padding:.625rem 1rem;border-bottom:1px solid var(--border-color);color:var(--text-main);}
+.shortcut-table tr:last-child td{border-bottom:none;}
+.shortcut-table tr:hover td{background:var(--bg-muted);}
+
+/* Drag-drop diagram */
+.dnd-diagram{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin:.875rem 0;}
+.dnd-elem{background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:.8rem;text-align:center;}
+.dnd-elem.selected{border-color:var(--warning);background:rgba(251,191,36,.06);color:var(--warning);}
+.dnd-elem.target{border-top:3px solid var(--warning);}
+.dnd-arrow{font-size:1.25rem;color:var(--text-muted);text-align:center;}
+
+/* Anchor */
+.header-anchor{color:var(--text-muted);text-decoration:none;font-size:.8rem;display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .5rem;border-radius:var(--radius-sm);border:1px dashed var(--border-color);}
+.header-anchor:hover{color:var(--primary);border-color:var(--primary);background:var(--primary-light);}
+
+@media print {
+  aside.sidebar,header.top-bar{display:none!important;}
+  main.main-content{padding:0;}
+  .hero-banner{border-radius:0;box-shadow:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">VD</div>
+    Theme Editor
+  </div>
+
+  <div class="sidebar-tag">Getting Started</div>
+  <nav class="sidebar-nav">
+    <a href="#opening" class="nav-item active">📂 Opening a File</a>
+    <a href="#layout"  class="nav-item">🗂 Editor Layout</a>
+  </nav>
+
+  <div class="sidebar-tag">Styling</div>
+  <nav class="sidebar-nav">
+    <a href="#presets"    class="nav-item">🎨 Preset Themes</a>
+    <a href="#fonts"      class="nav-item">🔡 Font Picker</a>
+    <a href="#variables"  class="nav-item">⚙️ CSS Variables</a>
+    <a href="#element"    class="nav-item">🔲 Element Inspector</a>
+  </nav>
+
+  <div class="sidebar-tag">DOM Editing</div>
+  <nav class="sidebar-nav">
+    <a href="#dom-actions" class="nav-item">🛠 Delete · Duplicate · Edit Text</a>
+    <a href="#dragdrop"    class="nav-item">↕ Drag & Drop</a>
+  </nav>
+
+  <div class="sidebar-tag">Views & Export</div>
+  <nav class="sidebar-nav">
+    <a href="#split"    class="nav-item">⇌ Split View</a>
+    <a href="#undo"     class="nav-item">↩ Undo / Redo</a>
+    <a href="#export"   class="nav-item">⬇ Exporting</a>
+    <a href="#shortcuts" class="nav-item">⌨ Keyboard Shortcuts</a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="theme-editor.html">← Open Theme Editor</a>
+    <div>Updated August 2026</div>
+    <div>VenueDesk WYSIWYG v2</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div style="display:flex;flex-direction:column;">
+<header class="top-bar">
+  <div class="search-container">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="guide-search" placeholder="Search guide…" oninput="searchGuide(this.value)">
+  </div>
+  <div class="action-buttons">
+    <a href="theme-editor.html" class="btn-action">← Back to Editor</a>
+    <button class="btn-action" onclick="window.print()">🖨 Print</button>
+    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+  </div>
+</header>
+
+<main class="main-content">
+
+<!-- Hero -->
+<div class="hero-banner">
+  <div class="hero-content">
+    <h1>🎨 Theme Editor Guide</h1>
+    <p>Everything you need to customise, rearrange, and export VenueDesk pages — without touching the original source code.</p>
+    <div class="meta-badges">
+      <span class="meta-badge">📅 August 2026</span>
+      <span class="meta-badge">⚡ Vanilla JS · Zero dependencies</span>
+      <span class="meta-badge">🗂 Single HTML file</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Opening a File ───────────────────────────────────────────────────── -->
+<section id="opening" class="section-card">
+  <div class="card-header">
+    <h2>📂 Opening a File</h2>
+    <a href="#opening" class="header-anchor">🔗 Link</a>
+  </div>
+  <div class="card-body">
+    <p>The editor works entirely in your browser — no server, no install. Open <strong>theme-editor.html</strong> directly and then load any VenueDesk page.</p>
+
+    <ul class="step-list">
+      <li><div class="step-bubble">1</div><div>Open <code>theme-editor.html</code> in Chrome or Edge (Firefox works but drag-and-drop inside iframes is limited).</div></li>
+      <li><div class="step-bubble">2</div><div><strong>Drag & drop</strong> any <code>.html</code> file onto the editor window — a full-screen drop zone appears — or click <strong>Open File</strong> in the header.</div></li>
+      <li><div class="step-bubble">3</div><div>The page renders live in the right-hand preview. The left panel immediately populates with all CSS variables found in the file.</div></li>
+      <li><div class="step-bubble">4</div><div>Every change you make is non-destructive. The original file on disk is never touched until you click <strong>Download</strong>.</div></li>
+    </ul>
+
+    <div class="callout callout-tip" style="margin-top:1rem;">
+      <span class="callout-icon">💡</span>
+      <span>You can reload the editor at any time without losing changes — the editor state lives in the browser tab, not the disk. However, closing the tab clears everything.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Layout ───────────────────────────────────────────────────────────── -->
+<section id="layout" class="section-card">
+  <div class="card-header"><h2>🗂 Editor Layout</h2></div>
+  <div class="card-body">
+    <p>The editor has three zones. Here's what each does at a glance.</p>
+
+    <!-- Mock editor screenshot -->
+    <div class="editor-mock">
+      <div class="editor-mock-hdr">
+        <div class="em-logo">Venue<span>Desk</span> WYSIWYG</div>
+        <div class="em-badge">index.html</div>
+        <div class="em-sep"></div>
+        <div class="em-btn">↩ Undo</div>
+        <div class="em-btn">↪ Redo</div>
+        <div class="em-btn">⇌ Split</div>
+        <div class="em-btn em-btn-active">🔲 Inspect</div>
+        <div class="em-btn">⎘ CSS Patch</div>
+        <div class="em-btn">⎘ Copy CSS</div>
+        <div class="em-btn em-btn-primary">⬇ Download</div>
+      </div>
+      <div class="editor-mock-body">
+        <div class="em-panel">
+          <div class="em-tabs">
+            <div class="em-tab active">CSS Variables</div>
+            <div class="em-tab">Element CSS</div>
+          </div>
+          <div class="em-section-head"><div class="em-section-title">Brand & Primary</div></div>
+          <div class="em-var-row"><div class="em-var-name mod">--primary</div><div class="em-swatch" style="background:#6366f1"></div></div>
+          <div class="em-var-row"><div class="em-var-name">--primary-hover</div><div class="em-swatch" style="background:#4f46e5"></div></div>
+          <div class="em-section-head"><div class="em-section-title">Backgrounds</div></div>
+          <div class="em-var-row"><div class="em-var-name">--bg-page</div><div class="em-swatch" style="background:#0b0f19"></div></div>
+          <div class="em-var-row"><div class="em-var-name">--bg-card</div><div class="em-swatch" style="background:#131b2e"></div></div>
+        </div>
+        <div class="em-preview">
+          <div class="em-preview-inner">
+            <div style="font-size:1.5rem;opacity:.2;margin-bottom:.5rem">🖥</div>
+            <div>Live page preview renders here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:1.25rem;">
+      <div class="feature-card">
+        <h4>① Header bar</h4>
+        <p>File name, zoom slider, Inspect toggle, Undo/Redo, Split view, CSS Patch, Copy CSS, and Download. Disabled until a file is loaded.</p>
+      </div>
+      <div class="feature-card">
+        <h4>② Left panel</h4>
+        <p>Switches between <em>CSS Variables</em> (with Presets + Font Picker) and <em>Element CSS</em> (properties + DOM Actions). Scrollable.</p>
+      </div>
+      <div class="feature-card">
+        <h4>③ Preview</h4>
+        <p>Live <code>&lt;iframe&gt;</code> rendering the page with all overrides applied. In Split mode shows two iframes side-by-side.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Preset Themes ─────────────────────────────────────────────────────── -->
+<section id="presets" class="section-card">
+  <div class="card-header"><h2>🎨 Preset Themes</h2></div>
+  <div class="card-body">
+    <p>One-click colour palettes at the top of the Variables panel. A preset overwrites the core colour variables — you can fine-tune individual values afterwards.</p>
+
+    <div class="preset-demo">
+      <div class="preset-demo-swatch" style="border-color:#4338ca;color:#818cf8;background:rgba(99,102,241,.1)">⬤ Indigo</div>
+      <div class="preset-demo-swatch" style="border-color:#0369a1;color:#38bdf8;background:rgba(56,189,248,.1)">⬤ Slate</div>
+      <div class="preset-demo-swatch" style="border-color:#065f46;color:#34d399;background:rgba(52,211,153,.1)">⬤ Emerald</div>
+      <div class="preset-demo-swatch" style="border-color:#991b1b;color:#f87171;background:rgba(248,113,113,.1)">⬤ Crimson</div>
+      <div class="preset-demo-swatch" style="border-color:#92400e;color:#fbbf24;background:rgba(251,191,36,.1)">⬤ Amber</div>
+      <div class="preset-demo-swatch" style="border-color:#334155;color:#94a3b8;background:rgba(148,163,184,.07)">↺ Original</div>
+    </div>
+
+    <p>Each preset sets these variables: <code>--primary</code>, <code>--primary-hover</code>, <code>--primary-light</code>, <code>--bg-page</code>, <code>--bg-card</code>, <code>--bg-sidebar</code>, <code>--bg-input</code>, <code>--bg-muted</code>, <code>--border-color</code>, <code>--text-main</code>, <code>--text-muted</code>.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <span><strong>Original</strong> resets all variable overrides to the values parsed from the loaded file — useful to start over without reloading the file.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Font Picker ───────────────────────────────────────────────────────── -->
+<section id="fonts" class="section-card">
+  <div class="card-header"><h2>🔡 Font Picker</h2></div>
+  <div class="card-body">
+    <p>Swap the page typeface without editing any code. Sits directly below the Presets bar.</p>
+    <ul class="step-list">
+      <li><div class="step-bubble">1</div><div>Choose a font from the <strong>Font</strong> dropdown — Inter, Outfit, Poppins, Montserrat, DM Sans, Raleway, and 6 more.</div></li>
+      <li><div class="step-bubble">2</div><div>The Google Fonts stylesheet is injected into the preview immediately. The page re-renders with the new typeface.</div></li>
+      <li><div class="step-bubble">3</div><div>If the loaded file uses CSS variables for font-family (<code>--font-body</code>, <code>--font-sans</code>, <code>--font-heading</code>, <code>--font-base</code>) those are also updated automatically.</div></li>
+      <li><div class="step-bubble">4</div><div>The font link is included in the <strong>Download</strong> output so the exported file loads the font from Google CDN.</div></li>
+    </ul>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <span>Font loading requires an internet connection in the preview. Exported files will also need internet access to fetch the Google Font at runtime.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── CSS Variables ─────────────────────────────────────────────────────── -->
+<section id="variables" class="section-card">
+  <div class="card-header"><h2>⚙️ CSS Variables</h2></div>
+  <div class="card-body">
+    <p>The Variables panel reads every <code>--custom-property</code> from the file's <code>:root {}</code> and light-mode block, groups them by type, and gives you the right control for each value.</p>
+
+    <div class="grid-2" style="margin:.875rem 0 1rem;">
+      <div class="feature-card">
+        <h4>🖌 Colour variables</h4>
+        <p>Rendered as a native colour picker + hex text input. Click the swatch to open the OS colour wheel. You can also type any valid CSS colour directly.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📐 Size variables</h4>
+        <p>Rendered as a drag slider + numeric readout. Ranges are context-aware (e.g. <code>--radius-*</code> caps at 28 px, <code>--sidebar-*</code> goes to 500 px).</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔗 Derived variables</h4>
+        <p>Variables referencing <code>var()</code>, <code>calc()</code>, or gradients are shown read-only — editing them would break the reference chain.</p>
+      </div>
+      <div class="feature-card">
+        <h4>☾ / ☀ Dark · Light tabs</h4>
+        <p>Switch between editing the <code>:root</code> (dark) and the <code>body.light-mode</code> (light) blocks independently. Dimmed rows in Light mode are inherited from dark.</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:.5rem"><strong>Search:</strong> type in the filter box to narrow variables. Matching sections expand automatically; non-matching sections collapse.</p>
+    <p><strong>Reset:</strong> hover any row and click the <strong>↺</strong> reset button to revert that variable to its original file value.</p>
+
+    <p style="margin-top:1rem;margin-bottom:.5rem;font-weight:600;font-size:.875rem;">Example — what gets exported</p>
+    <div class="code-block">
+<span class="tok-cmt">/* Only your changed values are written — not the full variable list */</span>
+<span class="code-lang">CSS</span>
+<span class="tok-sel">:root</span> {
+  <span class="tok-prop">--primary</span>:       <span class="tok-val">#34d399</span>;   <span class="tok-cmt">/* changed */</span>
+  <span class="tok-prop">--primary-hover</span>: <span class="tok-val">#10b981</span>;   <span class="tok-cmt">/* changed */</span>
+  <span class="tok-prop">--bg-page</span>:        <span class="tok-val">#050d0a</span>;   <span class="tok-cmt">/* changed */</span>
+}
+    </div>
+  </div>
+</section>
+
+<!-- ── Element Inspector ─────────────────────────────────────────────────── -->
+<section id="element" class="section-card">
+  <div class="card-header"><h2>🔲 Element Inspector</h2></div>
+  <div class="card-body">
+    <p>Click any element in the preview to select it and edit its CSS properties in real time.</p>
+
+    <ul class="step-list" style="margin-bottom:1.25rem;">
+      <li><div class="step-bubble">1</div><div>Click <span class="badge badge-purple">🔲 Inspect</span> in the header — the cursor becomes a crosshair over the preview.</div></li>
+      <li><div class="step-bubble">2</div><div>Hover elements to see an indigo outline. Click to select — the left panel switches to <strong>Element CSS</strong> and shows the element's computed styles.</div></li>
+      <li><div class="step-bubble">3</div><div>Use the four tabs — <strong>Layout</strong>, <strong>Type</strong>, <strong>Color</strong>, <strong>+ Custom</strong> — to edit properties. Changes apply instantly.</div></li>
+      <li><div class="step-bubble">4</div><div>The selected element gets an amber outline in the preview and a <code>draggable</code> attribute (enabling drag-and-drop). A breadcrumb above the tabs shows the CSS selector path.</div></li>
+    </ul>
+
+    <!-- Element panel mockup -->
+    <div class="editor-mock" style="max-width:360px;">
+      <div class="em-crumb">
+        <div class="em-crumb-tag">div<span style="color:#818cf8">.sidebar-nav</span></div>
+        <div class="em-crumb-path">aside.sidebar > nav.sidebar-nav</div>
+        <div class="em-dom-actions">
+          <div class="em-action-btn danger">🗑️ Delete</div>
+          <div class="em-action-btn">📄 Duplicate</div>
+          <div class="em-action-btn">✏️ Edit Text</div>
+        </div>
+      </div>
+      <div class="em-tabs">
+        <div class="em-tab active">Layout</div>
+        <div class="em-tab">Type</div>
+        <div class="em-tab">Color</div>
+        <div class="em-tab">+ Custom</div>
+      </div>
+      <div class="em-prop-row"><div class="em-prop-label">display</div><div class="em-prop-input">flex</div></div>
+      <div class="em-prop-row"><div class="em-prop-label">gap</div><div class="em-prop-input active">0.5rem</div></div>
+      <div class="em-prop-row"><div class="em-prop-label">padding</div><div class="em-prop-input">0</div></div>
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:1rem;">
+      <span class="callout-icon">💡</span>
+      <span>Element CSS overrides are written as inline <code>&lt;style&gt;</code> blocks in the exported HTML using the auto-generated CSS selector. If the selector is too broad (e.g. <code>div</code>), use the <strong>+ Custom</strong> tab to write a more specific rule.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── DOM Actions ───────────────────────────────────────────────────────── -->
+<section id="dom-actions" class="section-card">
+  <div class="card-header"><h2>🛠 Delete · Duplicate · Edit Text</h2></div>
+  <div class="card-body">
+    <p>Once an element is selected via Inspect mode, three DOM action buttons appear below the breadcrumb. These modify the actual page DOM — not just styles.</p>
+
+    <div class="grid-3" style="margin:.875rem 0;">
+      <div class="feature-card">
+        <h4>🗑️ Delete</h4>
+        <p>Removes the selected element and all its children from the DOM permanently (within the editor session). The element disappears from the preview immediately.</p>
+        <p style="margin-top:.5rem;color:var(--danger);font-size:.78rem;">Pushes to Undo history — press Ctrl+Z to recover.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📄 Duplicate</h4>
+        <p>Deep-clones the element (<code>cloneNode(true)</code>) and inserts the copy immediately after the original. IDs are not deduped — rename them manually if needed.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✏️ Edit Text</h4>
+        <p>Sets <code>contentEditable</code> on the element. Click inside the preview and type. The <strong>Edit Text</strong> button turns amber while active. Click away to confirm — the DOM is updated.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <span>All three actions send a <code>postMessage</code> command to the iframe, which executes the mutation, strips all editor-injected tags, and returns the clean updated HTML to the parent window. <strong>Download</strong> always exports the current DOM state.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Drag & Drop ───────────────────────────────────────────────────────── -->
+<section id="dragdrop" class="section-card">
+  <div class="card-header"><h2>↕ Drag & Drop</h2></div>
+  <div class="card-body">
+    <p>Rearrange any element by dragging it to a new position — no buttons, no cut-paste.</p>
+
+    <ul class="step-list" style="margin-bottom:1.25rem;">
+      <li><div class="step-bubble">1</div><div>Enable <span class="badge badge-purple">🔲 Inspect</span> and click an element to select it. The element becomes draggable (shown by an amber outline).</div></li>
+      <li><div class="step-bubble">2</div><div>Click and drag the element. It fades to 40% opacity while being dragged.</div></li>
+      <li><div class="step-bubble">3</div><div>Hover over a target element — an amber border appears on the <strong>top edge</strong> (insert before) or <strong>bottom edge</strong> (insert after) depending on which half of the target you're on.</div></li>
+      <li><div class="step-bubble">4</div><div>Release to drop. The element is moved using <code>insertBefore</code> or <code>el.after()</code>. The DOM mutation is sent back to the parent and Undo history is updated.</div></li>
+    </ul>
+
+    <!-- Visual diagram -->
+    <div class="dnd-diagram">
+      <div>
+        <div class="dnd-elem selected" style="margin-bottom:.5rem">📦 Nav Item A <span style="font-size:.7rem;opacity:.6">(dragging)</span></div>
+        <div class="dnd-elem">📦 Nav Item B</div>
+        <div class="dnd-elem">📦 Nav Item C</div>
+      </div>
+      <div class="dnd-arrow">→</div>
+      <div>
+        <div class="dnd-elem">📦 Nav Item B</div>
+        <div class="dnd-elem target">📦 Nav Item C <span style="font-size:.7rem;opacity:.6">(amber top border = insert before)</span></div>
+        <div class="dnd-elem selected">📦 Nav Item A <span style="font-size:.7rem;opacity:.6">(dropped here)</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn" style="margin-top:.5rem;">
+      <span class="callout-icon">⚠️</span>
+      <span>Avoid dropping an element onto one of its own children — the script guards against this but the result may be unexpected. Use Ctrl+Z if a drop lands in the wrong place.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Split View ────────────────────────────────────────────────────────── -->
+<section id="split" class="section-card">
+  <div class="card-header"><h2>⇌ Split View</h2></div>
+  <div class="card-body">
+    <p>Compare the original and modified page side-by-side without switching tabs.</p>
+
+    <!-- Split mockup -->
+    <div class="editor-mock" style="margin:.875rem 0;">
+      <div class="editor-mock-hdr">
+        <div class="em-logo">Venue<span>Desk</span> WYSIWYG</div>
+        <div class="em-sep"></div>
+        <div class="em-btn em-btn-active">⇌ Split</div>
+        <div class="em-btn" style="opacity:.3;cursor:not-allowed">🔲 Inspect</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;min-height:100px;">
+        <div style="background:#090e18;border-right:1px solid #141f30;padding:.75rem;font-size:.7rem;color:#3d5070;">
+          <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;color:#4a5568;">Original</div>
+          <div style="opacity:.4;font-style:italic;">Original page — no overrides</div>
+        </div>
+        <div style="background:#090e18;padding:.75rem;font-size:.7rem;color:#6366f1;">
+          <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;color:#818cf8;">Modified</div>
+          <div style="opacity:.6;font-style:italic;">All variable + element overrides applied</div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="step-list">
+      <li><div class="step-bubble">1</div><div>Click <span class="badge badge-purple">⇌ Split</span> in the header. The preview switches to two iframes side-by-side.</div></li>
+      <li><div class="step-bubble">2</div><div><strong>Left pane</strong> — the original file with no CSS overrides (theme enforcement still applied for accurate comparison).</div></li>
+      <li><div class="step-bubble">3</div><div><strong>Right pane</strong> — the fully modified version including all variable changes and element overrides.</div></li>
+      <li><div class="step-bubble">4</div><div>The zoom slider applies to both panes simultaneously. Inspect mode is disabled in split view — click ⇌ Split again to return to single-pane mode.</div></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── Undo / Redo ───────────────────────────────────────────────────────── -->
+<section id="undo" class="section-card">
+  <div class="card-header"><h2>↩ Undo / Redo</h2></div>
+  <div class="card-body">
+    <p>The editor maintains a 50-step history of all changes — CSS edits, DOM mutations, and preset applications.</p>
+
+    <div class="grid-2" style="margin:.875rem 0;">
+      <div class="feature-card">
+        <h4>When history is pushed</h4>
+        <ul>
+          <li>On file load (initial state)</li>
+          <li>Immediately before Delete, Duplicate, Drop, and preset applies</li>
+          <li>1 second after the last CSS variable or element property change (debounced — avoids a snapshot on every slider tick)</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <h4>What is snapshotted</h4>
+        <ul>
+          <li><code>originalHtml</code> — the full DOM state (includes DOM mutations)</li>
+          <li><code>overrideDark</code> + <code>overrideLight</code> — CSS variable deltas</li>
+          <li><code>elemOverrides</code> — per-selector property overrides</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>Undo restores all three simultaneously and re-renders the preview. After undoing, making a new change discards the forward history (same behaviour as most editors).</p>
+  </div>
+</section>
+
+<!-- ── Exporting ─────────────────────────────────────────────────────────── -->
+<section id="export" class="section-card">
+  <div class="card-header"><h2>⬇ Exporting</h2></div>
+  <div class="card-body">
+    <p>Three ways to get your work out of the editor.</p>
+
+    <div class="grid-3" style="margin:.875rem 0 1.25rem;">
+      <div class="feature-card">
+        <h4>⬇ Download HTML</h4>
+        <p>Exports the full modified HTML file with CSS variables baked into <code>:root</code> and the light-mode block, element overrides appended as <code>&lt;style&gt;</code>, and any font link injected. Named <code>filename-themed.html</code>.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⎘ CSS Patch</h4>
+        <p>Exports <em>only</em> the changed variables and element overrides as a standalone <code>.css</code> file. Drop it into any existing project with a <code>&lt;link&gt;</code> tag — nothing else changes.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⎘ Copy CSS</h4>
+        <p>Copies the complete <code>:root {}</code> block, light-mode block, and element override rules to the clipboard. Paste directly into a <code>&lt;style&gt;</code> tag or your CSS file.</p>
+      </div>
+    </div>
+
+    <p style="font-weight:600;font-size:.875rem;margin-bottom:.5rem">CSS Patch example output</p>
+    <div class="code-block">
+<span class="tok-cmt">/* VenueDesk Theme Patch */</span>
+<span class="code-lang">CSS</span>
+
+<span class="tok-sel">:root</span> {
+  <span class="tok-prop">--primary</span>:        <span class="tok-val">#34d399</span>;
+  <span class="tok-prop">--primary-hover</span>:  <span class="tok-val">#10b981</span>;
+  <span class="tok-prop">--bg-page</span>:         <span class="tok-val">#050d0a</span>;
+}
+
+<span class="tok-sel">aside.sidebar</span> {
+  <span class="tok-prop">width</span>:   <span class="tok-val">320px</span>;
+  <span class="tok-prop">padding</span>: <span class="tok-val">2.5rem 2rem</span>;
+}
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <span>For production use, the CSS Patch approach is recommended — it keeps the original HTML untouched and the patch can be maintained independently as a versioned file.</span>
+    </div>
+
+    <p style="font-weight:600;font-size:.875rem;margin:.875rem 0 .5rem">Deploying to GitHub Pages</p>
+    <p style="font-size:.875rem;color:var(--text-muted)">After downloading the themed HTML, replace the target file in the repo and push. GitHub Pages serves from the repo root — remember to sync the <code>CommunityHub/</code> mirror.</p>
+    <div class="code-block">
+<span class="tok-cmt"># Replace and sync both copies</span>
+<span class="code-lang">bash</span>
+cp ~/Downloads/index-themed.html ./index.html
+cp index.html CommunityHub/index.html
+git add index.html CommunityHub/index.html
+git commit -m "theme: apply emerald preset + Poppins font"
+git push origin main
+    </div>
+  </div>
+</section>
+
+<!-- ── Keyboard Shortcuts ────────────────────────────────────────────────── -->
+<section id="shortcuts" class="section-card">
+  <div class="card-header"><h2>⌨ Keyboard Shortcuts</h2></div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div>
+        <table class="shortcut-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo last change</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Redo</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></td><td>Redo (alternate)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <table class="shortcut-table">
+          <thead><tr><th>Action</th><th>How</th></tr></thead>
+          <tbody>
+            <tr><td>Open file</td><td>Drag &amp; drop .html onto the window</td></tr>
+            <tr><td>Select element</td><td>Enable Inspect → click in preview</td></tr>
+            <tr><td>Deselect</td><td>✕ Deselect button or click again</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:1rem;">
+      <span class="callout-icon">💡</span>
+      <span><strong>Mac users:</strong> replace <kbd>Ctrl</kbd> with <kbd>⌘ Cmd</kbd> for all keyboard shortcuts.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Tips & Gotchas ────────────────────────────────────────────────────── -->
+<section class="section-card">
+  <div class="card-header"><h2>⚡ Tips & Common Gotchas</h2></div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div class="feature-card">
+        <h4>✅ Best browser</h4>
+        <p>Chrome or Edge give the most reliable iframe drag-and-drop. Firefox works for CSS editing but HTML5 drag within sandboxed iframes can be inconsistent.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ sessionStorage pages</h4>
+        <p>VenueDesk pages that read <code>sessionStorage</code> (like <code>vp_token</code>) will redirect to <code>login.html</code> in the preview — this is expected. The editor is for styling, not authentication.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ Duplicate IDs after clone</h4>
+        <p>Duplicate creates an exact clone including <code>id</code> attributes. If the page JS queries by ID it may behave unexpectedly — rename IDs in Edit Text or via the Element → Custom CSS tab.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ Light-mode editing</h4>
+        <p>Switch to ☀ Light mode in the Variables panel before editing the light-mode block. Changes made in Dark mode only touch <code>:root</code> — they won't appear in <code>body.light-mode</code>.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ Very complex selectors</h4>
+        <p>The auto-generated CSS selector is depth-capped at 6 levels. For deeply nested elements the selector may not be unique enough — use <strong>+ Custom</strong> to write a more specific one.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ Closing the tab</h4>
+        <p>All state lives in the browser tab's JavaScript memory. Closing or refreshing the tab clears everything. Use <strong>Download</strong> or <strong>CSS Patch</strong> to save your work before navigating away.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div><!-- /main column -->
+</div><!-- /app-container -->
+
+<script>
+// Theme toggle
+function toggleTheme() {
+  const h = document.documentElement;
+  const next = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  h.setAttribute('data-theme', next);
+  document.getElementById('theme-toggle').textContent = next === 'dark' ? '🌙' : '☀️';
+  localStorage.setItem('vp_light_mode', next === 'light' ? '1' : '0');
+}
+(function(){
+  const saved = localStorage.getItem('vp_light_mode') === '1' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = saved === 'dark' ? '🌙' : '☀️';
+})();
+
+// Search
+function searchGuide(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.section-card').forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = !q || text.includes(q) ? '' : 'none';
+  });
+}
+
+// Active nav on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks  = document.querySelectorAll('.nav-item');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) cur = s.id; });
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+}, { passive: true });
+</script>
+</body>
+</html>
