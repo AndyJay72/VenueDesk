@@ -227,8 +227,9 @@ kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radiu
 
   <div class="sidebar-tag">DOM Editing</div>
   <nav class="sidebar-nav">
-    <a href="#dom-actions" class="nav-item">🛠 Delete · Duplicate · Edit Text</a>
-    <a href="#dragdrop"    class="nav-item">↕ Drag & Drop</a>
+    <a href="#dom-actions"  class="nav-item">🛠 DOM Actions</a>
+    <a href="#add-element"  class="nav-item">➕ Add Element</a>
+    <a href="#dragdrop"     class="nav-item">↕ Drag & Drop</a>
   </nav>
 
   <div class="sidebar-tag">Views & Export</div>
@@ -462,6 +463,7 @@ kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radiu
           <div class="em-action-btn danger">🗑️ Delete</div>
           <div class="em-action-btn">📄 Duplicate</div>
           <div class="em-action-btn">✏️ Edit Text</div>
+          <div class="em-action-btn" style="border-color:rgba(99,102,241,.35);color:#818cf8;flex:2">➕ Add Element…</div>
         </div>
       </div>
       <div class="em-tabs">
@@ -484,29 +486,81 @@ kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radiu
 
 <!-- ── DOM Actions ───────────────────────────────────────────────────────── -->
 <section id="dom-actions" class="section-card">
-  <div class="card-header"><h2>🛠 Delete · Duplicate · Edit Text</h2></div>
+  <div class="card-header"><h2>🛠 DOM Actions</h2></div>
   <div class="card-body">
-    <p>Once an element is selected via Inspect mode, three DOM action buttons appear below the breadcrumb. These modify the actual page DOM — not just styles.</p>
+    <p>Once an element is selected via Inspect mode, four action controls appear below the breadcrumb. These modify the actual page DOM — not just styles — and every mutation is tracked in Undo history.</p>
 
-    <div class="grid-3" style="margin:.875rem 0;">
+    <div class="grid-2" style="margin:.875rem 0 1rem;">
       <div class="feature-card">
         <h4>🗑️ Delete</h4>
-        <p>Removes the selected element and all its children from the DOM permanently (within the editor session). The element disappears from the preview immediately.</p>
-        <p style="margin-top:.5rem;color:var(--danger);font-size:.78rem;">Pushes to Undo history — press Ctrl+Z to recover.</p>
+        <p>Removes the selected element and all its children from the DOM. The preview updates immediately without reloading the iframe — scroll position and selection state are preserved.</p>
+        <p style="margin-top:.5rem;color:var(--danger);font-size:.78rem;">Press Ctrl+Z to recover — the pre-delete state is saved to history.</p>
       </div>
       <div class="feature-card">
         <h4>📄 Duplicate</h4>
-        <p>Deep-clones the element (<code>cloneNode(true)</code>) and inserts the copy immediately after the original. IDs are not deduped — rename them manually if needed.</p>
+        <p>Deep-clones the element (<code>cloneNode(true)</code>) and inserts the copy immediately after the original. IDs are not deduped — rename them in Edit Text or via the Element → Custom CSS tab.</p>
       </div>
       <div class="feature-card">
         <h4>✏️ Edit Text</h4>
-        <p>Sets <code>contentEditable</code> on the element. Click inside the preview and type. The <strong>Edit Text</strong> button turns amber while active. Click away to confirm — the DOM is updated.</p>
+        <p>Sets <code>contentEditable</code> on the element. The button turns amber while active. Three ways to save:</p>
+        <ul style="margin-top:.4rem;">
+          <li><kbd>Enter</kbd> — saves and exits edit mode</li>
+          <li><kbd>Shift</kbd>+<kbd>Enter</kbd> — inserts a line break (stays in edit mode)</li>
+          <li><kbd>Escape</kbd> or click away — exits and saves</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <h4>➕ Add Element dropdown</h4>
+        <p>Select an element type to insert near the currently selected element. See the <a href="#add-element" style="color:var(--primary)">Add Element</a> section below for full details.</p>
       </div>
     </div>
 
     <div class="callout callout-info">
       <span class="callout-icon">ℹ️</span>
-      <span>All three actions send a <code>postMessage</code> command to the iframe, which executes the mutation, strips all editor-injected tags, and returns the clean updated HTML to the parent window. <strong>Download</strong> always exports the current DOM state.</span>
+      <span>All actions send a <code>postMessage</code> command to the iframe. The iframe executes the mutation, strips all editor-injected tags, and returns the clean HTML to the parent. The main preview iframe is <strong>never reloaded</strong> — only the background state variable is updated. <strong>Download</strong> always exports the current DOM state.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Add Element ────────────────────────────────────────────────────────── -->
+<section id="add-element" class="section-card">
+  <div class="card-header"><h2>➕ Add Element</h2></div>
+  <div class="card-body">
+    <p>Insert a new DOM element near the currently selected one using the <strong>Add Element…</strong> dropdown in the DOM Actions bar.</p>
+
+    <ul class="step-list" style="margin-bottom:1.25rem;">
+      <li><div class="step-bubble">1</div><div>Select an element in the preview using Inspect mode. If nothing is selected the dropdown shows a toast error.</div></li>
+      <li><div class="step-bubble">2</div><div>Choose an element type from the dropdown — it resets to the placeholder immediately so you can add multiple elements in sequence.</div></li>
+      <li><div class="step-bubble">3</div><div>The new element is inserted using <strong>intelligent placement</strong>: container-type elements (<code>div</code>, <code>section</code>, <code>header</code>, <code>main</code>, <code>aside</code>, <code>footer</code>, <code>article</code>, <code>nav</code>, <code>ul</code>, <code>ol</code>) receive the new element as a child via <code>appendChild</code>. All other types get it as a sibling via <code>el.after()</code>.</div></li>
+      <li><div class="step-bubble">4</div><div>The new element is auto-selected — the Element CSS panel updates immediately and it is draggable, editable, and deletable without any extra clicks.</div></li>
+    </ul>
+
+    <div class="grid-3" style="margin-bottom:1rem;">
+      <div class="feature-card">
+        <h4>Primary Button</h4>
+        <p>Inserts <code>&lt;button class="btn btn-primary"&gt;New Button&lt;/button&gt;</code> — inherits the page's existing button styles.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Container / Grid Box</h4>
+        <p>Inserts a <code>&lt;div&gt;</code> with <code>padding: 1rem</code> and a dashed border so it's immediately visible, ready to receive child elements.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Image Placeholder</h4>
+        <p>Inserts an <code>&lt;img&gt;</code> sourced from <code>placehold.co/300x200</code>. Replace the <code>src</code> via the Element → Custom CSS tab or Edit Text.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Video Container</h4>
+        <p>Inserts a <code>&lt;video controls&gt;</code> with a dark background and minimum height. Set the <code>src</code> attribute manually after insertion.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Paragraph Text</h4>
+        <p>Inserts <code>&lt;p&gt;New text block. Edit me.&lt;/p&gt;</code> with <code>color: inherit</code>. Use Edit Text or drag to position it.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <span>To build a layout from scratch: select an existing container, add a <strong>Container / Grid Box</strong> (appended as a child), then select that new div and add further elements inside it. Each new element is auto-selected, so you can chain additions without re-clicking.</span>
     </div>
   </div>
 </section>
@@ -574,9 +628,9 @@ kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radiu
 
     <ul class="step-list">
       <li><div class="step-bubble">1</div><div>Click <span class="badge badge-purple">⇌ Split</span> in the header. The preview switches to two iframes side-by-side.</div></li>
-      <li><div class="step-bubble">2</div><div><strong>Left pane</strong> — the original file with no CSS overrides (theme enforcement still applied for accurate comparison).</div></li>
-      <li><div class="step-bubble">3</div><div><strong>Right pane</strong> — the fully modified version including all variable changes and element overrides.</div></li>
-      <li><div class="step-bubble">4</div><div>The zoom slider applies to both panes simultaneously. Inspect mode is disabled in split view — click ⇌ Split again to return to single-pane mode.</div></li>
+      <li><div class="step-bubble">2</div><div><strong>Left pane — Original.</strong> Frozen to the HTML as it was when the file was first loaded (<code>initialHtml</code>). DOM mutations (delete, duplicate, add, drag) never appear here — it is a stable baseline for comparison.</div></li>
+      <li><div class="step-bubble">3</div><div><strong>Right pane — Modified.</strong> Reflects all CSS variable overrides, element overrides, <em>and</em> live DOM mutations. When you delete or add an element in the main inspector, the Modified pane re-renders to show the change.</div></li>
+      <li><div class="step-bubble">4</div><div>The zoom slider applies to both panes simultaneously. Inspect mode is disabled in split view — click ⇌ Split again to return to single-pane interactive mode.</div></li>
     </ul>
   </div>
 </section>
@@ -592,7 +646,8 @@ kbd{background:var(--bg-input);border:1px solid var(--border-color);border-radiu
         <h4>When history is pushed</h4>
         <ul>
           <li>On file load (initial state)</li>
-          <li>Immediately before Delete, Duplicate, Drop, and preset applies</li>
+          <li>When the iframe confirms a DOM mutation (<code>vd_dom_mutated</code>) — after <code>originalHtml</code> is updated, so the snapshot captures the <em>new</em> state</li>
+          <li>On preset apply and font change</li>
           <li>1 second after the last CSS variable or element property change (debounced — avoids a snapshot on every slider tick)</li>
         </ul>
       </div>
@@ -729,6 +784,14 @@ git push origin main
       <div class="feature-card">
         <h4>✅ Closing the tab</h4>
         <p>All state lives in the browser tab's JavaScript memory. Closing or refreshing the tab clears everything. Use <strong>Download</strong> or <strong>CSS Patch</strong> to save your work before navigating away.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ Add Element inside containers</h4>
+        <p>When you add an element with a container selected (<code>div</code>, <code>section</code>, <code>main</code>, etc.), the new element is appended as a child. If you intended it as a sibling, select the container's parent first, or use drag-and-drop to reposition after inserting.</p>
+      </div>
+      <div class="feature-card">
+        <h4>✅ No iframe reload on mutation</h4>
+        <p>Delete, duplicate, drag-and-drop, and Add Element all update the DOM inside the live iframe without reloading it. Scroll position and the selected element state are preserved. Only the Download output and the Split View Modified pane are synced in the background.</p>
       </div>
     </div>
   </div>
