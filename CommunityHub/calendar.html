@@ -1115,6 +1115,14 @@
                         <div class="qb-rec-day-time-rows" id="qb-rec-day-time-rows"></div>
                         <div class="qb-grid" style="margin-bottom:0.5rem">
                             <div class="qb-full">
+                                <label class="qb-label">Booking Frequency</label>
+                                <select id="qb-rec-frequency" class="qb-select" onchange="qbOnFrequencyChange()">
+                                    <option value="weekly" selected>Weekly</option>
+                                    <option value="fortnightly">Every 2 Weeks (Fortnightly)</option>
+                                    <option value="monthly">Monthly (e.g., 1st Monday of each month)</option>
+                                </select>
+                            </div>
+                            <div class="qb-full">
                                 <label class="qb-label">Contract Duration</label>
                                 <select id="qb-rec-duration" class="qb-select" onchange="qbOnDurationChange()">
                                     <option value="">Select duration…</option>
@@ -1486,7 +1494,7 @@
             document.getElementById('qb-overrideRow').style.display='none';
             document.getElementById('qb-overrideAmount').value='';
             document.getElementById('qb-payAmount').value='';
-            qbIsRecurring=false;qbRecurrenceDates=[];qbRecurrenceFreq='weekly';qbRecDuration=0;qbCyclePrice=0;qbRecSelectedDays=[];
+            qbIsRecurring=false;qbRecurrenceDates=[];qbRecurrenceFreq='weekly';qbRecDuration=0;qbCyclePrice=0;qbRecSelectedDays=[];const _rFreqEl=document.getElementById('qb-rec-frequency');if(_rFreqEl)_rFreqEl.value='weekly';
             const _rSec=document.getElementById('qb-recurring-section');if(_rSec)_rSec.classList.remove('visible');
             const _rTBtn=document.getElementById('qb-recurring-toggle-btn');if(_rTBtn)_rTBtn.classList.remove('active');
             const _rRBtns=document.getElementById('qb-recurring-btns');if(_rRBtns)_rRBtns.style.display='none';
@@ -1560,15 +1568,17 @@
             if(svcRes.total>0){total+=svcRes.total;breakdown+=` + services ${fmt(svcRes.total)}`;}
             const _perSessAmt=total;
             if(qbIsRecurring){
-                // 4-week cycle model: N selected days/week × 4 weeks = sessions_per_cycle
                 const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
-                const _sessPerCycle=_daysPerWeek*4;
+                const _freq=qbRecurrenceFreq||'weekly';
+                const _sessPerCycle=_freq==='monthly'?_daysPerWeek:_freq==='fortnightly'?_daysPerWeek*2:_daysPerWeek*4;
+                const _cycleLabel=_freq==='monthly'?'month':_freq==='fortnightly'?'2-wk cycle':'4-wk cycle';
                 qbCyclePrice=parseFloat((_perSessAmt*_sessPerCycle).toFixed(2));
                 const _totalCycles=qbRecDuration>0?Math.round(qbRecDuration/4):0;
                 if(qbRecDuration>0&&qbRecurrenceDates.length>0){
                     total=parseFloat((qbCyclePrice*_totalCycles).toFixed(2));
                     const _dayNames=qbRecSelectedDays.map(d=>_DOW_NAMES[d.dow]).join(', ')||'';
-                    breakdown=`${qbRecurrenceDates.length} sessions (${_daysPerWeek}×/wk${_dayNames?' — '+_dayNames:''}) — ${fmt(_perSessAmt)}/session · ${fmt(qbCyclePrice)}/4-wk cycle × ${_totalCycles} cycles`;
+                    const _freqLabel=_freq==='monthly'?'×/mo':_freq==='fortnightly'?'×/2wk':'×/wk';
+                    breakdown=`${qbRecurrenceDates.length} sessions (${_daysPerWeek}${_freqLabel}${_dayNames?' — '+_dayNames:''}) — ${fmt(_perSessAmt)}/session · ${fmt(qbCyclePrice)}/${_cycleLabel} × ${_totalCycles} cycles`;
                     qbDepositAmount=Math.round(qbCyclePrice*QBR_DEPOSIT_PCT)/100;
                 }else{
                     // Duration not yet selected — show per-session rate as placeholder
@@ -1872,46 +1882,63 @@
         function qbGenerateRecurrenceDates(){
             const{from}=qbGetDates();
             if(!from||!qbRecDuration)return[];
-            // If no days selected yet, fall back to start date's DOW
+            const _freq=qbRecurrenceFreq||'weekly';
             const activeDays=qbRecSelectedDays.length>0?qbRecSelectedDays:null;
-            if(!activeDays){
-                // single-day fallback (start date's DOW, use main time inputs)
-                const d=new Date(from+'T12:00:00');
-                const startT=document.getElementById('qb-startTime').value||'09:00';
-                const endT=document.getElementById('qb-endTime').value||'17:00';
-                const dates=[];
-                for(let i=0;i<qbRecDuration;i++){
-                    const cur=new Date(d);cur.setDate(d.getDate()+i*7);
-                    dates.push({date:_ld(cur),dow:cur.getDay(),startTime:startT,endTime:endT});
-                }
-                return dates;
-            }
-            // Multi-day: generate one week at a time for qbRecDuration weeks
-            const dates=[];
             const startD=new Date(from+'T12:00:00');
-            for(let wk=0;wk<qbRecDuration;wk++){
-                for(const daySpec of activeDays){
-                    // Find the date in this week that falls on daySpec.dow
-                    // Week 0 starts at Monday of the start-date's week
+            const startT=document.getElementById('qb-startTime').value||'09:00';
+            const endT=document.getElementById('qb-endTime').value||'17:00';
+            const daysToUse=activeDays||[{dow:startD.getDay(),startTime:startT,endTime:endT}];
+
+            // ── Monthly: Nth weekday of each calendar month ───────────────────
+            if(_freq==='monthly'){
+                const months=Math.round(qbRecDuration/4)||1;
+                // Which occurrence of the weekday in the start month (1=first, 2=second…)
+                const weekIndex=Math.ceil(startD.getDate()/7);
+                const dates=[];
+                for(let m=0;m<months;m++){
+                    const yr=startD.getFullYear()+Math.floor((startD.getMonth()+m)/12);
+                    const mo=(startD.getMonth()+m)%12;
+                    for(const daySpec of daysToUse){
+                        const firstOfMonth=new Date(yr,mo,1);
+                        const firstDow=firstOfMonth.getDay(); // 0=Sun
+                        // Days from 1st of month to first occurrence of daySpec.dow
+                        const daysToFirst=(daySpec.dow-firstDow+7)%7;
+                        const nthDay=1+daysToFirst+(weekIndex-1)*7;
+                        const target=new Date(yr,mo,nthDay);
+                        // Guard: skip if overflow into next month (e.g. 5th occurrence that doesn't exist)
+                        if(target.getMonth()===mo&&_ld(target)>=from){
+                            dates.push({date:_ld(target),dow:daySpec.dow,startTime:daySpec.startTime,endTime:daySpec.endTime});
+                        }
+                    }
+                }
+                dates.sort((a,b)=>a.date.localeCompare(b.date));
+                const seen=new Set();
+                return dates.filter(d=>{const k=d.date+'-'+d.dow;return seen.has(k)?false:seen.add(k)&&true;});
+            }
+
+            // ── Weekly / Fortnightly: step by N weeks ────────────────────────
+            const stepWks=_freq==='fortnightly'?2:1;
+            const loopCount=Math.ceil(qbRecDuration/stepWks);
+            const dates=[];
+            for(let wk=0;wk<loopCount;wk++){
+                for(const daySpec of daysToUse){
+                    // Week anchor: advance by wk × stepWks weeks from start
                     const weekStart=new Date(startD);
-                    const dayOffset=wk*7;
-                    weekStart.setDate(startD.getDate()+dayOffset);
-                    // Find the Monday of weekStart's week
-                    const dayOfWeek=weekStart.getDay(); // 0=Sun
-                    const mondayOffset=dayOfWeek===0?-6:1-dayOfWeek;
+                    weekStart.setDate(startD.getDate()+wk*7*stepWks);
+                    // Find Monday of this anchor week
+                    const dow=weekStart.getDay();
+                    const mondayOffset=dow===0?-6:1-dow;
                     const monday=new Date(weekStart);
                     monday.setDate(weekStart.getDate()+mondayOffset);
-                    // Then add daySpec.dow (1=Mon…6=Sat,0=Sun→7)
+                    // Offset to the target day (Sun=7 to keep it in the same week)
                     const targetDow=daySpec.dow===0?7:daySpec.dow;
                     const target=new Date(monday);
                     target.setDate(monday.getDate()+targetDow-1);
-                    // Only include dates on or after the start date
                     if(target>=new Date(from+'T00:00:00')){
                         dates.push({date:_ld(target),dow:daySpec.dow,startTime:daySpec.startTime,endTime:daySpec.endTime});
                     }
                 }
             }
-            // Sort by date, deduplicate
             dates.sort((a,b)=>a.date.localeCompare(b.date));
             const seen=new Set();
             return dates.filter(d=>{const k=d.date+'-'+d.dow;return seen.has(k)?false:seen.add(k)&&true;});
@@ -1960,7 +1987,9 @@
                 prev.innerHTML=noDays?'Select recurring days and contract duration to preview.':'Select a start date and contract duration to preview.';
                 return;
             }
+            const _freq=qbRecurrenceFreq||'weekly';
             const totalCycles=Math.round(qbRecDuration/4);
+            const _cycleLabel=_freq==='monthly'?'per month':_freq==='fortnightly'?'per 2 weeks':'per 4 weeks';
             const lastDate=new Date(qbRecurrenceDates[qbRecurrenceDates.length-1].date+'T12:00:00')
                 .toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
             const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
@@ -1973,7 +2002,7 @@
                 `<strong style="color:var(--text-main)">Total: ${qbRecurrenceDates.length} Sessions</strong>`+
                 (_dayNames?` &nbsp;|&nbsp; <span style="color:#818cf8">${_dayNames}</span>`:'')+
                 ` &nbsp;|&nbsp; <span style="color:var(--text-muted)">End: ${lastDate}</span><br>`+
-                `<span style="color:#34d399;font-weight:600">Billing: ${totalCycles} Cycles of ${fmt(qbCyclePrice)} per 4 weeks &bull; ${fmt(qbTotalAmount)} total</span><br>`+
+                `<span style="color:#34d399;font-weight:600">Billing: ${totalCycles} Cycles of ${fmt(qbCyclePrice)} ${_cycleLabel} &bull; ${fmt(qbTotalAmount)} total</span><br>`+
                 `<span style="color:#94a3b8;font-size:0.76rem">${_dateList}${_more}</span>`;
             qbUpdateRecurringButtons();
         }
@@ -2021,8 +2050,24 @@
             }
         }
 
-        // Stub kept for backward-compat — frequency is always weekly in 4-week cycle model
-        function qbOnFrequencyChange(freq){qbRecurrenceFreq=freq;qbUpdateRecurrencePreview();qbCalculateCost();}
+        function qbOnFrequencyChange(){
+            const sel=document.getElementById('qb-rec-frequency');
+            qbRecurrenceFreq=sel?sel.value:'weekly';
+            // Relabel duration options for monthly vs weekly/fortnightly
+            const dur=document.getElementById('qb-rec-duration');
+            if(dur){
+                const labels={12:{weekly:'3 Months (12 Weeks)',monthly:'3 Months'},
+                               24:{weekly:'6 Months (24 Weeks)',monthly:'6 Months'},
+                               48:{weekly:'1 Year (48 Weeks)',monthly:'1 Year (12 Months)'}};
+                dur.querySelectorAll('option').forEach(o=>{const v=parseInt(o.value);if(labels[v])o.textContent=labels[v][qbRecurrenceFreq]||labels[v].weekly;});
+            }
+            // Monthly billing cycle is fixed at 1 calendar month — hide the manual cycle-length picker
+            const clWrap=document.getElementById('qb-rec-cyclelen-wrap');
+            if(clWrap)clWrap.style.display=(qbRecurrenceFreq==='monthly')?'none':'';
+            qbRecurrenceDates=qbGenerateRecurrenceDates();
+            qbUpdateRecurrencePreview();
+            qbCalculateCost();
+        }
         function qbOnBillingFreqChange(billing){qbBillingFreq=billing;qbCalculateCost();}
         // Stored payload for when user confirms through the clash modal
         let _qbPendingRecurringPayload = null;
@@ -2185,7 +2230,8 @@
 
             // ── Step 4: Build payload using safe dates ────────────────────────
             const _daysPerWeek=Math.max(1,qbRecSelectedDays.length);
-            const _sessPerCycle=_daysPerWeek*4;
+            const _freq=qbRecurrenceFreq||'weekly';
+            const _sessPerCycle=_freq==='monthly'?_daysPerWeek:_freq==='fortnightly'?_daysPerWeek*2:_daysPerWeek*4;
             const totalCycles=Math.round(qbRecDuration/4);
             const cyclePrice=parseFloat(qbCyclePrice.toFixed(2));
             const perSessionCost=parseFloat((cyclePrice/_sessPerCycle).toFixed(2));
@@ -2209,16 +2255,16 @@
                 room_id:roomId||null,room_name:roomName,
                 start_time:startT,end_time:endT,
                 start_date:from,day_of_week:startDateObj.getDay(),
-                frequency:'weekly',end_date:endDateStr,
+                frequency:_freq,end_date:endDateStr,
                 specific_dates:safeDates.join(','),
                 day_schedule:daySchedule,
                 session_price:perSessionCost,rate_per_session:perSessionCost,
                 monthly_fee:cyclePrice,period_amount:cyclePrice,agreed_price:cyclePrice,
                 sessions_per_cycle:_sessPerCycle,total_cycles:totalCycles,remaining_cycles:totalCycles,
-                billing_type:'4_week_cycle',
+                billing_type:_freq==='monthly'?'monthly':'4_week_cycle',
                 payment_timing:document.getElementById('qb-rec-payterms')?.value||'in_advance',
-                // Feature C — cycle length in weeks. null for in_full (full series paid in one Stripe txn).
-                cycle_length_weeks:(document.getElementById('qb-rec-payterms')?.value==='in_full')
+                // cycle_length_weeks: null for monthly (calendar-month cycle) and for in_full (bulk Stripe txn)
+                cycle_length_weeks:(_freq==='monthly'||document.getElementById('qb-rec-payterms')?.value==='in_full')
                                    ? null
                                    : (parseInt(document.getElementById('qb-rec-cyclelen')?.value||'4')||4),
                 billing_day:parseInt(document.getElementById('qb-rec-billingDay')?.value||'1')||1,
@@ -2228,7 +2274,7 @@
                 payment_amount:payAmt,balance_due:balance,
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
-                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/week at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/4-wk cycle.`,
+                contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/${_freq==='monthly'?'mo':_freq==='fortnightly'?'2wk':'wk'} at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/${_freq==='monthly'?'month':_freq==='fortnightly'?'2-wk cycle':'4-wk cycle'}.`,
                 performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
                 tenant_id:parseInt(_CAL_TID()),status:status,
                 jwt:sessionStorage.getItem('vp_token')||''
