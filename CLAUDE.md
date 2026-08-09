@@ -1853,7 +1853,7 @@ Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-co
 | 6b No TCP drops | status 0 on 4 threads | Known — the 23505 catch closes the connection before the losing threads receive a clean 409; functionally correct, test assertion too strict |
 | 7a No auth header | Returns 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct behaviour |
 
-**Current QA baseline (June 27 2026):** 38 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+**Current QA baseline (August 9 2026):** 53 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
 
 ---
 
@@ -2676,6 +2676,34 @@ frequency options to the quick-book recurring drawer in `calendar.html`, and upd
 See **Section 5 → Recurring Contract — Frequency Support** for the full implementation
 reference including the Nth-weekday date algorithm, cycle billing formula table, and
 payload field mapping.
+
+---
+
+## 19. `GET /recurring/schedule-status` Authentication Fix ✅ DONE (August 9 2026)
+
+Commit `197ea2f`. Discovered by QA integration test 11c.
+
+**Bug:** `GET /recurring/schedule-status` had no `preHandler: [fastify.authenticate]`.
+Any unauthenticated caller who knew a `series_id` UUID could read billing cycle data
+(period dates, amounts due, payment status) for any tenant without a valid token.
+The original developer intentionally omitted auth citing the CORS constraint on browser
+GET requests, but this left the endpoint completely public.
+
+**Fix (recurring.js):**
+- Added `preHandler: [fastify.authenticate]`
+- `tenantId` now sourced from `request.user.tenant_id` (JWT) instead of `?tenant_id=`
+  query param — closes the secondary vector where a valid-token user could read another
+  tenant's schedule data by supplying a different `tenant_id` in the query string
+- `jwt` added to querystring schema so `fastify.authenticate` can read `query.jwt`
+- `tenant_id` query param kept as optional (backwards compat) but no longer used for RLS
+
+**Fix (recurring-bookings.html):**
+- `schedUrl` now appends `&jwt=${encodeURIComponent(sessionStorage.getItem('vp_token'))}` 
+  per Rule F6 — browser GET cannot send `Authorization` header cross-origin, so JWT
+  travels as a query param instead
+
+**QA result after fix:** 53 PASS · **0 CRITICAL** · 2 FAIL (6b + 7a — pre-existing
+test artefacts, not real issues) · 0 SKIP. Test 11c confirmed: no-auth → 401.
 
 ---
 
