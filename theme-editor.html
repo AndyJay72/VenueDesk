@@ -415,6 +415,64 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
 .split-label.modified { color: #818cf8; }
 .split-frame-wrap { flex: 1; overflow: auto; display: flex; }
 .split-iframe { border: none; display: block; transform-origin: top left; }
+
+/* ── Viewport switcher ───────────────────────────────────────────────────── */
+.vp-switcher { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+.vp-btn {
+  padding: 4px 9px; border-radius: 5px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-muted); font-size: 12px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap; line-height: 1;
+}
+.vp-btn:hover { color: var(--sh-text); border-color: #334155; }
+.vp-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: #6366f1; }
+
+/* ── Segmented controls ──────────────────────────────────────────────────── */
+.seg-ctrl { display: flex; gap: 2px; flex: 1; }
+.seg-btn {
+  flex: 1; padding: 3px 4px; border-radius: 4px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-muted); font-size: 10px;
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
+}
+.seg-btn:hover { color: var(--sh-text); border-color: #334155; background: rgba(255,255,255,0.04); }
+.seg-btn.active { background: rgba(99,102,241,0.2); color: #818cf8; border-color: #6366f1; }
+
+/* ── Element add drawer ──────────────────────────────────────────────────── */
+#elem-add-drawer { flex-direction: column; flex: 1; overflow: hidden; }
+.add-drawer-hdr {
+  display: flex; align-items: center; padding: 9px 11px;
+  border-bottom: 1px solid var(--sh-border); flex-shrink: 0; gap: 8px;
+}
+.add-drawer-title { flex: 1; font-size: 12px; font-weight: 700; color: var(--sh-text); }
+.add-drawer-back {
+  padding: 3px 9px; border-radius: 5px; border: 1px solid var(--sh-border);
+  background: transparent; color: var(--sh-muted); font-size: 11px; cursor: pointer;
+  transition: all 0.12s;
+}
+.add-drawer-back:hover { color: var(--sh-text); border-color: #334155; }
+.add-drawer-body {
+  flex: 1; overflow-y: auto; padding: 10px 11px;
+  scrollbar-width: thin; scrollbar-color: #1e2d45 transparent;
+}
+.add-grp-lbl {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #3d5070; margin: 12px 0 7px;
+}
+.add-grp-lbl:first-child { margin-top: 0; }
+.add-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.add-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 14px 8px; border-radius: 8px;
+  border: 1px solid var(--sh-border); background: rgba(255,255,255,0.02);
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.add-card:hover {
+  border-color: var(--sh-accent); background: rgba(99,102,241,0.07);
+  transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.add-card-icon { font-size: 24px; line-height: 1; }
+.add-card-lbl { font-size: 11px; font-weight: 600; color: var(--sh-label); transition: color 0.12s; }
+.add-card:hover .add-card-lbl { color: var(--sh-text); }
 </style>
 </head>
 <body>
@@ -428,6 +486,11 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
   <div class="hdr-file" id="hdr-file">No file loaded</div>
   <button class="hdr-btn hdr-btn-ghost" onclick="document.getElementById('file-input').click()">Open File</button>
   <div class="hdr-sep"></div>
+  <div class="vp-switcher">
+    <button class="vp-btn active" id="vp-desktop" onclick="setViewport('desktop')" title="Desktop — full width">💻</button>
+    <button class="vp-btn"        id="vp-tablet"  onclick="setViewport('tablet')"  title="Tablet — 768 px">⊟</button>
+    <button class="vp-btn"        id="vp-mobile"  onclick="setViewport('mobile')"  title="Mobile — 375 px">📱</button>
+  </div>
   <div class="hdr-zoom">
     <span>Zoom</span>
     <input type="range" id="scale-slider" min="30" max="100" value="100" step="5" oninput="onScale(this.value)">
@@ -523,18 +586,10 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
               <button class="elem-crumb-btn" onclick="deselectElem()">✕ Deselect</button>
             </div>
             <div class="dom-actions">
-              <button class="dom-action-btn danger" onclick="domDelete()"    title="Delete element from DOM">🗑️ Delete</button>
-              <button class="dom-action-btn"        onclick="domDuplicate()" title="Clone element after itself">📄 Duplicate</button>
-              <button class="dom-action-btn" id="btn-edittext" onclick="domEditText()" title="Edit text content inline">✏️ Edit Text</button>
-              <select class="dom-add-select" title="Insert a new element near the selected one"
-                onchange="domAddElement(this.value); this.selectedIndex=0;">
-                <option value="" disabled selected>➕ Add Element…</option>
-                <option value="button">Primary Button</option>
-                <option value="div">Container / Grid Box</option>
-                <option value="img">Image Placeholder</option>
-                <option value="video">Video Container</option>
-                <option value="p">Paragraph Text</option>
-              </select>
+              <button class="dom-action-btn danger" onclick="domDelete()"         title="Delete element from DOM">🗑️ Delete</button>
+              <button class="dom-action-btn"        onclick="domDuplicate()"      title="Clone element after itself">📄 Dupe</button>
+              <button class="dom-action-btn" id="btn-edittext" onclick="domEditText()" title="Edit text content inline">✏️ Edit</button>
+              <button class="dom-action-btn"        onclick="openElemAddDrawer()" title="Insert a new element near the selected one">➕ Add</button>
             </div>
           </div>
           <!-- Property category tabs -->
@@ -546,6 +601,47 @@ input[type="range"] { flex: 1; accent-color: var(--sh-accent); cursor: pointer; 
           </div>
           <div class="ep-body" id="ep-body"></div>
         </div>
+
+        <!-- Element add drawer -->
+        <div id="elem-add-drawer" style="display:none">
+          <div class="add-drawer-hdr">
+            <div class="add-drawer-title">➕ Add Element</div>
+            <button class="add-drawer-back" onclick="closeElemAddDrawer()">← Back</button>
+          </div>
+          <div class="add-drawer-body">
+            <div class="add-grp-lbl">Layout</div>
+            <div class="add-cards-grid">
+              <div class="add-card" onclick="domAddElement('div');closeElemAddDrawer()">
+                <div class="add-card-icon">📦</div><div class="add-card-lbl">Container</div>
+              </div>
+              <div class="add-card" onclick="domAddElement('section');closeElemAddDrawer()">
+                <div class="add-card-icon">▬</div><div class="add-card-lbl">Section</div>
+              </div>
+            </div>
+            <div class="add-grp-lbl">Content</div>
+            <div class="add-cards-grid">
+              <div class="add-card" onclick="domAddElement('h2');closeElemAddDrawer()">
+                <div class="add-card-icon" style="font-size:18px;font-weight:800;color:#818cf8">H2</div><div class="add-card-lbl">Heading</div>
+              </div>
+              <div class="add-card" onclick="domAddElement('p');closeElemAddDrawer()">
+                <div class="add-card-icon">¶</div><div class="add-card-lbl">Paragraph</div>
+              </div>
+              <div class="add-card" onclick="domAddElement('button');closeElemAddDrawer()">
+                <div class="add-card-icon">⬜</div><div class="add-card-lbl">Button</div>
+              </div>
+            </div>
+            <div class="add-grp-lbl">Media</div>
+            <div class="add-cards-grid">
+              <div class="add-card" onclick="domAddElement('img');closeElemAddDrawer()">
+                <div class="add-card-icon">🖼</div><div class="add-card-lbl">Image</div>
+              </div>
+              <div class="add-card" onclick="domAddElement('video');closeElemAddDrawer()">
+                <div class="add-card-icon">▷</div><div class="add-card-lbl">Video</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div><!-- /ctrl-loaded -->
@@ -606,6 +702,7 @@ let elemOverrides  = {};       // { selector: { prop: value } }
 let currentElemTab = 'layout';
 let _updateTimer   = null;
 let splitMode      = false;
+let viewportMode   = 'desktop';  // 'desktop' | 'tablet' | 'mobile'
 let overrideFontLink = '';
 let history        = [];
 let histIdx        = -1;
@@ -649,7 +746,9 @@ function restoreSnapshot(snap) {
   parsedDark    = parseCSSBlock(originalHtml, [':root']);
   const light   = parseLightBlock(originalHtml);
   parsedLight = light.vars; lightSelector = light.selector; lightClassName = extractClass(lightSelector);
+  selectedElem  = null;
   buildVarControls(); updateLightNotice(); renderPreview(); updateUndoRedoBtns(); updateElemBadge();
+  renderElemPanel();
 }
 function updateUndoRedoBtns() {
   const u = document.getElementById('btn-undo'), r = document.getElementById('btn-redo');
@@ -660,6 +759,31 @@ document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undo(); }
   if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Viewport switcher
+// ─────────────────────────────────────────────────────────────────────────────
+function setViewport(mode) {
+  viewportMode = mode;
+  ['desktop','tablet','mobile'].forEach(m => {
+    const btn = document.getElementById('vp-' + m);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  applyScale(parseInt(document.getElementById('scale-slider').value));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Element add drawer
+// ─────────────────────────────────────────────────────────────────────────────
+function openElemAddDrawer() {
+  if (!selectedElem) { showToast('Select an element first', 'error'); return; }
+  document.getElementById('elem-content').style.display    = 'none';
+  document.getElementById('elem-add-drawer').style.display = 'flex';
+}
+function closeElemAddDrawer() {
+  document.getElementById('elem-add-drawer').style.display = 'none';
+  if (selectedElem) document.getElementById('elem-content').style.display = 'flex';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Preset themes
@@ -720,6 +844,7 @@ function toggleSplit() {
   document.getElementById('btn-inspect').disabled = splitMode || !originalHtml;
   renderPreview();
   if (splitMode) applySplitScale(parseInt(document.getElementById('scale-slider').value));
+  else applyScale(parseInt(document.getElementById('scale-slider').value));
 }
 function applySplitScale(pct) {
   ['split-orig','split-mod'].forEach((id,i) => {
@@ -795,6 +920,7 @@ function loadFile(file) {
     document.getElementById('split-wrap').style.display  = 'none';
     history = []; histIdx = -1;
     setLoaded(true);
+    switchPanel('vars');
     buildVarControls();
     updateLightNotice();
     renderPreview();
@@ -921,6 +1047,7 @@ function switchPanel(p) {
   document.getElementById('ptab-elem').classList.toggle('active', p==='elem');
   document.getElementById('pane-vars').style.display = p==='vars' ? 'flex' : 'none';
   document.getElementById('pane-elem').style.display = p==='elem' ? 'flex' : 'none';
+  if (p === 'elem') renderElemPanel();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1057,11 +1184,50 @@ function buildInspectScript() {
 (function(){
   var hover=null, selEl=null, dragSrc=null;
   var sty=document.createElement('style');
+  sty.id='__vd_inspect_styles__';
   sty.textContent='[data-vdhov]{outline:2px solid #6366f1 !important;outline-offset:2px !important;cursor:crosshair !important;}'
     +'[data-vdsel]{outline:2px solid #f59e0b !important;outline-offset:2px !important;}'
     +'[data-vddrop-before]{border-top:3px solid #f59e0b !important;}'
-    +'[data-vddrop-after]{border-bottom:3px solid #f59e0b !important;}';
+    +'[data-vddrop-after]{border-bottom:3px solid #f59e0b !important;}'
+    +'#vd-ctx-menu{position:fixed;z-index:2147483647;display:none;align-items:center;gap:2px;padding:4px 6px;background:#0f172a;border:1px solid #334155;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,0.7);pointer-events:all;}'
+    +'.vd-ctx-btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:transparent;cursor:pointer;font-size:14px;transition:background 0.12s;line-height:1;}'
+    +'.vd-ctx-btn:hover{background:rgba(255,255,255,0.12);}'
+    +'.vd-ctx-sep{width:1px;height:18px;background:#1e2d45;margin:0 2px;}'
+    +'.vd-ctx-danger:hover{background:rgba(239,68,68,0.18);}';
   document.head.appendChild(sty);
+
+  // ── Floating context menu ────────────────────────────────────────────────
+  var ctxMenu = document.createElement('div');
+  ctxMenu.id = 'vd-ctx-menu';
+  ctxMenu.innerHTML = '<button class="vd-ctx-btn" data-cmd="edit"      title="Edit Text">✏️</button>'
+    +'<button class="vd-ctx-btn" data-cmd="duplicate" title="Duplicate">📄</button>'
+    +'<div class="vd-ctx-sep"></div>'
+    +'<button class="vd-ctx-btn" data-cmd="add"       title="Add Element">➕</button>'
+    +'<div class="vd-ctx-sep"></div>'
+    +'<button class="vd-ctx-btn vd-ctx-danger" data-cmd="delete" title="Delete">🗑️</button>';
+  document.body.appendChild(ctxMenu);
+
+  ctxMenu.addEventListener('click', function(e) {
+    e.stopPropagation(); e.preventDefault();
+    var btn = e.target.closest('[data-cmd]');
+    if (!btn) return;
+    window.parent.postMessage({type: 'vd_ctx_' + btn.dataset.cmd}, '*');
+  }, true);
+
+  function posCtxMenu(el) {
+    var r = el.getBoundingClientRect();
+    var mh = 46;
+    var top = r.top - mh - 6;
+    if (top < 4) top = r.bottom + 6;
+    var left = Math.max(4, Math.min(r.left, window.innerWidth - 190));
+    ctxMenu.style.top  = Math.round(top)  + 'px';
+    ctxMenu.style.left = Math.round(left) + 'px';
+    ctxMenu.style.display = 'flex';
+  }
+
+  document.addEventListener('scroll', function() {
+    if (selEl && ctxMenu.style.display !== 'none') posCtxMenu(selEl);
+  }, true);
 
   function clearDropIndicators(){
     document.querySelectorAll('[data-vddrop-before],[data-vddrop-after]').forEach(function(el){
@@ -1084,7 +1250,7 @@ function buildInspectScript() {
 
   function sendMutation(){
     var clone=document.documentElement.cloneNode(true);
-    clone.querySelectorAll('#__vd_override__,#__vd_inspect__,#__vd_theme_enforce__').forEach(function(n){n.remove();});
+    clone.querySelectorAll('#__vd_override__,#__vd_inspect__,#__vd_theme_enforce__,#vd-ctx-menu,#__vd_inspect_styles__').forEach(function(n){n.remove();});
     clone.querySelectorAll('[draggable],[data-vdhov],[data-vdsel],[data-vddrop-before],[data-vddrop-after],[contenteditable]').forEach(function(n){
       n.removeAttribute('draggable'); n.removeAttribute('data-vdhov'); n.removeAttribute('data-vdsel');
       n.removeAttribute('data-vddrop-before'); n.removeAttribute('data-vddrop-after'); n.removeAttribute('contenteditable');
@@ -1113,10 +1279,15 @@ function buildInspectScript() {
     var styles={}; PROPS.forEach(function(p){styles[p]=comp.getPropertyValue(p).trim();});
     var tagLabel=el.tagName.toLowerCase()+(el.id?'#'+el.id:'')+(el.className&&typeof el.className==='string'?'.'+Array.from(el.classList).filter(function(c){return c&&!c.startsWith('vd');}).slice(0,3).join('.'):'');
     window.parent.postMessage({type:'vd_selected',selector:buildSel(el),tagLabel:tagLabel,styles:styles},'*');
+    posCtxMenu(el);
   }
 
   // Hover
   document.addEventListener('mouseover',function(e){
+    if(e.target.closest('#vd-ctx-menu')){
+      if(hover){ hover.removeAttribute('data-vdhov'); hover=null; }
+      return;
+    }
     if(hover&&hover!==e.target) hover.removeAttribute('data-vdhov');
     hover=e.target; hover.setAttribute('data-vdhov','');
   },true);
@@ -1124,6 +1295,7 @@ function buildInspectScript() {
 
   // Click to select
   document.addEventListener('click',function(e){
+    if(e.target.closest('#vd-ctx-menu')) return;
     if(e.target.contentEditable==='true') return;
     e.preventDefault(); e.stopPropagation();
     var el=e.target; if(el.hasAttribute('data-vdhov')) el.removeAttribute('data-vdhov');
@@ -1134,9 +1306,13 @@ function buildInspectScript() {
   window.addEventListener('message',function(e){
     if(!e.data) return;
     var cmd=e.data.type;
-    if(cmd==='vd_delete'){
+    if(cmd==='vd_hideCtxMenu'){
+      ctxMenu.style.display='none';
+      if(selEl){ selEl.removeAttribute('data-vdsel'); selEl.removeAttribute('draggable'); selEl=null; }
+    } else if(cmd==='vd_delete'){
       if(!selEl) return;
       selEl.removeAttribute('data-vdsel'); selEl.removeAttribute('draggable');
+      ctxMenu.style.display='none';
       selEl.remove(); selEl=null; sendMutation();
     } else if(cmd==='vd_duplicate'){
       if(!selEl) return;
@@ -1175,6 +1351,12 @@ function buildInspectScript() {
         newEl.style.cssText='width:100%;border-radius:8px;background:#0f172a;min-height:150px;display:block;';
       } else if(t==='p'){
         newEl.style.color='inherit'; newEl.textContent='New text block. Edit me.';
+      } else if(t==='h2'){
+        newEl.style.cssText='color:inherit;margin:0;';
+        newEl.textContent='New Heading';
+      } else if(t==='section'){
+        newEl.style.cssText='padding:2rem;border:1px dashed rgba(148,163,184,0.3);border-radius:12px;';
+        newEl.innerHTML='<p style="color:inherit;opacity:0.6;margin:0">New Section — click to edit</p>';
       }
       var CONTAINERS={'DIV':1,'SECTION':1,'HEADER':1,'MAIN':1,'ASIDE':1,'FOOTER':1,'ARTICLE':1,'NAV':1,'FORM':1,'UL':1,'OL':1,'LI':1};
       if(CONTAINERS[selEl.tagName]) selEl.appendChild(newEl);
@@ -1188,6 +1370,7 @@ function buildInspectScript() {
   document.addEventListener('dragstart',function(e){
     if(!selEl||e.target!==selEl) return;
     dragSrc=selEl;
+    ctxMenu.style.display='none';
     e.dataTransfer.effectAllowed='move';
     setTimeout(function(){if(dragSrc) dragSrc.style.opacity='0.4';},0);
   },true);
@@ -1216,6 +1399,7 @@ function buildInspectScript() {
   document.addEventListener('dragend',function(){
     if(dragSrc){ dragSrc.style.opacity=''; dragSrc=null; }
     clearDropIndicators();
+    if(selEl) posCtxMenu(selEl);
   },true);
 })();
 <\/script>`;
@@ -1243,6 +1427,10 @@ window.addEventListener('message', function(e) {
     showToast('DOM updated', 'success');
   } else if (e.data.type === 'vd_edittextdone') {
     document.getElementById('btn-edittext').classList.remove('active');
+  } else if (e.data.type === 'vd_ctx_edit')      { domEditText();
+  } else if (e.data.type === 'vd_ctx_duplicate')  { domDuplicate();
+  } else if (e.data.type === 'vd_ctx_delete')     { domDelete();
+  } else if (e.data.type === 'vd_ctx_add')        { openElemAddDrawer();
   }
 });
 
@@ -1312,6 +1500,7 @@ function setElemTab(tab) {
 
 function renderElemPanel() {
   const hasElem = !!selectedElem;
+  document.getElementById('elem-add-drawer').style.display = 'none';
   document.getElementById('elem-prompt').style.display  = hasElem ? 'none' : 'flex';
   document.getElementById('elem-content').style.display = hasElem ? 'flex' : 'none';
 
@@ -1324,6 +1513,31 @@ function renderElemPanel() {
 
   renderElemProps();
   updateElemBadge();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Segmented button controls for visual CSS properties
+// ─────────────────────────────────────────────────────────────────────────────
+const SEG_DEFS = {
+  'display':         [{v:'block',l:'Block'},{v:'flex',l:'Flex'},{v:'grid',l:'Grid'},{v:'inline',l:'Inl.'},{v:'none',l:'—'}],
+  'text-align':      [{v:'left',l:'◂ L'},{v:'center',l:'▬ C'},{v:'right',l:'R ▸'},{v:'justify',l:'≡ J'}],
+  'flex-direction':  [{v:'row',l:'→ Row'},{v:'column',l:'↓ Col'}],
+  'justify-content': [{v:'flex-start',l:'⊢ Strt'},{v:'center',l:'⊡ Ctr'},{v:'flex-end',l:'⊣ End'},{v:'space-between',l:'↔ Btwn'},{v:'space-evenly',l:'··· Evn'}],
+  'align-items':     [{v:'flex-start',l:'⊤ Top'},{v:'center',l:'⊕ Ctr'},{v:'flex-end',l:'⊥ Bot'},{v:'stretch',l:'⟺ Str'}],
+};
+const SEG_PROPS = Object.keys(SEG_DEFS);
+
+function renderSegProp(sel, prop, overrideVal, computedVal) {
+  const defs = SEG_DEFS[prop] || [];
+  const cur  = overrideVal != null ? overrideVal : computedVal;
+  const ss   = sel.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const sp   = prop.replace(/'/g,"\\'");
+  return '<div class="seg-ctrl">' + defs.map(function(d) {
+    return '<button class="seg-btn' + (cur === d.v ? ' active' : '') + '" title="' + d.v + '"'
+      + ' onclick="onElemPropChange(\'' + ss + '\',\'' + sp + '\',\'' + d.v + '\');'
+      + 'this.parentElement.querySelectorAll(\'.seg-btn\').forEach(function(b){b.classList.toggle(\'active\',b.title===\'' + d.v + '\')});"'
+      + '>' + escHtml(d.l) + '</button>';
+  }).join('') + '</div>';
 }
 
 function renderElemProps() {
@@ -1353,7 +1567,9 @@ function renderElemProps() {
 
     let ctrl = '';
 
-    if (t === 'color') {
+    if (SEG_PROPS.includes(p)) {
+      ctrl = renderSegProp(sel, p, overrideVal, computedVal);
+    } else if (t === 'color') {
       const hexVal = isHex(displayVal) ? normalizeHex(displayVal)
                    : (displayVal.startsWith('rgb') ? (rgbToHex(displayVal)||'#000000') : '#000000');
       const compHex = computedVal.startsWith('rgb') ? (rgbToHex(computedVal)||'') : (isHex(computedVal)?normalizeHex(computedVal):'');
@@ -1462,7 +1678,9 @@ function clearElemOverrides() {
 }
 
 function deselectElem() {
-  selectedElem = null; renderElemPanel();
+  selectedElem = null;
+  renderElemPanel();
+  sendDomCommand('hideCtxMenu');
 }
 
 function syncElemColorPicker(input, prop) {
@@ -1510,6 +1728,7 @@ function buildBaseHtml(withOverrides, sourceHtml) {
   if (!src) return '';
   let html = src
     .replace(/<style id="__vd_override__">[\s\S]*?<\/style>/g, '')
+    .replace(/<style id="__vd_inspect_styles__">[\s\S]*?<\/style>/g, '')
     .replace(/<script id="__vd_inspect__">[\s\S]*?<\/script>/g, '')
     .replace(/<script id="__vd_theme_enforce__">[\s\S]*?<\/script>/g, '');
 
@@ -1522,7 +1741,7 @@ function buildBaseHtml(withOverrides, sourceHtml) {
     const overrideStyle = buildOverrideCSS();
     if (overrideStyle) html = html.includes('</head>') ? html.replace('</head>', overrideStyle + '\n</head>') : overrideStyle + '\n' + html;
     const inspectScript = buildInspectScript();
-    if (inspectScript) html = html.includes('</head>') ? html.replace('</head>', inspectScript + '\n</head>') : inspectScript + '\n' + html;
+    if (inspectScript) html = html.includes('</body>') ? html.replace('</body>', inspectScript + '\n</body>') : html + '\n' + inspectScript;
   }
 
   const cls = lightClassName;
@@ -1556,11 +1775,23 @@ function applyScale(pct) {
   const iframe = document.getElementById('preview-iframe');
   const wrap   = document.getElementById('frame-wrap');
   const scale  = pct / 100;
-  const ww = (wrap.clientWidth  || window.innerWidth  - 290) / scale;
-  const wh = (wrap.clientHeight || window.innerHeight - 44)  / scale;
-  iframe.style.width     = Math.round(ww) + 'px';
-  iframe.style.height    = Math.round(wh) + 'px';
-  iframe.style.transform = `scale(${scale})`;
+  const vpW    = { tablet: 768, mobile: 375 }[viewportMode] || null;
+  if (vpW) {
+    const wh = (wrap.clientHeight || window.innerHeight - 44) / scale;
+    iframe.style.width           = vpW + 'px';
+    iframe.style.height          = Math.round(wh) + 'px';
+    iframe.style.transform       = `scale(${scale})`;
+    iframe.style.transformOrigin = 'top center';
+    wrap.style.justifyContent    = 'center';
+  } else {
+    const ww = (wrap.clientWidth  || window.innerWidth  - 290) / scale;
+    const wh = (wrap.clientHeight || window.innerHeight - 44)  / scale;
+    iframe.style.width           = Math.round(ww) + 'px';
+    iframe.style.height          = Math.round(wh) + 'px';
+    iframe.style.transform       = `scale(${scale})`;
+    iframe.style.transformOrigin = 'top left';
+    wrap.style.justifyContent    = '';
+  }
 }
 window.addEventListener('resize', () => applyScale(parseInt(document.getElementById('scale-slider').value)));
 
