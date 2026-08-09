@@ -1708,6 +1708,80 @@ eventObj.allDay = true;
 
 ---
 
+### Recurring Contract — Frequency Support (August 2026)
+
+Three frequencies are supported by the quick-book recurring drawer in `calendar.html`.
+The same data is read and displayed by `recurring-bookings.html`.
+
+#### Frequency dropdown
+
+`<select id="qb-rec-frequency">` sits above Contract Duration in `#qb-recurring-section`.
+Values: `weekly` (default) · `fortnightly` · `monthly`.
+`qbOnFrequencyChange()` reads it, relabels the duration options, hides the cycle-length
+picker for `monthly` (calendar month is the fixed unit), and triggers date regeneration.
+
+#### `qbGenerateRecurrenceDates()` — date math per frequency
+
+| Frequency | Loop count | Day offset per iteration | Notes |
+|-----------|-----------|--------------------------|-------|
+| weekly | `qbRecDuration` | `wk × 7 days` | Unchanged from original |
+| fortnightly | `ceil(qbRecDuration / 2)` | `wk × 14 days` | Same week-anchor logic, stepWks=2 |
+| monthly | `round(qbRecDuration / 4)` | 1 calendar month | Nth-weekday algorithm (see below) |
+
+**Monthly Nth-weekday algorithm:**
+```javascript
+const weekIndex = Math.ceil(startDate.getDate() / 7); // 1=first, 2=second, 3=third…
+// For each target month m:
+const firstOfMonth = new Date(yr, mo, 1);
+const daysToFirst  = (daySpec.dow - firstOfMonth.getDay() + 7) % 7;
+const nthDay       = 1 + daysToFirst + (weekIndex - 1) * 7;
+const target       = new Date(yr, mo, nthDay);
+// Guard: skip silently if Nth occurrence doesn't exist (e.g. 5th Monday of February)
+if (target.getMonth() !== mo) continue;
+```
+`weekIndex` is derived from the start date so the series automatically locks to
+"2nd Monday of every month" if the booking starts on the 2nd Monday.
+
+#### `_sessPerCycle` and cycle billing
+
+| Frequency | `_sessPerCycle` | `billing_type` | `cycle_length_weeks` |
+|-----------|----------------|----------------|---------------------|
+| `weekly` | `days × 4` | `4_week_cycle` | from picker (default 4) |
+| `fortnightly` | `days × 2` | `4_week_cycle` | from picker (default 4) |
+| `monthly` | `days × 1` | `monthly` | `null` |
+
+`cyclePrice = perSessionAmt × _sessPerCycle`
+`totalCycles = Math.round(qbRecDuration / 4)` — identical for all frequencies
+(12 weeks → 3 cycles, 24 → 6, 48 → 12).
+
+#### Payload fields changed by frequency
+
+```javascript
+frequency:         _freq,                              // 'weekly' | 'fortnightly' | 'monthly'
+billing_type:      _freq==='monthly' ? 'monthly' : '4_week_cycle',
+cycle_length_weeks: (_freq==='monthly' || payTerms==='in_full') ? null : cycleLen,
+sessions_per_cycle: _sessPerCycle,                     // frequency × days/week
+```
+
+`contract_notes` also reflects the actual frequency label.
+
+#### `recurring-bookings.html` display side
+
+The management card reads `s.frequency` from the API and derives display strings:
+
+| Field | weekly | fortnightly | monthly |
+|-------|--------|-------------|---------|
+| Frequency pill | "Weekly" | "Every 2 Weeks" | "Monthly" |
+| Day row | "Every **Mon**" | "Every other **Mon**" | "Monthly on **Mondays**" |
+| Cycle rate suffix | `/4 weeks` | `/fortnight` | `/month` |
+| Financial label | "Cycle Rate (4 wks)" | "Cycle Rate (2 wks)" | "Monthly Rate" |
+| Session block header | "4-Week Cycle N" | "2-Week Cycle N" | "Monthly Cycle N" |
+
+Session block header uses `_seriesMap[ruleId].frequency` looked up inside
+`mpToggleSessions` — no extra API call needed.
+
+---
+
 ### Venue operating window constants
 
 Defined in `calendar.html` — used by availability logic AND multi-day date-status-map population:
@@ -2570,6 +2644,38 @@ After:  "Authorization": "={{ 'Bearer ' + $('Code: Sanitize').first().json.jwt }
 Applied to: `KHvxUBua7hi5e1x1_clean.json` and `KHvxUBua7hi5e1x1_stripe_fork.json`.
 Re-import the stripe_fork variant into n8n (the clean variant is not active — only one
 workflow can own the `pay-balance` webhook path at a time).
+
+---
+
+## 18. Recurring Booking Frequency Support — Fortnightly & Monthly ✅ DONE (August 9 2026)
+
+Commits `c0f84c0` (calendar.html) · `e165850` (recurring-bookings.html).
+
+Added **Fortnightly** (every 2 weeks) and **Monthly** (Nth weekday of each calendar month)
+frequency options to the quick-book recurring drawer in `calendar.html`, and updated
+`recurring-bookings.html` to display existing series with frequency-aware labels.
+
+**`calendar.html` changes:**
+- New `<select id="qb-rec-frequency">` dropdown above Contract Duration
+- `qbGenerateRecurrenceDates()` rewritten with three branches (see Section 5 for math)
+- `_sessPerCycle`: weekly=days×4 · fortnightly=days×2 · monthly=days×1
+- `billing_type`: `monthly` for monthly, `4_week_cycle` for weekly/fortnightly
+- `cycle_length_weeks`: `null` for monthly (and for in_full — unchanged)
+- Duration dropdown labels relabelled for monthly ("3 Months" instead of "3 Months (12 Weeks)")
+- Cycle-length picker hidden when monthly selected
+- Preview and breakdown text updated with frequency-specific suffixes
+
+**`recurring-bookings.html` changes:**
+- Frequency pill: "Every 2 Weeks" / "Monthly" (previously raw capitalised string)
+- Day row: "Every other Mon" (fortnightly) / "Monthly on Mondays" (monthly)
+- Cycle rate suffix: `/fortnight` · `/month` (was always `/month`)
+- Financial grid label: "Cycle Rate (2 wks)" / "Cycle Rate (4 wks)" / "Monthly Rate"
+- Session block header: "2-Week Cycle N" / "4-Week Cycle N" / "Monthly Cycle N"
+- Info banner updated to advertise all three frequency options
+
+See **Section 5 → Recurring Contract — Frequency Support** for the full implementation
+reference including the Nth-weekday date algorithm, cycle billing formula table, and
+payload field mapping.
 
 ---
 
