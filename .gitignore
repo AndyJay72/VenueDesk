@@ -18,6 +18,10 @@ venuedesk-api/docker-compose.yml
 skills/venuedesk-recurring-page-workspace/
 venuedesk-spa/package-lock.json
 
+# Playwright generated output
+tests/playwright/playwright-report/
+tests/playwright/test-results/
+
 # Misc
 *.b64
 rebrand-*.jpeg
