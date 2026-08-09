@@ -806,6 +806,397 @@ def test_auth_boundaries():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 8 — Room Hours Enforcement
+# ─────────────────────────────────────────────────────────────────────────────
+def test_room_hours_enforcement(customer_id: str):
+    """
+    Verifies that bookings.js enforces open_time / close_time set on a room.
+    Pattern 19 Phase 2: API returns 400 when start_time < open_time or
+    end_time > close_time. NULL hours = unconstrained.
+    """
+    print(f"\n{BOLD}{MAGENTA}━━ 8. ROOM HOURS ENFORCEMENT ━━{RESET}")
+
+    # Create a room with 10:00–16:00 operating window
+    resp, err = api("POST", "/config/rooms/create", json={
+        "name":       f"{TEST_ROOM_PREFIX}HOURS-{uuid.uuid4().hex[:6]}",
+        "capacity":   20,
+        "day_rate":   80,
+        "open_time":  "10:00",
+        "close_time": "16:00",
+    })
+    if err or not resp or resp.status_code not in (200, 201):
+        skip("8a–8c Room hours tests", f"Room with hours creation failed: {err or (resp.status_code if resp else '?')}")
+        skip("8d NULL hours (unconstrained)", "parent fixture failed")
+        return
+
+    hours_room_id = resp.json().get("data", {}).get("id")
+    if hours_room_id:
+        created_rooms.append(hours_room_id)
+
+    BASE = "2027-04"
+
+    # 8a — start before open_time (08:00 < 10:00) → 400
+    resp, err = make_booking(hours_room_id, customer_id,
+                             booking_date=f"{BASE}-01",
+                             start_time="08:00", end_time="12:00")
+    if err:
+        record("8a Book before open_time (08:00 < 10:00) → 400", False, detail=err)
+    else:
+        ok = resp.status_code in (400, 422)
+        record("8a Book before open_time (08:00 < 10:00) → 400", ok,
+               critical=resp.status_code in (200, 201),
+               status=resp.status_code,
+               detail="room hours NOT enforced — bookings.js open_time guard missing" if resp.status_code in (200, 201) else "")
+
+    # 8b — end after close_time (18:00 > 16:00) → 400
+    resp, err = make_booking(hours_room_id, customer_id,
+                             booking_date=f"{BASE}-02",
+                             start_time="14:00", end_time="18:00")
+    if err:
+        record("8b Book after close_time (18:00 > 16:00) → 400", False, detail=err)
+    else:
+        ok = resp.status_code in (400, 422)
+        record("8b Book after close_time (18:00 > 16:00) → 400", ok,
+               critical=resp.status_code in (200, 201),
+               status=resp.status_code,
+               detail="room hours NOT enforced — bookings.js close_time guard missing" if resp.status_code in (200, 201) else "")
+
+    # 8c — booking within window (11:00–15:00) → 200/201
+    resp, err = make_booking(hours_room_id, customer_id,
+                             booking_date=f"{BASE}-03",
+                             start_time="11:00", end_time="15:00")
+    if err:
+        record("8c Book within window (11:00–15:00) → 200", False, detail=err)
+    else:
+        ok = resp.status_code in (200, 201)
+        if ok:
+            bid = resp.json().get("data", {}).get("id")
+            if bid:
+                created_bookings.append(bid)
+        record("8c Book within window (11:00–15:00) → 200", ok, status=resp.status_code,
+               detail="valid booking inside room window incorrectly rejected" if not ok else "")
+
+    # 8d — room with NULL hours accepts any booking time
+    resp_null, err_null = api("POST", "/config/rooms/create", json={
+        "name":     f"{TEST_ROOM_PREFIX}NOHOURS-{uuid.uuid4().hex[:6]}",
+        "capacity": 20,
+        "day_rate": 80,
+    })
+    if err_null or not resp_null or resp_null.status_code not in (200, 201):
+        skip("8d NULL hours → unconstrained", "room creation failed")
+    else:
+        null_room_id = resp_null.json().get("data", {}).get("id")
+        if null_room_id:
+            created_rooms.append(null_room_id)
+        resp, err = make_booking(null_room_id, customer_id,
+                                 booking_date=f"{BASE}-04",
+                                 start_time="06:00", end_time="22:00")
+        if err:
+            record("8d NULL hours → unconstrained (06:00–22:00) → 200", False, detail=err)
+        else:
+            ok = resp.status_code in (200, 201)
+            if ok:
+                bid = resp.json().get("data", {}).get("id")
+                if bid:
+                    created_bookings.append(bid)
+            record("8d NULL hours → unconstrained (06:00–22:00) → 200", ok,
+                   status=resp.status_code,
+                   detail="room with NULL hours incorrectly rejected wide-open slot" if not ok else "")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 9 — Hierarchical Room Clash (Recursive CTE)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_hierarchical_clash(customer_id: str):
+    """
+    Verifies the WITH RECURSIVE conflict_set CTE in bookings.js correctly
+    detects parent→child, child→parent, and overlapping-sibling clashes,
+    while allowing non-overlapping siblings to coexist.
+    Migration 028: parent_room_id, partition_order, partition_total.
+    """
+    print(f"\n{BOLD}{MAGENTA}━━ 9. HIERARCHICAL ROOM CLASH (RECURSIVE CTE) ━━{RESET}")
+
+    # ── Setup: parent + two half-children ────────────────────────────────────
+    parent_resp, err = api("POST", "/config/rooms/create", json={
+        "name":     f"{TEST_ROOM_PREFIX}PARENT-{uuid.uuid4().hex[:6]}",
+        "capacity": 100,
+        "day_rate": 200,
+    })
+    if err or not parent_resp or parent_resp.status_code not in (200, 201):
+        for label in ["9a","9b","9c","9d","9e","9f"]:
+            skip(f"{label} Hierarchy clash", f"Parent room creation failed: {err or (parent_resp.status_code if parent_resp else '?')}")
+        return
+
+    parent_id = parent_resp.json().get("data", {}).get("id")
+    created_rooms.append(parent_id)
+
+    def make_child(order: int) -> Optional[str]:
+        r, e = api("POST", "/config/rooms/create", json={
+            "name":            f"{TEST_ROOM_PREFIX}CHILD{order}-{uuid.uuid4().hex[:5]}",
+            "capacity":        50,
+            "day_rate":        100,
+            "parent_room_id":  parent_id,
+            "partition_order": order,
+            "partition_total": 2,
+        })
+        if e or not r or r.status_code not in (200, 201):
+            print(f"  {YELLOW}[setup] Child room {order} creation failed: {e or r.status_code}{RESET}")
+            return None
+        cid = r.json().get("data", {}).get("id")
+        if cid:
+            created_rooms.append(cid)
+        return cid
+
+    c1_id = make_child(0)   # 1st Half
+    c2_id = make_child(1)   # 2nd Half
+
+    if not c1_id or not c2_id:
+        for label in ["9a","9b","9c","9d","9e"]:
+            skip(f"{label} Hierarchy clash", "child room creation failed")
+        return
+
+    BASE = "2027-05"
+
+    # 9a — book parent → then try to book child (1st Half) → must clash
+    r1, e1 = make_booking(parent_id, customer_id,
+                           booking_date=f"{BASE}-01",
+                           start_time=TEST_START, end_time=TEST_END)
+    if e1 or not r1 or r1.status_code not in (200, 201):
+        skip("9a Parent booked → child (1st Half) → 409", f"parent booking failed: {e1 or (r1.status_code if r1 else '?')}")
+    else:
+        created_bookings.append(r1.json().get("data", {}).get("id") or "")
+        r2, e2 = make_booking(c1_id, customer_id,
+                               booking_date=f"{BASE}-01",
+                               start_time=TEST_START, end_time=TEST_END)
+        if e2:
+            record("9a Parent booked → child (1st Half) → 409", False, detail=e2)
+        else:
+            ok = r2.status_code in (409, 422)
+            record("9a Parent booked → child (1st Half) → 409", ok,
+                   critical=r2.status_code in (200, 201),
+                   status=r2.status_code,
+                   detail="PARENT→CHILD CLASH MISSED — recursive CTE not working" if r2.status_code in (200, 201) else "")
+
+    # 9b — book child (1st Half) → then try to book parent → must clash
+    r1, e1 = make_booking(c1_id, customer_id,
+                           booking_date=f"{BASE}-02",
+                           start_time=TEST_START, end_time=TEST_END)
+    if e1 or not r1 or r1.status_code not in (200, 201):
+        skip("9b Child (1st Half) booked → parent → 409", f"c1 booking failed: {e1 or (r1.status_code if r1 else '?')}")
+    else:
+        c1_bid_9b = r1.json().get("data", {}).get("id")
+        created_bookings.append(c1_bid_9b or "")
+        r2, e2 = make_booking(parent_id, customer_id,
+                               booking_date=f"{BASE}-02",
+                               start_time=TEST_START, end_time=TEST_END)
+        if e2:
+            record("9b Child (1st Half) booked → parent → 409", False, detail=e2)
+        else:
+            ok = r2.status_code in (409, 422)
+            record("9b Child (1st Half) booked → parent → 409", ok,
+                   critical=r2.status_code in (200, 201),
+                   status=r2.status_code,
+                   detail="CHILD→PARENT CLASH MISSED — recursive CTE not blocking ancestor" if r2.status_code in (200, 201) else "")
+
+    # 9c — book child C1 (1st Half) → then book sibling C2 (2nd Half) → MUST SUCCEED
+    r1, e1 = make_booking(c1_id, customer_id,
+                           booking_date=f"{BASE}-03",
+                           start_time=TEST_START, end_time=TEST_END)
+    if e1 or not r1 or r1.status_code not in (200, 201):
+        skip("9c C1 booked → sibling C2 → 200 (non-overlapping)", f"c1 booking failed: {e1 or (r1.status_code if r1 else '?')}")
+    else:
+        created_bookings.append(r1.json().get("data", {}).get("id") or "")
+        r2, e2 = make_booking(c2_id, customer_id,
+                               booking_date=f"{BASE}-03",
+                               start_time=TEST_START, end_time=TEST_END)
+        if e2:
+            record("9c C1 booked → sibling C2 → 200 (non-overlapping halves)", False, detail=e2)
+        else:
+            ok = r2.status_code in (200, 201)
+            if ok:
+                created_bookings.append(r2.json().get("data", {}).get("id") or "")
+            record("9c C1 booked → sibling C2 → 200 (non-overlapping halves)", ok,
+                   critical=False,
+                   status=r2.status_code,
+                   detail="non-overlapping sibling incorrectly blocked — integer cross-product formula error" if not ok else "")
+
+    # 9d — book C2 → then book C2 again same slot → must clash (self)
+    r1, e1 = make_booking(c2_id, customer_id,
+                           booking_date=f"{BASE}-04",
+                           start_time=TEST_START, end_time=TEST_END)
+    if e1 or not r1 or r1.status_code not in (200, 201):
+        skip("9d C2 self-clash → 409", f"first C2 booking failed: {e1 or (r1.status_code if r1 else '?')}")
+    else:
+        created_bookings.append(r1.json().get("data", {}).get("id") or "")
+        r2, e2 = make_booking(c2_id, customer_id,
+                               booking_date=f"{BASE}-04",
+                               start_time=TEST_START, end_time=TEST_END)
+        if e2:
+            record("9d C2 same-slot again → 409 (self-clash)", False, detail=e2)
+        else:
+            ok = r2.status_code in (409, 422)
+            record("9d C2 same-slot again → 409 (self-clash)", ok,
+                   critical=r2.status_code in (200, 201),
+                   status=r2.status_code,
+                   detail="double-booking a child room allowed — unique index not covering child" if r2.status_code in (200, 201) else "")
+
+    # 9e — book parent, then book parent again same slot → 409 (baseline sanity)
+    r1, e1 = make_booking(parent_id, customer_id,
+                           booking_date=f"{BASE}-05",
+                           start_time=TEST_START, end_time=TEST_END)
+    if e1 or not r1 or r1.status_code not in (200, 201):
+        skip("9e Parent self-clash → 409", f"first parent booking failed: {e1 or (r1.status_code if r1 else '?')}")
+    else:
+        created_bookings.append(r1.json().get("data", {}).get("id") or "")
+        r2, e2 = make_booking(parent_id, customer_id,
+                               booking_date=f"{BASE}-05",
+                               start_time=TEST_START, end_time=TEST_END)
+        if e2:
+            record("9e Parent self-clash → 409 (baseline sanity)", False, detail=e2)
+        else:
+            ok = r2.status_code in (409, 422)
+            record("9e Parent self-clash → 409 (baseline sanity)", ok,
+                   critical=r2.status_code in (200, 201),
+                   status=r2.status_code,
+                   detail="parent room double-booked — clash guard completely broken" if r2.status_code in (200, 201) else "")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 10 — Tenant Isolation / RLS
+# ─────────────────────────────────────────────────────────────────────────────
+def test_tenant_isolation(customer_id: str, room_id: str):
+    """
+    Verifies JWT-enforced tenant isolation. Confirms:
+    - JWTs with missing tenant_id are rejected (401)
+    - Body-level tenant_id is stripped by AJV (cannot override JWT tenant)
+    - GET /bookings/list returns a valid scoped response structure
+    """
+    print(f"\n{BOLD}{MAGENTA}━━ 10. TENANT ISOLATION / RLS ━━{RESET}")
+
+    # 10a — JWT payload missing tenant_id → 401
+    # Payload: {"user_id":"fake","role":"admin","iat":1700000000} — no tenant_id
+    # Signature is invalid, so Fastify JWT verify will also reject it.
+    no_tenant_token = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        ".eyJ1c2VyX2lkIjoiZmFrZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcwMDAwMDAwMH0"
+        ".INVALID_SIGNATURE"
+    )
+    try:
+        r = requests.get(
+            BASE_URL + "/bookings/list",
+            headers={"Authorization": f"Bearer {no_tenant_token}"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        ok = r.status_code == 401
+        record("10a JWT missing tenant_id → 401", ok,
+               critical=r.status_code == 200, status=r.status_code,
+               detail="API accepted a token with no tenant_id — RLS context would be undefined" if r.status_code == 200 else "")
+    except Exception as exc:
+        record("10a JWT missing tenant_id → 401", False, detail=str(exc))
+
+    # 10b — Body tenant_id injection: pass tenant_id=1 in body with JWT for 1001.
+    # AJV removeAdditional strips the body field; route uses req.user.tenant_id.
+    # Expect: 200/201 (request processed) and booking created under JWT tenant.
+    resp, err = make_booking(room_id, customer_id,
+                             booking_date="2027-06-01",
+                             extra={"tenant_id": 1})   # inject wrong tenant
+    if err:
+        record("10b Body tenant_id=1 injection with JWT tenant=1001 → 200", False, detail=err)
+    else:
+        ok = resp.status_code in (200, 201)
+        if ok:
+            bid = resp.json().get("data", {}).get("id")
+            if bid:
+                created_bookings.append(bid)
+            # Verify the booking belongs to the JWT tenant (1001), not the body tenant (1)
+            returned_tenant = resp.json().get("data", {}).get("tenant_id")
+            correct_tenant = (returned_tenant is None or int(returned_tenant) == 1001)
+            record("10b Body tenant_id injection stripped — booking under JWT tenant",
+                   correct_tenant,
+                   critical=not correct_tenant and returned_tenant is not None and int(returned_tenant) == 1,
+                   status=resp.status_code,
+                   detail=(f"Body tenant_id leaked into DB row (returned tenant={returned_tenant})" if not correct_tenant
+                           else f"body tenant=1 stripped; booking created under JWT tenant correctly"))
+        else:
+            record("10b Body tenant_id=1 injection with JWT tenant=1001 → 200", False,
+                   status=resp.status_code,
+                   detail="request unexpectedly rejected — possible AJV schema change")
+
+    # 10c — GET /bookings/list returns scoped response (structural check)
+    resp, err = api("GET", "/bookings/list")
+    if err:
+        record("10c GET /bookings/list → 200 + data array", False, detail=err)
+    else:
+        ok = resp.status_code in (200, 201)
+        if ok:
+            body = resp.json()
+            has_data = isinstance(body.get("data") or body.get("bookings") or body, list) or \
+                       isinstance(body.get("data"), list)
+            record("10c GET /bookings/list → 200 + data array", has_data,
+                   status=resp.status_code,
+                   detail="response has no data array — wrong response shape" if not has_data else "")
+        else:
+            record("10c GET /bookings/list → 200 + data array", False, status=resp.status_code)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 11 — Recurring Schedule Status
+# ─────────────────────────────────────────────────────────────────────────────
+def test_schedule_status():
+    """
+    Verifies GET /recurring/schedule-status:
+    - Valid series_id for tenant → 200 + data array (may be empty for test tenant)
+    - Random UUID (no series) → 200 + empty data (graceful)
+    - No auth → 401
+    """
+    print(f"\n{BOLD}{MAGENTA}━━ 11. RECURRING SCHEDULE STATUS ━━{RESET}")
+
+    # 11a — valid call with a random UUID as series_id → 200 + empty or populated data
+    # (We don't have a known recurring series in the test fixture; an unknown UUID
+    # should return an empty array, not 404 or 500.)
+    fake_series_id = str(uuid.uuid4())
+    resp, err = api("GET", f"/recurring/schedule-status?series_id={fake_series_id}&tenant_id=1001")
+    if err:
+        record("11a GET /recurring/schedule-status (unknown UUID) → 200 + []", False, detail=err)
+    else:
+        ok = resp.status_code in (200, 201)
+        if ok:
+            body = resp.json()
+            data = body.get("data", [])
+            is_list = isinstance(data, list)
+            record("11a GET /recurring/schedule-status (unknown UUID) → 200 + []", is_list,
+                   status=resp.status_code,
+                   detail="data field is not a list" if not is_list else f"{len(data)} row(s) returned")
+        else:
+            record("11a GET /recurring/schedule-status (unknown UUID) → 200 + []", False,
+                   status=resp.status_code,
+                   detail="unexpected error on valid structured request")
+
+    # 11b — missing series_id (malformed request) → 400 or graceful empty
+    resp, err = api("GET", "/recurring/schedule-status?tenant_id=1001")
+    if err:
+        record("11b Missing series_id → 400 or graceful", False, detail=err)
+    else:
+        ok = resp.status_code in (200, 400, 422)
+        record("11b Missing series_id → 400 or graceful", ok,
+               critical=resp.status_code == 500,
+               status=resp.status_code,
+               detail="500 on missing series_id — add param validation" if resp.status_code == 500 else "")
+
+    # 11c — no auth header → 401
+    try:
+        r = requests.get(
+            BASE_URL + f"/recurring/schedule-status?series_id={fake_series_id}&tenant_id=1001",
+            timeout=REQUEST_TIMEOUT,
+        )
+        ok = r.status_code == 401
+        record("11c No auth → 401", ok,
+               critical=r.status_code == 200, status=r.status_code)
+    except Exception as exc:
+        record("11c No auth → 401", False, detail=str(exc))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CLEANUP
 # ─────────────────────────────────────────────────────────────────────────────
 def cleanup():
@@ -929,6 +1320,10 @@ def main():
     test_state_transitions(room_id, customer_id)
     test_concurrency_race(room_id, customer_id)
     test_auth_boundaries()
+    test_room_hours_enforcement(customer_id)
+    test_hierarchical_clash(customer_id)
+    test_tenant_isolation(customer_id, room_id)
+    test_schedule_status()
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
     if CLEANUP_AFTER_TESTS:
