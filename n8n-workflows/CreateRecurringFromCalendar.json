@@ -8,28 +8,27 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "crc-webhook-001",
+      "id": "31e13f1a-dda2-4130-96b3-492509cc08ba",
       "name": "Webhook: Create Recurring From Calendar",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -600,
-        -400
+        -3088,
+        240
       ],
-      "webhookId": "crc-webhook-uuid-0001",
-      "credentials": {}
+      "webhookId": "crc-webhook-uuid-0001"
     },
     {
       "parameters": {
         "jsCode": "// Parse incoming payload (handles chunked or direct JSON)\nconst items = $input.all();\nlet rawData = items[0]?.json || {};\nlet finalResult = {};\n\ntry {\n  if (rawData.hasOwnProperty('0')) {\n    const combinedString = Object.values(rawData).join('');\n    finalResult = JSON.parse(combinedString);\n  } else if (rawData.body && typeof rawData.body === 'object') {\n    finalResult = rawData.body;\n  } else if (typeof rawData.body === 'string') {\n    finalResult = JSON.parse(rawData.body);\n  } else {\n    finalResult = rawData;\n  }\n} catch (e) {\n  finalResult = rawData;\n  finalResult._error = 'Parsing failed: ' + e.message;\n}\n\n// Resolve monthly_fee: new 4-week cycle payloads send monthly_fee directly;\n// legacy payloads may send monthly_rate \u2014 fall back gracefully.\nconst monthlyFee = parseFloat(\n  finalResult.monthly_fee ||\n  finalResult.agreed_price ||\n  finalResult.monthly_rate ||\n  '0'\n) || 0;\n\nconst output = {\n  ...finalResult,\n  tenant_id:         parseInt(finalResult.tenant_id || 1001),\n  day_of_week:       parseInt(finalResult.day_of_week ?? -1),\n  payment_amount:    parseFloat(finalResult.payment_amount || '0') || 0,\n  rate_per_session:  parseFloat(finalResult.rate_per_session || '0') || 0,\n  monthly_fee:       monthlyFee,\n  agreed_price:      monthlyFee,\n  total_cycles:      parseInt(finalResult.total_cycles || '0') || 0,\n  remaining_cycles:  parseInt(finalResult.remaining_cycles || finalResult.total_cycles || '0') || 0,\n  billing_day:       parseInt(finalResult.billing_day || '1') || 1,\n  billing_type:      finalResult.billing_type || '4_week_cycle',\n  interaction_type:  finalResult.interaction_type || 'RECURRING_CONTRACT_CREATED',\n  contract_notes:    finalResult.contract_notes || '',\n  status:            finalResult.status || 'confirmed',\n  booking_source:    finalResult.booking_source || 'calendar_recurring',\n  _debug_parsed:     true\n};\n\nreturn [{ json: output }];"
       },
-      "id": "crc-parse-001",
+      "id": "7c057deb-cdd7-4723-a34d-267caccc223a",
       "name": "Parse: Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -380,
-        -400
+        -2864,
+        240
       ]
     },
     {
@@ -46,57 +45,56 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_name: ($('Parse: Input').first().json?.customer_name || '').trim(), customer_email: ($('Parse: Input').first().json?.customer_email || '').trim().toLowerCase(), customer_phone: ($('Parse: Input').first().json?.customer_phone || '').trim() }) }}",
         "options": {}
       },
-      "id": "crc-api-upsert-cust-001",
+      "id": "f58db910-dc85-45f4-be81-c9d5021d8d64",
       "name": "API: Upsert Customer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -160,
-        -400
+        -2640,
+        240
       ]
     },
     {
       "parameters": {
         "jsCode": "// Flatten adapter \u2014 preserves $('DB: Upsert Customer') named references in Code: Validate\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
       },
-      "id": "crc-flatten-upsert-cust-001",
+      "id": "c82dcc6a-b6d5-4f88-b7b1-f6bf8327a897",
       "name": "DB: Upsert Customer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        60,
-        -400
+        -2416,
+        240
       ]
     },
     {
       "parameters": {
-        "jsCode": "const wb = $('Parse: Input').first().json;\n\nconst specificDates = (wb.specific_dates || '').trim();\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst billingType    = (wb.billing_type || 'monthly').toLowerCase();\nconst paymentTiming  = wb.payment_timing || 'in_advance';\n\nif (!specificDates) {\n  return [{ json: { error: 'Missing specific_dates', date_count: 0, dates: '', payment_timing: paymentTiming } }];\n}\n\nconst dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n\nconst firstDate = dates[0] || '';\nconst lastDate  = dates[dates.length - 1] || '';\n\nconst _freq = (wb.frequency || billingType || 'weekly').toLowerCase();\nlet firstPeriodEnd = '';\nif (firstDate) {\n  const d = new Date(firstDate + 'T12:00:00');\n  if (_freq === 'monthly' || billingType === 'monthly') {\n    d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1); // +1 month \u22121 day\n  } else if (_freq === 'fortnightly') {\n    d.setDate(d.getDate() + 13); // 2 weeks \u22121 day\n  } else {\n    d.setDate(d.getDate() + 27); // 4 weeks \u22121 day (weekly default)\n  }\n  firstPeriodEnd = d.getFullYear() + '-'\n    + String(d.getMonth() + 1).padStart(2, '0') + '-'\n    + String(d.getDate()).padStart(2, '0');\n}\n\nconst cyclePrice = parseFloat(wb.monthly_fee || wb.agreed_price || '0') || ratePerSession * 4;\n\nreturn [{ json: {\n  dates:          dates.join(','),\n  date_count:     dates.length,\n  payment_timing: paymentTiming,\n  billing_type:   billingType,\n  first_period_start: firstDate,\n  first_period_end:   firstPeriodEnd,\n  first_month_amount: cyclePrice.toFixed(2),\n  monthly_periods_csv:  firstDate,\n  monthly_ends_csv:     firstPeriodEnd,\n  monthly_amounts_csv:  cyclePrice.toFixed(2),\n  monthly_sessions_csv: String(dates.length),\n  monthly_count:        1,\n  period_start:         firstDate,\n  period_end:           firstPeriodEnd\n} }];"
+        "jsCode": "const wb = $('Parse: Input').first().json;\n\nconst specificDates = (wb.specific_dates || '').trim();\nconst ratePerSession = parseFloat(wb.rate_per_session || '0') || 0;\nconst billingType    = (wb.billing_type || '4_week_cycle').toLowerCase();\nconst paymentTiming  = wb.payment_timing || 'in_advance';\n\nif (!specificDates) {\n  return [{ json: { error: 'Missing specific_dates', date_count: 0, dates: '', payment_timing: paymentTiming } }];\n}\n\nconst dates = specificDates.split(',').map(d => d.trim()).filter(d => /^\\d{4}-\\d{2}-\\d{2}$/.test(d)).sort();\n\nconst firstDate = dates[0] || '';\nconst lastDate  = dates[dates.length - 1] || '';\n\nconst _freq = (wb.frequency || billingType || 'weekly').toLowerCase();\nlet firstPeriodEnd = '';\nif (firstDate) {\n  const d = new Date(firstDate + 'T12:00:00');\n  if (_freq === 'monthly' || billingType === 'monthly') {\n    d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1); // +1 month -1 day\n  } else if (_freq === 'fortnightly') {\n    d.setDate(d.getDate() + 13); // 2 weeks -1 day\n  } else {\n    d.setDate(d.getDate() + 27); // 4 weeks -1 day (weekly default)\n  }\n  firstPeriodEnd = d.getFullYear() + '-'\n    + String(d.getMonth() + 1).padStart(2, '0') + '-'\n    + String(d.getDate()).padStart(2, '0');\n}\n\nconst cyclePrice = parseFloat(wb.monthly_fee || wb.agreed_price || '0') || ratePerSession * 4;\n\nreturn [{ json: {\n  dates:          dates.join(','),\n  date_count:     dates.length,\n  payment_timing: paymentTiming,\n  billing_type:   billingType,\n  first_period_start: firstDate,\n  first_period_end:   firstPeriodEnd,\n  first_month_amount: cyclePrice.toFixed(2),\n  monthly_periods_csv:  firstDate,\n  monthly_ends_csv:     firstPeriodEnd,\n  monthly_amounts_csv:  cyclePrice.toFixed(2),\n  monthly_sessions_csv: String(dates.length),\n  monthly_count:        1,\n  period_start:         firstDate,\n  period_end:           firstPeriodEnd\n} }];"
       },
-      "id": "crc-gen-dates-001",
+      "id": "fb6ef046-2ec9-4a03-bd15-6bca1129dbd5",
       "name": "Code: Generate Dates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
-        -400
+        -2208,
+        240
       ]
     },
     {
       "parameters": {
         "jsCode": "const wb = $('Parse: Input').first().json;\nconst customerRow = $('DB: Upsert Customer').first().json;\nconst dateGen = $('Code: Generate Dates').first().json;\n\nconst customer_id = customerRow?.customer_id;\nconst room_id = wb?.room_id;\nconst tenant_id = wb?.tenant_id;\n\nif (!customer_id) {\n  throw new Error('Validation Error: No customer_id returned. Check DB: Upsert Customer.');\n}\nif (!room_id || !tenant_id) {\n  throw new Error(`Validation Error: Missing room_id or tenant_id. Room: ${room_id}, Tenant: ${tenant_id}`);\n}\nif (!dateGen.dates || dateGen.date_count === 0) {\n  throw new Error('Validation Error: No dates found in specific_dates.');\n}\n\nreturn [{\n  json: {\n    customer_id,\n    room_id,\n    tenant_id,\n    dates: dateGen.dates,\n    date_count: dateGen.date_count,\n    first_month_amount: dateGen.first_month_amount,\n    customer_name: customerRow.full_name || wb.customer_name,\n    customer_email: customerRow.email || wb.customer_email\n  }\n}];"
       },
-      "id": "crc-validate-001",
+      "id": "2d0ae402-56ae-4d34-b1f1-649e8e22eb64",
       "name": "Code: Validate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
-        -400
+        -1984,
+        240
       ]
     },
     {
@@ -113,46 +111,43 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ dates: $('Code: Validate').first().json.dates || '', room_id: $('Code: Validate').first().json.room_id, start_time: $('Parse: Input').first().json?.start_time || '09:00', end_time: $('Parse: Input').first().json?.end_time || '23:59' }) }}",
-        "options": {
-          "continueOnFail": true
-        }
+        "options": {}
       },
-      "id": "crc-api-clash-001",
+      "id": "43b0334f-c69f-4a5e-a4c7-4fe4c2d69e88",
       "name": "API: Check Clashes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        720,
-        -400
+        -1760,
+        240
       ]
     },
     {
       "parameters": {
         "jsCode": "// Flatten adapter \u2014 Code: Filter Dates reads $input.first().json.clashed_dates\nconst resp = $input.first().json;\nconst data = resp.data || resp;\nreturn [{ json: { clashed_dates: data.clashed_dates || [] } }];"
       },
-      "id": "crc-flatten-clash-001",
+      "id": "755d370f-5682-40a5-9e98-bac9152cc79d",
       "name": "DB: Check Room Clashes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        940,
-        -400
+        -1536,
+        240
       ]
     },
     {
       "parameters": {
         "jsCode": "// Skip-on-clash filter \u2014 drops ONLY clashed dates, preserves all others\n// (including those AFTER a clash). Earlier revision used `d < firstConflict`\n// which truncated the entire series from the first conflict onwards, losing\n// legitimate non-clashed sessions later in the schedule.\nconst validate = $('Code: Validate').first().json;\nconst allDates = (validate.dates || '').split(',').filter(Boolean).sort();\nconst clashRow = $input.first().json;\nconst clashed  = new Set((clashRow.clashed_dates || []).map(d => String(d).trim().slice(0,10)));\n\nif (clashed.size === 0) {\n  return [{ json: {\n    filtered_dates: validate.dates || '',\n    dates_count:    allDates.length,\n    skipped_count:  0,\n    has_conflict:   false,\n    blocked:        false,\n    warning:        null\n  }}];\n}\n\nconst safeDates    = allDates.filter(d => !clashed.has(d));\nconst sortedClashed = [...clashed].sort();\nconst firstConflict = sortedClashed[0];\n\nconst fmtDate = d => {\n  const dt = new Date(d + 'T12:00:00');\n  return dt.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});\n};\n\nif (safeDates.length === 0) {\n  return [{ json: {\n    filtered_dates:      '',\n    dates_count:         0,\n    skipped_count:       allDates.length,\n    has_conflict:        true,\n    blocked:             true,\n    first_conflict_date: firstConflict,\n    warning: 'All ' + allDates.length + ' requested dates are already booked for this room. Please choose different dates or a different room.'\n  }}];\n}\n\nreturn [{ json: {\n  filtered_dates:      safeDates.join(','),\n  dates_count:         safeDates.length,\n  skipped_count:       clashed.size,\n  has_conflict:        true,\n  blocked:             false,\n  first_conflict_date: firstConflict,\n  clashed_count:       clashed.size,\n  warning: 'Recurring series created for ' + safeDates.length + ' non-clashing session(s). ' + clashed.size + ' clashed date(s) skipped (first: ' + fmtDate(firstConflict) + ').'\n}}];"
       },
-      "id": "crc-filter-001",
+      "id": "c2cce58f-d223-4b6d-b73d-7a9d1d69eaed",
       "name": "Code: Filter Dates",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1160,
-        -400
+        -1328,
+        240
       ]
     },
     {
@@ -161,7 +156,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
@@ -175,15 +171,16 @@
             }
           ],
           "combinator": "and"
-        }
+        },
+        "options": {}
       },
-      "id": "crc-if-avail-001",
+      "id": "578a9bfe-b8ed-4eec-948e-15709d0a1929",
       "name": "IF: Room Available?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1380,
-        -400
+        -1104,
+        240
       ]
     },
     {
@@ -200,31 +197,30 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id: $('Code: Validate').first().json.room_id, series_name: $('Parse: Input').first().json?.series_name || ($('Code: Validate').first().json.customer_name + ' Block'), cycle_amount: parseFloat($('Parse: Input').first().json?.monthly_fee || $('Parse: Input').first().json?.agreed_price || $('Parse: Input').first().json?.monthly_rate || $('Parse: Input').first().json?.rate_per_session || 0) || 0, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, start_time: $('Parse: Input').first().json?.start_time || '', end_time: $('Parse: Input').first().json?.end_time || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', end_date: $('Parse: Input').first().json?.end_date || '', day_of_week: parseInt($('Parse: Input').first().json?.day_of_week ?? 1), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', billing_type: $('Parse: Input').first().json?.billing_type || $('Parse: Input').first().json?.billing_frequency || 'monthly', cycle_length_weeks: ($('Parse: Input').first().json?.billing_type === 'monthly' || $('Parse: Input').first().json?.payment_timing === 'in_full') ? null : (parseInt($('Parse: Input').first().json?.cycle_length_weeks) || 4), notes: $('Parse: Input').first().json?.notes || '' }) }}",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id: $('Code: Validate').first().json.room_id, series_name: $('Parse: Input').first().json?.series_name || ($('Code: Validate').first().json.customer_name + ' Block'), cycle_amount: parseFloat($('Parse: Input').first().json?.monthly_fee || $('Parse: Input').first().json?.agreed_price || $('Parse: Input').first().json?.monthly_rate || $('Parse: Input').first().json?.rate_per_session || 0) || 0, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, start_time: $('Parse: Input').first().json?.start_time || '', end_time: $('Parse: Input').first().json?.end_time || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', end_date: $('Parse: Input').first().json?.end_date || '', day_of_week: parseInt($('Parse: Input').first().json?.day_of_week ?? 1), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', billing_type: $('Parse: Input').first().json?.billing_type || $('Parse: Input').first().json?.billing_frequency || '4_week_cycle', cycle_length_weeks: ($('Parse: Input').first().json?.billing_type === 'monthly' || $('Parse: Input').first().json?.payment_timing === 'in_full') ? null : (parseInt($('Parse: Input').first().json?.cycle_length_weeks) || 4), notes: $('Parse: Input').first().json?.notes || '' }) }}",
         "options": {}
       },
-      "id": "crc-api-insert-series-cal-001",
+      "id": "861371a6-a66d-4e1f-87c5-9c81af514519",
       "name": "API: Insert Series Calendar",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1600,
-        -400
+        -880,
+        240
       ]
     },
     {
       "parameters": {
         "jsCode": "// Flatten adapter \u2014 named 'DB: Insert Rule' to preserve ALL downstream references:\n// DB: Insert Bookings body reads $('DB: Insert Rule').first().json.series_id / .series_name\n// Respond: Created reads $('DB: Insert Rule').first().json.cycle_amount / .balance_due / .series_reference\n// API: Log Interaction body reads $('DB: Insert Rule').first().json.series_reference\n// create-series-calendar returns: { rule_id, series_id, series_reference, series_name, cycle_amount, balance_due }\nconst resp = $input.first().json;\nreturn [{ json: resp.data || resp }];"
       },
-      "id": "crc-flatten-rule-001",
+      "id": "38dc179b-d491-4fbc-bc9f-8c9f745bec08",
       "name": "DB: Insert Rule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1820,
-        -400
+        -656,
+        240
       ]
     },
     {
@@ -241,18 +237,17 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, room_id: $('Code: Validate').first().json.room_id, dates_csv: $('Code: Filter Dates').first().json.filtered_dates || '', start_time: $('Parse: Input').first().json?.start_time || '', end_time: $('Parse: Input').first().json?.end_time || '', rate_per_session: parseFloat($('Parse: Input').first().json?.rate_per_session || 0) || 0, rule_id: null, series_id: $('DB: Insert Rule').first().json.series_id || null, series_label: $('DB: Insert Rule').first().json.series_name || 'Recurring', status: $('Parse: Input').first().json?.status || 'confirmed' }) }}",
         "options": {}
       },
-      "id": "crc-api-insert-bookings-001",
+      "id": "83a49bce-1a6a-4bba-92e9-97aeec0caf2d",
       "name": "API: Insert Bookings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2040,
-        -400
+        -448,
+        240
       ]
     },
     {
@@ -269,20 +264,17 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, payment_type: $('Parse: Input').first().json?.payment_type || 'none', payment_method: $('Parse: Input').first().json?.payment_method || 'cash', series_reference: $('DB: Insert Rule').first().json.series_reference || '', series_id: $('DB: Insert Rule').first().json.series_id || null }) }}",
-        "options": {
-          "continueOnFail": true
-        }
+        "options": {}
       },
-      "id": "crc-api-record-payment-001",
+      "id": "b69e0268-9ff2-4182-b625-4d239a0e8dc9",
       "name": "API: Record Initial Payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2260,
-        -400
+        -224,
+        240
       ]
     },
     {
@@ -299,20 +291,17 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, series_reference: $('DB: Insert Rule').first().json.series_reference || '', room_name: $('Parse: Input').first().json?.room_name || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', date_count: $('Code: Generate Dates').first().json?.date_count || 0, staff_member: $('Parse: Input').first().json?.performed_by || 'Staff', interaction_type: $('Parse: Input').first().json?.interaction_type || 'RECURRING_CONTRACT_CREATED', notes: $('Parse: Input').first().json?.contract_notes || '' }) }}",
-        "options": {
-          "continueOnFail": true
-        }
+        "options": {}
       },
-      "id": "crc-api-log-interaction-001",
+      "id": "59e795c7-7d94-4020-ae8b-65a9bb686232",
       "name": "API: Log Interaction",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2040,
-        -180
+        -448,
+        464
       ]
     },
     {
@@ -331,13 +320,13 @@
           }
         }
       },
-      "id": "crc-respond-001",
+      "id": "e1434134-d67f-4a39-8559-ee099fd83322",
       "name": "Respond: Created",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2480,
-        -400
+        0,
+        240
       ]
     },
     {
@@ -348,13 +337,13 @@
           "responseCode": 409
         }
       },
-      "id": "crc-respond-blocked-001",
+      "id": "5f43e316-49bc-455f-a62b-405d6833d6a9",
       "name": "Respond: Not Available",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1600,
-        -180
+        -880,
+        464
       ]
     },
     {
@@ -381,13 +370,13 @@
         },
         "options": {}
       },
-      "id": "crfc-if-card-001",
+      "id": "111f2bc9-fdc0-4164-9fd3-8384e1c070c0",
       "name": "IF: Card?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2260,
-        -560
+        -224,
+        80
       ]
     },
     {
@@ -408,18 +397,17 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify((function(){\n  const parse    = $('Parse: Input').first().json || {};\n  const rule     = $('DB: Insert Rule').first().json || {};\n  const valid    = $('Code: Validate').first().json || {};\n  const filtered = $('Code: Filter Dates').first().json || {};\n  const timing   = parse.payment_timing || 'in_full';\n  const seriesTotal = parseFloat(parse.rate_per_session || 0) * parseInt(filtered.dates_count || 0);\n  let cycle1 = null;\n  try { cycle1 = $('Code: Pick Cycle 1').first().json; } catch(e) { cycle1 = null; }\n  const isCadenced = timing !== 'in_full' && cycle1 && !cycle1._seed_failed;\n  const amount = isCadenced ? parseFloat(cycle1.cycle_amount || 0) : seriesTotal;\n  const descParts = [];\n  descParts.push('Recurring series \u2014 ' + (rule.series_name || 'Block'));\n  if (isCadenced && timing === 'in_advance') descParts.push('(Cycle ' + (cycle1.cycle_number||1) + ' / ' + cycle1.sessions_count + ' sessions)');\n  else if (isCadenced && timing === 'in_arrears') descParts.push('(Card on file \u2014 billed after each cycle)');\n  else descParts.push('(' + (filtered.dates_count || 0) + ' sessions)');\n  return {\n    amount,\n    recurring_series_id: rule.series_id,\n    cycle_id:            isCadenced ? cycle1.cycle_id : '',\n    payment_timing:      timing,\n    customer_id:         valid.customer_id,\n    description:         descParts.join(' '),\n    success_url: 'https://andyjay72.github.io/VenueDesk/CommunityHub/checkout.html?session_id={CHECKOUT_SESSION_ID}',\n    cancel_url:  'https://andyjay72.github.io/VenueDesk/CommunityHub/calendar.html'\n  };\n})()) }}",
         "options": {}
       },
-      "id": "crfc-api-stripe-001",
+      "id": "14fc81f4-1221-4653-83ea-392b14754c2c",
       "name": "API: Create Stripe Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2480,
-        -640
+        0,
+        0
       ]
     },
     {
@@ -438,13 +426,13 @@
           }
         }
       },
-      "id": "crfc-respond-stripe-001",
+      "id": "7ebcec8a-b010-48ee-b062-b710d339330d",
       "name": "Respond: Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2700,
-        -640
+        224,
+        0
       ]
     },
     {
@@ -453,7 +441,8 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose"
+            "typeValidation": "loose",
+            "version": 1
           },
           "conditions": [
             {
@@ -470,13 +459,13 @@
         },
         "options": {}
       },
-      "id": "crfc-if-cadenced-001",
+      "id": "e69e2588-8c1b-4e16-9e81-3ceb02630055",
       "name": "IF: Cadenced?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2400,
-        200
+        -80,
+        848
       ],
       "notes": "Feature C \u2014 splits cadenced (in_advance/in_arrears) from in_full. TRUE materialises schedule rows; FALSE falls through to existing bulk Stripe."
     },
@@ -498,40 +487,38 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ series_id: $('DB: Insert Rule').first().json.series_id, customer_id: $('Code: Validate').first().json.customer_id, dates_csv: $('Code: Filter Dates').first().json.filtered_dates, rate_per_session: parseFloat($('Parse: Input').first().json?.rate_per_session || 0), cycle_length_weeks: ($('Parse: Input').first().json?.billing_type === 'monthly') ? null : (parseInt($('Parse: Input').first().json?.cycle_length_weeks) || 4), payment_timing: $('Parse: Input').first().json?.payment_timing || 'in_advance', frequency: $('Parse: Input').first().json?.frequency || 'weekly' }) }}",
         "options": {
           "response": {
             "response": {
-              "fullResponse": false,
               "neverError": true
             }
           },
           "timeout": 20000
         }
       },
-      "id": "crfc-seed-cycle-schedule-001",
+      "id": "3b06bbf9-7540-4141-831e-7b05413befe2",
       "name": "API: Seed Cycle Schedule",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "continueOnFail": true,
       "position": [
-        2600,
-        200
-      ]
+        128,
+        848
+      ],
+      "continueOnFail": true
     },
     {
       "parameters": {
         "jsCode": "const seedResp = $input.first().json;\nconst cycles   = seedResp?.data?.cycles || [];\nconst ids      = seedResp?.data?.schedule_ids || [];\n\nif (cycles.length === 0 || ids.length === 0) {\n  return [{ json: { _seed_failed: true, seedResp } }];\n}\n\nconst cycle1 = cycles[0];\nconst cycle1Id = ids[0];\n\nconst parse  = $('Parse: Input').first().json || {};\nconst rule   = $('DB: Insert Rule').first().json || {};\nconst valid  = $('Code: Validate').first().json || {};\n\nreturn [{\n  json: {\n    cycle_id:            cycle1Id,\n    cycle_amount:        parseFloat(cycle1.amount || 0),\n    cycle_number:        cycle1.cycleNumber || 1,\n    period_start:        cycle1.periodStart,\n    period_end:          cycle1.periodEnd,\n    payment_timing:      parse.payment_timing || 'in_advance',\n    recurring_series_id: rule.series_id,\n    series_name:         rule.series_name || 'Block',\n    customer_id:         valid.customer_id,\n    sessions_count:      cycle1.sessions || 0,\n  }\n}];"
       },
-      "id": "crfc-pick-cycle1-001",
+      "id": "1412ff7f-151f-44a8-a1ad-acc27aafb095",
       "name": "Code: Pick Cycle 1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2800,
-        200
+        320,
+        848
       ]
     }
   ],
@@ -702,9 +689,6 @@
         ]
       ]
     },
-    "API: Log Interaction": {
-      "main": []
-    },
     "IF: Card?": {
       "main": [
         [
@@ -775,15 +759,11 @@
       ]
     }
   },
-  "pinData": {},
-  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
   },
-  "versionId": "crfc-v6-field-fix-2026-05-24",
-  "meta": {
-    "instanceId": "549da98b647a0680fe0fcd6771d8bbf2be22efed9edc6fd9df5b8e33e8c15d93"
-  },
-  "id": "CreateRecurringFromCalendar",
-  "tags": []
+  "id": "8sSQGRLzAHYZhmEp",
+  "versionId": "338d2a12-eeca-485e-b200-6bd59a360eb0"
 }
