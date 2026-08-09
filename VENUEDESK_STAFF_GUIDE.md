@@ -1,6 +1,6 @@
 # VenueDesk Staff User Guide – How to Manage Bookings, Customers & Payments
 
-> **Last updated:** June 30 2026 · **Audience:** Non-technical venue staff  
+> **Last updated:** June 27 2026 · **Audience:** Non-technical venue staff  
 > **Live site:** https://andyjay72.github.io/VenueDesk
 
 ---
@@ -21,7 +21,6 @@
 | Record a manual payment | **Bookings** → **Pay** button | Choose method → **Confirm Payment** |
 | View payment history / invoices | **Accounts** in sidebar | Click any transaction row |
 | Set up a divisible room | **Admin Config** → Rooms tab | Add room → set Parent Room + Position |
-| Check what email a customer was sent | **Audit Log** → filter by customer name | See email events in the activity log |
 
 ---
 
@@ -64,8 +63,7 @@ Use this when a customer contacts you in advance and you want to check availabil
    - **Event Type** – select from the dropdown (e.g. Meeting, Party, Workshop).
    - **Start Time / End Time** – pick from the dropdowns. The **availability status** bar updates automatically:
      - 🟢 **Available** – slot is free, you can proceed.
-     - 🔴 **Unavailable** – another booking exists, or the time falls outside the room's operating hours. Choose different times.
-     - If the room has set operating hours, the panel shows them as a hint (e.g. "Main Hall operating hours: 09:00 – 21:00") and rejects out-of-hours selections without a server round-trip.
+     - 🔴 **Unavailable** – another booking exists. Choose different times.
    - **Number of Guests** – enter the expected guest count. A warning appears if it exceeds the room's capacity.
    - **Notes** – optional, e.g. "requires projector".
    - **Multi-day event?** – click **"Requires multiple days"** to reveal **Date From / Date To** fields. Maximum span is 90 days.
@@ -96,7 +94,7 @@ Use this for drop-in customers who need to be booked quickly at the front desk.
    - **Number of Guests** *(required)*
    - **Start Time / End Time** *(required)*
    - **Notes** *(optional)*
-4. The **availability status bar** shows whether the slot is free. If the selected room has operating hours configured, a hint strip appears below the time dropdowns showing the valid window (e.g. "Main Hall operating hours: 09:00 – 21:00"). Choosing a time outside those hours marks the slot unavailable immediately, before any server check.
+4. The **availability status bar** shows whether the slot is free.
 5. The **Total Cost** box calculates automatically.
 6. Under **Payment**, select the payment method (Cash, Card, Bank Transfer, etc.).
 7. Choose an action:
@@ -109,134 +107,12 @@ Use this for drop-in customers who need to be booked quickly at the front desk.
 
 ### Option C — New Booking Enquiry Form
 
-Use this to send the online enquiry form link to a customer, or to fill it in yourself during a telephone enquiry.
+Use this to send the online enquiry form link to a customer, or to open it yourself for a telephone enquiry.
 
-#### Finding and sharing the form URL
-
-The form URL follows this format:
-
-```
-https://andyjay72.github.io/VenueDesk/enquiry-form.html?t=<tenant_id>
-```
-
-The `?t=` parameter is your venue's **Tenant ID** — a 4-digit number (e.g. `?t=1001`). You can find it in **Admin Config** → any settings page (it appears in API requests), or ask your administrator. If the `?t=` parameter is missing or invalid, visitors see an "Invalid Venue Link" error — always include it when sharing.
-
-**Quick access:** Click **New Booking** in the sidebar. This opens the correct pre-configured link in a new tab. You can copy the URL from the address bar and share it with customers by email, WhatsApp, or your website.
-
----
-
-#### What the form collects
-
-**Contact Details** (all required)
-
-| Field | Notes |
-|-------|-------|
-| Full Name | Customer's full name |
-| Email | Used to identify returning customers |
-| Phone | Primary contact number |
-
-**Event Details** (required unless noted)
-
-| Field | Notes |
-|-------|-------|
-| Preferred Room | Loaded from your room list; shows capacity (e.g. "Main Hall (Cap: 100)") |
-| Event Type | Loaded from your event types list |
-| Event Date | Single date picker; minimum date is today |
-| Start Time / End Time | 30-minute slot dropdowns, 08:00–23:00 |
-| Number of Guests | Integer; checked against room capacity |
-| Notes | Optional — special requirements, accessibility needs, etc. |
-
-**Additional Rooms** (optional)
-
-If your venue has more than one room, a checkbox list appears below the primary room dropdown. Each additional room shows its hourly rate (`+£X.XX/hr`). Customers can tick one or more rooms to include them in the enquiry — this affects the cost estimate and is included in the booking request.
-
-**Multi-day events**
-
-A **"Requires multiple days"** toggle appears next to the date field. When active:
-- The single date picker is replaced by **Date From** and **Date To** fields
-- Maximum span is 90 days (the form shows an error if this is exceeded)
-- Cost estimate multiplies by the number of days
-
----
-
-#### Real-time cost estimate
-
-As the customer fills in the form, a cost estimate appears automatically:
-
-> `£12.50/hr [+ 1 room] × 4.0h × 2 days = £100.00`
-
-This is an **estimate only** — the confirmed price is set when staff convert the enquiry. The estimate is based on `rooms.day_rate` (an hourly rate) × hours × days, plus any additional rooms. If no rate is configured for the room, the cost panel is hidden.
-
----
-
-#### Availability check
-
-Once a room, date, and times are all selected, the form automatically checks availability:
-
-- 🟢 **Available** — date and time slot is free for that room. Submit buttons activate.
-- 🔴 **Unavailable** — slot is already booked. Customer must choose different times or dates.
-
-The check also catches:
-- Blocked dates (venue closed days, one-off closures, date ranges)
-- End time not after start time
-- Date range exceeding 90 days
-- **Room operating hours** — if the selected room has set open/close times, the form shows a hint strip ("Main Hall operating hours: 09:00 – 21:00") as soon as the room is chosen, and immediately marks the slot unavailable if the chosen start or end time is outside those hours — without waiting for a server round-trip
-
-The form sends a `POST /webhook/check-availability` to confirm against existing bookings.
-
----
-
-#### Submission options
-
-The customer has two ways to submit, depending on whether Stripe is enabled for your venue:
-
-| Option | When available | What it does | Booking status created |
-|--------|---------------|--------------|----------------------|
-| **Submit Enquiry** (blue button) | Always | Submits with no payment | `pending` |
-| **Pay Deposit by Card** (green button) | Stripe enabled only | Collects deposit via Stripe Checkout (20% of estimated total, min £10 / max £500) | `pending_deposit` |
-
-**Free enquiry path:**
-1. Form submitted → booking request created in database
-2. Customer sees a success panel: "Enquiry Submitted!" with a note about the 7-day window
-3. Customer receives an acknowledgement email
-4. Staff receive a notification email (see Section 7 for email configuration)
-5. Enquiry appears in Dashboard → **Pending Requests**
-
-**Stripe deposit path:**
-1. Form submitted → booking request created → customer redirected to Stripe Checkout
-2. Customer pays the deposit amount shown on the button
-3. Customer lands on the **payment confirmation page** (checkout.html) showing "Payment Received" and their booking reference ID
-4. Staff receive a notification email
-5. Enquiry appears in Dashboard → **Pending Requests** (with `pending_deposit` status)
-
----
-
-#### 7-day window
-
-When a customer submits a free enquiry, the system automatically emails them a warning if **4 or more days pass** without a deposit being paid. After **7 days**, the enquiry expires and is automatically removed. See [Section 7 — Automatic Email Notifications](#7-automatic-email-notifications) for full detail on the expiry warning email.
-
----
-
-#### The payment confirmation page (checkout.html)
-
-After a successful Stripe payment, the customer lands on a branded confirmation page that shows:
-- "Payment Received" heading with animated green tick
-- The venue name (e.g. "Thank you for your booking at Main Street Hall")
-- A Booking ID reference strip — the customer can quote this ID when contacting you
-- A **Close Window** button (for public customers) or **Back to Dashboard** button (if a staff member is logged in)
-
----
-
-#### What staff do after an enquiry comes in
-
-1. Go to **Dashboard** → **Pending Requests** tab
-2. Find the enquiry in the list (sorted by date, newest first)
-3. Click the row to open the booking detail panel on the right
-4. Review the details: customer, room, date, time, event type, guests, notes
-5. Click **Confirm** to convert it to a confirmed booking (this triggers a confirmation email to the customer)
-6. Or click **Decline** to remove the request
-
-> No deposit collection is needed at this stage if the customer already paid via Stripe — the `pending_deposit` status tracks that a card payment is expected. Staff should confirm the booking once the Stripe payment is received (the webhook updates the status automatically).
+1. Click **New Booking** in the sidebar (opens in a new tab) or share the link directly with the customer.
+2. The form captures: contact details, room preference, dates, hire type, and optional deposit payment via Stripe.
+3. Once submitted, the enquiry appears on your **Dashboard** under the **Pending Requests** tab, waiting for staff review.
+4. To action a pending request, go to the **Dashboard**, find the request in the list, and use the **Confirm & Record Deposit** button inside the booking detail panel.
 
 ---
 
@@ -571,136 +447,6 @@ The payment is recorded in **Accounts** and the booking status updates automatic
 | **Anchor Space** | Another name for a parent room — the full space that partitions are anchored to |
 | **Room Operating Hours** | Optional open/close times set per room in Admin Config — bookings outside these hours are automatically rejected |
 | **Clash / Conflict** | When two bookings would overlap in the same physical space — the system rejects the second booking automatically |
-
----
-
----
-
-## 7. Automatic Email Notifications
-
-VenueDesk sends automated emails to customers at key points in the booking journey. These emails are sent from **bookings@venuedesk.co.uk** and require no manual action from staff — they fire automatically.
-
----
-
-### Emails customers receive
-
-| When | Email subject | Colour |
-|------|---------------|--------|
-| Customer submits the online enquiry form | 📬 Enquiry Received — [Venue Name] | Indigo |
-| Staff click **Confirm** on a pending request | ✅ Booking Confirmed — [Date] | Green |
-| Deposit payment recorded (cash/card/BACS) | Deposit Payment Confirmed — [Date] | Indigo |
-| Partial balance payment recorded | Payment Received — Remaining Balance: £X | Amber |
-| Full balance settled | Balance Fully Settled — Booking Confirmed ✓ | Green |
-| BACS payment method selected | Booking Reserved — Awaiting BACS Payment | Amber |
-| Online card payment confirmed via Stripe | Card Payment Confirmed ✓ — [Date] | Green |
-| Enquiry not confirmed after 4 days (no deposit) | ⏰ Action required: Your enquiry expires in X days | Amber |
-
----
-
-### Enquiry received email
-
-When a customer submits the **New Booking** enquiry form, they immediately receive a confirmation that their request was received. It includes:
-
-- A summary of what they requested (space, date, time, event type, guests)
-- A clear notice that their enquiry will **expire after 7 days** if no deposit is paid
-- A contact button linking to `bookings@venuedesk.co.uk`
-- Their enquiry reference number
-
-At the same time, the **staff notification email address** receives a **staff alert email** with the customer's full contact details, their request summary, and a **Review in Dashboard** link. This address is configured in **Admin Config → Settings → Staff Notification Email** (see below).
-
----
-
-### Booking confirmed email
-
-When you click **Confirm** on a pending request from the Dashboard, the customer automatically receives a confirmation email containing:
-
-- Date, time, room, event type, and guest count
-- Total hire fee, deposit paid (with payment method), and any remaining balance
-- A callout box if a balance is still owed
-- Contact details for queries
-
-> No manual email to the customer is needed — this fires automatically the moment you confirm the booking.
-
----
-
-### Payment emails
-
-Every time a payment is recorded (by you or automatically via Stripe), the customer receives a payment receipt. The email content varies by payment type:
-
-- **Deposit** — indigo header, shows deposit amount paid and remaining balance
-- **Partial balance** — amber header, shows amount paid and remaining balance
-- **Full balance** — green header, "Fully Paid ✓" confirmation
-- **BACS** — amber header with your venue's bank account details, sort code, and account number (so the customer can make the transfer), using the booking ID as the payment reference
-- **Stripe card** — green header with the Stripe payment reference
-
----
-
-### 7-day expiry warning email
-
-The system runs a check every morning at **08:00**. Any customer who submitted an enquiry **4 or more days ago** without paying a deposit receives an expiry warning email. The email shows:
-
-- How many days are remaining (e.g. "3 days remaining")
-- The date their enquiry was submitted
-- Clear consequences of not acting (enquiry will be permanently deleted)
-- A contact button
-
-Once the warning is sent, the system marks it so the same customer does not receive duplicate warnings. After **7 days** with no deposit, the enquiry is automatically removed.
-
-> If a customer contacts you after receiving a warning email, use the Dashboard → Pending Requests tab to confirm their booking before the 7-day window expires.
-
----
-
-### Setting your staff notification email address
-
-The new-enquiry staff alert is sent to whichever email address is saved in **Admin Config → Settings**. To set or change it:
-
-1. Log in to the dashboard and go to **Admin Config** in the sidebar.
-2. Click the **Settings** tab.
-3. Find the **Staff Notification Email** card at the top.
-4. Enter the email address that should receive new enquiry alerts (e.g. `manager@yourvenue.co.uk`).
-5. Click **Save Notification Email**.
-
-The change takes effect immediately on the next enquiry submission — no restart required. If the field is left blank, alerts default to `bookings@venuedesk.co.uk`.
-
----
-
-### What staff need to do
-
-- **Nothing extra** — all emails fire automatically once the notification address is configured.
-- If a customer says they didn't receive an email, ask them to **check their spam/junk folder** (especially Gmail, which may group emails).
-- The **Audit Log** page records all booking and payment events with timestamps and staff names, which can help trace any email discrepancies.
-
----
-
-## Troubleshooting — Email Issues
-
-| Problem | Likely cause | What to do |
-|---------|-------------|------------|
-| **Customer says they got no confirmation email** | Email in spam; or their address was entered incorrectly | Ask them to check spam. Verify their email address in **Customers** page. |
-| **Customer received duplicate expiry warning emails** | System test issue (rare) | Contact your administrator — this indicates a workflow was tested with a live email address. |
-| **Staff alert email not arriving** | Notification address not configured or wrong address | Go to **Admin Config → Settings → Staff Notification Email**, verify the address is correct, and click Save. Changes take effect on the next enquiry. |
-| **BACS email has no bank details** | Venue BACS details not set in Admin Config | Go to **Admin Config → Payments** tab and enter Sort Code, Account Number, and Account Name. |
-
----
-
-## Troubleshooting — Booking & System Issues
-
-| Problem | Likely cause | What to do |
-|---------|-------------|------------|
-| **"Unavailable" / red availability bar** | Another booking already exists in that slot | Choose a different time or room. Check the **Calendar** to see the conflict. |
-| **"Conflict with parent/child room"** | A partition or parent room is already booked in that slot | Choose the correct specific section or a different time. See Section 6. |
-| **Guest count warning appears** | Guest number exceeds the room's capacity | Reduce the guest count or select a larger room. |
-| **"Cannot create a booking in the past"** | The date entered is before today | Change the date to today or a future date. |
-| **Booking duration exceeds limit** | Multi-day span is more than 90 days | Shorten the booking period or create two separate bookings. |
-| **"This room does not open until HH:MM"** | The room has operating hours set that your chosen start time falls before | Change the start time to be within the room's operating hours, or choose a different room. |
-| **"This room closes at HH:MM"** | Your chosen end time is after the room's closing time | Move the end time earlier or choose a different room. |
-| **Page shows nothing / blank list** | Session may have expired | Refresh the page. If redirected to login, log back in and try again. |
-| **"Something went wrong" toast** | API or network error | Wait a few seconds and click **Refresh** (top-right button on Dashboard). If it persists, contact your administrator. |
-| **Customer not found in search** | Customer hasn't been added yet | Add them via the walk-in form or enquiry form — the system creates a customer record automatically. |
-| **"Balance Due" still showing after payment** | Payment not yet saved | Ensure you clicked **Confirm Payment** in the payment modal, not just closed it. Check **Accounts** for the transaction. |
-| **Calendar not loading** | Browser cache or connectivity issue | Hard-refresh the page (Ctrl+Shift+R on Windows / Cmd+Shift+R on Mac). Try an incognito/private window. |
-| **Logged out unexpectedly** | Session token expired (tokens last up to 1 hour) | Log back in. Your data is safe — nothing is lost. |
-| **Recurring payment button missing** | No payment is currently due for this period | The **Record Payment** button only appears when a payment period is due or overdue. Check the series card's payment status badge. |
 
 ---
 

@@ -328,8 +328,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `028_add_room_hierarchy.sql` (June 27 2026 — adds `parent_room_id UUID`, `partition_order INTEGER`, `partition_total INTEGER` to `bookings.rooms` with index + 2 check constraints; enables hierarchical space partitioning)
-**Next number:** `029`
+**Latest migration:** `029_confirmed_bookings_notes.sql` (August 3 2026 — adds `notes TEXT` column to `bookings.confirmed_bookings`)
+**Next number:** `030`
 
 ---
 
