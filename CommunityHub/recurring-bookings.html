@@ -1030,7 +1030,7 @@
                 <a href="calendar.html" style="color:#6366f1;font-weight:700;text-decoration:none;">
                     <i class="fa-solid fa-calendar-days"></i> Calendar
                 </a>
-                — click a date, fill in the booking details, then toggle <em>"Repeat this booking"</em> and choose a contract duration.
+                — click a date, fill in the booking details, then toggle <em>"Repeat this booking"</em> and choose a frequency (<strong style="color:#a5b4fc;">Weekly</strong>, <strong style="color:#a5b4fc;">Fortnightly</strong>, or <strong style="color:#a5b4fc;">Monthly</strong>) and a contract duration.
             </span>
         </div>
         <div class="manage-panel">
@@ -1365,7 +1365,14 @@ function mpRenderCard(s) {
         </div>`;
     }
 
-    const freqLabel = freq.charAt(0).toUpperCase() + freq.slice(1);
+    const freqLabel = freq === 'fortnightly' ? 'Every 2 Weeks'
+                   : freq === 'monthly'     ? 'Monthly'
+                   : 'Weekly';
+    const freqDayDesc = freq === 'monthly'      ? `Monthly on <strong>${dayName}s</strong>`
+                      : freq === 'fortnightly'  ? `Every other <strong>${dayName}</strong>`
+                      : `Every <strong>${dayName}</strong>`;
+    const cycleRateLabel = freq === 'monthly' ? '/month' : freq === 'fortnightly' ? '/fortnight' : '/4 weeks';
+    const cycleFinLabel  = freq === 'monthly' ? 'Monthly Rate' : freq === 'fortnightly' ? 'Cycle Rate (2 wks)' : 'Cycle Rate (4 wks)';
 
     return `<div class="mp-card ${cardStateClass}" id="mp-card-${safeId}">
 
@@ -1391,8 +1398,8 @@ function mpRenderCard(s) {
             <div class="mp-card-left">
                 <div class="mp-card-section-label">Contract</div>
                 <div class="mp-detail-row"><i class="fa-solid fa-calendar-range"></i><span>${contractRange}</span></div>
-                <div class="mp-detail-row"><i class="fa-solid fa-calendar-day"></i><span>Every <strong>${dayName}</strong></span></div>
-                ${ratePS > 0 ? `<div class="mp-detail-row"><i class="fa-solid fa-sterling-sign"></i><span><strong>${mpFmt(ratePS)}</strong>/session${monthlyRate > 0 && monthlyRate !== ratePS ? ` · <strong>${mpFmt(monthlyRate)}</strong>/month` : ''}</span></div>` : ''}
+                <div class="mp-detail-row"><i class="fa-solid fa-calendar-day"></i><span>${freqDayDesc}</span></div>
+                ${ratePS > 0 ? `<div class="mp-detail-row"><i class="fa-solid fa-sterling-sign"></i><span><strong>${mpFmt(ratePS)}</strong>/session${monthlyRate > 0 && monthlyRate !== ratePS ? ` · <strong>${mpFmt(monthlyRate)}</strong>${cycleRateLabel}` : ''}</span></div>` : ''}
                 <div class="mp-progress-wrap">
                     <div class="mp-progress-label">
                         <span>Sessions</span>
@@ -1412,7 +1419,7 @@ function mpRenderCard(s) {
             <div class="mp-card-right">
                 <div class="mp-card-section-label">Financial</div>
                 <div class="mp-fin-grid">
-                    ${monthlyRate > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Monthly Rate</div><div class="mp-fin-val">${mpFmt(monthlyRate)}</div></div>` : ''}
+                    ${monthlyRate > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">${cycleFinLabel}</div><div class="mp-fin-val">${mpFmt(monthlyRate)}</div></div>` : ''}
                     ${ratePS > 0 ? `<div class="mp-fin-item"><div class="mp-fin-lbl">Per Session</div><div class="mp-fin-val">${mpFmt(ratePS)}</div></div>` : ''}
                     <div class="mp-fin-item">
                         <div class="mp-fin-lbl">Outstanding</div>
@@ -1464,6 +1471,8 @@ async function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
 
     const blockSize  = parseInt(sessPerCycle) || 4;
     const sessionRate= parseFloat(sessPrice)  || 0;
+    const _sFreq     = ((_seriesMap[ruleId]||{}).frequency||'weekly').toLowerCase();
+    const _blockLabel= _sFreq==='monthly'?'Monthly Cycle':_sFreq==='fortnightly'?'2-Week Cycle':'4-Week Cycle';
 
     // Fetch per-cycle payment status from db-api schedule-status endpoint.
     // scheduleMap[cycleNumber] = 'paid' | 'pending' | 'overdue' | 'cancelled'
@@ -1561,7 +1570,7 @@ async function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
         rows += `<tr>
             <td colspan="6" style="background:${blkBg};border-top:2px solid ${blkBdr};padding:5px 10px;font-size:.75rem;font-weight:700;color:#a5b4fc;letter-spacing:.03em;">
                 <i class="fa-solid fa-layer-group" style="margin-right:5px;opacity:.7;"></i>
-                Billing Block ${bi+1} (${blk.length} session${blk.length!==1?'s':''})${costLabel}
+                ${_blockLabel} ${bi+1} (${blk.length} session${blk.length!==1?'s':''})${costLabel}
                 &nbsp;&nbsp;${blkLabel}
             </td>
         </tr>`;
