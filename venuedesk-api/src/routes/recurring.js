@@ -1933,29 +1933,32 @@ async function recurringRoutes(fastify) {
   // Used by the frontend (recurring-bookings.html) to derive per-block payment
   // status — replaces the unreliable balance-arithmetic derivation.
   //
-  // NOTE: No JWT preHandler — this is a browser GET where CORS prevents custom
-  //       headers. tenant_id comes from query param and is used for RLS context.
-  //       Read-only endpoint; data is not sensitive for an internal staff tool.
+  // Auth: JWT via ?jwt=<token> query param (Rule F6 / Pattern 4 — CORS prevents
+  //       Authorization header on browser GET requests). tenant_id is taken from
+  //       the verified JWT, not the query string.
   //
   // Query params:
   //   series_id   UUID  required
-  //   tenant_id   int   required
+  //   jwt         str   required (browser passes token here; fastify.authenticate reads query.jwt)
+  //   tenant_id   int   optional (ignored — JWT tenant used; kept for backwards compat)
   //
   // Returns: { data: [{schedule_id, cycle_number, period_start, period_end,
   //                    due_date, amount_due, status, reminder_sent_at, updated_at}], count }
   fastify.get('/schedule-status', {
+    preHandler: [fastify.authenticate],
     schema: {
       querystring: {
         type: 'object',
-        required: ['series_id', 'tenant_id'],
+        required: ['series_id'],
         properties: {
           series_id: { type: 'string' },
           tenant_id: { type: 'integer' },
+          jwt:       { type: 'string' },
         },
       },
     },
   }, async (request) => {
-    const tenantId = parseInt(request.query.tenant_id, 10);
+    const tenantId = request.user.tenant_id;
     const { series_id } = request.query;
     assertUUID(series_id, 'series_id');
 

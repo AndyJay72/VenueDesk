@@ -1479,7 +1479,7 @@ async function mpToggleSessions(safeId, ruleId, sessPerCycle, sessPrice) {
     // Falls back to empty map silently — block status degrades to 'Unpaid' rather than crash.
     let scheduleMap = {};
     try {
-        const schedUrl = `${REC_SCHEDULE_STATUS_URL}?series_id=${encodeURIComponent(ruleId)}&tenant_id=${encodeURIComponent(_TID())}`;
+        const schedUrl = `${REC_SCHEDULE_STATUS_URL}?series_id=${encodeURIComponent(ruleId)}&tenant_id=${encodeURIComponent(_TID())}&jwt=${encodeURIComponent(sessionStorage.getItem('vp_token')||'')}`;
         const schedRes = await fetch(schedUrl);
         if (schedRes.ok) {
             const schedJson = await schedRes.json();
