@@ -2707,6 +2707,73 @@ test artefacts, not real issues) · 0 SKIP. Test 11c confirmed: no-auth → 401.
 
 ---
 
+## 20. n8n Workflow, Test Suite Expansion & User Guide Update ✅ DONE (August 9 2026)
+
+Commits `a2365fc` · `18d40ea` · `354e621` · `93d04a6`.
+
+### n8n CreateRecurringFromCalendar workflow — 4 bug fixes
+
+`n8n-workflows/CreateRecurringFromCalendar.json` (live workflow ID `8sSQGRLzAHYZhmEp`)
+had not been updated for the new frequency support. Four bugs fixed and deployed via
+n8n MCP, then synced back to the local backup:
+
+| Node | Bug | Fix |
+|---|---|---|
+| `Parse: Input` | `billing_type` fallback defaulted to `'monthly'`; every weekly series was mislabelled | Changed to `'4_week_cycle'` |
+| `Code: Generate Dates` | `firstPeriodEnd` hardcoded to `+27 days` for all frequencies | Monthly → `+1 month −1 day`, fortnightly → `+13 days`, weekly → `+27 days` |
+| `API: Insert Series Calendar` | `cycle_length_weeks` only went `null` for `in_full`; `null \|\| 4` coercion overrode monthly's null | Also `null` when `billing_type === 'monthly'`; removed `\|\| 4` coercion |
+| `API: Seed Cycle Schedule` | Same `null \|\| 4` coercion bug for monthly | Same fix |
+
+### QA integration test suite — 4 new categories (17 new tests)
+
+`venuedesk-api/tests/qa_integration.py` expanded from 38 to 55 tests:
+
+| Category | Tests | What it covers |
+|---|---|---|
+| 8 — Room Hours Enforcement | 4 | `open_time`/`close_time` blocks bookings outside window; NULL = unconstrained |
+| 9 — Hierarchical Room Clash | 5 | Parent→child 409, child→parent 409, non-overlapping siblings 200, self-clash 409 |
+| 10 — Tenant Isolation / RLS | 3 | JWT missing `tenant_id` → 401, body `tenant_id` injection stripped, list response structure |
+| 11 — Recurring Schedule Status | 3 | Unknown UUID → empty array, missing param → 400, no auth → 401 (found item 19) |
+
+Test 11c was the security finding that led directly to the schedule-status auth fix (item 19).
+
+### Playwright test suite — 2 new spec files (28 new tests)
+
+`tests/playwright/` now has 99 tests across 4 spec files, all passing:
+
+**`calendar_recurring.spec.js`** (18 tests) — frequency dropdown UI (options, labels,
+picker visibility), date generation maths (session counts per frequency, Nth-weekday
+dates for monthly), and submit payload assertions (`billing_type`, `cycle_length_weeks`,
+`specific_dates` day-of-week validation).
+
+**`theme_editor.spec.js`** (10 tests) — page load without redirect, HTML state injection,
+`postMessage` flows (`vd_dom_mutated`, `vd_ctx_delete`, `vd_ctx_add`), split-view toggle,
+undo/redo button state.
+
+**Key Playwright harness lessons from this session:**
+- Playwright uses **LIFO route matching** — register generic wildcard routes *before*
+  specific capture routes so the capture route is checked first
+- `let` variables in `<script>` tags are **not window properties** — use bare name
+  (`originalHtml`, `splitMode`) in `page.evaluate()`, not `window.originalHtml`
+- `el.srcdoc` is a **DOM property**, not an HTML attribute — use `evaluate(el => el.srcdoc)`
+  not `getAttribute('srcdoc')`
+- `setLoaded(true)` must be called to enable action buttons; `renderPreview()` alone is
+  insufficient
+
+### userguide.html — recurring booking section rewrite
+
+`userguide.html` (root + CommunityHub mirror) recurring section updated:
+- Creation steps expanded from 6 to 9 — now explicitly covers Frequency, Contract
+  Duration, Payment Terms, and Cycle Length
+- Fixed "Bi-weekly" → "Every 2 Weeks (Fortnightly)" to match actual UI label
+- New **Frequency vs Cycle Length** table clarifying the distinction: Frequency = how
+  often sessions happen; Cycle Length = how often the customer is billed. With worked
+  example and info box for when Cycle Length is hidden
+- New **Frequency options explained** table: session counts per frequency for a 12-week
+  contract (Weekly=12, Fortnightly=6, Monthly=3), plus Monthly Nth-weekday tip
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
