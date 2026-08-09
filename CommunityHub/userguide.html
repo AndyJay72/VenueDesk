@@ -2274,31 +2274,107 @@
                     <div class="card-body">
                         <figure class="screenshot-figure">
                             <img src="screenshots/recurring.png" alt="Recurring bookings page showing series cards with payment tracking">
-                            <figcaption>Recurring Bookings — manage weekly and monthly series, track per-session payments, and cancel individual sessions or entire series.</figcaption>
+                            <figcaption>Recurring Bookings — manage weekly, fortnightly, and monthly series, track per-cycle payments, and cancel individual sessions or entire series.</figcaption>
                         </figure>
 
                         <div class="grid-2-col">
                             <div class="sub-card">
                                 <h4>Create a Recurring Series</h4>
                                 <ol class="styled-ol">
-                                    <li>Begin custom booking on Calendar.</li>
-                                    <li>Toggle <strong>Recurring Booking</strong> (activates purple status).</li>
-                                    <li>Specify Frequency: Weekly, Bi-weekly, or Monthly.</li>
-                                    <li>Select matching days of the week.</li>
-                                    <li>Establish an <strong>End Date</strong> (or keep open for ongoing rolling bookings).</li>
-                                    <li>Double check preview of all calculated occurrences before saving.</li>
+                                    <li>Open the Calendar and click any available date to open the quick-book drawer.</li>
+                                    <li>Fill in customer name, phone, room, and times.</li>
+                                    <li>Click <strong>Repeat this booking</strong> to expand the recurring contract section.</li>
+                                    <li>Choose a <strong>Frequency</strong> — how often sessions occur (see table below).</li>
+                                    <li>Select the days of the week the customer attends.</li>
+                                    <li>Choose a <strong>Contract Duration</strong> (3 months, 6 months, or 1 year).</li>
+                                    <li>Choose <strong>Payment Terms</strong> and <strong>Cycle Length</strong> (see below).</li>
+                                    <li>Check the preview — it shows the total session count, end date, and billing summary.</li>
+                                    <li>Click <strong>Create Series</strong> to confirm.</li>
                                 </ol>
                             </div>
-                            
+
                             <div class="sub-card">
                                 <h4>Process / Record Series Payment</h4>
                                 <ol class="styled-ol">
-                                    <li>Go to <strong>Recurring</strong> in sidebar.</li>
-                                    <li>Locate target customer series card.</li>
-                                    <li>Inspect the badge status: <span class="status-badge green">Paid</span>, <span class="status-badge amber">Due</span>, or <span class="status-badge red">Overdue</span>.</li>
-                                    <li>Click <strong>Record Payment</strong> (available when payment cycle is active).</li>
-                                    <li>Confirm cash/card amount and select <strong>Confirm Payment</strong>.</li>
+                                    <li>Go to <strong>Recurring</strong> in the sidebar.</li>
+                                    <li>Locate the customer's series card.</li>
+                                    <li>Check the badge: <span class="status-badge green">Paid</span>, <span class="status-badge amber">Due</span>, or <span class="status-badge red">Overdue</span>.</li>
+                                    <li>Click <strong>Record Payment</strong> (shown when a cycle is outstanding).</li>
+                                    <li>Enter the amount, select the payment method, and click <strong>Confirm Payment</strong>.</li>
                                 </ol>
+                            </div>
+                        </div>
+
+                        <!-- Frequency vs Cycle Length explanation -->
+                        <div class="sub-card" style="margin-top:1.25rem">
+                            <h4>Frequency vs Cycle Length — what's the difference?</h4>
+                            <p style="margin-bottom:1rem;font-size:.9rem;">These two fields control different things. <strong>Frequency</strong> sets how often sessions happen. <strong>Cycle Length</strong> sets how often the customer is <em>billed</em>.</p>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Field</th>
+                                            <th>What it controls</th>
+                                            <th>Options</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Frequency</strong></td>
+                                            <td>How often sessions are scheduled</td>
+                                            <td>Weekly · Every 2 Weeks (Fortnightly) · Monthly</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Cycle Length</strong></td>
+                                            <td>How often a payment is collected</td>
+                                            <td>1 week · 2 weeks · 4 weeks · 8 weeks · 12 weeks</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p style="margin-top:1rem;font-size:.88rem;"><strong>Example:</strong> A customer books every Monday (Frequency = Weekly). You set Cycle Length = 4 weeks — so they're billed once every four sessions. You could equally set it to 1 week (pay weekly) or 8 weeks (pay every two months). The sessions don't change, only the payment cadence does.</p>
+                            <div class="info-box" style="margin-top:1rem">
+                                <strong>💡 When Cycle Length is hidden:</strong>
+                                <ul style="margin:.5rem 0 0 1.25rem;font-size:.86rem">
+                                    <li><strong>Pay In Full</strong> — only one charge covers the whole contract, so there are no cycles to configure.</li>
+                                    <li><strong>Monthly frequency</strong> — the billing period is locked to one calendar month automatically and cannot be changed.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Frequency options detail -->
+                        <div class="sub-card" style="margin-top:1.25rem">
+                            <h4>Frequency options explained</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Frequency</th>
+                                            <th>How sessions are scheduled</th>
+                                            <th>Example (12-week contract, 1 day/week)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Weekly</strong></td>
+                                            <td>Same day(s) every week</td>
+                                            <td>12 sessions total</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Every 2 Weeks (Fortnightly)</strong></td>
+                                            <td>Same day(s) every other week</td>
+                                            <td>6 sessions total</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Monthly</strong></td>
+                                            <td>Same weekday position each month — e.g. if the start date is the 2nd Monday, every subsequent month the 2nd Monday is booked</td>
+                                            <td>3 sessions total (one per month)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="info-box" style="margin-top:1rem">
+                                <strong>💡 Monthly booking tip:</strong> The system automatically locks to the correct weekday position from the start date. If you open the drawer on a 3rd Thursday, every month will book the 3rd Thursday — you don't need to calculate this yourself. The session preview will show the exact dates before you confirm.
                             </div>
                         </div>
                     </div>
