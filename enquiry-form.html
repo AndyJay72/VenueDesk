@@ -30,9 +30,6 @@
             overflow-x: hidden;
         }
         .page-wrap { width: 100%; max-width: 860px; }
-        .page-header { margin-bottom: 1.75rem; }
-        .page-header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
-        .page-header p { color: var(--text-muted); font-size: 0.88rem; }
         .form-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -145,18 +142,42 @@
             .form-grid { grid-template-columns: 1fr; }
             .full-width { grid-column: span 1; }
         }
-        .venue-badge {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 5px 14px;
-            background: rgba(99,102,241,0.13);
-            border: 1px solid rgba(99,102,241,0.3);
-            border-radius: 20px;
-            font-size: 0.8rem; font-weight: 700;
-            color: #a5b4fc;
-            letter-spacing: 0.03em;
-            margin-bottom: 0.75rem;
+        /* ── Brand Hero ─────────────────────────────────────────── */
+        .brand-hero {
+            background: linear-gradient(135deg, #312e81 0%, #4338ca 40%, #6366f1 70%, #818cf8 100%);
+            border-radius: 16px 16px 0 0;
+            padding: 2.5rem 2rem 2rem;
+            text-align: center;
+            margin: -2rem -2rem 2rem -2rem;
+            position: relative;
+            overflow: hidden;
         }
-        .venue-badge i { font-size: 0.75rem; }
+        .brand-hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 60% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .brand-avatar {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.18);
+            border: 3px solid rgba(255,255,255,0.35);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.1rem;
+            font-size: 1.9rem; font-weight: 800; color: #fff;
+            letter-spacing: -1px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .brand-avatar i { font-size: 1.6rem; }
+        .brand-hero h1 {
+            font-size: 1.65rem; font-weight: 800; color: #fff;
+            margin-bottom: 0.4rem; text-shadow: 0 1px 6px rgba(0,0,0,0.25);
+        }
+        .brand-hero p {
+            color: rgba(255,255,255,0.78); font-size: 0.88rem; font-weight: 500;
+        }
         .error-banner {
             background: rgba(239,68,68,0.12);
             border: 1px solid rgba(239,68,68,0.3);
@@ -172,20 +193,21 @@
 </head>
 <body>
     <div class="page-wrap">
-        <div class="page-header">
-            <div class="venue-badge" id="venueBadge" style="display:none">
-                <i class="fa-solid fa-building"></i>
-                <span id="venueNameDisplay"></span>
-            </div>
-            <h1 id="pageTitle">Event Enquiry</h1>
-            <p>Check availability instantly and secure your date.</p>
-        </div>
         <div id="errorBanner" style="display:none" class="error-banner">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <h2>Invalid Venue Link</h2>
             <p>This enquiry form link is missing or contains an invalid venue identifier. Please use the link provided by your venue — it should look like <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:.85em;">enquiry-form.html?t=1001</code>.</p>
         </div>
         <form id="enquiryForm" class="form-card" onsubmit="return false;">
+
+            <!-- BRAND HERO -->
+            <div class="brand-hero" id="brandHero">
+                <div class="brand-avatar" id="brandAvatar">
+                    <i class="fa-solid fa-building"></i>
+                </div>
+                <h1 id="pageTitle">Event Enquiry</h1>
+                <p id="heroSubtitle">Check availability instantly and secure your date.</p>
+            </div>
 
             <!-- CONTACT DETAILS -->
             <div class="form-section-title"><i class="fa-solid fa-user"></i> Contact Details</div>
@@ -414,11 +436,14 @@
                 const j = await r.json();
                 const d = j.data || j || {};
 
-                // Venue name
+                // Venue name — populate brand hero
                 if (d.venue_name) {
-                    document.getElementById('venueNameDisplay').textContent = d.venue_name;
-                    document.getElementById('venueBadge').style.display     = 'inline-flex';
-                    document.getElementById('pageTitle').textContent         = 'Event Enquiry — ' + d.venue_name;
+                    const firstLetter = d.venue_name.trim().charAt(0).toUpperCase();
+                    const avatarEl    = document.getElementById('brandAvatar');
+                    avatarEl.innerHTML = '';
+                    avatarEl.textContent = firstLetter;
+                    document.getElementById('pageTitle').textContent    = d.venue_name;
+                    document.getElementById('heroSubtitle').textContent = 'Submit a booking request for ' + d.venue_name + '.';
                     document.title = 'Event Enquiry | ' + d.venue_name;
                 }
 
@@ -1008,7 +1033,7 @@
                         amount:             depositAmt,   // validated > 0 at top of function
                         booking_request_id: bookingRequestId,
                         description:        `Deposit — ${payload.event_type} at ${payload.room_name} on ${payload.date_from}`,
-                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}&venue=' + encodeURIComponent(document.getElementById('venueNameDisplay').textContent || '') + '&booking=' + encodeURIComponent(bookingRequestId || ''),
+                        success_url: 'https://andyjay72.github.io/VenueDesk/checkout.html?session_id={CHECKOUT_SESSION_ID}&venue=' + encodeURIComponent(document.getElementById('pageTitle').textContent || '') + '&booking=' + encodeURIComponent(bookingRequestId || ''),
                         cancel_url:  window.location.href,
                     }),
                 });
