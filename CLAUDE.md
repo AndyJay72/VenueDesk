@@ -4158,6 +4158,155 @@ loop, sending real emails on every iteration until n8n's execution limit is reac
 Real emails will be sent. If testing against a real inbox, use a test email address or
 ensure SMTP rate limits won't be hit by rapid consecutive test runs.
 
+---
+
+## Pattern 32 — Playwright LIFO Route Ordering: Catch-Alls First, Specific Routes Last
+
+**Problem:** Playwright matches `page.route()` handlers in **LIFO** (last-in, first-out) order —
+the most recently registered route is checked first. If you register a specific route before a
+catch-all, the catch-all is registered last and therefore wins, silently swallowing all requests
+before the specific handler is ever reached.
+
+**Classic failure (September 2026):**
+```javascript
+// WRONG — catch-all registered LAST = checked FIRST = swallows everything
+await page.route('**/webhook/get-settings**',    handler_A);   // registered 1st = checked last
+await page.route('**/webhook/update-setting**',  handler_B);   // registered 2nd = checked 2nd
+await page.route('**/n8n.srv1090894.../webhook/**', catch_all); // registered 3rd = checked FIRST
+// handler_A and handler_B never fire
+```
+
+**Rule:** Register catch-alls FIRST, specific routes AFTER. LIFO ensures specific routes are
+checked before the catch-all falls through.
+
+```javascript
+// CORRECT — LIFO means last-in wins; specific routes registered LAST = checked FIRST
+await page.route('**/n8n.srv1090894.../webhook/**', catch_all); // checked last
+await page.route('**/api.venuedesk.co.uk/**',       db_catch);  // checked 2nd-last
+await page.route('**/webhook/update-setting**',     capture_B); // checked 2nd
+await page.route('**/webhook/get-settings**',       capture_A); // checked FIRST
+```
+
+This ordering rule applies to **every test** that mixes specific capture routes with generic
+catch-alls. When a test overrides just one specific route (e.g. to simulate a 500 error),
+register the override AFTER the generic `mockAPIs()` call so the override wins:
+
+```javascript
+await mockAPIs(page);   // catch-alls + generic handlers (checked last)
+await page.route('**/webhook/update-setting**', errorRoute);  // override wins (LIFO)
+```
+
+**Interaction with Pattern 22 (trailing `**`):** Both rules apply simultaneously.
+A specific route must have a trailing `**` to match query strings AND be registered after the
+catch-all to win the LIFO race.
+
+---
+
+## Pattern 33 — Playwright: Range Input Requires `page.evaluate()`, Not `page.fill()`
+
+**Problem:** `page.fill('#slider', '14')` sets the DOM `value` property of an `input[type=range]`
+but does **not** fire the `input` event. Any `oninput` handler that reads `this.value` never
+runs, so dependent UI (display labels, live previews) stays on the old value.
+
+`page.dispatchEvent('#slider', 'input')` alone also fails because it dispatches the event
+without first updating `element.value`.
+
+**Rule:** For `input[type=range]`, set value and fire the event together via `page.evaluate()`:
+
+```javascript
+// WRONG — fill() doesn't fire oninput; dispatchEvent alone doesn't update value
+await page.fill('#autoCancelDaysSlider', '14');
+await page.dispatchEvent('#autoCancelDaysSlider', 'input');
+
+// CORRECT — both happen in the same script context, oninput sees the new this.value
+await page.evaluate((val) => {
+  const el = document.getElementById('autoCancelDaysSlider');
+  el.value = String(val);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}, 14);
+```
+
+**Also applies to:** any `input[type=range]`, `input[type=color]`, or other non-text inputs
+where the browser normally synthesises an `input` event on user drag — Playwright's `fill()`
+does not replicate that synthesis.
+
+---
+
+## Pattern 34 — Playwright: `addInitScript` Before `page.goto()` for Auth-Gated Pages
+
+**Problem:** Pages with a Rule F4 auth guard run the redirect check synchronously when the
+`<script>` block executes during page load. Calling `page.goto()` first and then injecting
+sessionStorage via `page.evaluate()` is too late — the guard already fired and redirected to
+`login.html`.
+
+**Rule:** Use `page.addInitScript()` BEFORE `page.goto()`. The init script runs before any
+page JavaScript, so sessionStorage is populated when the F4 IIFE executes.
+
+```javascript
+// WRONG — guard fires on goto(), before evaluate() can inject the token
+await page.goto('/admin-config.html');
+await page.evaluate(() => sessionStorage.setItem('vp_token', token));
+
+// CORRECT — addInitScript fires before page scripts on every navigation
+await page.addInitScript(({ tok, usr }) => {
+  sessionStorage.setItem('vp_token',     tok);
+  sessionStorage.setItem('vp_tenant_id', '1001');
+  sessionStorage.setItem('vp_user',      usr);
+}, { tok: makeToken(), usr: JSON.stringify(user) });
+await page.goto('/admin-config.html');  // guard sees the token ✓
+```
+
+**Token generation:** Use a proper `makeToken()` helper (Node.js `Buffer.from().toString('base64url')`)
+to produce a JWT that passes the `exp`, `user_id`, and `tenant_id` claim checks. A hardcoded
+fake base64 string works only if none of the claim fields are validated at load time.
+See `tests/playwright/audit_log_staff_e2e.spec.js` for the reference implementation.
+
+**Route registration order:** `addInitScript` + `page.route()` must both be called before
+`page.goto()`. Calling `page.route()` after `goto()` risks missing requests that fire during
+the initial page load.
+
+---
+
+## Pattern 35 — Python requests: `bool(Response)` Is False for 4xx/5xx
+
+**Problem:** Python's `requests.Response` object evaluates as `False` in a boolean context
+when `status_code >= 400`. The pattern `if not r` (intending to check for a network error)
+silently matches any non-2xx HTTP response, swallowing the actual status code and body.
+
+**Classic failure (September 2026):**
+```python
+r, e = api("POST", "/config/rooms/create", json={...})
+if e or not r or r.status_code not in (200, 201):
+    print(f"failed: {e or r.status_code}")   # never prints — bool(r) is False for 403/409
+    return None
+```
+When `r` is a `409 Conflict`, `not r` is `True` → the print is skipped → caller gets `None`
+silently → test skips with no diagnostic output.
+
+**Rule:** Always use `r is None` to check for network failure. Check `r.status_code` explicitly
+for HTTP errors:
+
+```python
+# WRONG — 4xx response silently caught as "no response"
+if e or not r or r.status_code not in (200, 201):
+    print(f"failed: {e or (r.status_code if r else '?')}")  # if r = False for 4xx
+
+# CORRECT — None check separates TCP failure from HTTP failure
+if e or r is None or r.status_code not in (200, 201):
+    body = r.text[:120] if r is not None else ""
+    print(f"failed: {e or r.status_code} {body}")
+```
+
+**Also applies to:** any conditional that tests `if r`, `r and ...`, or `r.text[:N] if r else`.
+Replace every occurrence with `r is not None`.
+
+**Service endpoint empty-body note:** Fastify's JSON body parser runs **before** the
+`preHandler` auth hook. A POST with `Content-Type: application/json` but no body returns `400`
+(body parse error), not `401`. Service endpoints that take no input must be called with
+`json={}` (empty object) to avoid a 400 before authentication even runs.
+
+---
+
 ## Enquiry Form → Notification Webhook
 
 Both submission paths in `enquiry-form.html` now fire a fire-and-forget POST to
