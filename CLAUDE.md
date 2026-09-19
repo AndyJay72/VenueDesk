@@ -1852,8 +1852,30 @@ Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-co
 | 6a Race condition | 1 of 5 succeeds | ✅ Fixed — migration 022 unique index; 4 siblings get TCP reset (correct) |
 | 6b No TCP drops | status 0 on 4 threads | Known — the 23505 catch closes the connection before the losing threads receive a clean 409; functionally correct, test assertion too strict |
 | 7a No auth header | Returns 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct behaviour |
+| 12a No auth → 400 not 401 | Returns 400 | Expected — Fastify body parser fires before auth preHandler; same pattern as 7a. Critical check (not 200) passes. |
 
-**Current QA baseline (August 9 2026):** 53 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+**Current QA baseline (September 19 2026):** 53 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+
+## Lifecycle-specific test suite
+
+`venuedesk-api/tests/qa_unpaid_lifecycle.py` — standalone harness for the Auto-Cancel Unpaid Bookings feature. Run independently against the live API.
+
+```bash
+export VD_JWT_TOKEN="<CYCLE_SWEEP_SERVICE_JWT>"
+python3 venuedesk-api/tests/qa_unpaid_lifecycle.py
+```
+
+**Baseline (September 19 2026):** 9 PASS · 0 CRITICAL · 0 FAIL · 0 SKIP
+
+| Test | Coverage |
+|------|---------|
+| 12a | No-auth returns 400/401 — never 200 |
+| 12b | Admin JWT dry run → `{success, auto_cancel_days, warnings_to_send[], cancellations_to_send[]}` |
+| 12c | Warning-window booking (today+8) appears in `warnings_to_send` |
+| 12d | Idempotency — same booking NOT re-warned on second sweep |
+| 12e | Cancel-window booking (today+3) → `status='cancelled'` in DB |
+| 12f | Manual cancel succeeds + re-cancel returns 404 (booking deleted from confirmed_bookings) |
+| 12g | Fully-paid booking (`balance_due=0`) excluded from sweep — CRITICAL if it appeared |
 
 ---
 
@@ -3831,7 +3853,9 @@ npm run test:ui                   # Playwright UI explorer
 
 Exit codes: `0` = all pass, `1` = failures.
 
-**Current baseline (June 27 2026):** 60 PASS · 0 FAIL — confirmed after hierarchical room partitioning feature (no regressions)
+**Current baseline (September 19 2026):** 71 PASS · 0 FAIL
+- 60 existing tests (onboarding, calendar_recurring, theme_editor, audit_log_staff_e2e) — no regressions
+- 11 new: `admin_config_autocancel.spec.js` — Auto-Cancel Unpaid Bookings slider
 
 ## Test sections
 
@@ -3850,6 +3874,34 @@ Exit codes: `0` = all pass, `1` = failures.
 | 11 | Enquiry link copy | Button count, clipboard copy + success toast |
 | 12 | Sidebar navigation | All nav links, active class, dashboard href, collapse toggle |
 | 13 | Topbar & refresh | Card refresh reloads venues, topbar refresh icon, logout clears session |
+
+## `admin_config_autocancel.spec.js` — Auto-Cancel Unpaid Bookings (11 tests)
+
+**File:** `tests/playwright/admin_config_autocancel.spec.js`
+**Page under test:** `admin-config.html` → Cancellation Policy tab
+
+All n8n + db-api calls mocked via `page.route()` (LIFO ordering — catch-alls first, specific routes after).
+`addInitScript` injects session before `page.goto()` to bypass the F4 auth guard.
+Range slider value set via `page.evaluate()` — `page.fill()` does not fire `oninput` on `input[type=range]`.
+
+| # | Test | Coverage |
+|---|------|---------|
+| 1 | Card and slider present | `#autoCancelDaysSlider`, `#autoCancelDaysLabel`, heading visible |
+| 2 | Default value = 7 | Slider reads 7, label reads "7 days" after `loadCancellationPolicy()` settles |
+| 3 | Range attributes | `min=1`, `max=30` |
+| 4a | Live update to 14 | evaluate() sets value → `oninput` fires → label becomes "14 days" |
+| 4b | Singular at min | Value 1 → label "1 day" (not "1 days") |
+| 5 | Loads from API (14) | Mock returns `auto_cancel_unpaid_days=14` → slider and display value both 14 |
+| 6 | Save POSTs correct value | Capture route records `update-setting` body → key/value verified |
+| 7 | Promise.all — all 4 keys | All four `cancel_*` settings sent in one batch |
+| 8 | Failed save re-enables | 500 from update-setting → button re-enabled, status text non-empty |
+| 9 | Copy mentions 48 hours | Inner text of cancellation tab contains "48 hours" and "automatically cancelled" |
+| 10 | Copy mentions 08:00 | Inner text contains "08:00" (daily cron run time) |
+
+**Known patterns applied:**
+- Pattern 22: LIFO route ordering (catch-all registered first, specific routes after so they win)
+- `postDataJSON()` is synchronous — use `try/catch` not `.catch()`
+- `page.waitForTimeout(400)` after tab open lets `loadSettings().then(loadCancellationPolicy)` settle before slider manipulation
 
 ## Mock helper — `mockN8N(page)`
 
