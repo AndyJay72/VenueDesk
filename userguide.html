@@ -1623,6 +1623,9 @@
                 <a href="#cancelling" class="nav-item">
                     <span>5️⃣</span> Cancelling
                 </a>
+                <a href="#auto-cancel" class="nav-item">
+                    <span>🤖</span> Auto-Cancel Unpaid
+                </a>
                 <a href="#manual-payments" class="nav-item">
                     <span>💰</span> Manual Payments
                 </a>
@@ -2421,6 +2424,63 @@
                     </div>
                 </section>
 
+                <!-- Auto-Cancel Unpaid Bookings -->
+                <section id="auto-cancel" class="section-card">
+                    <div class="card-header">
+                        <h2>🤖 Auto-Cancel Unpaid Bookings</h2>
+                        <a class="header-anchor" onclick="copyAnchorLink('auto-cancel')">🔗 Copy link</a>
+                    </div>
+                    <div class="card-body">
+                        <p>VenueDesk automatically monitors every confirmed booking with an outstanding balance and cancels it if payment is not received by the configurable deadline. The system runs silently every morning at 08:00 — no staff action required.</p>
+
+                        <h3 style="margin:1.25rem 0 .75rem">How it works</h3>
+                        <div class="table-container" style="margin-bottom:1.5rem">
+                            <table>
+                                <thead>
+                                    <tr><th style="width:180px">Day</th><th>What happens</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Deadline − 2 days</strong></td>
+                                        <td>Customer receives a <span class="status-badge amber">⚠️ Payment Reminder</span> email warning that the booking will be cancelled in 48 hours if the balance remains unpaid.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Deadline day</strong></td>
+                                        <td>Booking is automatically set to <span class="status-badge red">Cancelled</span>, balance is zeroed, and the customer receives a <span class="status-badge red">❌ Booking Cancelled</span> notification.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="grid-2-col" style="margin-bottom:1.5rem">
+                            <div class="sub-card">
+                                <h4>⚙️ Configuring the deadline</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:.75rem">Set how many days before the event an unpaid booking is cancelled:</p>
+                                <ul style="font-size:.85rem;color:var(--text-muted);padding-left:1.25rem;line-height:1.9">
+                                    <li>Go to <strong>Admin Config → Cancellation Policy</strong></li>
+                                    <li>Scroll to the <strong>Auto-Cancel Unpaid Bookings</strong> card</li>
+                                    <li>Drag the slider (1–30 days, default 7)</li>
+                                    <li>Click <strong>Save Cancellation Policy</strong></li>
+                                </ul>
+                                <p style="font-size:.8rem;color:var(--text-muted);margin-top:.75rem">Example: set to 7 days → warning sent 5 days before the event, cancellation fires 7 days before.</p>
+                            </div>
+                            <div class="sub-card">
+                                <h4>🛡️ What is and isn't affected</h4>
+                                <ul style="font-size:.85rem;color:var(--text-muted);padding-left:1.25rem;line-height:1.9;margin-top:.5rem">
+                                    <li><strong>Affected:</strong> any confirmed booking with <code>balance_due &gt; 0</code> within the deadline window</li>
+                                    <li><strong>Not affected:</strong> fully paid bookings, deposit-only bookings marked fully paid, bookings already cancelled</li>
+                                    <li><strong>Recurring series:</strong> individual unpaid sessions are cancelled; the series itself is not deactivated</li>
+                                    <li><strong>Override:</strong> record a payment before the deadline and the booking is safe</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <span class="badge-warning-text">
+                            ⚠️ Auto-cancellations are logged in the Audit Log with category <strong>Failed to Pay</strong>. Staff-initiated cancellations show <strong>Customer Cancelled</strong>. Both appear on the Accounts page.
+                        </span>
+                    </div>
+                </section>
+
                 <!-- Manual Payments -->
                 <section id="manual-payments" class="section-card">
                     <div class="card-header">
@@ -2518,6 +2578,16 @@
                                         <td>Enquiry pending 4–7 days with no deposit (daily at 08:00)</td>
                                         <td>Customer</td>
                                         <td><span class="status-badge amber">⏰ Action required: Your enquiry expires in X days</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Confirmed booking has unpaid balance — 2 days before auto-cancel deadline (daily at 08:00)</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge amber">⚠️ Action required: Outstanding balance on your booking</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Booking auto-cancelled — balance not received by deadline (daily at 08:00)</td>
+                                        <td>Customer</td>
+                                        <td><span class="status-badge red">❌ Booking cancelled — outstanding balance not received</span></td>
                                     </tr>
                                 </tbody>
                             </table>
