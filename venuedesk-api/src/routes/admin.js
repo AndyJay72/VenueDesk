@@ -311,6 +311,182 @@ async function adminRoutes(fastify) {
       healthy: data.every(d => d.status === 'success') && neverRan.length === 0,
     };
   });
+
+  // ── POST /admin/process-unpaid-lifecycle ─────────────────────────────────────
+  // Cron-triggered daily sweep (08:00 via UnpaidBookingLifecycle n8n workflow).
+  // Caller must hold role:'admin' — enforced by the scope preHandler above.
+  //
+  // Step 1 — Warnings: bulk-SET unpaid_warning_sent_at on bookings where the event
+  //   is approaching the auto-cancel deadline (within cancel_days + 2 days).
+  //   Returns the warned rows for the n8n workflow to loop over and email.
+  //
+  // Step 2 — Cancellations: capture pre-update data, then bulk-SET status='cancelled'
+  //   + balance_due=0 on overdue unpaid bookings, and bulk-INSERT into
+  //   bookings.cancellations with category='Failed to Pay'.
+  //   Returns the cancelled rows for the n8n workflow to loop over and email.
+  //
+  // Uses systemQuery (superuser pool, bypasses RLS) — cross-tenant by design.
+  // UNNEST bulk-insert avoids N+1 per-row statements; no $N type conflicts (Pattern 3).
+  fastify.post('/process-unpaid-lifecycle', async () => {
+    // ── Resolve auto_cancel_days setting (global default 7) ───────────────────
+    const { rows: settingRows } = await systemQuery(
+      `SELECT value FROM bookings.settings WHERE key = 'auto_cancel_unpaid_days' LIMIT 1`
+    );
+    const autoCancelDays = settingRows.length > 0
+      ? (parseInt(settingRows[0].value, 10) || 7)
+      : 7;
+    const warnWindowDays = autoCancelDays + 2;
+
+    // ── Step 1: Bulk-UPDATE warnings ──────────────────────────────────────────
+    // $1::integer is used once as a multiplier for INTERVAL '1 day' — no 42P08 risk.
+    const { rows: warnUpdated } = await systemQuery(
+      `UPDATE bookings.confirmed_bookings
+       SET    unpaid_warning_sent_at = NOW()
+       WHERE  balance_due > 0
+         AND  status NOT IN ('cancelled', 'fully_paid', 'paid', 'overridden')
+         AND  unpaid_warning_sent_at IS NULL
+         AND  COALESCE(booking_date, date_from) <= CURRENT_DATE + $1::integer * INTERVAL '1 day'
+       RETURNING id, tenant_id, customer_id, room_id,
+                 COALESCE(booking_date, date_from) AS event_date,
+                 start_time, end_time, balance_due`,
+      [warnWindowDays]
+    );
+
+    let warningsToSend = [];
+    if (warnUpdated.length > 0) {
+      const warnIds = warnUpdated.map(r => r.id);
+      const { rows } = await systemQuery(
+        `SELECT cb.id            AS booking_id,
+                cb.tenant_id,
+                cu.email         AS customer_email,
+                cu.full_name     AS customer_name,
+                r.name           AS room_name,
+                ten.name         AS venue_name,
+                COALESCE(cb.booking_date, cb.date_from)::text AS event_date,
+                cb.start_time::text,
+                cb.end_time::text,
+                cb.balance_due::text
+         FROM   bookings.confirmed_bookings cb
+         JOIN   bookings.customers cu  ON cu.id         = cb.customer_id
+         JOIN   bookings.rooms     r   ON r.id          = cb.room_id
+         JOIN   bookings.tenants   ten ON ten.tenant_id = cb.tenant_id
+         WHERE  cb.id = ANY($1::uuid[])`,
+        [warnIds]
+      );
+      warningsToSend = rows;
+    }
+
+    // ── Step 2a: Pre-SELECT overdue unpaid bookings (capture before zeroing) ──
+    // Must read balance_due and status BEFORE the UPDATE or they'll be 0/'cancelled'.
+    const { rows: toCancel } = await systemQuery(
+      `SELECT cb.id,
+              cb.tenant_id,
+              cb.customer_id,
+              cb.room_id,
+              cb.booking_date,
+              cb.date_from,
+              cb.date_to,
+              cb.start_time,
+              cb.end_time,
+              cb.total_amount,
+              cb.deposit_paid,
+              cb.balance_due,
+              cb.status,
+              cu.email         AS customer_email,
+              cu.full_name     AS customer_name,
+              r.name           AS room_name,
+              ten.name         AS venue_name,
+              COALESCE(cb.booking_date, cb.date_from)::text AS event_date
+       FROM   bookings.confirmed_bookings cb
+       JOIN   bookings.customers cu  ON cu.id         = cb.customer_id
+       JOIN   bookings.rooms     r   ON r.id          = cb.room_id
+       JOIN   bookings.tenants   ten ON ten.tenant_id = cb.tenant_id
+       WHERE  cb.balance_due > 0
+         AND  cb.status NOT IN ('cancelled', 'fully_paid', 'paid', 'overridden')
+         AND  COALESCE(cb.booking_date, cb.date_from) <= CURRENT_DATE + $1::integer * INTERVAL '1 day'`,
+      [autoCancelDays]
+    );
+
+    let cancellationsToSend = [];
+    if (toCancel.length > 0) {
+      const cancelIds = toCancel.map(r => r.id);
+
+      // ── Step 2b: Bulk UPDATE — mark cancelled, zero balance ───────────────
+      await systemQuery(
+        `UPDATE bookings.confirmed_bookings
+         SET    status      = 'cancelled',
+                balance_due = 0,
+                updated_at  = NOW()
+         WHERE  id = ANY($1::uuid[])`,
+        [cancelIds]
+      );
+
+      // ── Step 2c: Bulk INSERT into cancellations via UNNEST ────────────────
+      // Each $N appears exactly once with an explicit type cast — no 42P08 risk.
+      // Literal strings for reason/cancelled_by/category are embedded in SQL
+      // (not repeated $N in conflicting contexts).
+      await systemQuery(
+        `INSERT INTO bookings.cancellations
+           (tenant_id, original_booking_id, customer_id, room_id,
+            booking_date, date_from, date_to, start_time, end_time,
+            total_amount, deposit_paid, balance_due,
+            reason, cancelled_by, original_status, category, cancelled_at)
+         SELECT
+           unnest($1::integer[]),
+           unnest($2::uuid[]),
+           unnest($3::uuid[]),
+           unnest($4::uuid[]),
+           unnest($5::date[]),
+           unnest($6::date[]),
+           unnest($7::date[]),
+           unnest($8::time[]),
+           unnest($9::time[]),
+           unnest($10::numeric[]),
+           unnest($11::numeric[]),
+           unnest($12::numeric[]),
+           'Automatically cancelled — balance unpaid',
+           'VenueDesk System',
+           unnest($13::text[]),
+           'Failed to Pay',
+           NOW()`,
+        [
+          toCancel.map(r => r.tenant_id),
+          toCancel.map(r => r.id),
+          toCancel.map(r => r.customer_id),
+          toCancel.map(r => r.room_id),
+          toCancel.map(r => r.booking_date),
+          toCancel.map(r => r.date_from),
+          toCancel.map(r => r.date_to),
+          toCancel.map(r => r.start_time),
+          toCancel.map(r => r.end_time),
+          toCancel.map(r => r.total_amount),
+          toCancel.map(r => r.deposit_paid),
+          toCancel.map(r => r.balance_due),
+          toCancel.map(r => r.status),
+        ]
+      );
+
+      cancellationsToSend = toCancel.map(r => ({
+        booking_id:     r.id,
+        tenant_id:      r.tenant_id,
+        customer_email: r.customer_email,
+        customer_name:  r.customer_name,
+        room_name:      r.room_name,
+        venue_name:     r.venue_name,
+        event_date:     r.event_date,
+        start_time:     r.start_time ? String(r.start_time).slice(0, 5) : null,
+        end_time:       r.end_time   ? String(r.end_time).slice(0, 5)   : null,
+        balance_due:    r.balance_due,
+      }));
+    }
+
+    return {
+      success:               true,
+      auto_cancel_days:      autoCancelDays,
+      warnings_to_send:      warningsToSend,
+      cancellations_to_send: cancellationsToSend,
+    };
+  });
 }
 
 

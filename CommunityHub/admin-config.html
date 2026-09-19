@@ -1041,6 +1041,31 @@
                     </p>
                 </div>
 
+                <!-- Auto-Cancel Unpaid Bookings -->
+                <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--primary);">
+                    <div class="card-title" style="color:var(--primary);">
+                        <i class="fa-solid fa-robot"></i> Auto-Cancel Unpaid Bookings
+                    </div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;line-height:1.6;">
+                        Bookings with an outstanding balance will be <strong style="color:var(--text-main)">automatically cancelled</strong> if the event is within this many days and the balance remains unpaid.
+                        Customers receive a <strong style="color:var(--warning)">warning email 48 hours before</strong> the deadline.
+                    </p>
+                    <div class="input-group">
+                        <label>Cancel deadline — <span id="autoCancelDaysLabel" style="color:var(--primary);">7 days</span> before the event</label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <input type="range" id="autoCancelDaysSlider" min="1" max="30" value="7"
+                                oninput="document.getElementById('autoCancelDaysLabel').textContent=this.value+' '+(this.value==='1'?'day':'days');"
+                                style="flex:1;accent-color:var(--primary);">
+                            <span id="autoCancelDaysVal" style="min-width:36px;text-align:center;font-weight:700;font-size:1.1rem;color:var(--primary);">7</span>
+                            <span style="color:var(--text-muted);font-size:0.85rem;">days</span>
+                        </div>
+                    </div>
+                    <div style="margin-top:0.75rem;padding:10px 14px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:8px;font-size:0.8rem;color:var(--text-muted);line-height:1.5;">
+                        <i class="fa-solid fa-circle-info" style="color:var(--primary);margin-right:6px;"></i>
+                        Runs automatically every morning at 08:00. Only affects bookings that have a balance due. Fully paid bookings are never touched.
+                    </div>
+                </div>
+
                 <button class="btn btn-primary" id="saveCancelPolicyBtn" onclick="saveCancellationPolicy()" style="width:100%;">
                     <i class="fa-solid fa-floppy-disk"></i> Save Cancellation Policy
                 </button>
@@ -2038,9 +2063,10 @@ function _getSetting(key, fallback) {
 }
 
 function loadCancellationPolicy() {
-    const fullDays = _getSetting('cancel_full_refund_days', 14);
-    const partDays = _getSetting('cancel_partial_refund_days', 7);
-    const pct      = _getSetting('cancel_partial_refund_pct', 50);
+    const fullDays       = _getSetting('cancel_full_refund_days', 14);
+    const partDays       = _getSetting('cancel_partial_refund_days', 7);
+    const pct            = _getSetting('cancel_partial_refund_pct', 50);
+    const autoCancelDays = _getSetting('auto_cancel_unpaid_days', 7);
 
     document.getElementById('cancelFullDaysSlider').value    = fullDays;
     document.getElementById('cancelFullDaysVal').textContent = fullDays;
@@ -2049,13 +2075,17 @@ function loadCancellationPolicy() {
     document.getElementById('cancelPctSlider').value         = pct;
     document.getElementById('cancelPctLabel').textContent    = pct + '%';
     document.getElementById('cancelPctVal').textContent      = pct;
+    document.getElementById('autoCancelDaysSlider').value    = autoCancelDays;
+    document.getElementById('autoCancelDaysVal').textContent = autoCancelDays;
+    document.getElementById('autoCancelDaysLabel').textContent = autoCancelDays + ' ' + (autoCancelDays === 1 ? 'day' : 'days');
     updateCancelPreview();
 }
 
 async function saveCancellationPolicy() {
-    const fullDays = parseInt(document.getElementById('cancelFullDaysSlider').value);
-    const partDays = parseInt(document.getElementById('cancelPartialDaysSlider').value);
-    const pct      = parseInt(document.getElementById('cancelPctSlider').value);
+    const fullDays       = parseInt(document.getElementById('cancelFullDaysSlider').value);
+    const partDays       = parseInt(document.getElementById('cancelPartialDaysSlider').value);
+    const pct            = parseInt(document.getElementById('cancelPctSlider').value);
+    const autoCancelDays = parseInt(document.getElementById('autoCancelDaysSlider').value);
 
     if (partDays >= fullDays) {
         showToast('Partial refund threshold must be fewer days than full refund threshold', 'error');
@@ -2075,6 +2105,7 @@ async function saveCancellationPolicy() {
             save('cancel_full_refund_days',    fullDays),
             save('cancel_partial_refund_days', partDays),
             save('cancel_partial_refund_pct',  pct),
+            save('auto_cancel_unpaid_days',    autoCancelDays),
         ]);
         showToast('Cancellation policy saved');
         statusEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Policy saved and active';

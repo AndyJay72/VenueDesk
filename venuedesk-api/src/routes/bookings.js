@@ -941,7 +941,7 @@ async function customersRoutes(fastify) {
            total_amount, deposit_paid, balance_due,
            series_reference,
            recurring_series_id, recurring_rule_id, is_recurring,
-           reason, cancelled_by, original_status, cancelled_at
+           reason, cancelled_by, original_status, category, cancelled_at
          )
          SELECT
            d.tenant_id, d.id, d.customer_id, d.room_id,
@@ -954,7 +954,7 @@ async function customersRoutes(fastify) {
               WHERE rr.id = d.recurring_rule_id LIMIT 1)
            ),
            d.recurring_series_id, d.recurring_rule_id, d.is_recurring,
-           $3, $4, d.status, NOW()
+           $3, $4, d.status, 'Customer Cancelled', NOW()
          FROM deleted d
          RETURNING
            id::text            AS cancellation_id,
