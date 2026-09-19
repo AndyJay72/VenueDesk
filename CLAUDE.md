@@ -2162,6 +2162,7 @@ Creates `bookings.admin_audit_log` and `bookings.system_health` tables.
 | `POST` | `/health/pulse` | Service JWT | n8n cron heartbeat → `system_health` |
 | `POST` | `/admin/audit-log` | Service JWT (admin role) | n8n fan-out writes onboarding actions |
 | `GET` | `/admin/system-logs` | Service JWT (admin role) | Onboarding audit modal reads |
+| `POST` | `/admin/process-unpaid-lifecycle` | Service JWT (admin role) | Daily sweep — bulk-warn + bulk-cancel unpaid bookings; returns `warnings_to_send` + `cancellations_to_send` arrays for n8n email loops |
 
 Smoke-test results: `GET /health/ping` → `{"ok":true}` · `POST /admin/audit-log` → 400
 (correct — empty body fails AJV schema before auth; n8n sends full body) · `GET /admin/system-logs` → 401.
@@ -2771,6 +2772,93 @@ undo/redo button state.
   example and info box for when Cycle Length is hidden
 - New **Frequency options explained** table: session counts per frequency for a 12-week
   contract (Weekly=12, Fortnightly=6, Monthly=3), plus Monthly Nth-weekday tip
+
+---
+
+## 21. Auto-Cancel Unpaid Bookings Lifecycle ✅ DONE (September 19 2026)
+
+Commit `f529431`.
+
+Adds a daily automated sweep that warns customers with an outstanding balance 48 hours
+before their booking is auto-cancelled, then cancels and emails if still unpaid.
+
+### Schema — migration 030
+
+```sql
+ALTER TABLE bookings.cancellations        ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE bookings.confirmed_bookings   ADD COLUMN IF NOT EXISTS unpaid_warning_sent_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_cb_unpaid_sweep ON bookings.confirmed_bookings
+  (tenant_id, booking_date, date_from, balance_due)
+  WHERE status NOT IN ('cancelled','fully_paid','paid','overridden') AND balance_due > 0;
+INSERT INTO bookings.settings (key,value,updated_at) VALUES ('auto_cancel_unpaid_days','7',NOW())
+  ON CONFLICT (key) DO NOTHING;
+```
+
+`category` distinguishes `'Failed to Pay'` (auto-cancel) from `'Customer Cancelled'` (manual cancel).
+`unpaid_warning_sent_at` is the idempotency gate — a NULL value means the warning has not been sent yet.
+
+### Backend — `POST /admin/process-unpaid-lifecycle`
+
+Added to `admin.js`. Protected by the scope-level `role: admin` preHandler. Uses `systemQuery`
+(cross-tenant by design).
+
+**Step 1 — Warnings (bulk):**
+```sql
+UPDATE bookings.confirmed_bookings
+SET unpaid_warning_sent_at = NOW()
+WHERE balance_due > 0
+  AND status NOT IN ('cancelled', 'fully_paid', 'paid', 'overridden')
+  AND unpaid_warning_sent_at IS NULL
+  AND COALESCE(booking_date, date_from) <= CURRENT_DATE + $1::integer * INTERVAL '1 day'
+RETURNING id, tenant_id, customer_id, ...
+```
+`$1 = auto_cancel_days + 2` (the warning fires 2 days before the cancel deadline).
+
+**Step 2 — Cancellations (bulk):**
+1. Pre-SELECT rows with original `balance_due` and `status` (before zeroing)
+2. Bulk `UPDATE ... SET status='cancelled', balance_due=0 WHERE id = ANY($1::uuid[])`
+3. Bulk INSERT via `UNNEST` — each `$N` has one explicit type cast (Pattern 3 safe)
+
+Returns `{ success, auto_cancel_days, warnings_to_send: [...], cancellations_to_send: [...] }`.
+
+**Smoke test:** `curl -X POST https://api.venuedesk.co.uk/admin/process-unpaid-lifecycle` → 401 ✅
+
+### Manual cancel — `bookings.js`
+
+`POST /bookings/cancel` now writes `category = 'Customer Cancelled'` into the CTE INSERT for
+`bookings.cancellations`. Column added to the INSERT list and `'Customer Cancelled'` literal
+added to the SELECT — no parameter renumbering required.
+
+### Admin UI — `admin-config.html`
+
+New "Auto-Cancel Unpaid Bookings" card (indigo border) in the Cancellation Policy tab:
+- Slider: 1–30 days, default 7, label updates live
+- `loadCancellationPolicy()` reads `auto_cancel_unpaid_days` setting (default 7)
+- `saveCancellationPolicy()` adds `save('auto_cancel_unpaid_days', autoCancelDays)` to the
+  existing `Promise.all` — all four settings save in one round-trip
+
+### n8n Workflow — `UnpaidBookingLifecycle.json`
+
+| Node | Purpose |
+|------|---------|
+| `Schedule: Daily 08:00` | Cron `0 8 * * *` |
+| `API: Process Unpaid Lifecycle` | POST `/admin/process-unpaid-lifecycle` with `CYCLE_SWEEP_SERVICE_JWT` |
+| `Code: Split Response` | Tags each item `_type: 'warning'` or `_type: 'cancellation'` |
+| `IF: Is Warning?` | Routes to Warn loop (true) or Cancel loop (false) |
+| `Split: Warn Loop` (batch=1) | Iterates warnings one at a time |
+| `Code: Build Warning Email` | Amber header HTML — 48-hour deadline warning |
+| `Email: Unpaid Warning` | SMTP send — `continueOnFail: true` |
+| `Wait: 2s (warn)` | Hostinger SMTP rate-limit guard |
+| `Split: Cancel Loop` (batch=1) | Iterates cancellations one at a time |
+| `Code: Build Cancel Email` | Red header HTML — booking cancelled notification |
+| `Email: Auto Cancelled` | SMTP send — `continueOnFail: true` |
+| `Wait: 2s (cancel)` | Rate-limit guard |
+
+Loop-back connections: `Wait: 2s (warn)` → `Split: Warn Loop` input 0;
+`Wait: 2s (cancel)` → `Split: Cancel Loop` input 0.
+When each loop's batch is exhausted (output 1), it advances to the next stage.
+
+**Pattern 29 respected:** neither `splitInBatches` node is pinned in `pinData`.
 
 ---
 

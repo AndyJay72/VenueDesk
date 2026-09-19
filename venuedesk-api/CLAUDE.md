@@ -328,8 +328,8 @@ Migrations live in `src/db/migrations/` and run automatically on container start
 
 **Naming:** Files run in lexicographic order. Use `0NN_` prefix. Never renumber existing files — the runner tracks executed migrations by filename.
 
-**Latest migration:** `029_confirmed_bookings_notes.sql` (August 3 2026 — adds `notes TEXT` column to `bookings.confirmed_bookings`)
-**Next number:** `030`
+**Latest migration:** `030_unpaid_lifecycle_tracking.sql` (September 19 2026 — adds `cancellations.category`, `confirmed_bookings.unpaid_warning_sent_at`, unpaid sweep index, seeds `auto_cancel_unpaid_days = 7`)
+**Next number:** `031`
 
 ---
 
