@@ -1,14 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VenueDesk Staff User Guide & Training Interactive Portal</title>
-    
+
     <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Icons — same FA6 instance already used on home.html -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     
     <style>
         /* Modern Design System Tokens */
@@ -1307,6 +1309,53 @@
         }
         .acc-body.open { max-height: 1400px; padding: 1rem 1.25rem 1.25rem; }
 
+        /* ── Icon system ─────────────────────────────────────────────────────────── */
+        /* Sidebar nav icon pill */
+        .nav-icon {
+            width: 1.6rem; height: 1.6rem; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 7px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: .7rem;
+            transition: var(--transition-fast);
+        }
+        .nav-item:hover .nav-icon,
+        .nav-item.active .nav-icon {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
+        /* Section heading icon badge */
+        .sec-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 2rem; height: 2rem; flex-shrink: 0;
+            border-radius: 9px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: .85rem;
+            margin-right: .6rem;
+            vertical-align: middle;
+        }
+        [data-theme="dark"] .sec-icon {
+            background: rgba(99,102,241,.18);
+        }
+
+        /* Numbered section badge (replaces 1️⃣ 2️⃣ etc) */
+        .sec-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.85rem; height: 1.85rem; flex-shrink: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: #fff;
+            font-size: .72rem; font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            margin-right: .6rem;
+            vertical-align: middle;
+            box-shadow: 0 2px 10px rgba(99,102,241,.4);
+        }
+
         /* ── Responsive 3D degradation ──────────────────────────────────────────── */
         @media (max-width: 900px) {
             .sub-card, .quick-ref-item {
@@ -1649,55 +1698,55 @@
             
             <nav class="sidebar-nav">
                 <a href="#quick-ref" class="nav-item active">
-                    <span>⚡</span> Quick Reference
+                    <span class="nav-icon"><i class="fa-solid fa-bolt"></i></span> Quick Reference
                 </a>
                 <a href="#dashboard-hub" class="nav-item">
-                    <span>📊</span> Dashboard Hub
+                    <span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span> Dashboard Hub
                 </a>
                 <a href="#calendar-mgmt" class="nav-item">
-                    <span>📆</span> Calendar Management
+                    <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span> Calendar Management
                 </a>
                 <a href="#sidebar-nav-ref" class="nav-item">
-                    <span>🧭</span> Sidebar Guide
+                    <span class="nav-icon"><i class="fa-solid fa-compass"></i></span> Sidebar Guide
                 </a>
                 <a href="#making-booking" class="nav-item">
-                    <span>1️⃣</span> Make Booking
+                    <span class="nav-icon"><i class="fa-solid fa-circle-plus"></i></span> Make Booking
                 </a>
                 <a href="#customer-notes" class="nav-item">
-                    <span>2️⃣</span> Customer Notes
+                    <span class="nav-icon"><i class="fa-solid fa-pen-to-square"></i></span> Customer Notes
                 </a>
                 <a href="#viewing-bookings" class="nav-item">
-                    <span>3️⃣</span> View Bookings
+                    <span class="nav-icon"><i class="fa-solid fa-list-check"></i></span> View Bookings
                 </a>
                 <a href="#recurring-payments" class="nav-item">
-                    <span>4️⃣</span> Recurring Series
+                    <span class="nav-icon"><i class="fa-solid fa-rotate"></i></span> Recurring Series
                 </a>
                 <a href="#cancelling" class="nav-item">
-                    <span>5️⃣</span> Cancelling
+                    <span class="nav-icon"><i class="fa-solid fa-ban"></i></span> Cancelling
                 </a>
                 <a href="#auto-cancel" class="nav-item">
-                    <span>🤖</span> Auto-Cancel Unpaid
+                    <span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Auto-Cancel Unpaid
                 </a>
                 <a href="#manual-payments" class="nav-item">
-                    <span>💰</span> Manual Payments
+                    <span class="nav-icon"><i class="fa-solid fa-sterling-sign"></i></span> Manual Payments
                 </a>
                 <a href="#divisible-spaces" class="nav-item">
-                    <span>6️⃣</span> Divisible Spaces
+                    <span class="nav-icon"><i class="fa-solid fa-table-cells-large"></i></span> Divisible Spaces
                 </a>
                 <a href="#email-notifications" class="nav-item">
-                    <span>📧</span> Email Notifications
+                    <span class="nav-icon"><i class="fa-solid fa-envelope"></i></span> Email Notifications
                 </a>
                 <a href="#audit-finance" class="nav-item">
-                    <span>🕒</span> Audit &amp; Finance
+                    <span class="nav-icon"><i class="fa-solid fa-chart-simple"></i></span> Audit &amp; Finance
                 </a>
                 <a href="#troubleshooting" class="nav-item">
-                    <span>⚠️</span> Troubleshooting
+                    <span class="nav-icon"><i class="fa-solid fa-triangle-exclamation"></i></span> Troubleshooting
                 </a>
                 <a href="#glossary" class="nav-item">
-                    <span>📖</span> Key Concepts
+                    <span class="nav-icon"><i class="fa-solid fa-book-open"></i></span> Key Concepts
                 </a>
                 <a href="#interactive-simulator" class="nav-item" style="border-top: 1px solid var(--border-color); margin-top: 0.5rem; padding-top: 1rem; color: var(--primary); font-weight: 600;">
-                    <span>🎮</span> Training Simulator
+                    <span class="nav-icon"><i class="fa-solid fa-gamepad"></i></span> Training Simulator
                 </a>
             </nav>
             
@@ -1735,7 +1784,7 @@
                     </button>
                     <!-- Print PDF -->
                     <button class="btn-action" onclick="window.print()">
-                        <span>🖨️</span> Print PDF Reference
+                        <i class="fa-solid fa-print"></i> Print PDF Reference
                     </button>
                     <!-- Launch Simulator shortcut -->
                     <a href="#interactive-simulator" class="btn-action btn-primary">
@@ -1778,7 +1827,7 @@
                 <!-- Quick Reference -->
                 <section id="quick-ref" class="section-card">
                     <div class="card-header">
-                        <h2>⚡ Quick Reference Routes</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-bolt"></i></span>Quick Reference Routes</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('quick-ref')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -1835,7 +1884,7 @@
                 <!-- ── Section A: Dashboard Hub ──────────────────────────────────────── -->
                 <section id="dashboard-hub" class="section-card">
                     <div class="card-header">
-                        <h2>📊 Dashboard Hub — Your Daily Workspace</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-gauge-high"></i></span>Dashboard Hub — Your Daily Workspace</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('dashboard-hub')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -1943,7 +1992,7 @@
                 <!-- ── Section B: Calendar Management ─────────────────────────────────── -->
                 <section id="calendar-mgmt" class="section-card">
                     <div class="card-header">
-                        <h2>📆 Calendar Management</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-calendar-days"></i></span>Calendar Management</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('calendar-mgmt')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2077,7 +2126,7 @@
                 <!-- Sidebar Reference -->
                 <section id="sidebar-nav-ref" class="section-card">
                     <div class="card-header">
-                        <h2>🧭 Sidebar Navigation Reference</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-compass"></i></span>Sidebar Navigation Reference</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('sidebar-nav-ref')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2150,7 +2199,7 @@
                 <!-- Making a Booking -->
                 <section id="making-booking" class="section-card">
                     <div class="card-header">
-                        <h2>1️⃣ Making a Booking — Three Ways</h2>
+                        <h2><span class="sec-num">1</span>Making a Booking — Three Ways</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('making-booking')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2266,7 +2315,7 @@
                 <!-- Customer Notes -->
                 <section id="customer-notes" class="section-card">
                     <div class="card-header">
-                        <h2>2️⃣ Adding Customer Notes & Interaction Records</h2>
+                        <h2><span class="sec-num">2</span>Adding Customer Notes &amp; Interaction Records</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('customer-notes')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2308,7 +2357,7 @@
                 <!-- Viewing Bookings -->
                 <section id="viewing-bookings" class="section-card">
                     <div class="card-header">
-                        <h2>3️⃣ Viewing Existing Bookings</h2>
+                        <h2><span class="sec-num">3</span>Viewing Existing Bookings</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('viewing-bookings')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2350,7 +2399,7 @@
                 <!-- Recurring Payments -->
                 <section id="recurring-payments" class="section-card">
                     <div class="card-header">
-                        <h2>4️⃣ Setting Up Recurring Payments & Series</h2>
+                        <h2><span class="sec-num">4</span>Setting Up Recurring Payments &amp; Series</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('recurring-payments')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2507,7 +2556,7 @@
                 <!-- Cancelling Bookings -->
                 <section id="cancelling" class="section-card">
                     <div class="card-header">
-                        <h2>5️⃣ Cancelling Bookings & Series</h2>
+                        <h2><span class="sec-num">5</span>Cancelling Bookings &amp; Series</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('cancelling')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2548,7 +2597,7 @@
                 <!-- Auto-Cancel Unpaid Bookings -->
                 <section id="auto-cancel" class="section-card">
                     <div class="card-header">
-                        <h2>🤖 Auto-Cancel Unpaid Bookings</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>Auto-Cancel Unpaid Bookings</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('auto-cancel')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2605,7 +2654,7 @@
                 <!-- Manual Payments -->
                 <section id="manual-payments" class="section-card">
                     <div class="card-header">
-                        <h2>💰 Recording a Manual Payment</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-sterling-sign"></i></span>Recording a Manual Payment</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('manual-payments')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2642,7 +2691,7 @@
                 <!-- ── Email Notifications ───────────────────────────────────────────────── -->
                 <section id="email-notifications" class="section-card">
                     <div class="card-header">
-                        <h2>📧 Automatic Email Notifications</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-envelope"></i></span>Automatic Email Notifications</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('email-notifications')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2794,7 +2843,7 @@
                 <!-- ── Section D: Audit Log & Financial Tracking ──────────────────────── -->
                 <section id="audit-finance" class="section-card">
                     <div class="card-header">
-                        <h2>🕒 Audit Log &amp; Financial Tracking</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-chart-simple"></i></span>Audit Log &amp; Financial Tracking</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('audit-finance')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2877,7 +2926,7 @@
                 <!-- Troubleshooting -->
                 <section id="troubleshooting" class="section-card">
                     <div class="card-header">
-                        <h2>⚠️ Troubleshooting Common Problems</h2>
+                        <h2><span class="sec-icon" style="background:rgba(245,158,11,.12);color:var(--warning);"><i class="fa-solid fa-triangle-exclamation"></i></span>Troubleshooting Common Problems</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('troubleshooting')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -2999,7 +3048,7 @@
                 <!-- Divisible Spaces -->
                 <section id="divisible-spaces" class="section-card">
                     <div class="card-header">
-                        <h2>6️⃣ Divisible Spaces — Booking Room Partitions</h2>
+                        <h2><span class="sec-num">6</span>Divisible Spaces — Booking Room Partitions</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('divisible-spaces')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -3213,7 +3262,7 @@
                 <!-- Glossary -->
                 <section id="glossary" class="section-card">
                     <div class="card-header">
-                        <h2>📖 Key Concepts Glossary</h2>
+                        <h2><span class="sec-icon"><i class="fa-solid fa-book-open"></i></span>Key Concepts Glossary</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('glossary')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -3281,7 +3330,7 @@
                 <!-- Interactive Training Simulator -->
                 <section id="interactive-simulator" class="section-card sim-container-card">
                     <div class="card-header">
-                        <h2>🎮 Interactive Training Simulator</h2>
+                        <h2><span class="sec-icon" style="background:rgba(16,185,129,.12);color:var(--success);"><i class="fa-solid fa-gamepad"></i></span>Interactive Training Simulator</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('interactive-simulator')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
@@ -3473,9 +3522,9 @@
         const themeToggleBtn = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
 
-        // Load saved theme — vp_light_mode:'1' = light, else dark
-        const isLight = localStorage.getItem('vp_light_mode') === '1';
-        const savedTheme = isLight ? 'light' : 'dark';
+        // Load saved theme — default light; vp_light_mode:'0' = user switched to dark
+        const savedPref = localStorage.getItem('vp_light_mode');
+        const savedTheme = savedPref === '0' ? 'dark' : 'light';
         htmlElement.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
 
