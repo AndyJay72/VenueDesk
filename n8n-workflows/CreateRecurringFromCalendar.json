@@ -265,7 +265,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, payment_type: $('Parse: Input').first().json?.payment_type || 'none', payment_method: $('Parse: Input').first().json?.payment_method || 'cash', series_reference: $('DB: Insert Rule').first().json.series_reference || '', series_id: $('DB: Insert Rule').first().json.series_id || null }) }}",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, payment_amount: parseFloat($('Parse: Input').first().json?.payment_amount || 0) || 0, payment_type: $('Parse: Input').first().json?.payment_type || 'none', payment_method: $('Parse: Input').first().json?.payment_method || 'cash', series_reference: $('DB: Insert Rule').first().json.series_reference || '', series_id: $('DB: Insert Rule').first().json.series_id || null, cycle_number: 1, period_start: (function() { try { return $('Code: Pick Cycle 1').first().json?.period_start || ''; } catch(e) { return ''; } })(), period_end: (function() { try { return $('Code: Pick Cycle 1').first().json?.period_end || ''; } catch(e) { return ''; } })(), cycle_amount: (function() { try { return parseFloat($('Code: Pick Cycle 1').first().json?.cycle_amount || 0) || 0; } catch(e) { return 0; } })(), billing_type: $('Parse: Input').first().json?.billing_type || 'monthly' }) }}",
         "options": {}
       },
       "id": "b69e0268-9ff2-4182-b625-4d239a0e8dc9",
