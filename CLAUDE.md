@@ -1303,12 +1303,16 @@ enquiry-form.html?t=<tenant_id>
 
 ## Page initialisation
 
-On load: `GET /stripe/config?tenant_id=N` → populates:
+On load: `GET /stripe/config?tenant_id=N` → populates the **brand hero** and Stripe state:
 
-- `#venueNameDisplay` (textContent) + `#venueBadge` (shows venue name badge) + `#pageTitle` + `document.title`
+- `#brandAvatar` `textContent` set to first letter of `d.venue_name` (icon fallback: `fa-building`)
+- `#pageTitle` set to `d.venue_name`; `#heroSubtitle` set to `"Submit a booking request for <venue_name>."`
+- `document.title` set to `"Event Enquiry | <venue_name>"`
 - `efStripeEnabled = true` and `#depositBtn` revealed if `is_stripe_enabled` AND `stripe_publishable_key` are present
 
-`GET /stripe/config` now returns `venue_name` (bug fix June 30 2026 — `name AS venue_name` was missing from SELECT).
+**Fallback (no venue_name):** hero shows "Event Enquiry" heading + building icon in avatar. All form functionality still works.
+
+`GET /stripe/config` returns `venue_name` (bug fix June 30 2026 — `name AS venue_name` was missing from SELECT). The `stripe.js` containing this fix must be deployed to the VPS container for the venue name to appear (redeploy if blank).
 
 ## Data loading (n8n webhooks)
 
@@ -1452,11 +1456,39 @@ The n8n workflow reads `staff_notification_email` from `GET /stripe/config` per-
 | No client-side 90-day guard | API enforced it but form showed no message pre-submit | `numDays > 90` guard in `checkAvailability()` |
 | `checkout.html` showed "our venue" with no booking ref | `success_url` had no `?venue=` or `?booking=` params | Both params added to `success_url` construction |
 
+## Brand hero upgrade (September 19 2026)
+
+Commit `d02e81b`. Replaced the generic `.venue-badge` pill with a full `.brand-hero` gradient header inside the form card. The hero makes the enquiry form feel like the venue's own dedicated booking page.
+
+**Structure:**
+```html
+<div class="brand-hero">           <!-- indigo gradient, border-radius 16px top, negative margin bleed -->
+  <div class="brand-avatar">       <!-- 72×72 frosted circle; first letter of venue name or fa-building icon -->
+  <h1 id="pageTitle">Venue Name</h1>
+  <p id="heroSubtitle">Submit a booking request for Venue Name.</p>
+</div>
+```
+
+**CSS key rules:**
+- `.brand-hero` — `margin: -2rem -2rem 2rem -2rem` bleeds to card edges past the card's `padding:2rem`
+- `.brand-avatar` — letter set via `textContent` (not `innerHTML`) after clearing the icon; XSS-safe
+- `.brand-hero::before` — radial shimmer overlay (no pointer-events)
+
+**`initTenant()` update:** when `d.venue_name` is present:
+```javascript
+avatarEl.innerHTML = '';
+avatarEl.textContent = d.venue_name.trim().charAt(0).toUpperCase();
+document.getElementById('pageTitle').textContent    = d.venue_name;
+document.getElementById('heroSubtitle').textContent = 'Submit a booking request for ' + d.venue_name + '.';
+document.title = 'Event Enquiry | ' + d.venue_name;
+```
+Stripe `success_url` builder changed from `#venueNameDisplay` (removed) to `#pageTitle`.
+
 ## Test suite (all passing)
 
 | File | Tests | Coverage |
 |------|-------|----------|
-| `tests/playwright/enquiry_e2e.js` | 13 | All 7 bugs fixed, venue badge, rooms/types load, avail check, cost calc, success panel, reset, capacity toast |
+| `tests/playwright/enquiry_e2e.js` | 13 | All 7 bugs fixed, brand hero, rooms/types load, avail check, cost calc, success panel, reset, capacity toast |
 | `tests/playwright/enquiry_multiday_e2e.js` | 10 | Multi-day toggle, date guards, 3-day availability, cost×days, submit, reset, probes |
 | `tests/playwright/enquiry_90day_probe.js` | 3 | 91d blocked, 90d allowed, 3d unaffected |
 | `tests/playwright/enquiry_stripe_e2e.js` | 19 | API chain, amount bounds, browser UI, payload validation, Stripe navigation |
@@ -3410,6 +3442,54 @@ The live ID differs from the backup filename — this is expected after re-impor
 
 ---
 
+# 🏷️ index.html — Venue Name in Dashboard Header (September 19 2026)
+
+Commits `ea7a782` (feature) + `dd12ec4` (display fix).
+
+The dashboard header now shows the venue name below the welcome text, fetched once on page load from the public `/stripe/config` endpoint.
+
+## HTML element
+
+```html
+<div class="header-title">
+  <h1>Overview</h1>
+  <p>Welcome back, <span id="hdr-username">Staff Manager</span></p>
+  <p id="hdr-venue-line">
+    <i class="fa-solid fa-building" style="margin-right:5px;opacity:0.75;font-size:0.72rem;"></i>
+    <span id="hdr-venue-name"></span>
+  </p>
+</div>
+```
+
+CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; font-weight:700; }` — hidden by default; JS sets `style.display = 'block'` when the venue name loads.
+
+## loadVenueName() — called immediately after the welcome IIFE
+
+```javascript
+(async function loadVenueName() {
+    const tid = sessionStorage.getItem('vp_tenant_id');
+    if (!tid) return;
+    try {
+        const r = await fetch(`${DASH_DB_API}/stripe/config?tenant_id=${tid}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        const vn = (j.data || j || {}).venue_name;
+        if (vn) {
+            document.getElementById('hdr-venue-name').textContent = vn;
+            document.getElementById('hdr-venue-line').style.display = 'block';  // must be 'block', not ''
+        }
+    } catch(e) {}
+})();
+```
+
+**Critical:** `style.display = ''` cannot override a CSS `display:none` rule — it only clears inline styles. Always set `'block'` explicitly (bug `dd12ec4`).
+
+**Auth:** `/stripe/config` is a public endpoint — no JWT needed. `tenant_id` comes from `sessionStorage.getItem('vp_tenant_id')` which is set at login.
+
+**Regression test:** `tests/playwright/dashboard_venue_name.spec.js` — 2 tests (shows when API returns name; stays hidden when null).
+
+---
+
 # 🛠️ admin-config.html — Architecture Reference (June 2026)
 
 **File:** `CommunityHub/admin-config.html` | **Deployed via:** GitHub Pages
@@ -3853,9 +3933,10 @@ npm run test:ui                   # Playwright UI explorer
 
 Exit codes: `0` = all pass, `1` = failures.
 
-**Current baseline (September 19 2026):** 71 PASS · 0 FAIL
+**Current baseline (September 19 2026):** 112 PASS · 0 FAIL
 - 60 existing tests (onboarding, calendar_recurring, theme_editor, audit_log_staff_e2e) — no regressions
 - 11 new: `admin_config_autocancel.spec.js` — Auto-Cancel Unpaid Bookings slider
+- 2 new: `dashboard_venue_name.spec.js` — venue name shows in header, hidden when null (commit `7cc8bfe`)
 
 ## Test sections
 

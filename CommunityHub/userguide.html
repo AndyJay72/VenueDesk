@@ -1785,6 +1785,7 @@
                     </div>
                     <div class="card-body">
                         <p>The Dashboard (<code>index.html</code>) is the first page you land on after login. It provides a live summary of venue performance, pending work items, and today's schedule — everything you need to manage a shift.</p>
+                        <p style="margin-top:.75rem;">The page header shows your name and your venue name automatically — no setup needed. The venue name is pulled from your account settings and displayed below the welcome message in indigo text.</p>
 
                         <figure class="screenshot-figure">
                             <img src="screenshots/dashboard.png" alt="VenueDesk Dashboard showing revenue stats, pending requests, and upcoming bookings">
@@ -2110,8 +2111,11 @@
 
                             <div class="sub-card" style="grid-column: 1 / -1;">
                                 <h4>📨 Option C — Enquiry Form (Online)</h4>
-                                <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">
+                                <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:0.75rem;">
                                     A public-facing booking request page customers fill in themselves. Share the link directly, embed it on your website, or use it during a telephone enquiry. URL format: <code style="background:rgba(99,102,241,0.12);padding:2px 7px;border-radius:5px;font-size:0.85em;">enquiry-form.html?t=&lt;tenant_id&gt;</code>
+                                </p>
+                                <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">
+                                    The form displays your <strong>venue name</strong> prominently in a branded header — the first letter of your venue name appears in a circular avatar, with the full name and a personalised subtitle below. Customers immediately know they are on your venue's booking page. The venue name is pulled automatically from your account — no extra setup needed.
                                 </p>
 
                                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-bottom:1.25rem;">
