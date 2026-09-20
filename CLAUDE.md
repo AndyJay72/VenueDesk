@@ -2982,8 +2982,24 @@ Safe because: `in_full` bypasses `IF: Cadenced?` entirely (try/catch returns `''
 
 Updated live via `mcp__claude_ai_n8n__update_workflow` — no re-import needed.
 
-**Manual data fix for existing series:** Any `in_advance` series created before this fix
-has cycle 1 stuck as `pending`. Patch via psql:
+**Bulk data fix applied September 20 2026:** All `in_advance` series created before this
+fix had cycle 1 stuck as `pending`. Found 4 affected series (Bright Futures CIC Block,
+Greenleaf Consultancy Block, Harry Kane Block, Mark Anthony Block). Fixed with:
+```sql
+UPDATE bookings.recurring_payment_schedule rps
+SET status = 'paid', paid_at = NOW()
+FROM bookings.recurring_series rs
+WHERE rps.recurring_series_id = rs.id
+  AND rps.cycle_number        = 1
+  AND rps.status              = 'pending'
+  AND rs.payment_timing       = 'in_advance'
+  AND rs.balance_due          = 0;
+-- UPDATE 4 (3 from bulk + Mark Anthony patched individually earlier)
+```
+Verified: all 9 `in_advance` series now show cycle 1 `paid`. Cancelled series cycle 1
+rows (e.g. Greenleaf Consultancy duplicate) correctly remain `cancelled` — not touched.
+
+**If a new series ever needs this fix individually:**
 ```sql
 UPDATE bookings.recurring_payment_schedule
 SET status = 'paid', paid_at = NOW()
