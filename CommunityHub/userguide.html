@@ -1639,28 +1639,64 @@
         }
 
         /* ── RESPONSIVE BREAKPOINTS */
+        /* ── Mobile hamburger button ─────────────────────────────────── */
+        .mob-nav-btn {
+            display: none;
+            align-items: center; justify-content: center;
+            width: 2.4rem; height: 2.4rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-size: 1rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: var(--transition-fast);
+        }
+        .mob-nav-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ── Mobile sidebar overlay ──────────────────────────────────── */
+        .mob-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.45);
+            backdrop-filter: blur(3px);
+            z-index: 198;
+        }
+        .mob-overlay.show { display: block; }
+
         @media (max-width: 1024px) {
             .app-container {
                 grid-template-columns: 1fr;
             }
             aside.sidebar {
-                display: none; /* In production: a toggle drawer. For simple reference guide, we make it responsive */
+                position: fixed;
+                top: 0; left: 0;
+                height: 100vh; width: 280px;
+                z-index: 199;
+                transform: translateX(-100%);
+                transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+                box-shadow: 4px 0 32px rgba(0,0,0,.18);
             }
-            header.top-bar {
-                padding: 1rem 1.5rem;
+            aside.sidebar.mobile-open {
+                transform: translateX(0);
             }
-            main.main-content {
-                padding: 1.5rem;
-            }
+            .mob-nav-btn { display: inline-flex; }
+            header.top-bar { padding: 0.875rem 1.25rem; }
+            main.main-content { padding: 1.5rem; }
         }
 
         @media (max-width: 640px) {
-            .hero-banner h1 {
-                font-size: 1.85rem;
-            }
-            .hero-banner p {
-                font-size: 1rem;
-            }
+            .hero-banner h1 { font-size: 1.6rem; }
+            .hero-banner p  { font-size: .95rem; }
+            /* Hide verbose action bar labels on small screens */
+            .action-buttons .btn-action span,
+            .action-buttons .btn-action i { font-size: .8rem; }
+            /* Collapse Print + Simulator to icon-only */
+            .action-btn-label { display: none; }
+            .search-container { max-width: none; }
+            main.main-content { padding: 1rem; }
+            .hero-banner { padding: 2rem 1.25rem; }
             .grid-2-col, .grid-3-col, .simulator-grid {
                 grid-template-columns: 1fr;
             }
@@ -1763,7 +1799,13 @@
         <div style="display: flex; flex-direction: column;">
             
             <!-- Floating Navigation & Action Bar -->
+            <!-- Mobile overlay (closes drawer on tap outside) -->
+            <div class="mob-overlay" id="mobOverlay" onclick="closeMobileNav()"></div>
+
             <header class="top-bar">
+                <button class="mob-nav-btn" id="mobNavBtn" onclick="toggleMobileNav()" aria-label="Open navigation">
+                    <i class="fa-solid fa-bars" id="mobNavIcon"></i>
+                </button>
                 <div class="search-container">
                     <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -1774,7 +1816,8 @@
                 <div class="action-buttons">
                     <!-- Back to Home -->
                     <a href="home.html" class="btn-action" style="text-decoration:none;">
-                        <span>←</span> Back to Home
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span class="action-btn-label">Back to Home</span>
                     </a>
                     <!-- Theme Toggle -->
                     <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
@@ -1784,11 +1827,13 @@
                     </button>
                     <!-- Print PDF -->
                     <button class="btn-action" onclick="window.print()">
-                        <i class="fa-solid fa-print"></i> Print PDF Reference
+                        <i class="fa-solid fa-print"></i>
+                        <span class="action-btn-label">Print PDF</span>
                     </button>
                     <!-- Launch Simulator shortcut -->
-                    <a href="#interactive-simulator" class="btn-action btn-primary">
-                        <span>🎮</span> Try Simulator
+                    <a href="#interactive-simulator" class="btn-action btn-primary" onclick="closeMobileNav()">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <span class="action-btn-label">Simulator</span>
                     </a>
                 </div>
             </header>
@@ -3925,6 +3970,34 @@
                 toast.classList.remove('show');
             }, 3500);
         }
+
+        // ── Mobile nav drawer ────────────────────────────────────────────
+        function toggleMobileNav() {
+            const sidebar  = document.querySelector('aside.sidebar');
+            const overlay  = document.getElementById('mobOverlay');
+            const icon     = document.getElementById('mobNavIcon');
+            const isOpen   = sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('show', isOpen);
+            icon.className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+        }
+        function closeMobileNav() {
+            const sidebar = document.querySelector('aside.sidebar');
+            const overlay = document.getElementById('mobOverlay');
+            const icon    = document.getElementById('mobNavIcon');
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('show');
+            icon.className = 'fa-solid fa-bars';
+            document.body.style.overflow = '';
+        }
+        // Close drawer automatically when any nav link is tapped
+        document.querySelectorAll('.nav-item').forEach(function (el) {
+            el.addEventListener('click', closeMobileNav);
+        });
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeMobileNav();
+        });
 
         // ── 3D Tilt Effect ────────────────────────────────────────────────
         // Applied to .sub-card (±5°) and .quick-ref-item (±4°).
