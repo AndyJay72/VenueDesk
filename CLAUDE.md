@@ -3050,6 +3050,53 @@ See **Pattern 37** for the general rule.
 
 ---
 
+## 24. Calendar dateClick UX — Background Click Always Opens QB Modal ✅ DONE (September 20 2026)
+
+Commit `96b1e4d`.
+
+**Bug:** Clicking the empty background area of a calendar date that already had bookings
+opened the booking details modal (1 booking) or the day-panel list (multiple bookings)
+instead of the Quick Booking form. Staff could not create a new booking on a busy day
+by clicking the date background — they had to use a separate button.
+
+**Root cause:** `dateClick` filtered `allEvents` for matches on the clicked date and
+routed to `openEventModal` or `vpOpenDayPanel` when matches were found. This conflated
+"I want to see existing bookings" (an `eventClick` action) with "I want to book this day"
+(a `dateClick` action).
+
+**Fix:** Removed the `matches` filter and all routing to `openEventModal`/`vpOpenDayPanel`
+from `dateClick`. The handler now unconditionally calls `openQbModal`, keeping only the
+two guardrails at the top:
+
+```javascript
+dateClick: function(info) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const clicked = new Date(info.dateStr + 'T00:00:00');
+    if (clicked < today) return;                          // past-date guard
+    const isBlocked = blockedBgEvents.some(b => b.start === info.dateStr);
+    if (isBlocked) { showToast('...', 'info'); return; } // blocked-date guard
+    const roomVal = document.getElementById('roomFilter').value;
+    let slot = null;
+    if (roomVal) {
+        const intervals = (dateStatusMap[roomVal] || {})[info.dateStr] || [];
+        if (!_isDayFull(intervals)) { slot = _findNextSlot(info.dateStr, roomVal); }
+    }
+    openQbModal(info.dateStr, info.dateStr, slot);
+}
+```
+
+Room-filter slot pre-fill preserved (still skipped when day is fully booked — no valid
+slot to suggest). `eventClick` remains the sole entry point for viewing/editing existing
+bookings — that path was not touched.
+
+**Verified:** `tests/playwright/calendar_dateclick.spec.js` — 4 PASS:
+1. Date background click on a day WITH bookings → QB modal opens (event modal stays closed)
+2. Date background click on an empty day → QB modal opens
+3. Event chip click → booking details modal opens (QB modal stays closed)
+4. 🔍 Past-date click → no modal opens (past-date guard intact)
+
+---
+
 ## Pattern 37 — Recurring Series List: Derive Payment State from Schedule, Not series.balance_due
 
 **Problem:** `series.balance_due` is set at creation time as `MAX(0, cycle_amount - payment_amount)`.
