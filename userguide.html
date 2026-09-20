@@ -2349,6 +2349,48 @@
                             </div>
                         </div>
 
+                        <!-- Payment Terms detail -->
+                        <div class="sub-card" style="margin-top:1.25rem">
+                            <h4>Payment Terms — what gets recorded at booking time</h4>
+                            <p style="margin-bottom:1rem;font-size:.9rem;">The <strong>Payment Terms</strong> dropdown controls when money is collected and what the system records as paid the moment you click <strong>Create Series</strong>.</p>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Payment Terms</th>
+                                            <th>What happens at booking</th>
+                                            <th>Amount recorded as paid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Pay In Full</strong></td>
+                                            <td>Full contract total charged immediately via Stripe</td>
+                                            <td>Full contract amount</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Per Cycle — In Advance</strong></td>
+                                            <td>First cycle charged now; subsequent cycles billed at the start of each new period</td>
+                                            <td>First cycle amount only</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Per Cycle — In Arrears (card on file)</strong></td>
+                                            <td>Card details saved via Stripe SetupIntent — no charge at booking. Card is billed automatically after each cycle completes</td>
+                                            <td><strong>£0</strong> — nothing collected yet</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="info-box" style="margin-top:1rem">
+                                <strong>💡 Submit as Pending always records £0</strong><br>
+                                If you click <strong>Submit as Pending</strong> instead of <strong>Create Series</strong>, no payment is recorded regardless of which Payment Terms are shown. The booking enters a pending review state and will only show a payment once staff have confirmed it and collected money. This is correct behaviour — the system never records a payment unless money has actually been taken.
+                            </div>
+                            <div class="info-box" style="margin-top:.75rem;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.07);">
+                                <strong>⚠️ Price override and arrears</strong><br>
+                                If you use the <strong>Override Price</strong> toggle to set a custom rate, the payment amount field still follows the same rules — it will show £0 for In Arrears and the full override value for In Advance or In Full. Do not manually set an amount in the payment field for In Arrears bookings — it will be reset to £0 when the series is submitted.
+                            </div>
+                        </div>
+
                         <!-- Frequency options detail -->
                         <div class="sub-card" style="margin-top:1.25rem">
                             <h4>Frequency options explained</h4>
