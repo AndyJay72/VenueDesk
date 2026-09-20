@@ -2948,6 +2948,129 @@ identical bug. Applied the same three-way terms branch — `in_full`/`in_advance
 
 ---
 
+## 23. in_advance Recurring Series — Cycle 1 Not Paid + Payment Buttons Hidden ✅ DONE (September 20 2026)
+
+Commits `aa61a68` (n8n workflow) · `0181382` (recurring.js) · manual psql data fix.
+
+**Two separate bugs, both caused by the same false assumption that `series.balance_due` reflects outstanding payment obligations.**
+
+### Bug A — Cycle 1 stayed `pending` after in_advance creation
+
+`API: Record Initial Payment` in `CreateRecurringFromCalendar.json` never sent `period_start`,
+`period_end`, `cycle_amount`, or `cycle_number` to `POST /recurring/record-payment`. Without
+those fields, `isInitialCycle` in the handler was always `false`, so the Phase 3
+`ON CONFLICT DO UPDATE SET status = 'paid'` on cycle 1 never fired.
+
+`API: Seed Cycle Schedule` had already seeded all N cycles as `pending`. The payment was
+recorded at the series level (balance_due = 0), but cycle 1 in `recurring_payment_schedule`
+remained `pending`.
+
+**Fix:** Updated `API: Record Initial Payment` jsonBody to include Phase 3 fields using
+safe try/catch IIFEs for `Code: Pick Cycle 1` (only available on the cadenced path):
+
+```javascript
+cycle_number: 1,
+period_start: (function() { try { return $('Code: Pick Cycle 1').first().json?.period_start || ''; } catch(e) { return ''; } })(),
+period_end:   (function() { try { return $('Code: Pick Cycle 1').first().json?.period_end   || ''; } catch(e) { return ''; } })(),
+cycle_amount: (function() { try { return parseFloat($('Code: Pick Cycle 1').first().json?.cycle_amount || 0) || 0; } catch(e) { return 0; } })(),
+billing_type: $('Parse: Input').first().json?.billing_type || 'monthly'
+```
+
+Safe because: `in_full` bypasses `IF: Cadenced?` entirely (try/catch returns `''`/`0`,
+`isInitialCycle = false`); `in_arrears` short-circuits in `record-payment` when
+`payment_amount = 0`.
+
+Updated live via `mcp__claude_ai_n8n__update_workflow` — no re-import needed.
+
+**Manual data fix for existing series:** Any `in_advance` series created before this fix
+has cycle 1 stuck as `pending`. Patch via psql:
+```sql
+UPDATE bookings.recurring_payment_schedule
+SET status = 'paid', paid_at = NOW()
+WHERE recurring_series_id = (SELECT id FROM bookings.recurring_series WHERE series_name = '<name>')
+  AND cycle_number = 1;
+```
+
+### Bug B — Payment buttons hidden despite pending future cycles
+
+`GET /recurring/series` derived `payment_status` and `amount_due` directly from
+`series.balance_due`. For `in_advance`, `balance_due = 0` after cycle 1 is paid → UI received
+`payment_status = 'paid'` and `amount_due = 0` → `canPay = false` → "Record Payment" button
+hidden for all future cycles.
+
+`period_status` was also absent from the response, so `hasSchedule = false` in the frontend
+and the schedule-aware code path was never reached.
+
+**Fix:** Added `LATERAL JOIN` to find the next pending cycle before falling back to
+`series.balance_due`:
+
+```sql
+LEFT JOIN LATERAL (
+  SELECT id, status, amount_due, due_date, period_start, period_end
+  FROM bookings.recurring_payment_schedule
+  WHERE recurring_series_id = rs.id
+    AND tenant_id = rs.tenant_id
+    AND status = 'pending'
+  ORDER BY cycle_number ASC
+  LIMIT 1
+) nxt ON true
+```
+
+Response now returns:
+- `schedule_id` = the actual pending cycle's UUID (not `rs.id`)
+- `period_status` = `'pending'` (new field — triggers `hasSchedule = true` in frontend)
+- `payment_status` = `'pending'`
+- `amount_due` = cycle's `amount_due` (e.g. £80)
+- `period_start`/`period_end` = the pending cycle's dates
+
+`COALESCE` fallback to `series.balance_due` still applies for series with no payment schedule
+rows (legacy series). Fully paid series (all cycles `paid`) return `nxt = NULL` → fallback
+to `balance_due = 0` → `canPay = false`. Correct in both cases.
+
+**Verified by DB query:** Mark Anthony Block returned `period_status = pending`,
+`amount_due = 80.00`, `cycle_number = 2` after fix — confirming `canPay = true`.
+
+See **Pattern 37** for the general rule.
+
+---
+
+## Pattern 37 — Recurring Series List: Derive Payment State from Schedule, Not series.balance_due
+
+**Problem:** `series.balance_due` is set at creation time as `MAX(0, cycle_amount - payment_amount)`.
+For `in_advance` series, the upfront payment sets `balance_due = 0`. This is correct at creation,
+but the field is never updated when future cycles become due. Any query that reads `balance_due`
+to determine whether a series needs payment will conclude "fully paid" as soon as cycle 1 is
+collected — hiding payment controls for all subsequent cycles.
+
+**Rule:** When determining the *current* payment state of a recurring series for display purposes,
+always join `recurring_payment_schedule` to find the next pending cycle. Never use `series.balance_due`
+as a proxy for "does this series currently owe money."
+
+```sql
+LEFT JOIN LATERAL (
+  SELECT id, status, amount_due, due_date, period_start, period_end
+  FROM bookings.recurring_payment_schedule
+  WHERE recurring_series_id = rs.id
+    AND tenant_id = rs.tenant_id
+    AND status = 'pending'
+  ORDER BY cycle_number ASC
+  LIMIT 1
+) nxt ON true
+```
+
+Use `COALESCE(nxt.amount_due, rs.balance_due)` to preserve backward compatibility for series
+that predate the payment schedule (no rows in `recurring_payment_schedule`).
+
+**`series.balance_due` is still valid for:** creation-time accounting (how much of cycle 1 is
+still outstanding), and as a fallback when no schedule rows exist.
+
+**Frontend contract:** The `GET /recurring/series` response must include **both** `schedule_id`
+(the pending cycle's UUID) and `period_status` (its status string) for `hasSchedule = true` to
+fire in `recurring-bookings.html`. Without `period_status`, the frontend falls back to the
+legacy `payment_status` field which is derived from `balance_due` — the same broken path.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
