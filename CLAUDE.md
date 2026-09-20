@@ -2940,7 +2940,11 @@ cycle price for recurring bookings, regardless of payment terms. Two paths were 
 4. `qbOnPayTermsChange()` now calls `qbCalculateCost()` directly so `qb-payAmount`
    updates immediately when terms are switched.
 
-**Test results post-fix:** Playwright 112 PASS · 0 FAIL · QA 53 PASS · 0 CRITICAL · Lifecycle 9 PASS · 0 FAIL.
+**`qbApplyOverride()` follow-up (commit `a5c0826`):** The price-override function had the
+identical bug. Applied the same three-way terms branch — `in_full`/`in_advance` → `v`,
+`in_arrears` → £0. See Pattern 36 Fix 5.
+
+**Test results (both fixes):** Playwright 112 PASS · 0 FAIL · QA 53 PASS · 0 CRITICAL · Lifecycle 9 PASS · 0 FAIL.
 
 ---
 
@@ -4477,9 +4481,28 @@ Previously switching payment terms only recalculated `qb-payAmount` if recurrenc
 already been generated (via `qbUpdateRecurrencePreview()`). Added a direct `qbCalculateCost()`
 call so the field updates instantly when terms are changed, even before dates are set.
 
+**Fix 5 — `qbApplyOverride()`: same three-way branch (commit `a5c0826`)**
+
+The price-override function had the identical bug — it always set `qb-payAmount` to the
+override value `v` for all recurring bookings. Fixed with the same branch:
+
+```javascript
+if (qbIsRecurring) {
+    const payTerms = document.getElementById('qb-rec-payterms')?.value || 'in_advance';
+    let defaultPay = 0;
+    if      (payTerms === 'in_full')    defaultPay = v;
+    else if (payTerms === 'in_advance') defaultPay = v;
+    else if (payTerms === 'in_arrears') defaultPay = 0;
+    document.getElementById('qb-payAmount').value = defaultPay.toFixed(2);
+} else {
+    document.getElementById('qb-payAmount').value = qbDepositAmount.toFixed(2);
+}
+```
+
 **Rule:** Any frontend path that sends `payment_amount` to the API must ask: "has money
 actually been collected at this point?" If not, force `payAmt = 0` at the submit boundary —
-never rely solely on the UI default being correct.
+never rely solely on the UI default being correct. Apply the terms-aware branch to **every**
+function that writes to `qb-payAmount` (`qbCalculateCost`, `qbApplyOverride`).
 
 ---
 
