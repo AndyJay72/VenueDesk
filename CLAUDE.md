@@ -2916,6 +2916,34 @@ When each loop's batch is exhausted (output 1), it advances to the next stage.
 
 ---
 
+## 22. Recurring Booking Financial Logic Bug ✅ DONE (September 20 2026)
+
+Commit `3e084fa`.
+
+**Bug:** `qbCalculateCost()` in `calendar.html` always defaulted `qb-payAmount` to the
+cycle price for recurring bookings, regardless of payment terms. Two paths were broken:
+
+- **Per Cycle — In Arrears** — card saved for later billing, but a full cash payment was
+  recorded immediately and the first billing cycle was marked PAID.
+- **Submit as Pending** — booking submitted for review, but a payment was recorded as if
+  cash had been collected at the counter.
+
+**Root cause:** The original comment said "Recurring contracts must be paid in full per cycle"
+— true for `in_advance`, but wrong for `in_arrears` and any pending path.
+
+**Fixes applied (see Pattern 36 for full code):**
+
+1. `qbCalculateCost()` — three-way branch on `qb-rec-payterms`: `in_full` → total,
+   `in_advance` → cycle price, `in_arrears` → £0.
+2. Non-recurring submit: `payAmt = type === 'pending' ? 0 : rawAmt`
+3. Recurring submit: `payAmt = (type==='recurring_pending' || terms==='in_arrears') ? 0 : rawAmt`
+4. `qbOnPayTermsChange()` now calls `qbCalculateCost()` directly so `qb-payAmount`
+   updates immediately when terms are switched.
+
+**Test results post-fix:** Playwright 112 PASS · 0 FAIL · QA 53 PASS · 0 CRITICAL · Lifecycle 9 PASS · 0 FAIL.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
@@ -4385,6 +4413,73 @@ Replace every occurrence with `r is not None`.
 `preHandler` auth hook. A POST with `Content-Type: application/json` but no body returns `400`
 (body parse error), not `401`. Service endpoints that take no input must be called with
 `json={}` (empty object) to avoid a 400 before authentication even runs.
+
+---
+
+## Pattern 36 — Recurring Booking Payment Amount: Terms-Aware Defaulting + Submit-Time Guard
+
+**Problem:** `qbCalculateCost()` in `calendar.html` set the `qb-payAmount` input to the cycle
+price for ALL recurring bookings regardless of payment terms. Two critical paths were broken:
+
+1. **Per Cycle — In Arrears** (`in_arrears`) — card is saved for later billing; no money is
+   collected at booking time. But `qb-payAmount` defaulted to the cycle price → the submit
+   payload sent `payment_amount: cyclePrice` → a full cash payment was recorded and the
+   billing cycle was marked PAID before a penny was taken.
+
+2. **Submit as Pending** (`recurring_pending` / `pending`) — booking submitted for staff review;
+   no payment collected yet. Same bug: `qb-payAmount` held the cycle price → payment recorded
+   on submission.
+
+**Fix 1 — `qbCalculateCost()`: terms-aware default (commit `3e084fa`)**
+
+Replace the flat recurring default with a three-way branch on `qb-rec-payterms`:
+
+```javascript
+if (!document.getElementById('qb-overrideToggle').checked) {
+    if (qbIsRecurring) {
+        const payTerms = document.getElementById('qb-rec-payterms')?.value || 'in_advance';
+        let defaultPay = 0;
+        if      (payTerms === 'in_full')    defaultPay = total;
+        else if (payTerms === 'in_advance') defaultPay = qbCyclePrice > 0 ? qbCyclePrice : total;
+        else if (payTerms === 'in_arrears') defaultPay = 0;
+        document.getElementById('qb-payAmount').value = defaultPay.toFixed(2);
+    } else {
+        document.getElementById('qb-payAmount').value = qbDepositAmount.toFixed(2);
+    }
+}
+```
+
+**Fix 2 — submit-time hard zero for non-recurring pending**
+
+```javascript
+// WRONG — records a deposit payment for an unconfirmed booking
+const payAmt = parseFloat(document.getElementById('qb-payAmount').value) || 0;
+
+// CORRECT — pending means no money collected yet, ever
+const payAmt = type === 'pending' ? 0 : (parseFloat(document.getElementById('qb-payAmount').value) || 0);
+```
+
+**Fix 3 — submit-time hard zero for recurring pending + in_arrears**
+
+```javascript
+// CORRECT — belt-and-braces guard at the data boundary
+const _rawPayAmt = parseFloat(document.getElementById('qb-payAmount').value) || 0;
+const _payTerms  = document.getElementById('qb-rec-payterms')?.value || 'in_advance';
+const payAmt = (type === 'recurring_pending' || _payTerms === 'in_arrears') ? 0 : _rawPayAmt;
+```
+
+This is a hard zero at the wire — even if staff manually types an amount into the override
+field for a pending/in-arrears booking, it is stripped before the payload is sent.
+
+**Fix 4 — `qbOnPayTermsChange()` immediate recalc**
+
+Previously switching payment terms only recalculated `qb-payAmount` if recurrence dates had
+already been generated (via `qbUpdateRecurrencePreview()`). Added a direct `qbCalculateCost()`
+call so the field updates instantly when terms are changed, even before dates are set.
+
+**Rule:** Any frontend path that sends `payment_amount` to the API must ask: "has money
+actually been collected at this point?" If not, force `payAmt = 0` at the submit boundary —
+never rely solely on the UI default being correct.
 
 ---
 
