@@ -2180,20 +2180,34 @@ async function recurringRoutes(fastify) {
             WHERE cb.booking_date >= CURRENT_DATE
               AND cb.status NOT IN ('cancelled')
           )::text                                               AS next_date,
-          rs.id::text                                           AS schedule_id,
-          CASE WHEN rs.balance_due > 0 THEN 'pending' ELSE 'paid' END AS payment_status,
-          rs.balance_due                                        AS amount_due,
-          CASE WHEN rs.balance_due > 0 THEN CURRENT_DATE::text ELSE NULL END AS due_date,
-          rs.start_date::text                                   AS period_start,
-          rs.end_date::text                                     AS period_end
+          -- Prefer the next pending cycle from the payment schedule over the
+          -- series-level balance_due. For in_advance series, balance_due = 0
+          -- after cycle 1 is paid, but future cycles are still pending.
+          COALESCE(nxt.id::text, rs.id::text)                  AS schedule_id,
+          COALESCE(nxt.status, CASE WHEN rs.balance_due > 0 THEN 'pending' ELSE 'paid' END) AS payment_status,
+          COALESCE(nxt.status, CASE WHEN rs.balance_due > 0 THEN 'pending' ELSE 'paid' END) AS period_status,
+          COALESCE(nxt.amount_due, rs.balance_due)             AS amount_due,
+          COALESCE(nxt.due_date::text, CASE WHEN rs.balance_due > 0 THEN CURRENT_DATE::text ELSE NULL END) AS due_date,
+          COALESCE(nxt.period_start::text, rs.start_date::text) AS period_start,
+          COALESCE(nxt.period_end::text, rs.end_date::text)    AS period_end
         FROM bookings.recurring_series rs
         LEFT JOIN bookings.customers c  ON c.id  = rs.customer_id
         LEFT JOIN bookings.rooms r      ON r.id  = rs.room_id
         LEFT JOIN bookings.confirmed_bookings cb
                ON (cb.recurring_series_id = rs.id OR cb.recurring_rule_id = rs.id)
               AND cb.tenant_id = rs.tenant_id
+        LEFT JOIN LATERAL (
+          SELECT id, status, amount_due, due_date, period_start, period_end
+          FROM bookings.recurring_payment_schedule
+          WHERE recurring_series_id = rs.id
+            AND tenant_id = rs.tenant_id
+            AND status = 'pending'
+          ORDER BY cycle_number ASC
+          LIMIT 1
+        ) nxt ON true
         WHERE rs.tenant_id = $1
-        GROUP BY rs.id, c.full_name, c.email, c.phone, c.customer_type, r.name
+        GROUP BY rs.id, c.full_name, c.email, c.phone, c.customer_type, r.name,
+                 nxt.id, nxt.status, nxt.amount_due, nxt.due_date, nxt.period_start, nxt.period_end
         ORDER BY rs.created_at DESC`,
         [tenantId]
       )
