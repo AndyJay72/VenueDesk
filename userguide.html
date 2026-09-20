@@ -1894,9 +1894,29 @@
                     <div class="card-body">
                         <p>The Calendar page (<code>calendar.html</code>) is a full FullCalendar v6 scheduling interface. It shows every confirmed booking as a visual block, colour-coded by status, and provides a Quick Booking drawer for creating reservations directly from any date cell.</p>
 
+                        <!-- Click behaviour info box -->
+                        <div class="sub-card" style="border-left:4px solid var(--primary);margin-bottom:1.5rem">
+                            <h4 style="margin-bottom:.5rem">🖱️ Two click actions — always distinct</h4>
+                            <div class="table-container" style="margin:0">
+                                <table style="margin:0">
+                                    <thead><tr><th>What you click</th><th>What opens</th></tr></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Date background</strong> — the empty space or date number of any cell</td>
+                                            <td>✏️ <strong>Quick Booking form</strong> — always, even on days that already have bookings</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Event chip / time block</strong> — a coloured booking card already on the calendar</td>
+                                            <td>🔍 <strong>Booking details modal</strong> — view, edit, cancel, or record payment for that booking</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <figure class="screenshot-figure">
                             <img src="screenshots/calendar.png" alt="VenueDesk Calendar showing bookings in week view with coloured time blocks">
-                            <figcaption>Calendar week view — bookings appear as coloured time blocks spanning their exact start/end times. Click any block to view details.</figcaption>
+                            <figcaption>Calendar week view — bookings appear as coloured time blocks spanning their exact start/end times. Click a block to view its details; click the empty background to open a new booking.</figcaption>
                         </figure>
 
                         <!-- View modes table -->
@@ -1954,7 +1974,7 @@
                             </div>
                             <div class="sub-card" style="border-left:4px solid var(--primary)">
                                 <h4>🔵 Indigo — Fully Booked</h4>
-                                <p style="font-size:.875rem;color:var(--text-muted)">All venue hours on this day are occupied. The date cell is marked with an indigo chip.</p>
+                                <p style="font-size:.875rem;color:var(--text-muted)">All venue hours on this day are occupied. Clicking the date background still opens the Quick Booking form — useful if you need to override or book a different room. Click an existing event chip to view that booking's details.</p>
                             </div>
                         </div>
 
@@ -1965,7 +1985,7 @@
                         </button>
                         <div class="acc-body">
                             <ul class="custom-step-list">
-                                <li><div class="step-bubble">1</div><div>Click any date cell in Month view, or click a time slot in Week/Day view. The Quick Booking panel slides open on the right.</div></li>
+                                <li><div class="step-bubble">1</div><div>Click the <strong>empty background</strong> of any date cell in Month view, or click a free time slot in Week/Day view. The Quick Booking panel slides open on the right. <em>Tip: clicking an existing booking chip opens that booking's details instead — click the empty space around it to create a new booking on the same day.</em></div></li>
                                 <li><div class="step-bubble">2</div><div>Select a <strong>Room</strong> from the dropdown. The availability indicator updates immediately — 🟢 clear, 🔴 clash detected.</div></li>
                                 <li><div class="step-bubble">3</div><div>Enter <strong>Customer Name</strong>, start/end times, and optional guest count. If the guest count exceeds the room's capacity, a warning appears.</div></li>
                                 <li><div class="step-bubble">4</div><div>Choose a payment option: <span class="status-badge green">Record Deposit</span>, <span class="status-badge blue">Full Payment</span>, or <span class="status-badge amber">Save as Pending</span>.</div></li>
@@ -2451,7 +2471,7 @@
                                     </tr>
                                     <tr>
                                         <td><strong>From Calendar Directly</strong></td>
-                                        <td>Double-click Calendar event bubble &rarr; Select <strong>Cancel Booking</strong> &rarr; Save.</td>
+                                        <td>Click the Calendar event chip/block &rarr; Select <strong>Cancel Booking</strong> &rarr; Save.</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Single session in Recurring Series</strong></td>
