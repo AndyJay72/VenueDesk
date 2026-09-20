@@ -1592,10 +1592,16 @@
             document.getElementById('qb-costBreakdown').textContent=breakdown;
             document.getElementById('qb-depositLabel').textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(qbDepositAmount)}`;
             if(!document.getElementById('qb-overrideToggle').checked){
-                // Recurring contracts must be paid in full per cycle — never a partial deposit
-                document.getElementById('qb-payAmount').value = qbIsRecurring
-                    ? (qbCyclePrice > 0 ? qbCyclePrice : total).toFixed(2)
-                    : qbDepositAmount.toFixed(2);
+                if (qbIsRecurring) {
+                    const payTerms = document.getElementById('qb-rec-payterms')?.value || 'in_advance';
+                    let defaultPay = 0;
+                    if      (payTerms === 'in_full')    defaultPay = total;
+                    else if (payTerms === 'in_advance') defaultPay = qbCyclePrice > 0 ? qbCyclePrice : total;
+                    else if (payTerms === 'in_arrears') defaultPay = 0;
+                    document.getElementById('qb-payAmount').value = defaultPay.toFixed(2);
+                } else {
+                    document.getElementById('qb-payAmount').value = qbDepositAmount.toFixed(2);
+                }
             }
         }
         function qbTogglePriceOverride(){const on=document.getElementById('qb-overrideToggle').checked;document.getElementById('qb-overrideRow').style.display=on?'block':'none';if(!on)qbCalculateCost();}
@@ -1744,7 +1750,8 @@
             const eventType=document.getElementById('qb-eventType').value;
             const notes=document.getElementById('qb-notes').value.trim();
             const payMethod=document.getElementById('qb-payMethodSelect').value;
-            const payAmt=parseFloat(document.getElementById('qb-payAmount').value)||0;
+            // Pending submissions must never record a payment — no money has been collected yet
+            const payAmt=type==='pending' ? 0 : (parseFloat(document.getElementById('qb-payAmount').value)||0);
             if(!name||!phone){showToast('Customer name and phone are required','error');return;}
             if(!roomName){showToast('Please select a room','error');return;}
             if(!from){showToast('Please select a date','error');return;}
@@ -1972,7 +1979,8 @@
                                 : timing === 'in_advance' ? 'Create Series (Pay Cycle 1 Now)'
                                 : /* in_arrears */          'Create Series (Save Card On File)';
             }
-            // Recompute preview so any timing-dependent copy refreshes too
+            // Recompute cost so qb-payAmount immediately reflects new terms
+            qbCalculateCost();
             qbUpdateRecurrencePreview();
         }
 
@@ -2141,7 +2149,10 @@
             const eventType=document.getElementById('qb-eventType').value;
             const notes=document.getElementById('qb-notes').value.trim();
             const payMethod=document.getElementById('qb-payMethodSelect').value;
-            const payAmt=parseFloat(document.getElementById('qb-payAmount').value)||0;
+            // Pending and in-arrears submissions must never record a payment upfront
+            const _rawPayAmt=parseFloat(document.getElementById('qb-payAmount').value)||0;
+            const _payTerms=document.getElementById('qb-rec-payterms')?.value||'in_advance';
+            const payAmt=(type==='recurring_pending'||_payTerms==='in_arrears') ? 0 : _rawPayAmt;
             if(!name||!phone){showToast('Customer name and phone are required','error');return;}
             if(!roomName){showToast('Please select a room','error');return;}
             if(!from){showToast('Please select a date','error');return;}
