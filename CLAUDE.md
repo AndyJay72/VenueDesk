@@ -1886,7 +1886,7 @@ Retrieve it: `ssh root@72.61.19.52 "grep CYCLE_SWEEP /opt/n8n_postgres/docker-co
 | 7a No auth header | Returns 400 not 401 | Test script bug — POSTs to a GET endpoint; 400 is correct behaviour |
 | 12a No auth → 400 not 401 | Returns 400 | Expected — Fastify body parser fires before auth preHandler; same pattern as 7a. Critical check (not 200) passes. |
 
-**Current QA baseline (September 19 2026):** 53 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
+**Current QA baseline (September 20 2026):** 53 PASS · 0 CRITICAL · 2 FAIL (6b + 7a — both test artefacts) · 0 SKIP
 
 ## Lifecycle-specific test suite
 
@@ -4155,6 +4155,7 @@ Exit codes: `0` = all pass, `1` = failures.
 - 60 existing tests (onboarding, calendar_recurring, theme_editor, audit_log_staff_e2e) — no regressions
 - 11 new: `admin_config_autocancel.spec.js` — Auto-Cancel Unpaid Bookings slider
 - 2 new: `dashboard_venue_name.spec.js` — venue name shows in header, hidden when null (commit `7cc8bfe`)
+- 4 new: `calendar_dateclick.spec.js` — dateClick always opens QB modal; eventClick intact; past-date guard (commit `96b1e4d`)
 
 ## Test sections
 
