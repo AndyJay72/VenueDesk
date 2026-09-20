@@ -2944,7 +2944,7 @@ cycle price for recurring bookings, regardless of payment terms. Two paths were 
 identical bug. Applied the same three-way terms branch — `in_full`/`in_advance` → `v`,
 `in_arrears` → £0. See Pattern 36 Fix 5.
 
-**Test results (both fixes):** Playwright 112 PASS · 0 FAIL · QA 53 PASS · 0 CRITICAL · Lifecycle 9 PASS · 0 FAIL.
+**Test results (both fixes):** Playwright 116 PASS · 0 FAIL · QA 53 PASS · 0 CRITICAL · Lifecycle 9 PASS · 0 FAIL.
 
 ---
 
@@ -4151,7 +4151,7 @@ npm run test:ui                   # Playwright UI explorer
 
 Exit codes: `0` = all pass, `1` = failures.
 
-**Current baseline (September 19 2026):** 112 PASS · 0 FAIL
+**Current baseline (September 20 2026):** 116 PASS · 0 FAIL
 - 60 existing tests (onboarding, calendar_recurring, theme_editor, audit_log_staff_e2e) — no regressions
 - 11 new: `admin_config_autocancel.spec.js` — Auto-Cancel Unpaid Bookings slider
 - 2 new: `dashboard_venue_name.spec.js` — venue name shows in header, hidden when null (commit `7cc8bfe`)
