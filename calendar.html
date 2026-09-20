@@ -1605,7 +1605,24 @@
             }
         }
         function qbTogglePriceOverride(){const on=document.getElementById('qb-overrideToggle').checked;document.getElementById('qb-overrideRow').style.display=on?'block':'none';if(!on)qbCalculateCost();}
-        function qbApplyOverride(){const v=parseFloat(document.getElementById('qb-overrideAmount').value)||0;qbTotalAmount=v;qbDepositAmount=Math.round(v*QBR_DEPOSIT_PCT)/100;if(qbIsRecurring)qbCyclePrice=v;document.getElementById('qb-totalDisplay').textContent=fmt(v);document.getElementById('qb-depositLabel').textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(qbDepositAmount)}`;document.getElementById('qb-payAmount').value=qbIsRecurring?v.toFixed(2):qbDepositAmount.toFixed(2);}
+        function qbApplyOverride(){
+            const v=parseFloat(document.getElementById('qb-overrideAmount').value)||0;
+            qbTotalAmount=v;
+            qbDepositAmount=Math.round(v*QBR_DEPOSIT_PCT)/100;
+            if(qbIsRecurring)qbCyclePrice=v;
+            document.getElementById('qb-totalDisplay').textContent=fmt(v);
+            document.getElementById('qb-depositLabel').textContent=`${QBR_DEPOSIT_PCT}% = ${fmt(qbDepositAmount)}`;
+            if(qbIsRecurring){
+                const payTerms=document.getElementById('qb-rec-payterms')?.value||'in_advance';
+                let defaultPay=0;
+                if(payTerms==='in_full')         defaultPay=v;
+                else if(payTerms==='in_advance') defaultPay=v;
+                else if(payTerms==='in_arrears') defaultPay=0;
+                document.getElementById('qb-payAmount').value=defaultPay.toFixed(2);
+            }else{
+                document.getElementById('qb-payAmount').value=qbDepositAmount.toFixed(2);
+            }
+        }
         function qbIsDateBlocked(dateStr){const d=new Date(dateStr+'T00:00:00');return allBlockedRules.some(r=>{if(r.block_type==='oneoff'&&(r.block_date||'').split('T')[0]===dateStr)return true;if((r.block_type==='recurring'||r.block_type==='recurring-weekday')&&r.day_of_week!==undefined&&d.getDay()===parseInt(r.day_of_week))return true;if(r.block_type==='range'&&r.date_from&&r.date_to)return dateStr>=(r.date_from||'').split('T')[0]&&dateStr<=(r.date_to||'').split('T')[0];return false;});}
         function qbSetButtons(enabled){['qb-btn-deposit','qb-btn-full'].forEach(id=>document.getElementById(id).disabled=!enabled);if(qbIsRecurring)qbUpdateRecurringButtons();}
         /* ── Venue Operating Hours & Slot Helpers ──────────────────────────
