@@ -33,9 +33,11 @@
         /* ── NAV ─────────────────────────────────────────────────────── */
         nav {
             position: sticky; top: 0; z-index: 100;
-            background: rgba(255,255,255,.92);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,.65);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid rgba(255,255,255,.35);
+            box-shadow: 0 1px 0 rgba(0,0,0,.05), 0 4px 24px rgba(99,102,241,.06);
             padding: 0 5%;
             display: flex; align-items: center; justify-content: space-between;
             height: 70px;
@@ -70,21 +72,30 @@
         /* ── HERO ─────────────────────────────────────────────────────── */
         .hero {
             padding: 100px 5% 80px;
-            background: linear-gradient(135deg, #f0f4ff 0%, #fafbff 60%, #eff6ff 100%);
+            background: linear-gradient(135deg, #eef2ff 0%, #fafbff 55%, #f0fdf4 100%);
             position: relative; overflow: hidden;
         }
-        .hero::before {
-            content: ''; position: absolute; top: -100px; right: -100px;
-            width: 600px; height: 600px;
-            background: radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 70%);
-            pointer-events: none;
+        /* Ambient light orbs — large blurred blobs for depth */
+        .hero-orb {
+            position: absolute; border-radius: 50%;
+            pointer-events: none; z-index: 0;
         }
-        .hero::after {
-            content: ''; position: absolute; bottom: -80px; left: -80px;
-            width: 400px; height: 400px;
-            background: radial-gradient(circle, rgba(16,185,129,.08) 0%, transparent 70%);
-            pointer-events: none;
+        .hero-orb-1 {
+            width: 700px; height: 700px; top: -200px; right: -150px;
+            background: radial-gradient(circle, rgba(99,102,241,.22) 0%, rgba(99,102,241,.04) 50%, transparent 70%);
+            filter: blur(60px);
         }
+        .hero-orb-2 {
+            width: 500px; height: 500px; bottom: -150px; left: -100px;
+            background: radial-gradient(circle, rgba(16,185,129,.18) 0%, rgba(16,185,129,.03) 50%, transparent 70%);
+            filter: blur(80px);
+        }
+        .hero-orb-3 {
+            width: 300px; height: 300px; top: 40%; left: 40%;
+            background: radial-gradient(circle, rgba(139,92,246,.1) 0%, transparent 70%);
+            filter: blur(60px);
+        }
+        .hero-inner { position: relative; z-index: 1; }
         .hero-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
         .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--indigo-l); color: var(--indigo); font-size: .8rem; font-weight: 700; padding: .4rem 1rem; border-radius: 999px; margin-bottom: 1.5rem; letter-spacing: .05em; text-transform: uppercase; }
         .hero h1 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.2; color: var(--dark); margin-bottom: 1.25rem; }
@@ -104,14 +115,23 @@
         .hero-social-text strong { color: var(--dark); }
         .hero-stars { color: var(--amber); font-size: .8rem; }
 
-        /* Dashboard mock */
+        /* Dashboard mock — isometric 3D floating */
         .hero-mock {
             background: var(--dark);
             border-radius: 20px;
             padding: 0;
-            box-shadow: var(--shadow-lg);
             overflow: hidden;
             position: relative;
+            transform: perspective(1200px) rotateX(10deg) rotateY(-15deg) rotateZ(2deg);
+            transform-origin: center center;
+            box-shadow:
+                inset 0 1px 1px rgba(255,255,255,.18),
+                0 2px 4px rgba(0,0,0,.12),
+                0 8px 20px rgba(99,102,241,.18),
+                0 24px 48px rgba(99,102,241,.22),
+                0 48px 80px rgba(0,0,0,.18),
+                0 80px 120px rgba(0,0,0,.1);
+            transition: transform 0.6s cubic-bezier(.22,.68,0,1.2);
         }
         .mock-bar {
             background: var(--slate); padding: 12px 16px;
@@ -159,10 +179,16 @@
         .features { background: var(--bg); }
         .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 3rem; }
         .feat-card {
-            background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
-            padding: 2rem; transition: all .25s;
+            background: rgba(255,255,255,.75);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255,255,255,.65);
+            border-radius: var(--radius);
+            padding: 2rem;
+            transition: transform 0.45s ease, box-shadow 0.45s ease, border-color 0.25s ease;
+            will-change: transform;
         }
-        .feat-card:hover { border-color: var(--indigo); box-shadow: var(--shadow); transform: translateY(-3px); }
+        .feat-card:hover { border-color: rgba(99,102,241,.4); box-shadow: 0 8px 40px rgba(99,102,241,.15), 0 2px 8px rgba(0,0,0,.06); }
         .feat-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--indigo-l); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: var(--indigo); margin-bottom: 1.25rem; }
         .feat-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--dark); margin-bottom: .5rem; }
         .feat-card p { font-size: .9rem; color: var(--muted); line-height: 1.65; }
@@ -189,8 +215,25 @@
         .step p { font-size: .85rem; color: var(--muted); }
 
         /* ── SCREEN SHOWCASE ───────────────────────────────────────────── */
-        .showcase { background: linear-gradient(135deg, var(--dark) 0%, var(--slate) 100%); }
-        .showcase-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .showcase {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--slate) 100%);
+            position: relative; overflow: hidden;
+        }
+        .sc-orb {
+            position: absolute; border-radius: 50%;
+            pointer-events: none; z-index: 0;
+        }
+        .sc-orb-1 {
+            width: 600px; height: 600px; top: -200px; left: -150px;
+            background: radial-gradient(circle, rgba(99,102,241,.3) 0%, transparent 65%);
+            filter: blur(80px);
+        }
+        .sc-orb-2 {
+            width: 500px; height: 500px; bottom: -150px; right: -100px;
+            background: radial-gradient(circle, rgba(16,185,129,.25) 0%, transparent 65%);
+            filter: blur(100px);
+        }
+        .showcase-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; position: relative; z-index: 1; }
         .showcase h2 { color: white; }
         .showcase .section-sub { color: #94a3b8; }
         .showcase-list { margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem; }
@@ -199,8 +242,17 @@
         .showcase-item h4 { font-size: .95rem; font-weight: 700; color: white; margin-bottom: .2rem; }
         .showcase-item p { font-size: .85rem; color: #94a3b8; }
         .showcase-screen {
-            background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
-            border-radius: 18px; padding: 24px; box-shadow: var(--shadow-lg);
+            background: rgba(255,255,255,.07);
+            backdrop-filter: blur(24px) saturate(140%);
+            -webkit-backdrop-filter: blur(24px) saturate(140%);
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 18px; padding: 24px;
+            box-shadow:
+                inset 0 1px 1px rgba(255,255,255,.12),
+                0 8px 32px rgba(0,0,0,.3),
+                0 24px 64px rgba(0,0,0,.2);
+            transition: transform 0.45s ease, box-shadow 0.45s ease;
+            will-change: transform;
         }
         .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .screen-title-group h3 { color: white; font-size: .95rem; }
@@ -281,10 +333,26 @@
         }
 
         /* ── ANIMATIONS ─────────────────────────────────────────────── */
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        .hero-mock { animation: float 5s ease-in-out infinite; }
         .fade-in { opacity: 0; transform: translateY(20px); transition: opacity .6s ease, transform .6s ease; }
         .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+        /* ── RESPONSIVE 3D DEGRADATION ──────────────────────────────── */
+        @media (max-width: 900px) {
+            .hero-mock {
+                transform: none !important;
+                box-shadow: var(--shadow-lg);
+                animation: float 5s ease-in-out infinite;
+            }
+            .feat-card, .showcase-screen {
+                transform: none !important;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: var(--white);
+            }
+            .feat-card:hover { transform: none !important; }
+            .hero-orb, .sc-orb { display: none; }
+        }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
     </style>
 </head>
 <body>
@@ -314,6 +382,9 @@
 
 <!-- ── HERO ─────────────────────────────────────────────────────────── -->
 <section class="hero">
+    <div class="hero-orb hero-orb-1" aria-hidden="true"></div>
+    <div class="hero-orb hero-orb-2" aria-hidden="true"></div>
+    <div class="hero-orb hero-orb-3" aria-hidden="true"></div>
     <div class="hero-inner">
         <div class="hero-content">
             <div class="hero-badge"><i class="fa-solid fa-star"></i> Built for community venues</div>
@@ -493,6 +564,8 @@
 
 <!-- ── SHOWCASE ──────────────────────────────────────────────────────── -->
 <section class="showcase" id="showcase">
+    <div class="sc-orb sc-orb-1" aria-hidden="true"></div>
+    <div class="sc-orb sc-orb-2" aria-hidden="true"></div>
     <div class="showcase-inner">
         <div>
             <span class="section-tag" style="background:rgba(99,102,241,.2);color:#a5b4fc;">Guest capacity protection</span>
@@ -649,6 +722,33 @@
             document.getElementById('hamIcon').className = 'fa-solid fa-bars';
         }
     });
+
+    // ── 3D Tilt Effect ────────────────────────────────────────────────
+    // Math: cursor offset from element centre → normalised −1..1 → degrees.
+    // rotY = +normX * maxDeg  (right = tilt right)
+    // rotX = −normY * maxDeg  (up = tilt top toward viewer)
+    // Mousemove: fast 0.1s transition. Mouseleave: slow 0.45s spring-back.
+    (function () {
+        function applyTilt(el, maxDeg) {
+            el.addEventListener('mousemove', function (e) {
+                if (window.innerWidth < 900) return;
+                var r    = el.getBoundingClientRect();
+                var relX = e.clientX - r.left  - r.width  / 2;
+                var relY = e.clientY - r.top   - r.height / 2;
+                var rotY =  (relX / (r.width  / 2)) * maxDeg;
+                var rotX = -(relY / (r.height / 2)) * maxDeg;
+                el.style.transition = 'transform 0.1s ease, box-shadow 0.1s ease';
+                el.style.transform  = 'perspective(1000px) rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg) translateZ(10px)';
+            });
+            el.addEventListener('mouseleave', function () {
+                el.style.transition = 'transform 0.45s cubic-bezier(.22,.68,0,1.2), box-shadow 0.45s ease';
+                el.style.transform  = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0)';
+            });
+        }
+        document.querySelectorAll('.feat-card').forEach(function (el) { applyTilt(el, 6); });
+        var sc = document.querySelector('.showcase-screen');
+        if (sc) applyTilt(sc, 5);
+    })();
 
     // Autoplay demo video when scrolled into view; pause when scrolled out
     (function () {
