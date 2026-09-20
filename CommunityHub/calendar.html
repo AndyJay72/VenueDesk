@@ -3084,36 +3084,12 @@
                         const isBlocked=blockedBgEvents.some(b=>b.start===info.dateStr);
                         if(isBlocked){showToast('This date is blocked — manage via Blocked Dates','info');return;}
                         const roomVal=document.getElementById('roomFilter').value;
-                        // Events on this date (respecting room filter)
-                        const matches=allEvents.filter(e=>{
-                            if(roomVal&&e.extendedProps.room_name!==roomVal)return false;
-                            const s=(e.start||'').split('T')[0];
-                            if(e.allDay&&e.end)return new Date(info.dateStr+'T00:00:00')>=new Date(s+'T00:00:00')&&new Date(info.dateStr+'T00:00:00')<new Date(e.end+'T00:00:00');
-                            return s===info.dateStr;
-                        });
+                        let slot=null;
                         if(roomVal){
-                            // Single-room filter: check if that room is fully booked
                             const intervals=(dateStatusMap[roomVal]||{})[info.dateStr]||[];
-                            if(_isDayFull(intervals)){
-                                // Fully booked — show existing events for context
-                                if(matches.length===1){openEventModal(matches[0]);return;}
-                                if(matches.length>1){vpOpenDayPanel(new Date(info.dateStr+'T00:00:00'),matches);return;}
-                                return;
-                            }
-                            // Space available — open QB with next slot pre-filled for this room
-                            const slot=_findNextSlot(info.dateStr,roomVal);
-                            openQbModal(info.dateStr,info.dateStr,slot);
-                        } else {
-                            // No room filter — route to events view or QB modal
-                            const aggIntervals=(dateStatusMap['']||{})[info.dateStr]||[];
-                            if(!aggIntervals.length){
-                                openQbModal(info.dateStr,info.dateStr,null);
-                                return;
-                            }
-                            if(matches.length===1){openEventModal(matches[0]);return;}
-                            if(matches.length>1){vpOpenDayPanel(new Date(info.dateStr+'T00:00:00'),matches);return;}
-                            openQbModal(info.dateStr,info.dateStr,null);
+                            if(!_isDayFull(intervals)){slot=_findNextSlot(info.dateStr,roomVal);}
                         }
+                        openQbModal(info.dateStr,info.dateStr,slot);
                     },
                     eventContent:function(arg){
                         if(arg.event.display==='background')return;
