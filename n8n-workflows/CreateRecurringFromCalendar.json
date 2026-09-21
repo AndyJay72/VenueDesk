@@ -292,7 +292,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_id: $('Code: Validate').first().json.customer_id, series_reference: $('DB: Insert Rule').first().json.series_reference || '', room_name: $('Parse: Input').first().json?.room_name || '', frequency: $('Parse: Input').first().json?.frequency || 'weekly', date_count: $('Code: Generate Dates').first().json?.date_count || 0, staff_member: $('Parse: Input').first().json?.performed_by || 'Staff', interaction_type: $('Parse: Input').first().json?.interaction_type || 'RECURRING_CONTRACT_CREATED', notes: $('Parse: Input').first().json?.contract_notes || '' }) }}",
+        "jsonBody": "={{ JSON.stringify({ customer_id: $(\"Code: Validate\").first().json.customer_id, series_reference: $(\"DB: Insert Rule\").first().json.series_reference || \"\", room_name: $(\"Parse: Input\").first().json?.room_name || \"\", frequency: $(\"Parse: Input\").first().json?.frequency || \"weekly\", date_count: $(\"Code: Generate Dates\").first().json?.date_count || 0, performed_by: $(\"Parse: Input\").first().json?.performed_by || \"Staff\", interaction_type: $(\"Parse: Input\").first().json?.interaction_type || \"RECURRING_CONTRACT_CREATED\", contract_notes: $(\"Parse: Input\").first().json?.contract_notes || \"\" }) }}",
         "options": {}
       },
       "id": "59e795c7-7d94-4020-ae8b-65a9bb686232",
