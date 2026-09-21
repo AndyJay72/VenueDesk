@@ -358,8 +358,8 @@ async function onboardingRoutes(fastify) {
          SET name                = CASE WHEN $1 <> '' THEN $1 ELSE name END,
              slug                = CASE WHEN $2 <> '' THEN $2 ELSE slug END,
              contact_name        = CASE WHEN $3 <> '' THEN $3 ELSE contact_name END,
-             subscription_status = CASE WHEN $5 IS NOT NULL THEN $5 ELSE subscription_status END,
-             max_users           = CASE WHEN $6 IS NOT NULL THEN $6 ELSE max_users END
+             subscription_status = CASE WHEN $5::text    IS NOT NULL THEN $5::text    ELSE subscription_status END,
+             max_users           = CASE WHEN $6::integer IS NOT NULL THEN $6::integer ELSE max_users           END
          WHERE tenant_id = $4`,
         [venue_name, slug, full_name, tenant_id, subscription_status, max_users]
       );
