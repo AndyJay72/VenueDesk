@@ -1,5 +1,5 @@
 {
-  "name": "VenueDesk — Onboarding Manager",
+  "name": "VenueDesk \u2014 Onboarding Manager",
   "nodes": [
     {
       "parameters": {
@@ -218,7 +218,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Stub: mark lead converted in leadgen DB.\n// TODO: replace with HTTP call to leadgen db-api when that integration is built.\nconst pid = $('API: Create Venue').first().json.prospect_id;\nif (!pid || pid === 'null' || pid === '0') return [];\nconsole.log('[onboarding] prospect_id to mark converted:', pid, '— leadgen integration pending');\nreturn [{ json: { prospect_id: pid, status: 'stub_pending' } }];"
+        "jsCode": "// Stub: mark lead converted in leadgen DB.\n// TODO: replace with HTTP call to leadgen db-api when that integration is built.\nconst pid = $('API: Create Venue').first().json.prospect_id;\nif (!pid || pid === 'null' || pid === '0') return [];\nconsole.log('[onboarding] prospect_id to mark converted:', pid, '\u2014 leadgen integration pending');\nreturn [{ json: { prospect_id: pid, status: 'stub_pending' } }];"
       },
       "id": "c2e940cd-46ad-49ea-8880-ef2ab116bb3a",
       "name": "Code: Lead Converted Stub",
@@ -522,7 +522,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Update Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Update Venue').first().json.body?.venue_name || '', slug: $('Webhook: Update Venue').first().json.body?.slug || '', full_name: $('Webhook: Update Venue').first().json.body?.full_name || '', new_username: $('Webhook: Update Venue').first().json.body?.new_username || '', max_users: parseInt($('Webhook: Update Venue').first().json.body?.max_users || '1') }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenant_id: parseInt($('Webhook: Update Venue').first().json.body?.tenant_id || '0'), venue_name: $('Webhook: Update Venue').first().json.body?.venue_name || '', slug: $('Webhook: Update Venue').first().json.body?.slug || '', full_name: $('Webhook: Update Venue').first().json.body?.full_name || '', new_username: $('Webhook: Update Venue').first().json.body?.new_username || '', max_users: parseInt($('Webhook: Update Venue').first().json.body?.max_users || '1'), subscription_status: $('Webhook: Update Venue').first().json.body?.subscription_status || null }) }}",
         "options": {
           "continueOnFail": true
         }
