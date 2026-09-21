@@ -1020,20 +1020,12 @@ scp root@72.61.19.52:/opt/n8n_postgres/docker-compose.yml \
     ~/Downloads/venue_desk_backup/venuedesk-api/docker-compose.yml
 ```
 
-## ⚠️ Production Hardening — Pending Items
+## ✅ Production Hardening — Completed
 
-### 1. Remove PostgreSQL host port binding
-The `postgres` service in `docker-compose.yml` currently binds port 5432 to the host:
-```yaml
-ports:
-  - "5432:5432"   # REMOVE IN PRODUCTION
-```
-This exposes PostgreSQL on `0.0.0.0:5432`. It is currently protected only by the Hostinger
-cloud firewall. In production, remove this `ports` block entirely — the DB is reachable
-inside Docker via the `n8nnet` network without any host binding.
-
-**Action:** Remove the `ports:` block from the `postgres` service in docker-compose.yml,
-then run `docker compose up -d --force-recreate postgres` on the VPS.
+### 1. PostgreSQL host port binding removed (September 21 2026)
+The `ports:` block has been removed from the `postgres` service in `docker-compose.yml`.
+PostgreSQL is only reachable via the `n8nnet` Docker network.
+**Action on VPS:** `docker compose up -d --force-recreate postgres`
 
 ---
 
@@ -3097,6 +3089,53 @@ bookings — that path was not touched.
 
 ---
 
+## 25. PostgreSQL Host Port Removed + Subscription CRM Columns ✅ DONE (September 21 2026)
+
+Commit `(this session)`.
+
+**Item A — PostgreSQL host port binding removed:**
+`ports: "127.0.0.1:5432:5432"` removed from the `postgres` service in `docker-compose.yml`.
+PostgreSQL is now reachable only via the `n8nnet` Docker network — no host-level binding remains.
+The loopback binding was already narrower than the `0.0.0.0:5432` originally noted in the pending
+item, but it has been removed entirely as planned.
+
+**Action on VPS:** after deploying the new docker-compose.yml, run:
+```bash
+docker compose up -d --force-recreate postgres
+```
+All services that connect to `postgres` use the internal Docker service name — no host IP references anywhere.
+
+**Item B — Subscription CRM columns (`subscription_status`, `max_users`, `active_users`):**
+
+**Migration 031** (`031_tenant_subscriptions.sql`):
+```sql
+ALTER TABLE bookings.tenants
+  ADD COLUMN IF NOT EXISTS subscription_status TEXT    DEFAULT 'trial',
+  ADD COLUMN IF NOT EXISTS max_users           INTEGER DEFAULT 5;
+```
+`active_users` is **not stored** — it is derived at query time via a `COUNT(*)` subquery from
+`bookings.staff_users` to prevent data drift.
+
+**`GET /onboarding/venues` updated** to return all three fields:
+```sql
+t.subscription_status,
+t.max_users,
+(SELECT COUNT(*)::int FROM bookings.staff_users su
+ WHERE su.tenant_id = t.tenant_id) AS active_users
+```
+
+**`POST /onboarding/create-venue` updated** — schema accepts `subscription_status` (default `'trial'`)
+and `max_users` (default `5`); both are persisted in the `INSERT INTO bookings.tenants` CTE.
+
+**`POST /onboarding/update-venue` updated** — schema accepts `subscription_status` and `max_users`;
+both use `CASE WHEN $N IS NOT NULL THEN $N ELSE col END` so omitting them leaves existing values intact.
+
+Existing tenant rows receive `subscription_status = 'trial'` and `max_users = 5` as column defaults
+when the migration runs. The `onboarding.html` frontend was already wired to render these fields —
+badges (`badge-sub-active`, `badge-sub-trial`, `badge-sub-pastdue`) and the Seats pill now populate.
+
+---
+
 ## Pattern 37 — Recurring Series List: Derive Payment State from Schedule, Not series.balance_due
 
 **Problem:** `series.balance_due` is set at creation time as `MAX(0, cycle_amount - payment_amount)`.
@@ -3867,12 +3906,6 @@ Add the full Rule F4 JWT claim validation IIFE if this page is hardened further.
 
 # ⚠️ Pending Items — Security & Correctness
 
-## 1. Remove PostgreSQL host port binding (pre-existing)
-
-See original pending item — `ports: "5432:5432"` in docker-compose.yml exposes PostgreSQL on the host. Remove in production.
-
----
-
 ## 2. Tenant Lifecycle & CRM Dashboard ✅ DONE (June 24 2026)
 
 Delivered in commit `76615b9`. See `# 🛠️ onboarding.html — Architecture Reference` below.
@@ -4031,8 +4064,8 @@ Auth: service JWT. db-api commits telemetry snapshot to `bookings.system_health`
 
 ## Known constraints / future work
 
-- `subscription_status`, `max_users`, `active_users` columns will show `—` until db-api
-  `/onboarding/venues` returns those fields. Frontend is ready; backend schema update pending.
+- ~~`subscription_status`, `max_users`, `active_users` columns will show `—`~~
+  **✅ Deployed September 2026** — migration 031 adds columns to `bookings.tenants`; `GET /onboarding/venues` now returns all three fields (`active_users` derived via COUNT subquery).
 - ~~`GET /admin/system-logs`, `POST /admin/audit-log`, `POST /health/pulse` not yet built~~
   **✅ Deployed June 24 2026** — migration 026, `health.js`, updated `admin.js`.
 - Admin ID is hardcoded as `"super-admin"` in audit payloads. Replace with actual admin

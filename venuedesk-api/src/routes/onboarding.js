@@ -69,10 +69,14 @@ async function onboardingRoutes(fastify) {
       `SELECT DISTINCT ON (t.tenant_id)
               t.tenant_id,
               t.venue_id,
-              t.name        AS venue_name,
+              t.name                AS venue_name,
               t.slug,
               t.active,
-              t.created_at::date AS created_date,
+              t.created_at::date    AS created_date,
+              t.subscription_status,
+              t.max_users,
+              (SELECT COUNT(*)::int FROM bookings.staff_users su
+               WHERE su.tenant_id = t.tenant_id) AS active_users,
               u.username,
               COALESCE(t.contact_name, u.full_name) AS full_name,
               u.is_active   AS user_active,
@@ -97,14 +101,16 @@ async function onboardingRoutes(fastify) {
         type: 'object',
         required: ['tenant_id', 'venue_name', 'username', 'password'],
         properties: {
-          tenant_id:   { type: 'integer', minimum: 1000 },
-          venue_name:  { type: 'string', minLength: 1 },
-          username:    { type: 'string', minLength: 1 },
-          password:    { type: 'string', minLength: 6 },
-          full_name:   { type: 'string' },
-          slug:        { type: 'string' },
-          prospect_id: { type: 'string' },
-          admin_key:   { type: 'string' },
+          tenant_id:           { type: 'integer', minimum: 1000 },
+          venue_name:          { type: 'string', minLength: 1 },
+          username:            { type: 'string', minLength: 1 },
+          password:            { type: 'string', minLength: 6 },
+          full_name:           { type: 'string' },
+          slug:                { type: 'string' },
+          prospect_id:         { type: 'string' },
+          subscription_status: { type: 'string' },
+          max_users:           { type: 'integer', minimum: 1 },
+          admin_key:           { type: 'string' },
         },
       },
     },
@@ -114,8 +120,10 @@ async function onboardingRoutes(fastify) {
       venue_name,
       username,
       password,
-      full_name   = venue_name,
-      prospect_id = null,
+      full_name           = venue_name,
+      prospect_id         = null,
+      subscription_status = 'trial',
+      max_users           = 5,
     } = request.body;
 
     const slug           = (request.body.slug || venue_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')).trim();
@@ -124,8 +132,9 @@ async function onboardingRoutes(fastify) {
 
     const { rows } = await pool.query(
       `WITH ins_tenant AS (
-         INSERT INTO bookings.tenants (tenant_id, venue_id, name, slug, active)
-         VALUES ($1, $1, $2, $3, TRUE)
+         INSERT INTO bookings.tenants
+           (tenant_id, venue_id, name, slug, active, subscription_status, max_users)
+         VALUES ($1, $1, $2, $3, TRUE, $7, $8)
          ON CONFLICT (tenant_id) DO UPDATE
            SET name = EXCLUDED.name, slug = EXCLUDED.slug
          RETURNING tenant_id, name
@@ -138,7 +147,8 @@ async function onboardingRoutes(fastify) {
              full_name       = EXCLUDED.full_name,
              tenant_id       = EXCLUDED.tenant_id
        RETURNING id::text, username, role, full_name, tenant_id`,
-      [tenant_id, venue_name.trim(), slug, normUsername, hashedPassword, full_name.trim()]
+      [tenant_id, venue_name.trim(), slug, normUsername, hashedPassword, full_name.trim(),
+       subscription_status, max_users]
     );
 
     return {
@@ -314,22 +324,26 @@ async function onboardingRoutes(fastify) {
         type: 'object',
         required: ['tenant_id'],
         properties: {
-          tenant_id:    { type: 'integer' },
-          venue_name:   { type: 'string' },
-          slug:         { type: 'string' },
-          full_name:    { type: 'string' },
-          new_username: { type: 'string' },
-          admin_key:    { type: 'string' },
+          tenant_id:           { type: 'integer' },
+          venue_name:          { type: 'string' },
+          slug:                { type: 'string' },
+          full_name:           { type: 'string' },
+          new_username:        { type: 'string' },
+          subscription_status: { type: 'string' },
+          max_users:           { type: 'integer', minimum: 1 },
+          admin_key:           { type: 'string' },
         },
       },
     },
   }, async (request) => {
     const {
       tenant_id,
-      venue_name   = '',
-      slug         = '',
-      full_name    = '',
-      new_username = '',
+      venue_name          = '',
+      slug                = '',
+      full_name           = '',
+      new_username        = '',
+      subscription_status = null,
+      max_users           = null,
     } = request.body;
 
     const normUsername = new_username.trim().toLowerCase();
@@ -341,11 +355,13 @@ async function onboardingRoutes(fastify) {
       // Update tenant row
       await client.query(
         `UPDATE bookings.tenants
-         SET name         = CASE WHEN $1 <> '' THEN $1 ELSE name END,
-             slug         = CASE WHEN $2 <> '' THEN $2 ELSE slug END,
-             contact_name = CASE WHEN $3 <> '' THEN $3 ELSE contact_name END
+         SET name                = CASE WHEN $1 <> '' THEN $1 ELSE name END,
+             slug                = CASE WHEN $2 <> '' THEN $2 ELSE slug END,
+             contact_name        = CASE WHEN $3 <> '' THEN $3 ELSE contact_name END,
+             subscription_status = CASE WHEN $5 IS NOT NULL THEN $5 ELSE subscription_status END,
+             max_users           = CASE WHEN $6 IS NOT NULL THEN $6 ELSE max_users END
          WHERE tenant_id = $4`,
-        [venue_name, slug, full_name, tenant_id]
+        [venue_name, slug, full_name, tenant_id, subscription_status, max_users]
       );
 
       // Update staff user full_name and/or username
