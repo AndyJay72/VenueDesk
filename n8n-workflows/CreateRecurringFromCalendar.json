@@ -520,6 +520,44 @@
         320,
         848
       ]
+    },
+    {
+      "id": "crfc-email-code-001",
+      "name": "Code: Build Recurring Confirmation Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        464
+      ],
+      "parameters": {
+        "jsCode": "const parse    = ($('Parse: Input').first().json || {});\nconst valid    = ($('Code: Validate').first().json || {});\nconst rule     = ($('DB: Insert Rule').first().json || {});\nconst dg       = ($('Code: Generate Dates').first().json || {});\nconst filtered = ($('Code: Filter Dates').first().json || {});\n\nconst customer_name  = valid.customer_name  || parse.customer_name  || 'Valued Customer';\nconst customer_email = valid.customer_email || parse.customer_email || '';\nif (!customer_email) return [];\n\nconst fmt = n => '\u00a3' + parseFloat(n || 0).toFixed(2);\nconst fmtD = d => {\n  if (!d) return '\u2014';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });\n};\n\nconst roomName     = parse.room_name || 'Your reserved space';\nconst seriesRef    = rule.series_reference || '';\nconst seriesName   = rule.series_name || customer_name + ' Block';\nconst cycleAmt     = parseFloat(rule.cycle_amount || parse.monthly_fee || 0);\nconst payAmt       = parseFloat(parse.payment_amount || 0);\nconst payMethod    = (parse.payment_method || 'cash').toLowerCase();\nconst payTiming    = (parse.payment_timing || 'in_advance').toLowerCase();\nconst frequency    = (parse.frequency || 'weekly').toLowerCase();\nconst sessionCount = parseInt(filtered.dates_count || dg.date_count || 0);\nconst startTime    = parse.start_time ? String(parse.start_time).slice(0,5) : null;\nconst endTime      = parse.end_time   ? String(parse.end_time).slice(0,5)   : null;\nconst firstDate    = (dg.dates || '').split(',').filter(Boolean)[0] || null;\n\nconst freqLabel = frequency === 'monthly' ? 'Monthly' : frequency === 'fortnightly' ? 'Every 2 Weeks' : 'Weekly';\nconst payTimingLabel = payTiming === 'in_advance' ? 'Paid in advance each cycle' : payTiming === 'in_arrears' ? 'Billed in arrears each cycle' : 'Paid in full upfront';\nconst payMethodLabel = {'cash':'Cash','bacs':'Bank Transfer (BACS)','bank_transfer':'Bank Transfer (BACS)','cheque':'Cheque','card':'Card Terminal','stripe':'Online Card Payment'}[payMethod] || payMethod;\n\nconst subject = '\u2705 Recurring Booking Confirmed \u2014 ' + seriesName + ' | VenueDesk';\n\nconst detailRows = [\n  ['Contract Name', seriesName],\n  seriesRef ? ['Reference', '<span style=\"color:#6366f1;font-family:monospace;\">' + seriesRef + '</span>'] : null,\n  ['Space', roomName],\n  firstDate ? ['First Session', fmtD(firstDate)] : null,\n  (startTime && endTime) ? ['Session Time', startTime + ' \u2013 ' + endTime] : null,\n  ['Frequency', freqLabel],\n  ['Total Sessions', String(sessionCount)],\n].filter(Boolean).map(([k,v]) =>\n  '<tr><td style=\"padding:5px 0;color:#6b7280;width:40%;\">' + k + '</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">' + v + '</td></tr>'\n).join('');\n\nconst payRows = [\n  cycleAmt > 0 ? ['Cycle Amount', fmt(cycleAmt)] : null,\n  ['Billing', payTimingLabel],\n  payAmt > 0 ? ['Paid Today', fmt(payAmt) + ' via ' + payMethodLabel] : null,\n].filter(Boolean).map(([k,v]) =>\n  '<tr><td style=\"padding:5px 0;color:#3730a3;width:40%;\">' + k + '</td><td style=\"padding:5px 0;color:#111827;font-weight:600;\">' + v + '</td></tr>'\n).join('');\n\nconst html = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,sans-serif;\"><div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\"><div style=\"background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\"><p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk \u00b7 Recurring Booking</p><h1 style=\"margin:0 0 6px;color:#fff;font-size:22px;font-weight:700;\">\u2705 Recurring Contract Confirmed</h1><p style=\"margin:0;color:rgba(255,255,255,.9);font-size:14px;\">Your recurring venue booking is all set</p></div><div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\"><p style=\"margin:0 0 20px;color:#111827;font-size:15px;\">Hi <strong>' + customer_name + '</strong>,</p><p style=\"margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.65;\">Your recurring booking contract has been confirmed. Here's a summary:</p><div style=\"background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:24px;\"><h3 style=\"margin:0 0 14px;color:#111827;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;\">\ud83d\udccb Contract Details</h3><table style=\"width:100%;border-collapse:collapse;font-size:13px;\">' + detailRows + '</table></div><div style=\"background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:20px;margin-bottom:24px;\"><h3 style=\"margin:0 0 14px;color:#3730a3;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;\">\ud83d\udcb3 Payment</h3><table style=\"width:100%;border-collapse:collapse;font-size:13px;\">' + payRows + '</table></div><div style=\"text-align:center;margin:24px 0 20px;\"><a href=\"mailto:bookings@venuedesk.co.uk\" style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">Contact Us \u2192</a></div><div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\"><p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p><p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">\ud83d\udce7 bookings@venuedesk.co.uk</p><p style=\"margin:10px 0 0;font-size:11px;color:#9ca3af;\">Please keep this email for your records.' + (seriesRef ? ' Your reference is ' + seriesRef + '.' : '') + ' If any details are incorrect, please contact us immediately.</p></div></div></div></body></html>';\n\nreturn [{ json: { email: customer_email, subject, html, customer_name } }];"
+      }
+    },
+    {
+      "id": "crfc-email-send-001",
+      "name": "Email: Recurring Booking Confirmed",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        464
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "J0qWHzypu4SvoXyg",
+          "name": "Hostinger SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "bookings@venuedesk.co.uk",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "replyTo": "bookings@venuedesk.co.uk"
+        }
+      }
     }
   ],
   "connections": {
@@ -685,6 +723,11 @@
             "node": "Respond: Created",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Code: Build Recurring Confirmation Email",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -752,6 +795,17 @@
         [
           {
             "node": "IF: Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Build Recurring Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Email: Recurring Booking Confirmed",
             "type": "main",
             "index": 0
           }

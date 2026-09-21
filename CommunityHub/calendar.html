@@ -2303,7 +2303,7 @@
                 booking_source:'calendar_recurring',
                 interaction_type:'RECURRING_CONTRACT_CREATED',
                 contract_notes:`${qbRecDuration}-week contract created for ${name} in ${roomName} — ${_daysPerWeek} day(s)/${_freq==='monthly'?'mo':_freq==='fortnightly'?'2wk':'wk'} at ${fmt(perSessionCost)}/session · ${fmt(cyclePrice)}/${_freq==='monthly'?'month':_freq==='fortnightly'?'2-wk cycle':'4-wk cycle'}.`,
-                performed_by:JSON.parse(sessionStorage.getItem('vp_user')||'{}').name||'staff',
+                performed_by:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');return u.full_name||u.name||sessionStorage.getItem('vp_user_name')||u.username||'Staff';}catch(e){return 'Staff';}}()),
                 tenant_id:parseInt(_CAL_TID()),status:status,
                 jwt:sessionStorage.getItem('vp_token')||''
             };
