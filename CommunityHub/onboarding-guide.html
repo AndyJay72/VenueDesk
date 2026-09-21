@@ -180,9 +180,85 @@
         .glossary-term-card strong{color:var(--primary);font-family:'Outfit',sans-serif;font-size:1rem;display:block;margin-bottom:0.4rem;font-weight:600;}
         .glossary-term-card p{font-size:0.855rem;color:var(--text-muted);line-height:1.5;}
         footer.main-footer{text-align:center;padding:3rem 2rem;color:var(--text-muted);font-size:0.85rem;border-top:1px solid var(--border-color);margin-top:2rem;display:flex;flex-direction:column;gap:0.5rem;}
-        @media print{body{background:white;color:black;}.app-container{display:block;}aside.sidebar,header.top-bar,.action-buttons,.theme-toggle-btn,.header-anchor{display:none!important;}main.main-content{padding:0;}.hero-banner{background:#1e1b4b!important;color:white!important;border-radius:0;box-shadow:none;}.section-card{break-inside:avoid;page-break-inside:avoid;box-shadow:none;border:1px solid #ccc;margin-bottom:2rem;}.mockup-frame{break-inside:avoid;}.card-header{background:#f3f4f6!important;border-bottom:1px solid #ccc;}}
-        @media(max-width:1024px){.app-container{grid-template-columns:1fr;}aside.sidebar{display:none;}main.main-content{padding:1.5rem;}.mk-form-grid{grid-template-columns:1fr;}}
-        @media(max-width:640px){.hero-banner h1{font-size:1.8rem;}.grid-2-col,.grid-3-col{grid-template-columns:1fr;}}
+        /* ── Glassmorphism sub-cards ───────────────────────────────────── */
+        .sub-card {
+            background: rgba(255,255,255,0.72);
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        [data-theme="dark"] .sub-card {
+            background: rgba(19,27,46,0.72);
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+        .quick-ref-item {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            will-change: transform;
+            transition: transform 0.35s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+        /* ── Fade-in on scroll ─────────────────────────────────────────── */
+        .fade-up { opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+        .fade-up.visible { opacity: 1; transform: translateY(0); }
+        /* ── Mobile hamburger button ───────────────────────────────────── */
+        .mob-nav-btn {
+            display: none;
+            align-items: center; justify-content: center;
+            width: 2.4rem; height: 2.4rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-size: 1rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: var(--transition-fast);
+        }
+        .mob-nav-btn:hover { border-color: var(--primary); color: var(--primary); }
+        /* ── Mobile sidebar overlay ────────────────────────────────────── */
+        .mob-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.45);
+            backdrop-filter: blur(3px);
+            z-index: 198;
+        }
+        .mob-overlay.show { display: block; }
+        @media(max-width:1024px) {
+            .app-container { grid-template-columns: 1fr; }
+            aside.sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                height: 100vh; width: 280px;
+                z-index: 199;
+                transform: translateX(-100%);
+                transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+                box-shadow: 4px 0 32px rgba(0,0,0,.18);
+            }
+            aside.sidebar.mobile-open { transform: translateX(0); }
+            .mob-nav-btn { display: inline-flex; }
+            header.top-bar { padding: 0.875rem 1.25rem; }
+            main.main-content { padding: 1.5rem; }
+            .mk-form-grid { grid-template-columns: 1fr; }
+        }
+        @media(max-width:640px) {
+            .hero-banner h1 { font-size: 1.8rem; }
+            .grid-2-col, .grid-3-col { grid-template-columns: 1fr; }
+            .search-container { max-width: none; }
+            main.main-content { padding: 1rem; }
+        }
+        @media print {
+            body { background: white; color: black; }
+            .app-container { display: block; }
+            aside.sidebar, header.top-bar, .action-buttons, .theme-toggle-btn, .header-anchor, .mob-nav-btn, .mob-overlay { display: none !important; }
+            main.main-content { padding: 0; }
+            .hero-banner { background: #1e1b4b !important; color: white !important; border-radius: 0; box-shadow: none; }
+            .section-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none; border: 1px solid #ccc; margin-bottom: 2rem; }
+            .mockup-frame { break-inside: avoid; }
+            .card-header { background: #f3f4f6 !important; border-bottom: 1px solid #ccc; }
+        }
     </style>
 </head>
 <body>
@@ -215,15 +291,21 @@
             <span><i class="fa-solid fa-rocket" style="color:var(--primary)"></i> Admin access only</span>
             <a href="onboarding.html" target="_blank">→ Open Dashboard</a>
             <a href="userguide.html">→ Staff User Guide</a>
-            <span style="opacity:0.6">VenueDesk · June 2026</span>
+            <span style="opacity:0.6">VenueDesk · September 2026</span>
         </div>
     </aside>
 
     <!-- Main -->
     <div style="display:flex;flex-direction:column;min-height:100vh;">
 
+        <!-- Mobile overlay (closes drawer on outside tap) -->
+        <div class="mob-overlay" id="mobOverlay" onclick="closeMobileNav()"></div>
+
         <!-- Top bar -->
         <header class="top-bar">
+            <button class="mob-nav-btn" id="mobNavBtn" onclick="toggleMobileNav()" aria-label="Open navigation">
+                <i class="fa-solid fa-bars" id="mobNavIcon"></i>
+            </button>
             <div class="search-container">
                 <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 <input type="text" id="guide-search" class="search-input" placeholder="Search this guide (e.g. seat, audit, ping)…" oninput="runSearch(this.value)">
@@ -245,7 +327,7 @@
                     <h1><i class="fa-solid fa-rocket" style="font-size:2rem"></i> Onboarding & Tenant Lifecycle Dashboard</h1>
                     <p>Super-admin guide for provisioning venues, monitoring platform health, managing subscriptions, and auditing system activity on the VenueDesk platform.</p>
                     <div class="metadata-badge-group">
-                        <span class="meta-badge"><i class="fa-solid fa-calendar-days"></i> June 2026</span>
+                        <span class="meta-badge"><i class="fa-solid fa-calendar-days"></i> September 2026</span>
                         <span class="meta-badge"><i class="fa-solid fa-user-shield"></i> Super Admin Only</span>
                         <a href="onboarding.html" target="_blank" class="meta-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Dashboard</a>
                         <a href="onboarding_users_guide.md" class="meta-badge"><i class="fa-solid fa-file-lines"></i> Markdown Version</a>
@@ -254,7 +336,7 @@
             </div>
 
             <!-- QUICK REFERENCE -->
-            <section id="quick-ref" class="section-card">
+            <section id="quick-ref" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-bolt" style="color:var(--warning)"></i> Quick Reference</h2>
                     <a class="header-anchor" onclick="copyAnchor('quick-ref')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -306,7 +388,7 @@
             </section>
 
             <!-- LOGIN -->
-            <section id="login" class="section-card">
+            <section id="login" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-shield-check" style="color:var(--success)"></i> Logging In</h2>
                     <a class="header-anchor" onclick="copyAnchor('login')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -344,7 +426,7 @@
             </section>
 
             <!-- TELEMETRY -->
-            <section id="telemetry" class="section-card">
+            <section id="telemetry" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-wave-square" style="color:var(--primary)"></i> Telemetry Panel</h2>
                     <a class="header-anchor" onclick="copyAnchor('telemetry')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -394,7 +476,7 @@
             </section>
 
             <!-- VENUES TABLE -->
-            <section id="venues-table" class="section-card">
+            <section id="venues-table" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-table" style="color:var(--info)"></i> Reading the Venues Table</h2>
                     <a class="header-anchor" onclick="copyAnchor('venues-table')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -443,7 +525,7 @@
                                 <tr><td><strong>Venue / Slug</strong></td><td>Display name and the URL-safe slug used in the public enquiry form link.</td></tr>
                                 <tr><td><strong>Username</strong></td><td>The staff login credential for this venue. If blank, no login has been set yet — use the 🔑 button to create one.</td></tr>
                                 <tr><td><strong>Status</strong></td><td>Green <span class="status-badge green">Active</span> = accepting bookings. Grey <span class="status-badge" style="background:rgba(107,114,128,0.15);color:#9ca3af;border:1px solid rgba(107,114,128,0.25)">Inactive</span> = suspended.</td></tr>
-                                <tr><td><strong>Subscription</strong></td><td>Billing tier badge: <span class="status-badge green">Active</span> <span class="status-badge indigo">Trial</span> <span class="status-badge red">Past Due</span>. Shows — until the API returns this field.</td></tr>
+                                <tr><td><strong>Subscription</strong></td><td>Billing tier badge: <span class="status-badge green">Active</span> <span class="status-badge indigo">Trial</span> <span class="status-badge red">Past Due</span>. Change via the <strong>Edit</strong> modal → Subscription Status dropdown.</td></tr>
                                 <tr><td><strong>Seats</strong></td><td>Staff account usage in the format <code>Seats: X / Y</code> where X = active accounts, Y = licensed maximum.</td></tr>
                                 <tr><td><strong>Actions</strong></td><td>Edit · Open detail panel · Copy enquiry link · Reset password (🔑) · Pause/Play (toggle active).</td></tr>
                             </tbody>
@@ -453,7 +535,7 @@
             </section>
 
             <!-- ONBOARDING -->
-            <section id="onboarding" class="section-card">
+            <section id="onboarding" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-building-circle-plus" style="color:var(--success)"></i> Onboarding a New Venue</h2>
                     <a class="header-anchor" onclick="copyAnchor('onboarding')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -519,7 +601,7 @@
             </section>
 
             <!-- EDITING -->
-            <section id="editing" class="section-card">
+            <section id="editing" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-pen-to-square" style="color:var(--primary)"></i> Editing a Venue</h2>
                     <a class="header-anchor" onclick="copyAnchor('editing')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -534,6 +616,7 @@
                                     <tr><td><strong>Venue Name</strong></td><td>Updates the display name everywhere in the platform.</td></tr>
                                     <tr><td><strong>Slug</strong></td><td>Auto-updates as you type the name. Only change manually if you need a specific URL key.</td></tr>
                                     <tr><td><strong>Contact Name</strong></td><td>Updates the staff display name shown in the venue's dashboard sidebar.</td></tr>
+                                    <tr><td><strong>Subscription Status</strong></td><td>Dropdown: <strong>Trial</strong>, <strong>Active</strong>, or <strong>Past Due</strong>. Pre-fills from the current DB value. Saved on <em>Save Changes</em> — badge in the venues table updates immediately.</td></tr>
                                     <tr><td><strong>Staff Seats</strong></td><td>Adjust seat allocation up or down. Pricing preview updates in real time. The new value is saved to the database.</td></tr>
                                 </tbody>
                             </table>
@@ -547,7 +630,7 @@
             </section>
 
             <!-- PASSWORDS -->
-            <section id="passwords" class="section-card">
+            <section id="passwords" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-key" style="color:var(--warning)"></i> Password Management</h2>
                     <a class="header-anchor" onclick="copyAnchor('passwords')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -578,7 +661,7 @@
             </section>
 
             <!-- TOGGLE -->
-            <section id="toggle" class="section-card">
+            <section id="toggle" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-power-off" style="color:var(--danger)"></i> Activating &amp; Deactivating Venues</h2>
                     <a class="header-anchor" onclick="copyAnchor('toggle')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -606,7 +689,7 @@
             </section>
 
             <!-- CONNECT -->
-            <section id="connect" class="section-card">
+            <section id="connect" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-arrow-up-right-from-square" style="color:var(--success)"></i> Connecting to a Venue's Dashboard</h2>
                     <a class="header-anchor" onclick="copyAnchor('connect')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -627,7 +710,7 @@
             </section>
 
             <!-- AUDIT LOG -->
-            <section id="audit" class="section-card">
+            <section id="audit" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-shield-halved" style="color:var(--primary)"></i> System Audit Log</h2>
                     <a class="header-anchor" onclick="copyAnchor('audit')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -672,7 +755,7 @@
             </section>
 
             <!-- SUBSCRIPTION & SEATS -->
-            <section id="subscription" class="section-card">
+            <section id="subscription" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-credit-card" style="color:var(--warning)"></i> Subscription Status &amp; Seat Allocation</h2>
                     <a class="header-anchor" onclick="copyAnchor('subscription')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -707,7 +790,7 @@
             </section>
 
             <!-- ENQUIRY LINK -->
-            <section id="enquiry" class="section-card">
+            <section id="enquiry" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-link" style="color:var(--success)"></i> Copying the Public Enquiry Link</h2>
                     <a class="header-anchor" onclick="copyAnchor('enquiry')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -731,7 +814,7 @@
             </section>
 
             <!-- SECURITY -->
-            <section id="security" class="section-card">
+            <section id="security" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-lock" style="color:var(--danger)"></i> Session &amp; Security Notes</h2>
                     <a class="header-anchor" onclick="copyAnchor('security')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -765,7 +848,7 @@
             </section>
 
             <!-- GLOSSARY -->
-            <section id="glossary" class="section-card">
+            <section id="glossary" class="section-card fade-up">
                 <div class="card-header">
                     <h2><i class="fa-solid fa-book" style="color:var(--info)"></i> Glossary</h2>
                     <a class="header-anchor" onclick="copyAnchor('glossary')"><i class="fa-solid fa-link"></i> Copy link</a>
@@ -790,7 +873,7 @@
 
             <footer class="main-footer">
                 <span><i class="fa-solid fa-rocket" style="color:var(--primary)"></i> VenueDesk Onboarding Guide — Super Admin Edition</span>
-                <span>June 2026 · For technical architecture details see <code>CLAUDE.md → onboarding.html Architecture Reference</code></span>
+                <span>September 2026 · For technical architecture details see <code>CLAUDE.md → onboarding.html Architecture Reference</code></span>
                 <span style="font-size:0.78rem">Questions? Check the <a href="userguide.html" style="color:var(--primary)">Staff User Guide</a> or review <a href="CLAUDE.md" style="color:var(--primary)">CLAUDE.md</a></span>
             </footer>
 
@@ -799,9 +882,25 @@
 </div><!-- end app-container -->
 
 <script>
+/* ── Mobile sidebar drawer ─────────────────────────────────────────── */
+function toggleMobileNav() {
+    const sidebar = document.querySelector('aside.sidebar');
+    const overlay = document.getElementById('mobOverlay');
+    const icon    = document.getElementById('mobNavIcon');
+    const isOpen  = sidebar.classList.toggle('mobile-open');
+    overlay.classList.toggle('show', isOpen);
+    icon.className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+}
+function closeMobileNav() {
+    document.querySelector('aside.sidebar').classList.remove('mobile-open');
+    document.getElementById('mobOverlay').classList.remove('show');
+    document.getElementById('mobNavIcon').className = 'fa-solid fa-bars';
+}
+
 function setActive(el) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     el.classList.add('active');
+    if (window.innerWidth <= 1024) closeMobileNav();
 }
 function scrollTo(id) {
     const el = document.getElementById(id);
@@ -846,6 +945,12 @@ function runSearch(q) {
         });
     });
 }
+/* ── Fade-in on scroll ─────────────────────────────────────────────── */
+const fadeObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); fadeObserver.unobserve(e.target); } });
+}, { threshold: 0.08 });
+document.querySelectorAll('.fade-up').forEach(el => fadeObserver.observe(el));
+
 // Active section tracking on scroll
 const sections = document.querySelectorAll('section[id]');
 const navItems = document.querySelectorAll('.nav-item[href^="#"]');

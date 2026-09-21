@@ -3173,6 +3173,76 @@ legacy `payment_status` field which is derived from `balance_due` — the same b
 
 ---
 
+## 26. Recurring Booking Creation Flow — Staff Name, Cycle 1 Payment, Confirmation Email ✅ DONE (September 21 2026)
+
+Commits `bcd80fa` (calendar.html + n8n workflow) · `552dc8e` (log-interaction key fix).
+
+**Three fixes in one session:**
+
+**A — Staff name in Audit Log (`calendar.html` Step 1)**
+`qbSubmitRecurringBooking()` `performed_by` field was reading only `.name` from the user object.
+Changed to the full Rule F3 priority chain:
+```javascript
+performed_by:(function(){try{var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}');
+  return u.full_name||u.name||sessionStorage.getItem('vp_user_name')||u.username||'Staff';
+}catch(e){return 'Staff';}}()),
+```
+
+**B — `API: Log Interaction` n8n node key name**
+The node sent `staff_member: $json?.performed_by` but `/recurring/log-interaction` schema only
+accepts `performed_by`. Fastify's `removeAdditional: true` silently stripped `staff_member`.
+Fixed: renamed key to `performed_by` in the n8n jsonBody expression. Verified: audit log now
+records actual staff name.
+
+**C — Cycle 1 marked paid on creation**
+`API: Record Initial Payment` in the draft workflow was missing `cycle_number`, `period_start`,
+`period_end`, `cycle_amount`, and `billing_type`. The fix was already in the draft but had never
+been published. Confirmed published and working: only Cycle 2 appears as pending after creation.
+
+**D — Customer confirmation email**
+Added `Code: Build Recurring Confirmation Email` + `Email: Recurring Booking Confirmed` nodes to
+`CreateRecurringFromCalendar` workflow, firing in parallel with `Respond: Created`. Indigo-header
+email shows contract details (room, first session date, frequency, session count) and payment
+summary (cycle amount, billing terms, amount paid today). Verified: email arrives at customer
+address.
+
+---
+
+## 27. Subscription Status Dropdown in Onboarding Edit Modal ✅ DONE (September 21 2026)
+
+Commits `100f1cc` (frontend dropdown) · `bba4db4` (n8n workflow fix).
+
+**Three-layer fix required:**
+
+**A — Frontend (`onboarding.html`)**
+Added `<select id="editSubStatus">` with Trial / Active / Past Due options above the Staff Seats
+stepper in the Edit Venue modal. `openEditModal()` pre-fills it from `v.subscription_status`.
+`confirmEditVenue()` includes `subscription_status: document.getElementById('editSubStatus').value`
+in the POST body.
+
+**B — n8n `API: Update Venue` node**
+The n8n workflow node was not forwarding `subscription_status` to db-api. Patched directly via
+MCP tool (`mcp__claude_ai_n8n__update_workflow`) — no re-import needed. Added to jsonBody:
+```javascript
+subscription_status: $('Webhook: Update Venue').first().json.body?.subscription_status || null
+```
+
+**C — db-api `POST /onboarding/update-venue` SQL cast (Pattern — null type inference)**
+The CASE expression `CASE WHEN $5 IS NOT NULL THEN $5 ELSE subscription_status END` caused a
+PostgreSQL 500 when `$5` was null because pg could not infer the parameter type. Fix: explicit
+casts `$5::text` and `$6::integer` so pg can resolve types even when values are null.
+
+**Verified end-to-end via Playwright against live site:**
+- Dropdown pre-fills to current DB value when modal opens
+- Changing to `active` and saving → badge turns green in table row
+- Re-opening modal → dropdown shows `active` (DB persisted correctly)
+- Resetting to `trial` → badge reverts
+
+**Note:** MCP access must be enabled on the OnboardingManager workflow in n8n settings for the
+MCP patch tool to work. The workflow ID is `3K11D3umCJGt1FCN`.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
