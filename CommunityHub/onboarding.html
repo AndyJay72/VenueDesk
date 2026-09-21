@@ -1066,6 +1066,14 @@ body.sidebar-collapsed .nav-link:hover::after {
         <input type="text" id="editUsername" placeholder="e.g. parksuite" autocomplete="off" style="font-family:monospace">
       </div>
     </div>
+    <div class="input-group">
+      <label>Subscription Status</label>
+      <select id="editSubStatus" style="width:100%;padding:0.55rem 0.75rem;background:var(--bg-input,#1e293b);color:var(--text-primary,#f1f5f9);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:8px;font-size:0.9rem">
+        <option value="trial">Trial</option>
+        <option value="active">Active</option>
+        <option value="past_due">Past Due</option>
+      </select>
+    </div>
     <div class="input-group" style="margin-bottom:0.5rem">
       <label>Staff Seats</label>
       <div style="display:flex;align-items:center;gap:0.75rem">
@@ -1681,6 +1689,7 @@ function openEditModal(tenantId) {
   document.getElementById('editFullName').value   = v.full_name || '';
   document.getElementById('editUsername').value   = v.username || '';
   document.getElementById('editModalLabel').textContent = `Editing: ${v.venue_name} (#${tenantId})`;
+  document.getElementById('editSubStatus').value = v.subscription_status || 'trial';
   const curSeats = v.max_users || v.max_seats || 1;
   document.getElementById('editSeats').textContent = curSeats;
   updatePricingPreview('editSeats');
@@ -1709,7 +1718,7 @@ async function confirmEditVenue() {
     const r = await fetch(N8N + '/onboarding/update-venue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id: tenantId, venue_name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, new_username: newUsername, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, admin_key: AUTH })
+      body: JSON.stringify({ tenant_id: tenantId, venue_name: venueName, slug: slug || venueName.toLowerCase().replace(/[^a-z0-9]+/g,'-'), active, full_name: fullName, new_username: newUsername, max_users: parseInt(document.getElementById('editSeats').textContent) || 1, subscription_status: document.getElementById('editSubStatus').value, admin_key: AUTH })
     });
     const d = await _safeJSON(r);
     if (!_isOK(d)) throw new Error(d.message || 'Update failed');
