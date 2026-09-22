@@ -3243,6 +3243,107 @@ MCP patch tool to work. The workflow ID is `3K11D3umCJGt1FCN`.
 
 ---
 
+## 28. Per-Venue Contact Email — All Customer-Facing Workflows ✅ DONE (September 22 2026)
+
+Commit `3baeaa8`. Playwright: 116 PASS · 0 FAIL (no regressions).
+
+All customer-facing automated emails now resolve the venue's configured `staff_notification_email`
+from `GET /stripe/config` at send-time and use it for:
+- **`Contact Us →` mailto links** inside every email's CTA button
+- **`📧` footer address line** displayed at the bottom of each email
+- **`Reply-To` header** on every emailSend node so customer replies land in the right inbox
+
+`fromEmail` remains `bookings@venuedesk.co.uk` on all workflows — required for Hostinger
+SMTP SPF/DKIM. Fallback to `bookings@venuedesk.co.uk` when the setting is unset.
+
+### Workflows updated
+
+| Workflow | Live ID | Method | Notes |
+|---|---|---|---|
+| New Enquiry Notification | `Jh6nCEqLVFONT8IB` | HTTP node (already existed) | Rewired Ack → through HTTP node; both Code nodes updated; replyTo on both emails |
+| Confirm Booking | `MXCss5PTB3YpiQuV` | HTTP node inserted | Chained after DB: Get Customer For Email |
+| Financial Operations (Stripe+Manual) | `mNUxqBJo40Murcg5` | Two HTTP nodes | Stripe path + manual/BACS path each get their own HTTP: Get Tenant Config |
+| Pending Lifecycle Scheduler | `B0Nuq8kTqfT4f0Sx` | `$helpers.httpRequest()` | Inside Code node (SplitInBatches loop — no structural change needed) |
+| Unpaid Booking Lifecycle | `cBLmPZIuxcGeVEd5` | `$helpers.httpRequest()` | Both warn + cancel Code nodes; no structural change |
+| Create Recurring From Calendar | `8sSQGRLzAHYZhmEp` | HTTP node inserted | Chained before Code: Build Recurring Confirmation Email |
+
+`KHvxUBua7hi5e1x1_clean.json` updated in the repo backup but has no live counterpart (only
+the stripe_fork variant owns the `pay-balance` webhook at a time).
+
+### Pattern applied (see Pattern 38)
+
+For user-triggered workflows: insert `HTTP: Get Tenant Config` node immediately before the
+email-building Code node. The Code node reads `$input.first().json` for config and references
+the previous data node by name.
+
+For scheduled workflows inside `SplitInBatches` loops: use `$helpers.httpRequest()` inside
+the Code node itself — inserting an HTTP node would break the loop's `$input` data flow.
+
+### Email nodes — replyTo path
+
+n8n emailSend v2.1 nodes store `replyTo` inside `options.replyTo`. Nodes that previously
+had a hardcoded `options.replyTo` were updated via `setNodeParameter` with path
+`/options/replyTo`. Nodes with no prior `replyTo` were set at path `/replyTo` (root).
+
+---
+
+## Pattern 38 — Per-Venue Contact Email in n8n Email Workflows
+
+**Problem:** All customer-facing emails had `Contact Us →` mailto links and footer `📧` addresses
+hardcoded to `bookings@venuedesk.co.uk`. When a venue configures a custom contact email in
+Admin Config → Settings, that address was only used for the new-enquiry staff alert — every
+other customer email (booking confirmation, payment receipts, cancellation notices) still
+pointed to the generic address. Customers clicking "Contact Us" on these emails reached the
+wrong inbox.
+
+**Rule:** Every n8n workflow that sends a customer-facing email must:
+1. Fetch the tenant config via `GET /stripe/config?tenant_id=N` **before** building the email
+2. Extract `contactEmail = (cfg?.data || cfg)?.staff_notification_email || 'bookings@venuedesk.co.uk'`
+3. Use `contactEmail` in all `mailto:` href attributes and `📧` footer text in the HTML
+4. Pass `contactEmail` through to the email node's `$json.contactEmail` for `replyTo`
+5. Set `replyTo = ={{ $json.contactEmail }}` on the emailSend node
+
+**`fromEmail` MUST stay `bookings@venuedesk.co.uk`** — changing it breaks Hostinger's SPF/DKIM
+check and causes delivery failure. `fromEmail` and `replyTo` serve different purposes:
+`fromEmail` is the SMTP sender (SPF-validated), `replyTo` is where customer replies land.
+
+**Two fetch patterns depending on workflow structure:**
+
+```javascript
+// ── For user-triggered workflows (HTTP node inserted in chain) ────────────
+// Add HTTP: Get Tenant Config node (GET /stripe/config?tenant_id=N) before Code node.
+// Code node reads:
+const cfgRaw = $input.first().json;  // ← the HTTP response
+const contactEmail = (cfgRaw?.data || cfgRaw)?.staff_notification_email || 'bookings@venuedesk.co.uk';
+// Reference previous data node explicitly by name, e.g.:
+const custR = $('DB: Get Customer For Email').first().json;
+
+// ── For scheduled workflows inside SplitInBatches loops ──────────────────
+// Use $helpers.httpRequest() inside the Code node — no structural change needed.
+const tenantId = r.tenant_id || '';
+let contactEmail = 'bookings@venuedesk.co.uk';
+try {
+  if (tenantId) {
+    const cfg = await $helpers.httpRequest({ method: 'GET',
+      url: 'https://api.venuedesk.co.uk/stripe/config?tenant_id=' + tenantId });
+    contactEmail = (cfg?.data || cfg)?.staff_notification_email || contactEmail;
+  }
+} catch(e) {}
+```
+
+**HTML template changes:**
+- Replace `href="mailto:bookings@venuedesk.co.uk"` → `href="mailto:${contactEmail}"`
+- Replace `>bookings@venuedesk.co.uk</a>` → `>${contactEmail}</a>`
+- Replace `📧 bookings@venuedesk.co.uk</p>` → `📧 ${contactEmail}</p>`
+- For single-quoted string concatenation (not template literals): split with `'...' + contactEmail + '...'`
+
+**Why `$helpers.httpRequest()` for loops:** Inserting an HTTP node between `SplitInBatches`
+and a Code node redirects `$input` to the HTTP response — the loop data (the original batch
+item) is no longer in `$input`. Referencing the split node by name inside the loop is
+unreliable. The in-Code fetch sidesteps this entirely.
+
+---
+
 ## Pattern 27 — Recursive CTE Hierarchy Clash Check
 
 **Pattern:** When a booking table needs tree-aware conflict detection (parent/child/sibling
@@ -4816,10 +4917,7 @@ node, so the response to the frontend is never delayed by email sending.
 
 ---
 
-## Staff Notification Email — Per-Venue Configuration (June 30 2026)
-
-The address that receives the new-enquiry staff alert is now configurable per-venue.
-Previously hardcoded to `bookings@venuedesk.co.uk`.
+## Staff Notification Email / Venue Contact Email — Per-Venue Configuration
 
 **Setting:** `bookings.settings` key `staff_notification_email`
 
@@ -4828,18 +4926,18 @@ Previously hardcoded to `bookings@venuedesk.co.uk`.
 - Saved via `POST /update-setting` n8n webhook → `POST /config/settings/upsert`
 - `loadSettings()` populates the field on tab open and shows current value in status line
 
-**`GET /stripe/config` extended:**
-Now returns `staff_notification_email` alongside `is_stripe_enabled` and
-`stripe_publishable_key`. Source: `SELECT value FROM bookings.settings WHERE key = 'staff_notification_email' LIMIT 1` inside the `withTenantContext` call. Public endpoint; no auth required.
+**`GET /stripe/config` extended (June 30 2026):**
+Returns `staff_notification_email` alongside `is_stripe_enabled` and `stripe_publishable_key`.
+Public endpoint; no auth required.
 
-**n8n workflow node added (`Jh6nCEqLVFONT8IB`):**
-`HTTP: Get Tenant Config` (GET `/stripe/config?tenant_id=…`) fires before
-`Code: Staff Notification`. Resolution order in the Code node:
-```javascript
-const staffEmail = cfg.staff_notification_email || 'bookings@venuedesk.co.uk';
-```
-The setting is read fresh on every enquiry — changing it in Admin Config takes effect
-immediately on the next submission, no restart or re-import required.
+**Scope (September 22 2026 — item 28):**
+This setting now controls the contact email address across **all** customer-facing automated
+emails — not just the new-enquiry staff alert. Every email's `mailto:` CTA link, `📧` footer
+address, and `Reply-To` header resolve this setting at send-time via `GET /stripe/config`.
+`fromEmail` is always `bookings@venuedesk.co.uk` (required for SMTP delivery). See Pattern 38.
+
+The setting is read fresh on each execution — changing it in Admin Config takes effect
+immediately on the next triggered email, no restart or re-import required.
 
 ---
 

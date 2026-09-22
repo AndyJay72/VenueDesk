@@ -2740,7 +2740,7 @@
                         <a class="header-anchor" onclick="copyAnchorLink('email-notifications')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
-                        <p>VenueDesk sends automated emails at every key point in the booking journey. All emails come from <strong>bookings@venuedesk.co.uk</strong> and fire without any manual action from staff.</p>
+                        <p>VenueDesk sends automated emails at every key point in the booking journey. All emails are sent from <strong>bookings@venuedesk.co.uk</strong> (required for delivery) and fire without any manual action from staff. The <strong>Contact Us</strong> links inside each email, the footer email address, and the <strong>Reply-To</strong> header all use the address set in <strong>Admin Config → Settings → Staff Notification Email</strong> — so customer replies land directly in your inbox.</p>
 
                         <!-- Email journey table -->
                         <div class="table-container" style="margin-bottom:1.5rem">
@@ -2816,7 +2816,7 @@
                                     <li>Summary of the request: space, date, time, event type, guests</li>
                                     <li>Clear notice of the <strong>7-day confirmation window</strong></li>
                                     <li>Enquiry reference number</li>
-                                    <li>Contact button → bookings@venuedesk.co.uk</li>
+                                    <li>Contact button → your venue's configured contact email (Admin Config → Settings)</li>
                                 </ul>
                             </div>
                             <div class="sub-card">
@@ -2829,7 +2829,8 @@
                                     <li><strong>Review in Dashboard</strong> deep link → one click to the pending requests list</li>
                                 </ul>
                                 <div class="info-box" style="margin-top:.75rem;font-size:.82rem">
-                                    <strong>⚙️ Where to configure it:</strong> Admin Config → Settings tab → <em>Staff Notification Email</em> card. Enter your address and click Save — takes effect on the next enquiry, no restart needed. Defaults to <code>bookings@venuedesk.co.uk</code> if left blank.
+                                    <strong>⚙️ Where to configure it:</strong> Admin Config → Settings tab → <em>Staff Notification Email</em> card. Enter your address and click Save — takes effect immediately, no restart needed. Defaults to <code>bookings@venuedesk.co.uk</code> if left blank.<br><br>
+                                    <strong>This setting also controls all other customer-facing emails</strong> — the Contact Us button, footer address, and Reply-To header in booking confirmations, payment receipts, expiry reminders, and cancellation notices all use this same address. Customers who reply to any automated email will reach your configured inbox.
                                 </div>
                             </div>
                         </div>
