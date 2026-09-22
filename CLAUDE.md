@@ -1407,7 +1407,7 @@ Fires on: room change, date change, time change, guest count change, additional-
 ### `/enquiry/create-request` (db-api, public, no JWT)
 
 - Validates tenant is active
-- Upserts customer by `(email, tenant_id)` UNIQUE constraint
+- Upserts customer by SELECT-first on email, then phone fallback (see Pattern 39 for phone conflict guard)
 - Inserts `bookings.booking_requests` row
 - Returns `{ success: true, booking_request_id, customer_id }`
 
@@ -1485,6 +1485,7 @@ Stripe `success_url` builder changed from `#venueNameDisplay` (removed) to `#pag
 | `tests/playwright/enquiry_90day_probe.js` | 3 | 91d blocked, 90d allowed, 3d unaffected |
 | `tests/playwright/enquiry_stripe_e2e.js` | 19 | API chain, amount bounds, browser UI, payload validation, Stripe navigation |
 | `tests/playwright/checkout_e2e.js` | 18 | All URL param cases, staff vs public CTA, XSS, special chars |
+| `tests/playwright/verify_email_flow.spec.js` | 1 | Live e2e: enquiry form submission with email alias + existing phone → success panel shown (September 22 2026) |
 
 ---
 
@@ -3287,6 +3288,41 @@ had a hardcoded `options.replyTo` were updated via `setNodeParameter` with path
 
 ---
 
+## 29. Enquiry Upsert — Phone Conflict on Cross-Customer UPDATE ✅ DONE (September 22 2026)
+
+Commit `b40624c`. Playwright: 118 PASS · 0 FAIL (no regressions).
+
+**Bug:** `POST /enquiry/create-request` returned 500 when a customer was found by email
+but the submitted phone number was already owned by a *different* customer.
+
+**Root cause:** The SELECT-first pattern checked email first, then phone as a fallback.
+When the email matched customer A but the phone belonged to customer B, the UPDATE for
+customer A tried to write customer B's phone to the DB — hitting `idx_customers_phone_tenant_uq`
+with a 23505. The outer `catch` converted this to a 500 with no useful recovery.
+
+This surfaces when the same person submits with an email alias they haven't used before
+(`andy@` vs `andrew@`) while their phone is already registered under the canonical email.
+
+**Fix (`enquiry.js`):** Before the UPDATE, a conflict check query runs:
+```javascript
+const { rows: phoneConflict } = await client.query(
+  `SELECT 1 FROM bookings.customers
+   WHERE phone = $1 AND tenant_id = $2 AND id != $3 LIMIT 1`,
+  [resolvedPhone.substring(0, 50), validatedTenantId, customerId]
+);
+if (phoneConflict.length > 0) phoneToSet = '';
+```
+If another customer owns the phone, `phoneToSet` is blanked so
+`COALESCE(NULLIF('',''), phone)` silently preserves the existing value.
+The booking request is still created successfully against the found customer.
+
+**New test:** `tests/playwright/verify_email_flow.spec.js` — live e2e hitting the public
+enquiry form with the exact email/phone combo that was triggering the failure.
+
+See **Pattern 39** below.
+
+---
+
 ## Pattern 38 — Per-Venue Contact Email in n8n Email Workflows
 
 **Problem:** All customer-facing emails had `Contact Us →` mailto links and footer `📧` addresses
@@ -3341,6 +3377,56 @@ try {
 and a Code node redirects `$input` to the HTTP response — the loop data (the original batch
 item) is no longer in `$input`. Referencing the split node by name inside the loop is
 unreliable. The in-Code fetch sidesteps this entirely.
+
+---
+
+## Pattern 39 — Enquiry Upsert: Guard Phone UPDATE Against Cross-Customer Conflicts
+
+**Problem:** The SELECT-first customer upsert in `/enquiry/create-request` finds a customer
+by email (first) or phone (second). When found by email, the UPDATE sets the phone to the
+submitted value. If that phone is already owned by a *different* customer in the same tenant,
+the UPDATE hits `idx_customers_phone_tenant_uq` (23505) and the request returns 500 — the
+booking request is never created, and the user sees a generic error.
+
+This happens in the real world when a person submits with an email alias they haven't used
+before (`andy.x@gmail.com`) while their canonical email (`andrew.x@gmail.com`) is already
+registered with their phone number.
+
+**Rule:** Before any UPDATE that writes a phone to an existing customer, check whether that
+phone is already owned by a different customer in the same tenant:
+
+```javascript
+let phoneToSet = resolvedPhone;
+if (resolvedPhone) {
+  const { rows: phoneConflict } = await client.query(
+    `SELECT 1 FROM bookings.customers
+     WHERE phone = $1 AND tenant_id = $2 AND id != $3 LIMIT 1`,
+    [resolvedPhone.substring(0, 50), validatedTenantId, customerId]
+  );
+  if (phoneConflict.length > 0) phoneToSet = '';  // skip phone update — keep existing
+}
+await client.query(
+  `UPDATE bookings.customers
+   SET full_name = COALESCE(NULLIF($3,''), full_name),
+       phone     = COALESCE(NULLIF($4,''), phone),
+       updated_at = NOW()
+   WHERE id = $1 AND tenant_id = $2`,
+  [customerId, validatedTenantId, resolvedName, phoneToSet.substring(0, 50)]
+);
+```
+
+`COALESCE(NULLIF('',''), phone)` = `phone` (unchanged) when `phoneToSet` is blanked.
+
+**The booking request is still created** — we just don't update the phone. The customer's
+existing phone (registered under their canonical email) is preserved.
+
+**Applies to:** any route that upserts a customer and conditionally updates the phone.
+The pattern in `customers.js` (`POST /customers/upsert`) should use the same guard if it
+ever accepts a phone update from an untrusted caller.
+
+**Why not catch 23505 after the fact?** A post-hoc catch would work, but it's less
+explicit — silent retry obscures the conflict. The pre-check documents the invariant and
+makes the intent clear to future readers.
 
 ---
 
