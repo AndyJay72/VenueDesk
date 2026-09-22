@@ -7,7 +7,10 @@
       "name": "Schedule: Daily 08:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-880, 200],
+      "position": [
+        -880,
+        200
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -24,7 +27,10 @@
       "name": "API: Process Unpaid Lifecycle",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-640, 200],
+      "position": [
+        -640,
+        200
+      ],
       "continueOnFail": true,
       "parameters": {
         "method": "POST",
@@ -62,7 +68,10 @@
       "name": "Code: Split Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, 200],
+      "position": [
+        -400,
+        200
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "jsCode": "// Unwrap warnings and cancellations arrays from db-api response.\n// Returns two separate item streams using output index via Set nodes.\nconst resp = $input.first().json;\nif (!resp || !resp.success) {\n  return [{ json: { _type: 'noop', message: resp?.message || 'API call failed' } }];\n}\nconst warnings      = Array.isArray(resp.warnings_to_send)      ? resp.warnings_to_send      : [];\nconst cancellations = Array.isArray(resp.cancellations_to_send) ? resp.cancellations_to_send : [];\n// Tag each item so downstream nodes know what to do with it\nconst warningItems      = warnings.map(r      => ({ json: { ...r, _type: 'warning' } }));\nconst cancellationItems = cancellations.map(r => ({ json: { ...r, _type: 'cancellation' } }));\n// Return all items in one stream; IF nodes below split by _type\nreturn [...warningItems, ...cancellationItems];"
@@ -73,7 +82,10 @@
       "name": "IF: Is Warning?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-160, 200],
+      "position": [
+        -160,
+        200
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -101,7 +113,10 @@
       "name": "Split: Warn Loop",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [80, 80],
+      "position": [
+        80,
+        80
+      ],
       "parameters": {
         "batchSize": 1,
         "options": {}
@@ -112,9 +127,12 @@
       "name": "Code: Build Warning Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [320, 80],
+      "position": [
+        320,
+        80
+      ],
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst customerName = r.customer_name || 'Valued Customer';\nconst venueName    = r.venue_name    || 'VenueDesk';\nconst roomName     = r.room_name     || 'the booked space';\nconst balance      = parseFloat(r.balance_due || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst eventDate = fmtDate(r.event_date);\nconst startTime = r.start_time ? String(r.start_time).slice(0,5) : '';\nconst endTime   = r.end_time   ? String(r.end_time).slice(0,5)   : '';\nconst timeStr   = (startTime && endTime) ? ` from ${startTime} to ${endTime}` : '';\n\nconst subject = `⚠️ Action required: Outstanding balance on your booking — ${venueName}`;\nconst html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk · Booking System</p>\n      <h1 style=\"margin:0 0 8px;color:#fff;font-size:20px;font-weight:700;\">⚠️ Payment Reminder</h1>\n      <div style=\"background:rgba(0,0,0,.18);border-radius:8px;padding:8px 20px;display:inline-block;\">\n        <span style=\"color:#fff;font-size:28px;font-weight:800;\">£${balance}</span>\n        <span style=\"color:rgba(255,255,255,.85);font-size:14px;font-weight:600;\"> outstanding</span>\n      </div>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        Your booking at <strong>${venueName}</strong> for <strong>${roomName}</strong> on <strong>${eventDate}${timeStr}</strong> has an outstanding balance of <strong style=\"color:#d97706;\">£${balance}</strong>.\n      </p>\n      <div style=\"background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin:20px 0;\">\n        <p style=\"margin:0;color:#92400e;font-size:13px;font-weight:700;\">⏰ This booking will be automatically cancelled in 48 hours if payment is not received.</p>\n        <p style=\"margin:8px 0 0;color:#78350f;font-size:13px;line-height:1.55;\">Please contact us as soon as possible to settle the outstanding balance and secure your booking.</p>\n      </div>\n      <div style=\"text-align:center;margin:28px 0 20px;\">\n        <a href=\"mailto:bookings@venuedesk.co.uk?subject=Payment%20for%20my%20upcoming%20booking%20at%20${encodeURIComponent(venueName)}\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us to Pay →\n        </a>\n      </div>\n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">📧 bookings@venuedesk.co.uk</p>\n        <p style=\"margin:12px 0 0;font-size:11px;color:#9ca3af;\">This is an automated reminder. Booking ID: ${r.booking_id || 'N/A'}</p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: r.customer_email, subject, html } }];"
+        "jsCode": "const r = $input.first().json;\nconst tenantId_w = r.tenant_id || '';\nlet contactEmail = 'bookings@venuedesk.co.uk';\ntry {\n  if (tenantId_w) {\n    const cfg = await $helpers.httpRequest({ method: 'GET', url: 'https://api.venuedesk.co.uk/stripe/config?tenant_id=' + tenantId_w });\n    contactEmail = (cfg?.data || cfg)?.staff_notification_email || contactEmail;\n  }\n} catch(e) {}\nconst customerName = r.customer_name || 'Valued Customer';\nconst venueName    = r.venue_name    || 'VenueDesk';\nconst roomName     = r.room_name     || 'the booked space';\nconst balance      = parseFloat(r.balance_due || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst eventDate = fmtDate(r.event_date);\nconst startTime = r.start_time ? String(r.start_time).slice(0,5) : '';\nconst endTime   = r.end_time   ? String(r.end_time).slice(0,5)   : '';\nconst timeStr   = (startTime && endTime) ? ` from ${startTime} to ${endTime}` : '';\n\nconst subject = `⚠️ Action required: Outstanding balance on your booking — ${venueName}`;\nconst html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk · Booking System</p>\n      <h1 style=\"margin:0 0 8px;color:#fff;font-size:20px;font-weight:700;\">⚠️ Payment Reminder</h1>\n      <div style=\"background:rgba(0,0,0,.18);border-radius:8px;padding:8px 20px;display:inline-block;\">\n        <span style=\"color:#fff;font-size:28px;font-weight:800;\">£${balance}</span>\n        <span style=\"color:rgba(255,255,255,.85);font-size:14px;font-weight:600;\"> outstanding</span>\n      </div>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        Your booking at <strong>${venueName}</strong> for <strong>${roomName}</strong> on <strong>${eventDate}${timeStr}</strong> has an outstanding balance of <strong style=\"color:#d97706;\">£${balance}</strong>.\n      </p>\n      <div style=\"background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin:20px 0;\">\n        <p style=\"margin:0;color:#92400e;font-size:13px;font-weight:700;\">⏰ This booking will be automatically cancelled in 48 hours if payment is not received.</p>\n        <p style=\"margin:8px 0 0;color:#78350f;font-size:13px;line-height:1.55;\">Please contact us as soon as possible to settle the outstanding balance and secure your booking.</p>\n      </div>\n      <div style=\"text-align:center;margin:28px 0 20px;\">\n        <a href=\"mailto:${contactEmail}?subject=Payment%20for%20my%20upcoming%20booking%20at%20${encodeURIComponent(venueName)}\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us to Pay →\n        </a>\n      </div>\n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">📧 ${contactEmail}</p>\n        <p style=\"margin:12px 0 0;font-size:11px;color:#9ca3af;\">This is an automated reminder. Booking ID: ${r.booking_id || 'N/A'}</p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: r.customer_email, subject, html, contactEmail } }];"
       }
     },
     {
@@ -122,7 +140,10 @@
       "name": "Email: Unpaid Warning",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [560, 80],
+      "position": [
+        560,
+        80
+      ],
       "continueOnFail": true,
       "credentials": {
         "smtp": {
@@ -136,7 +157,8 @@
         "subject": "={{ $json.subject }}",
         "emailFormat": "html",
         "html": "={{ $json.html }}",
-        "options": {}
+        "options": {},
+        "replyTo": "={{ $json.contactEmail }}"
       }
     },
     {
@@ -144,7 +166,10 @@
       "name": "Wait: 2s (warn)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [800, 80],
+      "position": [
+        800,
+        80
+      ],
       "webhookId": "ubl-wait-warn",
       "parameters": {
         "resume": "timeInterval",
@@ -157,7 +182,10 @@
       "name": "Split: Cancel Loop",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [80, 340],
+      "position": [
+        80,
+        340
+      ],
       "parameters": {
         "batchSize": 1,
         "options": {}
@@ -168,9 +196,12 @@
       "name": "Code: Build Cancel Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [320, 340],
+      "position": [
+        320,
+        340
+      ],
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst customerName = r.customer_name || 'Valued Customer';\nconst venueName    = r.venue_name    || 'VenueDesk';\nconst roomName     = r.room_name     || 'the booked space';\nconst balance      = parseFloat(r.balance_due || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst eventDate = fmtDate(r.event_date);\nconst startTime = r.start_time ? String(r.start_time).slice(0,5) : '';\nconst endTime   = r.end_time   ? String(r.end_time).slice(0,5)   : '';\nconst timeStr   = (startTime && endTime) ? ` from ${startTime} to ${endTime}` : '';\n\nconst subject = `❌ Booking cancelled — outstanding balance not received — ${venueName}`;\nconst html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#ef4444 0%,#b91c1c 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk · Booking System</p>\n      <h1 style=\"margin:0 0 8px;color:#fff;font-size:20px;font-weight:700;\">❌ Booking Cancelled</h1>\n      <p style=\"margin:0;color:rgba(255,255,255,.9);font-size:13px;\">Outstanding balance not received</p>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        We regret to inform you that your booking at <strong>${venueName}</strong> for <strong>${roomName}</strong> on <strong>${eventDate}${timeStr}</strong> has been <strong style=\"color:#ef4444;\">automatically cancelled</strong> due to an unpaid balance of <strong>£${balance}</strong>.\n      </p>\n      <div style=\"background:#fee2e2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:8px;padding:14px 16px;margin:20px 0;\">\n        <p style=\"margin:0;color:#991b1b;font-size:13px;font-weight:700;\">Your booking has been released and is no longer reserved.</p>\n        <p style=\"margin:8px 0 0;color:#7f1d1d;font-size:13px;line-height:1.55;\">If you believe this was in error or would like to rebook, please contact us as soon as possible. Availability cannot be guaranteed.</p>\n      </div>\n      <div style=\"text-align:center;margin:28px 0 20px;\">\n        <a href=\"mailto:bookings@venuedesk.co.uk?subject=Re%3A%20Cancelled%20booking%20at%20${encodeURIComponent(venueName)}\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us →\n        </a>\n      </div>\n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">📧 bookings@venuedesk.co.uk</p>\n        <p style=\"margin:12px 0 0;font-size:11px;color:#9ca3af;\">This is an automated notification. Booking ID: ${r.booking_id || 'N/A'}</p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: r.customer_email, subject, html } }];"
+        "jsCode": "const r = $input.first().json;\nconst tenantId_c = r.tenant_id || '';\nlet contactEmail = 'bookings@venuedesk.co.uk';\ntry {\n  if (tenantId_c) {\n    const cfg = await $helpers.httpRequest({ method: 'GET', url: 'https://api.venuedesk.co.uk/stripe/config?tenant_id=' + tenantId_c });\n    contactEmail = (cfg?.data || cfg)?.staff_notification_email || contactEmail;\n  }\n} catch(e) {}\nconst customerName = r.customer_name || 'Valued Customer';\nconst venueName    = r.venue_name    || 'VenueDesk';\nconst roomName     = r.room_name     || 'the booked space';\nconst balance      = parseFloat(r.balance_due || 0).toFixed(2);\nconst fmtDate = d => {\n  if (!d) return '—';\n  const dt = new Date(String(d).slice(0,10) + 'T00:00:00');\n  return dt.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });\n};\nconst eventDate = fmtDate(r.event_date);\nconst startTime = r.start_time ? String(r.start_time).slice(0,5) : '';\nconst endTime   = r.end_time   ? String(r.end_time).slice(0,5)   : '';\nconst timeStr   = (startTime && endTime) ? ` from ${startTime} to ${endTime}` : '';\n\nconst subject = `❌ Booking cancelled — outstanding balance not received — ${venueName}`;\nconst html = `<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n  <div style=\"max-width:600px;margin:0 auto;padding:32px 16px;\">\n    <div style=\"background:linear-gradient(135deg,#ef4444 0%,#b91c1c 100%);border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;\">\n      <p style=\"margin:0 0 4px;color:rgba(255,255,255,.8);font-size:11px;letter-spacing:2px;text-transform:uppercase;\">VenueDesk · Booking System</p>\n      <h1 style=\"margin:0 0 8px;color:#fff;font-size:20px;font-weight:700;\">❌ Booking Cancelled</h1>\n      <p style=\"margin:0;color:rgba(255,255,255,.9);font-size:13px;\">Outstanding balance not received</p>\n    </div>\n    <div style=\"background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px;\">\n      <p style=\"margin:0 0 16px;color:#111827;font-size:15px;\">Hi <strong>${customerName}</strong>,</p>\n      <p style=\"margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.65;\">\n        We regret to inform you that your booking at <strong>${venueName}</strong> for <strong>${roomName}</strong> on <strong>${eventDate}${timeStr}</strong> has been <strong style=\"color:#ef4444;\">automatically cancelled</strong> due to an unpaid balance of <strong>£${balance}</strong>.\n      </p>\n      <div style=\"background:#fee2e2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:8px;padding:14px 16px;margin:20px 0;\">\n        <p style=\"margin:0;color:#991b1b;font-size:13px;font-weight:700;\">Your booking has been released and is no longer reserved.</p>\n        <p style=\"margin:8px 0 0;color:#7f1d1d;font-size:13px;line-height:1.55;\">If you believe this was in error or would like to rebook, please contact us as soon as possible. Availability cannot be guaranteed.</p>\n      </div>\n      <div style=\"text-align:center;margin:28px 0 20px;\">\n        <a href=\"mailto:${contactEmail}?subject=Re%3A%20Cancelled%20booking%20at%20${encodeURIComponent(venueName)}\"\n           style=\"display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;\">\n          Contact Us →\n        </a>\n      </div>\n      <div style=\"border-top:1px solid #f3f4f6;padding-top:20px;margin-top:8px;\">\n        <p style=\"margin:0 0 3px;font-size:13px;color:#374151;font-weight:600;\">VenueDesk Booking Team</p>\n        <p style=\"margin:0 0 3px;font-size:12px;color:#6b7280;\">📧 ${contactEmail}</p>\n        <p style=\"margin:12px 0 0;font-size:11px;color:#9ca3af;\">This is an automated notification. Booking ID: ${r.booking_id || 'N/A'}</p>\n      </div>\n    </div>\n  </div>\n</body></html>`;\n\nreturn [{ json: { email: r.customer_email, subject, html, contactEmail } }];"
       }
     },
     {
@@ -178,7 +209,10 @@
       "name": "Email: Auto Cancelled",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [560, 340],
+      "position": [
+        560,
+        340
+      ],
       "continueOnFail": true,
       "credentials": {
         "smtp": {
@@ -192,7 +226,8 @@
         "subject": "={{ $json.subject }}",
         "emailFormat": "html",
         "html": "={{ $json.html }}",
-        "options": {}
+        "options": {},
+        "replyTo": "={{ $json.contactEmail }}"
       }
     },
     {
@@ -200,7 +235,10 @@
       "name": "Wait: 2s (cancel)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [800, 340],
+      "position": [
+        800,
+        340
+      ],
       "webhookId": "ubl-wait-cancel",
       "parameters": {
         "resume": "timeInterval",
@@ -213,7 +251,10 @@
       "name": "Done",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1040, 340],
+      "position": [
+        1040,
+        340
+      ],
       "parameters": {}
     }
   ],
@@ -221,65 +262,155 @@
   "connections": {
     "Schedule: Daily 08:00": {
       "main": [
-        [{ "node": "API: Process Unpaid Lifecycle", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "API: Process Unpaid Lifecycle",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "API: Process Unpaid Lifecycle": {
       "main": [
-        [{ "node": "Code: Split Response", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Split Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Code: Split Response": {
       "main": [
-        [{ "node": "IF: Is Warning?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "IF: Is Warning?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "IF: Is Warning?": {
       "main": [
-        [{ "node": "Split: Warn Loop", "type": "main", "index": 0 }],
-        [{ "node": "Split: Cancel Loop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split: Warn Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split: Cancel Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Split: Warn Loop": {
       "main": [
-        [{ "node": "Code: Build Warning Email", "type": "main", "index": 0 }],
-        [{ "node": "Split: Cancel Loop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Build Warning Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split: Cancel Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Code: Build Warning Email": {
       "main": [
-        [{ "node": "Email: Unpaid Warning", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Email: Unpaid Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Email: Unpaid Warning": {
       "main": [
-        [{ "node": "Wait: 2s (warn)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Wait: 2s (warn)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Wait: 2s (warn)": {
       "main": [
-        [{ "node": "Split: Warn Loop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split: Warn Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Split: Cancel Loop": {
       "main": [
-        [{ "node": "Code: Build Cancel Email", "type": "main", "index": 0 }],
-        [{ "node": "Done", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code: Build Cancel Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Code: Build Cancel Email": {
       "main": [
-        [{ "node": "Email: Auto Cancelled", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Email: Auto Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Email: Auto Cancelled": {
       "main": [
-        [{ "node": "Wait: 2s (cancel)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Wait: 2s (cancel)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Wait: 2s (cancel)": {
       "main": [
-        [{ "node": "Split: Cancel Loop", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split: Cancel Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
