@@ -132,13 +132,30 @@ async function customersRoutes(fastify) {
           ? [tenantId, full_name, email, phone, event_type, notes]
           : [tenantId, full_name, phone, event_type, notes];
 
-        const { rows: inserted } = await client.query(
-          `INSERT INTO bookings.customers ${cols} VALUES ${vals}
-           RETURNING id, full_name, email, phone`,
-          params
-        );
-        row     = inserted[0];
-        created = true;
+        try {
+          const { rows: inserted } = await client.query(
+            `INSERT INTO bookings.customers ${cols} VALUES ${vals}
+             RETURNING id, full_name, email, phone`,
+            params
+          );
+          row     = inserted[0];
+          created = true;
+        } catch (insertErr) {
+          // 23505 = unique_violation — concurrent request beat us to this email/phone.
+          // Re-fetch the winning row and treat it as an existing customer (no 500).
+          if (insertErr.code !== '23505') throw insertErr;
+          const lookup = email
+            ? ['lower(email) = lower($2)', [tenantId, email]]
+            : ['phone = $2',               [tenantId, phone]];
+          const { rows: raced } = await client.query(
+            `SELECT id, full_name, email, phone FROM bookings.customers
+             WHERE ${lookup[0]} AND tenant_id = $1 LIMIT 1`,
+            lookup[1]
+          );
+          if (raced.length === 0) throw insertErr; // unexpected — re-throw
+          row     = raced[0];
+          created = false;
+        }
       }
 
       await logger.info(

@@ -71,7 +71,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\n\nif (!row || !row.customer_id) {\n  throw new Error('INSERT did not return a customer_id — check your table schema');\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: row.customer_id,\n  full_name:   row.full_name,\n  email:       row.email\n}}];\n"
+        "jsCode": "const row = $input.first().json;\nconst id = (row.data && row.data.id) || row.id || row.customer_id;\n\nif (!id) {\n  throw new Error('Upsert did not return a customer id: ' + JSON.stringify(row));\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: id,\n  full_name:   (row.data && row.data.full_name) || row.full_name || '',\n  email:       (row.data && row.data.email)     || row.email     || ''\n}}];\n"
       },
       "id": "0e6b9b3d-7c50-4b83-b8cd-981a0e664dd1",
       "name": "Format Response",
@@ -253,7 +253,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const row = $input.first().json;\n\nif (!row || !row.customer_id) {\n  throw new Error('INSERT did not return a customer_id — check your table schema');\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: row.customer_id,\n  full_name:   row.full_name,\n  email:       row.email\n}}];\n"
+          "jsCode": "const row = $input.first().json;\n\nif (!row || !row.customer_id) {\n  throw new Error('INSERT did not return a customer_id \u2014 check your table schema');\n}\n\nreturn [{ json: {\n  success: true,\n  customer_id: row.customer_id,\n  full_name:   row.full_name,\n  email:       row.email\n}}];\n"
         },
         "id": "0e6b9b3d-7c50-4b83-b8cd-981a0e664dd1",
         "name": "Format Response",
