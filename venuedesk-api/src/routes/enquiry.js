@@ -109,51 +109,62 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
         const guestCount  = Math.max(1, coerceNumeric(guest_count || num_people, { fallback: 1, min: 1, scale: 0 }));
 
         let customerId;
-        try {
-          const custRes = await client.query(
+        // SELECT-first pattern (matches customers.js) — avoids ON CONFLICT collisions
+        // on both the email and phone unique constraints.
+        let lookupRes = normalEmail
+          ? await client.query(
+              `SELECT id FROM bookings.customers
+               WHERE lower(email) = lower($1) AND tenant_id = $2 LIMIT 1`,
+              [normalEmail, validatedTenantId]
+            )
+          : { rows: [] };
+
+        if (lookupRes.rows.length === 0 && resolvedPhone) {
+          lookupRes = await client.query(
+            `SELECT id FROM bookings.customers
+             WHERE phone = $1 AND tenant_id = $2 LIMIT 1`,
+            [resolvedPhone.substring(0, 50), validatedTenantId]
+          );
+        }
+
+        if (lookupRes.rows.length > 0) {
+          customerId = lookupRes.rows[0].id;
+          // Guard: if the new phone is already owned by a *different* customer,
+          // skip updating phone to avoid 23505 on idx_customers_phone_tenant_uq.
+          // This happens when the same person submits with a different email alias
+          // but the same phone that was previously registered under another email.
+          let phoneToSet = resolvedPhone;
+          if (resolvedPhone) {
+            const { rows: phoneConflict } = await client.query(
+              `SELECT 1 FROM bookings.customers
+               WHERE phone = $1 AND tenant_id = $2 AND id != $3 LIMIT 1`,
+              [resolvedPhone.substring(0, 50), validatedTenantId, customerId]
+            );
+            if (phoneConflict.length > 0) phoneToSet = '';
+          }
+          await client.query(
+            `UPDATE bookings.customers
+             SET full_name  = COALESCE(NULLIF($3,''), full_name),
+                 phone      = COALESCE(NULLIF($4,''), phone),
+                 updated_at = NOW()
+             WHERE id = $1 AND tenant_id = $2`,
+            [customerId, validatedTenantId, resolvedName, phoneToSet.substring(0, 50)]
+          );
+        } else {
+          const newCust = await client.query(
             `INSERT INTO bookings.customers
-               (full_name, email, phone, event_type, guests_count, status, tenant_id)
-             VALUES ($1, $2, $3, $4, $5, 'pending', $6)
-             ON CONFLICT (email, tenant_id) DO UPDATE
-               SET full_name   = COALESCE(NULLIF(EXCLUDED.full_name,  ''), bookings.customers.full_name),
-                   phone       = COALESCE(NULLIF(EXCLUDED.phone,       ''), bookings.customers.phone),
-                   updated_at  = NOW()
+               (full_name, email, phone, event_type, status, tenant_id)
+             VALUES ($1, $2, $3, $4, 'pending', $5)
              RETURNING id`,
             [
               resolvedName,
               normalEmail,
               resolvedPhone.substring(0, 50),
               (event_type || '').substring(0, 100),
-              guestCount,
               validatedTenantId,
             ]
           );
-          customerId = custRes.rows[0].id;
-        } catch (_conflictErr) {
-          // Constraint not yet present — fall back to SELECT or plain INSERT
-          const existing = await client.query(
-            'SELECT id FROM bookings.customers WHERE email = $1 AND tenant_id = $2 LIMIT 1',
-            [normalEmail, validatedTenantId]
-          );
-          if (existing.rows.length > 0) {
-            customerId = existing.rows[0].id;
-          } else {
-            const newCust = await client.query(
-              `INSERT INTO bookings.customers
-                 (full_name, email, phone, event_type, guests_count, status, tenant_id)
-               VALUES ($1, $2, $3, $4, $5, 'pending', $6)
-               RETURNING id`,
-              [
-                resolvedName,
-                normalEmail,
-                resolvedPhone.substring(0, 50),
-                (event_type || '').substring(0, 100),
-                guestCount,
-                validatedTenantId,
-              ]
-            );
-            customerId = newCust.rows[0].id;
-          }
+          customerId = newCust.rows[0].id;
         }
 
         // 2. Lookup room_id + day_rate by name (ILIKE — names may differ in case)
@@ -294,6 +305,7 @@ module.exports = async function enquiryRoutes(fastify, _opts) {
       return reply.send({ success: true, ...result });
 
     } catch (err) {
+      console.error('[enquiry] create-request failed:', err?.message, err?.code, err?.detail);
       fastify.log.error({ err }, '[enquiry] create-request failed');
       return reply.code(500).send({ success: false, message: 'Could not save enquiry — please try again' });
     }
