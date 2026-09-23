@@ -352,12 +352,28 @@
         </style>
   <style>
     /* ═══════════════════════════════════════════════════════════
-       VENUEDESK BRAND LIGHT THEME  — palette from venuedesk.html
-       Colours: --bg #f8fafc  --white #fff  --text #1e293b
-                --dark #0f172a  --muted #64748b  --border #e2e8f0
-                --indigo #6366f1  --indigo-d #4f46e5  --indigo-l #eef2ff
-                --green #10b981  --amber #f59e0b
-       ═══════════════════════════════════════════════════════════ */
+   VENUEDESK BRAND LIGHT THEME  — palette from userguide.html
+   Colours: --bg #f8fafc  --white #fff  --text #1e293b
+            --dark #0f172a  --muted #64748b  --border #e2e8f0
+            --indigo #6366f1  --indigo-d #4f46e5  --indigo-l #eef2ff
+            --green #10b981  --amber #f59e0b
+   ═══════════════════════════════════════════════════════════ */
+
+    /* ── CSS variable overrides ── */
+    body.light-mode {
+        --bg-dark:       #f8fafc;
+        --bg-card:       #ffffff;
+        --bg-gradient-1: #f0f4ff;
+        --bg-gradient-2: #eff6ff;
+        --bg-input:      #f1f5f9;
+        --input-bg:      #f1f5f9;
+        --border:        #e2e8f0;
+        --border-accent: rgba(99,102,241,0.25);
+        --text-main:     #1e293b;
+        --text-muted:    #64748b;
+        --primary:       #6366f1;
+        --primary-hover: #4f46e5;
+    }
 
     /* ── Body ── */
     body.light-mode {
@@ -414,7 +430,11 @@
     body.light-mode .outstanding-panel,
     body.light-mode .act-feed,
     body.light-mode .transaction-container,
-    body.light-mode .chart-card {
+    body.light-mode .chart-card,
+    body.light-mode .form-card,
+    body.light-mode .config-card,
+    body.light-mode .acc-card,
+    body.light-mode .rec-card {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
       box-shadow: 0 2px 12px rgba(99,102,241,.08) !important;
@@ -452,6 +472,7 @@
     body.light-mode .search-bar,
     body.light-mode .sf-input, body.light-mode .sf-select,
     body.light-mode .f-input, body.light-mode .f-select,
+    body.light-mode .cal-filter-select,
     body.light-mode .menu-toggle {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
@@ -460,7 +481,14 @@
     body.light-mode .search-bar input { color: #1e293b !important; }
     body.light-mode .search-bar input::placeholder,
     body.light-mode .sf-input::placeholder { color: #94a3b8 !important; }
-
+    body.light-mode input, body.light-mode select, body.light-mode textarea {
+      background: #ffffff !important;
+      border-color: #d1d5db !important;
+      color: #0f172a !important;
+    }
+    body.light-mode input::placeholder,
+    body.light-mode textarea::placeholder { color: #94a3b8 !important; }
+    body.light-mode label { color: #475569 !important; }
     body.light-mode .filter-btn {
       background: #ffffff !important;
       border: 1px solid #e2e8f0 !important;
@@ -485,7 +513,8 @@
     body.light-mode .invoice-modal,
     body.light-mode .receipt-card,
     body.light-mode .log-int-card,
-    body.light-mode .qb-card {
+    body.light-mode .qb-card,
+    body.light-mode .modal-box {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
       box-shadow: 0 16px 48px rgba(99,102,241,.15) !important;
@@ -498,8 +527,9 @@
     body.light-mode .invoice-row .ivalue { color: #1e293b !important; }
     body.light-mode .invoice-total-row { background: #f1f5f9 !important; border-color: #e2e8f0 !important; }
     body.light-mode .invoice-footer { border-color: #e2e8f0 !important; }
+    body.light-mode .modal-title { color: #0f172a !important; }
 
-    /* ── Customer / booking detail modal ── */
+    /* ── Detail / edit modals ── */
     body.light-mode .detail-value {
       background: #f8fafc !important;
       border-color: #e2e8f0 !important;
@@ -514,6 +544,14 @@
       background: #ffffff !important;
       border-color: #6366f1 !important;
       box-shadow: 0 0 0 3px rgba(99,102,241,.12) !important;
+    }
+    body.light-mode .modal-row { border-color: #f1f5f9 !important; }
+    body.light-mode .modal-label { color: #64748b !important; }
+    body.light-mode .modal-val { color: #0f172a !important; }
+    body.light-mode .e-pay-section,
+    body.light-mode .e-confirm-section {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
     }
     body.light-mode .bh-title,
     body.light-mode .modal-int-title { color: #0f172a !important; }
@@ -533,14 +571,14 @@
     body.light-mode .log-form-input,
     body.light-mode .log-form-select,
     body.light-mode .log-form-textarea,
-    body.light-mode .log-int-info-value { 
+    body.light-mode .log-int-info-value {
       background: #f8fafc !important;
       border-color: #e2e8f0 !important;
       color: #1e293b !important;
     }
     body.light-mode .log-int-title { color: #0f172a !important; }
 
-    /* ── Pay modal internals ── */
+    /* ── Pay modal ── */
     body.light-mode .pay-booking-info {
       background: #f8fafc !important;
       border-color: #e2e8f0 !important;
@@ -553,24 +591,20 @@
     body.light-mode .info-row span { color: #64748b !important; }
     body.light-mode .info-row strong { color: #0f172a !important; }
 
-    /* ── Booking cards ── */
+    /* ── Booking cards & feed ── */
     body.light-mode .b-name,
     body.light-mode .b-room { color: #0f172a !important; }
     body.light-mode .b-meta { color: #64748b !important; }
-
-    /* ── Activity feed ── */
     body.light-mode .act-name { color: #0f172a !important; }
     body.light-mode .act-detail { color: #64748b !important; }
     body.light-mode .act-time { color: #94a3b8 !important; }
-
-    /* ── Outstanding panel ── */
     body.light-mode .outstanding-panel-header {
       background: #f8fafc !important;
       border-color: #e2e8f0 !important;
     }
     body.light-mode .outstanding-panel-title { color: #0f172a !important; }
 
-    /* ── Calendar overrides ── */
+    /* ── Calendar (FullCalendar) ── */
     body.light-mode #cal-container {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
@@ -597,21 +631,24 @@
       border-color: #e2e8f0 !important;
       color: #64748b !important;
     }
-    body.light-mode .modal-row { border-color: #f1f5f9 !important; }
-    body.light-mode .modal-label { color: #64748b !important; }
-    body.light-mode .modal-val { color: #0f172a !important; }
-    body.light-mode .e-pay-section,
-    body.light-mode .e-confirm-section {
-      background: #f8fafc !important;
-      border-color: #e2e8f0 !important;
-    }
     body.light-mode .qb-input, body.light-mode .qb-select {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
       color: #1e293b !important;
     }
 
-    /* ── Accounts page ── */
+    /* ── Manual-booking form ── */
+    body.light-mode .form-section-title { color: #0f172a !important; border-bottom-color: #e2e8f0 !important; }
+    body.light-mode .payment-box { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+    body.light-mode .walkin-badge { background: rgba(99,102,241,0.1) !important; color: #4f46e5 !important; }
+    body.light-mode .multi-day-btn { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.12) !important; color: #475569 !important; }
+    body.light-mode .avail-status { background: rgba(0,0,0,0.04) !important; color: #64748b !important; }
+    body.light-mode .avail-status.available { background: rgba(16,185,129,0.08) !important; color: #059669 !important; }
+    body.light-mode .avail-status.unavailable,
+    body.light-mode .avail-status.error { background: rgba(239,68,68,0.07) !important; color: #dc2626 !important; }
+    body.light-mode .breakdown-text { color: #64748b !important; }
+
+    /* ── Accounts ── */
     body.light-mode .acc-metric-card {
       background: #ffffff !important;
       border-color: #e2e8f0 !important;
@@ -639,15 +676,8 @@
     body.light-mode .date-badge { background: #f1f5f9 !important; color: #64748b !important; }
     body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
     body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
-    /* ── CSS variable overrides — fixes all elements using var(--bg-card), var(--text-main) etc. ── */
-    body.light-mode {
-        --bg-dark:    #f0f4f8;
-        --bg-card:    rgba(255,255,255,0.92);
-        --border:     rgba(0,0,0,0.1);
-        --text-main:  #0f172a;
-        --text-muted: #64748b;
-    }
     /* END VENUEDESK BRAND LIGHT THEME */
+
   </style>
 </head>
 <body>

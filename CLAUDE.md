@@ -1193,8 +1193,7 @@ intended behaviour).
 | `vp_user_name` | **sessionStorage** | Staff display name |
 | `vd_admin_auth` | **sessionStorage** | Onboarding admin key gate |
 | `vp_sidebar_col` | localStorage | UI preference — intentional persistence |
-| `vp_theme` | localStorage | UI preference — intentional persistence |
-| `vp_light_mode` | localStorage | UI preference — intentional persistence |
+| `vp_theme` | localStorage | **Single source of truth for theme** (`'light'` or `'dark'`). All pages read/write only this key. |
 | `vp_sidebar_collapsed` | localStorage | UI preference — intentional persistence |
 
 **Audit status (June 23 2026):** All live root files scanned. Every auth/identity key now
@@ -2172,8 +2171,9 @@ Full audit of all live HTML pages (repo root) for auth/identity keys incorrectly
 **Pages confirmed clean (no auth-key localStorage):** `index.html`, `calendar.html`,
 `manual-booking.html`, `recurring-bookings.html`, `userguide.html`.
 
-`vp_sidebar_col`, `vp_theme`, `vp_light_mode`, `vp_sidebar_collapsed` remain in
+`vp_sidebar_col`, `vp_theme`, `vp_sidebar_collapsed` remain in
 `localStorage` — this is intentional (UI preferences, not security-sensitive).
+`vp_theme` is the **single source of truth** for light/dark mode. The legacy `vp_light_mode` key has been removed from all pages.
 
 ## 6. audit-log.html — staff_member Field Drop ✅ FIXED (June 24 2026)
 
