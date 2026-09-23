@@ -2269,18 +2269,24 @@ async function init() {
     updateCancelPreview();
 }
 
-init();
-    (function(){ var t=sessionStorage.getItem('vp_theme'); if(t==='light') document.body.classList.add('light-mode'); })();
-    function toggleTheme(){
-        var isLight = document.body.classList.toggle('light-mode');
-        sessionStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
-        var btn = document.getElementById('theme-btn');
-        if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-        var btn = document.getElementById('theme-btn');
-        if(btn) { var isLight = document.body.classList.contains('light-mode'); btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>'; }
-    });
+init();        // ── THEME PERSISTENCE ──
+        (function(){
+            const t = localStorage.getItem('vp_theme');
+            if(t === 'light') document.body.classList.add('light-mode');
+        })();
+        function toggleTheme(){
+            const isLight = document.body.classList.toggle('light-mode');
+            localStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+            const btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        }
+        document.addEventListener('DOMContentLoaded', function(){
+            const btn = document.getElementById('theme-btn');
+            if(btn) {
+                const isLight = document.body.classList.contains('light-mode');
+                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        });
 
 // ─────────────────────────────────────────────
 // POLICY TEMPLATES

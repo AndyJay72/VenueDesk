@@ -1016,7 +1016,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:10px">
             <span id="user-display" style="font-size:.82rem;color:var(--text-muted)"></span>
-            <button class="theme-btn" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i></button>
+            <button class="theme-btn theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
         </div>
     </header>
 
@@ -1104,12 +1104,25 @@ function showToast(msg,type){
 
 /* ─── Theme / Sidebar ─────────────────────────────── */
 (function(){
-    if(localStorage.getItem('vp_light_mode')==='1') document.body.classList.add('light-mode');
+    if(localStorage.getItem('vp_theme')==='light') document.body.classList.add('light-mode');
     if(localStorage.getItem('vp_sidebar_collapsed')==='1') document.body.classList.add('sidebar-collapsed');
     var el=document.getElementById('user-display');
     if(el){ try{ var u=JSON.parse(sessionStorage.getItem('vp_user')||'{}'); el.textContent=u.name||u.username||''; }catch(e){ el.textContent=sessionStorage.getItem('vp_user')||''; } }
 })();
-function toggleTheme(){ document.body.classList.toggle('light-mode'); localStorage.setItem('vp_light_mode',document.body.classList.contains('light-mode')?'1':'0'); }
+// ── THEME PERSISTENCE ──
+function toggleTheme(){
+    const isLight = document.body.classList.toggle('light-mode');
+    localStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+    const btn = document.getElementById('theme-btn');
+    if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+}
+document.addEventListener('DOMContentLoaded', function(){
+    const btn = document.getElementById('theme-btn');
+    if(btn) {
+        const isLight = document.body.classList.contains('light-mode');
+        btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
+});
 function toggleMenu(){ var sb=document.getElementById('sidebar'),ov=document.getElementById('overlay'); sb.classList.toggle('open'); ov.classList.toggle('open'); }
 function toggleSidebarCollapse(){ document.body.classList.toggle('sidebar-collapsed'); localStorage.setItem('vp_sidebar_collapsed',document.body.classList.contains('sidebar-collapsed')?'1':'0'); }
 function logout(){ if(confirm('Log out?')){ ['vp_token','vp_user','vp_tenant_id','vp_venue_id','vp_venue_name'].forEach(function(k){sessionStorage.removeItem(k);}); window.location.href='login.html'; } }

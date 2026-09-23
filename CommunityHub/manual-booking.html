@@ -33,6 +33,24 @@
             localStorage.setItem('vp_sidebar_col',col?'1':'0');
         }
         (function(){if(localStorage.getItem('vp_sidebar_col')==='1')document.body.classList.add('sidebar-collapsed');})();
+        // ── THEME PERSISTENCE ──
+        (function(){
+            const t = localStorage.getItem('vp_theme');
+            if(t === 'light') document.body.classList.add('light-mode');
+        })();
+        function toggleTheme(){
+            const isLight = document.body.classList.toggle('light-mode');
+            localStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
+            const btn = document.getElementById('theme-btn');
+            if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        }
+        document.addEventListener('DOMContentLoaded', function(){
+            const btn = document.getElementById('theme-btn');
+            if(btn) {
+                const isLight = document.body.classList.contains('light-mode');
+                btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            }
+        });
         </script>
     <style>
         :root {
@@ -382,7 +400,10 @@
                 <h1 style="font-size:1.6rem; font-weight:700; margin-bottom:4px;">Walk-In Booking</h1>
                 <p style="color:var(--text-muted); font-size:0.88rem;">Manually create a booking for a customer on-site</p>
             </div>
-            <span class="walkin-badge"><i class="fa-solid fa-person-walking-arrow-right"></i> Walk-In</span>
+            <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+                <span class="walkin-badge"><i class="fa-solid fa-person-walking-arrow-right"></i> Walk-In</span>
+                <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon"></i></button>
+            </div>
         </header>
 
         <form id="manualBookingForm" class="form-card" onsubmit="return false;">
