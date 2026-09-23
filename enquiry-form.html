@@ -398,10 +398,10 @@
     <div id="toast-container"></div>
 
     <script>
+        const EF_DB_API   = 'https://api.venuedesk.co.uk';
         const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
         const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
         const BLOCKED_API = `${EF_DB_API}/blocked-dates/public`;
-        const EF_DB_API   = 'https://api.venuedesk.co.uk';
         // Enquiry submissions go directly to db-api — guarantees a booking_request_id
         // is returned so Stripe webhook can link the payment back to the request.
         const SUBMIT_API  = `${EF_DB_API}/enquiry/create-request`;
