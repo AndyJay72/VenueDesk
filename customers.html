@@ -205,7 +205,22 @@
         .theme-toggle:hover { color: white; border-color: white; }
         body.light-mode .theme-toggle { background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.15); color: #475569; }
         body.light-mode .theme-toggle:hover { color: #0f172a; border-color: #94a3b8; }
-    
+        /* ── CSS variable overrides — fixes all elements using var(--bg-card), var(--text-main) etc. ── */
+        body.light-mode {
+            --bg-dark:    #f0f4f8;
+            --bg-card:    rgba(255,255,255,0.92);
+            --border:     rgba(0,0,0,0.1);
+            --text-main:  #0f172a;
+            --text-muted: #64748b;
+        }
+        body.light-mode .c-name { color: #0f172a !important; font-weight: 600 !important; }
+        body.light-mode .c-email, body.light-mode .c-phone,
+        body.light-mode .c-meta, body.light-mode .c-detail { color: #64748b !important; }
+        body.light-mode .interaction-panel { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+        body.light-mode .int-type { color: #6366f1 !important; }
+        body.light-mode .int-notes { color: #475569 !important; }
+        body.light-mode .int-time { color: #94a3b8 !important; }
+
         /* ============================================================
            RESPONSIVE DESIGN — VenueDesk Full Coverage
            Breakpoints: 1200 / 1024 / 900 / 768 / 480 / 360

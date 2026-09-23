@@ -759,6 +759,59 @@
     body.light-mode .date-badge { background: #f1f5f9 !important; color: #64748b !important; }
     body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
     body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+    /* ── FullCalendar event component overrides ── */
+    /* Chip events (month / list view) */
+    body.light-mode .fc-chip { background: rgba(255,255,255,0.9) !important; border: 1px solid rgba(0,0,0,0.07) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important; }
+    body.light-mode .fc-chip-name { color: #1e293b !important; }
+    body.light-mode .fc-chip-room { color: #64748b !important; opacity: 1 !important; }
+    body.light-mode .fc-chip-time { color: #94a3b8 !important; opacity: 1 !important; }
+    /* Time-grid block events (week / day view) */
+    body.light-mode .fc-tgblock { background: rgba(248,250,252,0.97) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important; }
+    body.light-mode .fc-tgblock-name { color: #1e293b !important; }
+    body.light-mode .fc-tgblock-room { opacity: 1 !important; }
+    body.light-mode .fc-tgblock-time { color: #94a3b8 !important; }
+    body.light-mode .fc-tgblock-guests { color: #94a3b8 !important; }
+    /* Time grid structure */
+    body.light-mode .fc-timegrid-slot-label-cushion { color: #94a3b8 !important; }
+    body.light-mode .fc-timegrid-slot { border-color: #f1f5f9 !important; }
+    body.light-mode .fc-timegrid-axis { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+    body.light-mode .fc-timegrid-col { background: #ffffff !important; }
+    body.light-mode .fc-scrollgrid,
+    body.light-mode .fc-scrollgrid-section > * { border-color: #e2e8f0 !important; }
+    body.light-mode .fc-daygrid-day { background: #ffffff !important; }
+    body.light-mode .fc-event-main { color: #1e293b !important; }
+    /* Room-hours filter select */
+    body.light-mode .cal-filter-select { background: #ffffff !important; border-color: #e2e8f0 !important; color: #1e293b !important; }
+    /* ── CSS variable overrides — fixes all elements using var(--bg-card), var(--text-main) etc. ── */
+    body.light-mode {
+        --bg-dark:    #f0f4f8;
+        --bg-card:    rgba(255,255,255,0.92);
+        --border:     rgba(0,0,0,0.1);
+        --text-main:  #0f172a;
+        --text-muted: #64748b;
+    }
+    /* ── FullCalendar event component overrides ── */
+    /* Chip events (month / list view) */
+    body.light-mode .fc-chip { background: rgba(255,255,255,0.9) !important; border: 1px solid rgba(0,0,0,0.07) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important; }
+    body.light-mode .fc-chip-name { color: #1e293b !important; }
+    body.light-mode .fc-chip-room { color: #64748b !important; opacity: 1 !important; }
+    body.light-mode .fc-chip-time { color: #94a3b8 !important; opacity: 1 !important; }
+    /* Time-grid block events (week / day view) */
+    body.light-mode .fc-tgblock { background: rgba(248,250,252,0.97) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important; }
+    body.light-mode .fc-tgblock-name { color: #1e293b !important; }
+    body.light-mode .fc-tgblock-room { opacity: 1 !important; }
+    body.light-mode .fc-tgblock-time { color: #94a3b8 !important; }
+    body.light-mode .fc-tgblock-guests { color: #94a3b8 !important; }
+    /* Time grid structure */
+    body.light-mode .fc-timegrid-slot-label-cushion { color: #94a3b8 !important; }
+    body.light-mode .fc-timegrid-slot { border-color: #f1f5f9 !important; }
+    body.light-mode .fc-timegrid-axis { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+    body.light-mode .fc-timegrid-col { background: #ffffff !important; }
+    body.light-mode .fc-scrollgrid,
+    body.light-mode .fc-scrollgrid-section > * { border-color: #e2e8f0 !important; }
+    body.light-mode .fc-daygrid-day { background: #ffffff !important; }
+    body.light-mode .fc-event-main { color: #1e293b !important; }
+    body.light-mode .cal-filter-select { background: #ffffff !important; border-color: #e2e8f0 !important; color: #1e293b !important; }
     /* END VENUEDESK BRAND LIGHT THEME */
   </style>
 </head>

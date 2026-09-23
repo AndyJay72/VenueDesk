@@ -371,6 +371,41 @@
         body.sidebar-collapsed .nav-link { position: relative; }
         body.sidebar-collapsed .nav-link:hover::after { content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: rgba(15,23,42,0.97); color: var(--text-main); padding: 5px 12px; border-radius: 7px; font-size: 0.82rem; white-space: nowrap; pointer-events: none; border: 1px solid var(--border); z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
         body.light-mode.sidebar-collapsed .nav-link:hover::after { background: #fff; color: #1e293b; border-color: rgba(0,0,0,0.1); }
+    /* ── CSS variable overrides — fixes all elements using var(--bg-card), var(--text-main) etc. ── */
+    body.light-mode {
+        --bg-dark:    #f0f4f8;
+        --bg-card:    rgba(255,255,255,0.92);
+        --border:     rgba(0,0,0,0.1);
+        --text-main:  #0f172a;
+        --text-muted: #64748b;
+    }
+    /* ── manual-booking page-specific overrides ── */
+    body.light-mode .form-card {
+        background: #ffffff !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 2px 20px rgba(99,102,241,0.08) !important;
+    }
+    body.light-mode .form-section-title { color: #0f172a !important; border-bottom-color: #e2e8f0 !important; }
+    body.light-mode .payment-box { background: #f8fafc !important; border-color: #e2e8f0 !important; }
+    body.light-mode input, body.light-mode select, body.light-mode textarea {
+        background: #ffffff !important;
+        border-color: #d1d5db !important;
+        color: #0f172a !important;
+    }
+    body.light-mode input::placeholder, body.light-mode textarea::placeholder { color: #94a3b8 !important; }
+    body.light-mode label { color: #475569 !important; }
+    body.light-mode .walkin-badge { background: rgba(99,102,241,0.1) !important; color: #4f46e5 !important; }
+    body.light-mode .multi-day-btn { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.12) !important; color: #475569 !important; }
+    body.light-mode .avail-status { background: rgba(0,0,0,0.04) !important; color: #64748b !important; }
+    body.light-mode .avail-status.available { background: rgba(16,185,129,0.08) !important; color: #059669 !important; }
+    body.light-mode .avail-status.unavailable,
+    body.light-mode .avail-status.error { background: rgba(239,68,68,0.07) !important; color: #dc2626 !important; }
+    body.light-mode .modal-box { background: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
+    body.light-mode .modal-title { color: #0f172a !important; }
+    body.light-mode .breakdown-text { color: #64748b !important; }
+    body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
+    body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+
         @media (max-width: 768px) { body.sidebar-collapsed aside { width: var(--sidebar-width); padding: 2rem; } body.sidebar-collapsed main { margin-left: 0; } body.sidebar-collapsed .brand-text { opacity: 1; width: auto; } body.sidebar-collapsed .nav-label { opacity: 1; width: auto; } body.sidebar-collapsed .nav-link { justify-content: flex-start; gap: 12px; padding: 12px 16px; font-size: inherit; } }
         </style>
 </head>

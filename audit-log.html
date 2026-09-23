@@ -592,6 +592,14 @@
     body.light-mode .date-badge { background: #f1f5f9 !important; color: #64748b !important; }
     body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; }
     body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+    /* ── CSS variable overrides — fixes all elements using var(--bg-card), var(--text-main) etc. ── */
+    body.light-mode {
+        --bg-dark:    #f0f4f8;
+        --bg-card:    rgba(255,255,255,0.92);
+        --border:     rgba(0,0,0,0.1);
+        --text-main:  #0f172a;
+        --text-muted: #64748b;
+    }
     /* END VENUEDESK BRAND LIGHT THEME */
   </style>
 </head>
