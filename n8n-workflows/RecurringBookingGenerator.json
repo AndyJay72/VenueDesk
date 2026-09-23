@@ -75,9 +75,10 @@
         "toEmail": "={{ $('Code: Explode Dates').item.json.customer_email }}",
         "subject": "={{ 'Monthly Membership Invoice \u2013 ' + new Date($('Code: Explode Dates').item.json.target_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}",
         "emailFormat": "html",
-        "html": "=<p>Dear {{ $('Code: Explode Dates').item.json.customer_name }},</p>\n<p>Your membership invoice for <strong>{{ new Date($('Code: Explode Dates').item.json.target_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}</strong> is ready.</p>\n<table style=\"width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px\">\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Plan</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.plan_name }}</td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Room</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.room_name }}</td></tr>\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Amount Due</th><td style=\"padding:8px\"><strong>\u00a3{{ parseFloat($('DB: Upsert Monthly Invoice').item.json.total_amount).toFixed(2) }}</strong></td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Payment Due By</th><td style=\"padding:8px\">{{ $('DB: Upsert Monthly Invoice').item.json.due_date }}</td></tr>\n</table>\n<p style=\"font-size:13px;color:#555\">{{ $('DB: Get Policy Terms').item.json.base_terms }}</p>\n{{ $('DB: Get Policy Terms').item.json.extra_clauses ? '<p style=\"font-size:13px;border-left:3px solid #4f46e5;padding-left:10px\">'+$('DB: Get Policy Terms').item.json.extra_clauses+'</p>' : '' }}\n<p>Questions? Email <a href=\"mailto:bookings@venuedesk.co.uk\">bookings@venuedesk.co.uk</a></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
+        "html": "=<p>Dear {{ $('Code: Explode Dates').item.json.customer_name }},</p>\n<p>Your membership invoice for <strong>{{ new Date($('Code: Explode Dates').item.json.target_month).toLocaleString('en-GB',{month:'long',year:'numeric'}) }}</strong> is ready.</p>\n<table style=\"width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px\">\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Plan</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.plan_name }}</td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Room</th><td style=\"padding:8px\">{{ $('Code: Explode Dates').item.json.room_name }}</td></tr>\n  <tr style=\"background:#f3f4f6\"><th align=\"left\" style=\"padding:8px\">Amount Due</th><td style=\"padding:8px\"><strong>\u00a3{{ parseFloat($('DB: Upsert Monthly Invoice').item.json.total_amount).toFixed(2) }}</strong></td></tr>\n  <tr><th align=\"left\" style=\"padding:8px\">Payment Due By</th><td style=\"padding:8px\">{{ $('DB: Upsert Monthly Invoice').item.json.due_date }}</td></tr>\n</table>\n<p style=\"font-size:13px;color:#555\">{{ $('DB: Get Policy Terms').item.json.base_terms }}</p>\n{{ $('DB: Get Policy Terms').item.json.extra_clauses ? '<p style=\"font-size:13px;border-left:3px solid #4f46e5;padding-left:10px\">'+$('DB: Get Policy Terms').item.json.extra_clauses+'</p>' : '' }}\n<p>Questions? Email <a href=\"mailto:{{ ($input.first().json?.data || $input.first().json)?.staff_notification_email || 'bookings@venuedesk.co.uk' }}\">{{ ($input.first().json?.data || $input.first().json)?.staff_notification_email || 'bookings@venuedesk.co.uk' }}</a></p>\n<p>Best regards,<br>The VenueDesk Team</p>",
         "options": {
-          "appendAttribution": false
+          "appendAttribution": false,
+          "replyTo": "={{ ($input.first().json?.data || $input.first().json)?.staff_notification_email || 'bookings@venuedesk.co.uk' }}"
         }
       }
     },
@@ -316,6 +317,38 @@
         1600,
         300
       ]
+    },
+    {
+      "id": "http-get-tenant-cfg-recurring-gen",
+      "name": "HTTP: Get Tenant Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.venuedesk.co.uk/stripe/config",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "tenant_id",
+              "value": "={{ $('Code: Explode Dates').item.json.tenant_id || '' }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      }
     }
   ],
   "connections": {
@@ -437,6 +470,17 @@
       ]
     },
     "DB: Get Policy Terms": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Get Tenant Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Get Tenant Config": {
       "main": [
         [
           {

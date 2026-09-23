@@ -1240,7 +1240,7 @@
         const CAL_DB_API =DASH_DB_API;   // legacy alias — keep both in scope
 
         const API_URL='https://n8n.srv1090894.hstgr.cloud/webhook/all-bookings';
-        const BLOCKED_API='https://n8n.srv1090894.hstgr.cloud/webhook/blocked-dates';
+        const BLOCKED_API=`${DASH_DB_API}/blocked-dates`;
         const ROOMS_API='https://n8n.srv1090894.hstgr.cloud/webhook/get-rooms';
         const BOOKING_API='https://n8n.srv1090894.hstgr.cloud/webhook/make-booking';
         const RECURRING_CAL_API='https://n8n.srv1090894.hstgr.cloud/webhook/create-recurring-from-calendar';
@@ -1394,7 +1394,8 @@
 
         async function loadBlockedDates(){
             try{
-                const res=await fetch(tidUrl(BLOCKED_API),{headers:getAuthHeaders()});
+                const jwt=encodeURIComponent(sessionStorage.getItem('vp_token')||'');
+                const res=await fetch(`${BLOCKED_API}?jwt=${jwt}`);
                 const json=await res.json();
                 allBlockedRules=json.data||[];
                 blockedBgEvents=generateBlockedBgEvents(allBlockedRules);
@@ -1428,13 +1429,13 @@
             const type=document.getElementById('bd-type').value;
             const label=document.getElementById('bd-label').value.trim();
             const btn=document.getElementById('bd-save-btn');
-            const payload={block_type:type,label:label||'Closed',created_by:'staff',tenant_id:parseInt(_CAL_TID())||null};
+            const payload={block_type:type,label:label||'Closed',created_by:'staff',jwt:sessionStorage.getItem('vp_token')||''};
             if(type==='recurring'){payload.day_of_week=parseInt(document.getElementById('bd-dow').value);}
             else if(type==='oneoff'){const d=document.getElementById('bd-date').value;if(!d){alert('Please select a date');return;}payload.block_date=d;}
             else if(type==='range'){const f=document.getElementById('bd-from').value,t=document.getElementById('bd-to').value;if(!f||!t){alert('Please select both dates');return;}if(f>t){alert('From date must be before To date');return;}payload.date_from=f;payload.date_to=t;}
             btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
             try{
-                const res=await fetch(BLOCKED_API,{method:'POST',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                const res=await fetch(`${BLOCKED_API}/create`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
                 const json=await res.json();
                 if(json.success){
                     allBlockedRules.push(json.data);blockedBgEvents=generateBlockedBgEvents(allBlockedRules);
@@ -1448,7 +1449,7 @@
         async function deleteBlockedDate(id){
             if(!confirm('Remove this block?'))return;
             try{
-                const res=await fetch(BLOCKED_API+'?id='+id+'&tenant_id='+_CAL_TID(),{method:'DELETE',headers:{}});
+                const res=await fetch(`${BLOCKED_API}/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(id),jwt:sessionStorage.getItem('vp_token')||''})});
                 const json=await res.json();
                 if(json.success){
                     allBlockedRules=allBlockedRules.filter(b=>b.id!==id);blockedBgEvents=generateBlockedBgEvents(allBlockedRules);

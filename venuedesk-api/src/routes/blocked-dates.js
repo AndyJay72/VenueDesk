@@ -4,45 +4,66 @@
  * /blocked-dates routes — Phase 2 SQL Node Purge.
  * Replaces: 3JqHCjua5lKZGpeB.json (Blocked Dates API) Postgres nodes.
  *
- * All tenant_id comes from JWT.
+ * All tenant_id comes from JWT (authenticated routes) or ?tenant_id= (public route).
  *
- * GET  /blocked-dates         — list all blocked dates for tenant
- * POST /blocked-dates/create  — insert a blocked date rule
- * POST /blocked-dates/delete  — delete a blocked date rule by id
+ * GET  /blocked-dates/public    — public list for enquiry-form (no JWT, ?tenant_id=N)
+ * GET  /blocked-dates           — list all blocked dates for tenant (JWT required)
+ * POST /blocked-dates/create    — insert a blocked date rule (JWT required)
+ * POST /blocked-dates/delete    — delete a blocked date rule by id (JWT required)
+ *
+ * Accepted block_type values (both canonical and legacy aliases accepted):
+ *   Canonical: 'recurring_weekly' | 'specific_date' | 'date_range'
+ *   Legacy:    'recurring'        | 'oneoff'         | 'range'
  */
 
-const { withTenantContext } = require('../db/pool');
+const { withTenantContext, systemQuery } = require('../db/pool');
 const { notFound, badRequest } = require('../utils/errors');
+
+const BLOCK_TYPES = [
+  'recurring_weekly', 'specific_date', 'date_range',
+  'recurring',        'oneoff',         'range',
+];
+
+function isRecurring(t)  { return t === 'recurring_weekly' || t === 'recurring'; }
+function isSpecific(t)   { return t === 'specific_date'    || t === 'oneoff'; }
+function isRange(t)      { return t === 'date_range'        || t === 'range'; }
+
+const SELECT_SQL = `
+  SELECT *
+  FROM   bookings.blocked_dates
+  WHERE  tenant_id = $1::integer
+  ORDER  BY block_type,
+            day_of_week  NULLS LAST,
+            block_date   NULLS LAST,
+            date_from    NULLS LAST`;
 
 async function blockedDatesRoutes(fastify) {
 
+  // ─── GET /blocked-dates/public ────────────────────────────────────────────
+  // Public endpoint — no auth. Used by enquiry-form.html (no user session).
+  // tenant_id comes from query param; RLS enforced by explicit WHERE clause.
+  fastify.get('/public', {}, async (request) => {
+    const tenantId = parseInt(request.query.tenant_id, 10);
+    if (!tenantId || tenantId < 1000) {
+      return { success: true, data: [] };
+    }
+
+    const { rows } = await systemQuery(SELECT_SQL, [tenantId]);
+    return { success: true, data: rows };
+  });
+
   // ─── GET /blocked-dates ───────────────────────────────────────────────────
-  // Mirrors 3JqHCjua5lKZGpeB → GET All.
-  // Returns blocked dates ordered by type, then day/date fields.
   fastify.get('/', {
     preHandler: [fastify.authenticate],
   }, async (request) => {
     const tenantId = request.user.tenant_id;
-
     const { rows } = await withTenantContext(tenantId, (client) =>
-      client.query(
-        `SELECT *
-         FROM   bookings.blocked_dates
-         WHERE  tenant_id = $1::integer
-         ORDER  BY block_type,
-                   day_of_week  NULLS LAST,
-                   block_date   NULLS LAST,
-                   date_from    NULLS LAST`,
-        [tenantId]
-      )
+      client.query(SELECT_SQL, [tenantId])
     );
-
     return { success: true, data: rows };
   });
 
   // ─── POST /blocked-dates/create ───────────────────────────────────────────
-  // Mirrors 3JqHCjua5lKZGpeB → INSERT.
-  // block_type: 'recurring_weekly' | 'specific_date' | 'date_range'
   fastify.post('/create', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -50,13 +71,15 @@ async function blockedDatesRoutes(fastify) {
         type: 'object',
         required: ['block_type'],
         properties: {
-          block_type:  { type: 'string', enum: ['recurring_weekly', 'specific_date', 'date_range'] },
+          block_type:  { type: 'string', enum: BLOCK_TYPES },
           day_of_week: { type: 'integer', minimum: 0, maximum: 6, nullable: true },
           block_date:  { type: 'string', nullable: true },
           date_from:   { type: 'string', nullable: true },
           date_to:     { type: 'string', nullable: true },
           label:       { type: 'string', default: '' },
           created_by:  { type: 'string', default: 'System' },
+          jwt:         { type: 'string' },
+          tenant_id:   { type: 'integer' },
         },
         additionalProperties: false,
       },
@@ -73,15 +96,14 @@ async function blockedDatesRoutes(fastify) {
       created_by  = 'System',
     } = request.body;
 
-    // Basic semantic validation
-    if (block_type === 'recurring_weekly' && day_of_week == null) {
-      throw badRequest('day_of_week required for block_type=recurring_weekly');
+    if (isRecurring(block_type) && day_of_week == null) {
+      throw badRequest('day_of_week required for recurring block type');
     }
-    if (block_type === 'specific_date' && !block_date) {
-      throw badRequest('block_date required for block_type=specific_date');
+    if (isSpecific(block_type) && !block_date) {
+      throw badRequest('block_date required for specific_date/oneoff block type');
     }
-    if (block_type === 'date_range' && (!date_from || !date_to)) {
-      throw badRequest('date_from and date_to required for block_type=date_range');
+    if (isRange(block_type) && (!date_from || !date_to)) {
+      throw badRequest('date_from and date_to required for date_range/range block type');
     }
 
     return withTenantContext(tenantId, async (client) => {
@@ -93,13 +115,11 @@ async function blockedDatesRoutes(fastify) {
         [block_type, day_of_week, block_date || null, date_from || null, date_to || null,
          label, created_by, tenantId]
       );
-
       return { success: true, data: rows[0] };
     });
   });
 
   // ─── POST /blocked-dates/delete ───────────────────────────────────────────
-  // Mirrors 3JqHCjua5lKZGpeB → DELETE.
   fastify.post('/delete', {
     preHandler: [fastify.authenticate],
     schema: {
@@ -107,7 +127,9 @@ async function blockedDatesRoutes(fastify) {
         type: 'object',
         required: ['id'],
         properties: {
-          id: { type: 'integer' },
+          id:        { type: 'integer' },
+          jwt:       { type: 'string' },
+          tenant_id: { type: 'integer' },
         },
         additionalProperties: false,
       },
