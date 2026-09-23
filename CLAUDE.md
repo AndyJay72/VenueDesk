@@ -1042,25 +1042,50 @@ Derived from live production regressions. Apply automatically to all frontend wo
 parse/execute time inside a `<script>` block, **the entire block silently fails** — every
 function, event handler, and UI initialisation below it never runs.
 
+**Known incidents:**
+- May 2026 — `PAY_BALANCE_URL = \`${DASH_DB_API}/...\`` before `DASH_DB_API` was declared.
+  Welcome message, Stripe modal, and pay modal all stopped working simultaneously.
+- September 23 2026 — `BLOCKED_API = \`${EF_DB_API}/blocked-dates/public\`` added during
+  the blocked-dates migration on line 403, while `EF_DB_API` was declared on line 404.
+  Entire `enquiry-form.html` script silently failed — venue name and rooms never loaded,
+  form completely unusable for all tenants.
+
 **Classic failure:**
 ```javascript
-const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;  // ReferenceError — DASH_DB_API not yet declared
-// ... lines later ...
-const DASH_DB_API = 'https://api.venuedesk.co.uk';
+const BLOCKED_API = `${EF_DB_API}/blocked-dates/public`;  // ReferenceError — EF_DB_API not yet declared
+const EF_DB_API   = 'https://api.venuedesk.co.uk';        // too late
 ```
 
 **Rule:** Declare ALL API base URL constants at the **very top** of the `<script>` block,
-before any `const` that references them in a template literal:
+before any `const` that references them in a template literal. This applies to **every**
+HTML file — dashboard pages AND public pages (enquiry-form, checkout, etc.).
+
+**Canonical constant order for each page:**
+
 ```javascript
-// ── API base URLs — must come first ──────────────────────────────────────────
+// enquiry-form.html — CORRECT order (base URLs first, derived URLs after)
+const EF_DB_API   = 'https://api.venuedesk.co.uk';                     // ← base, line 1
+const CHECK_API   = 'https://n8n.srv1090894.hstgr.cloud/webhook/check-availability';
+const BASE_API    = 'https://n8n.srv1090894.hstgr.cloud/webhook';
+const BLOCKED_API = `${EF_DB_API}/blocked-dates/public`;                // ← derived, safe
+const SUBMIT_API  = `${EF_DB_API}/enquiry/create-request`;              // ← derived, safe
+
+// dashboard pages (index.html, calendar.html, etc.) — CORRECT order
 const DASH_DB_API = 'https://api.venuedesk.co.uk';
 const CAL_DB_API  = 'https://api.venuedesk.co.uk';
 const EF_DB_API   = 'https://api.venuedesk.co.uk';
-
-// ── Derived URLs — safe after base URLs are declared ─────────────────────────
+// ── Derived URLs — safe after base URLs are declared ──────────────────────
 const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
 const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
 ```
+
+**Prevention checklist — run this mental check before committing any frontend change:**
+1. Open the file, find the first `<script>` block.
+2. Scan the first 20 `const` declarations.
+3. If ANY `const` uses a template literal containing `${X}`, verify `X` is declared on an **earlier** line.
+4. If adding a new `const` that derives from a base URL, insert it **after** all plain-string base URL constants.
+
+**Never add a derived `const` at the top of the block** just because it's thematically grouped with other URL constants. Always ask: "does this template literal reference anything?" If yes, the referenced name must come first.
 
 ---
 
@@ -1604,23 +1629,11 @@ files will make it appear the fix didn't land.
 
 # VenueDesk Development Procedures
 
-## 1. Variable Ordering (Critical)
+## 1. Variable Ordering (Critical) — see Rule F1
 
-**Problem this prevents:** A `const` referencing an undeclared `const` in a template literal throws `ReferenceError: Cannot access 'X' before initialization`. Because this fires at parse/execute time inside a `<script>` block, the **entire block silently fails** — every function, event handler, and UI initialisation below it never runs. This was the root cause of the May 2026 regression where the welcome message, Stripe modal, and pay modal all stopped working simultaneously.
+See **Rule F1 — Global API Constant Declaration Order** in the Frontend Development Rules section above for the full rule, both known incidents (May 2026 + September 2026), the canonical constant order for each page, and the prevention checklist.
 
-- Always declare global API base URL constants (e.g. `DASH_DB_API`, `CAL_DB_API`, `EF_DB_API`) at the **very top** of the `<script>` block, before any `const` that references them in a template literal.
-- Functions that depend on these constants must never be invoked before the constants are defined.
-
-```javascript
-// ── API base URLs — must come first ──────────────────────────────────────────
-const DASH_DB_API = 'https://api.venuedesk.co.uk';
-const CAL_DB_API  = 'https://api.venuedesk.co.uk';
-const EF_DB_API   = 'https://api.venuedesk.co.uk';
-
-// ── Derived URLs — safe after base URLs are declared ─────────────────────────
-const PAY_BALANCE_URL = `${DASH_DB_API}/payments/pay`;
-const LOG_PAYMENT_URL = `${DASH_DB_API}/audit/log`;
-```
+**Short form:** base URL constants (`EF_DB_API`, `DASH_DB_API`, etc.) must always be declared before any `const` that uses them in a template literal. Adding a derived URL (`BLOCKED_API`, `PAY_BALANCE_URL`, etc.) before the base URL it references causes a `ReferenceError` that silently kills the entire `<script>` block.
 
 ---
 
