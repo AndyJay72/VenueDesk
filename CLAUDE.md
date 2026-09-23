@@ -1314,7 +1314,7 @@ All three fire in parallel on page open via `loadRoomsAndTypes()`:
 |---------|-----|---------|----------|
 | `get-rooms` | `BASE_API/get-rooms?tenant_id=N` | `{data: [...]}` | Populate Preferred Room dropdown + additional-rooms checkbox list |
 | `get-event-types` | `BASE_API/get-event-types?tenant_id=N` | `{data: [...]}` | Populate Event Type dropdown |
-| `blocked-dates` | `BLOCKED_API?tenant_id=N` | `{data: [...]}` | Client-side block check in `isDateBlocked()` |
+| `blocked-dates/public` | `EF_DB_API + '/blocked-dates/public?tenant_id=N'` | `{data: [...]}` | Client-side block check in `isDateBlocked()` — public db-api endpoint, no JWT |
 
 `BASE_API = https://n8n.srv1090894.hstgr.cloud/webhook`
 
@@ -3267,6 +3267,8 @@ SMTP SPF/DKIM. Fallback to `bookings@venuedesk.co.uk` when the setting is unset.
 | Pending Lifecycle Scheduler | `B0Nuq8kTqfT4f0Sx` | `$helpers.httpRequest()` | Inside Code node (SplitInBatches loop — no structural change needed) |
 | Unpaid Booking Lifecycle | `cBLmPZIuxcGeVEd5` | `$helpers.httpRequest()` | Both warn + cancel Code nodes; no structural change |
 | Create Recurring From Calendar | `8sSQGRLzAHYZhmEp` | HTTP node inserted | Chained before Code: Build Recurring Confirmation Email |
+| Make Booking (Platinum Fix) | `YNslKMhAq0GZc13e` | HTTP node inserted (MCP) | `HTTP: Get Tenant Config` inserted before `Code: Build Email Content`; contactEmail returned in output; `Email: Send` replyTo set to `={{ $json.contactEmail }}` |
+| Monthly Recurring Booking Generator | `PikGUKlV3I1GelhD` | HTTP node inserted (re-import) | `HTTP: Get Tenant Config` inserted between `DB: Get Policy Terms` and `Email: Monthly Invoice`; HTML mailto + replyTo use `$input.first().json` config |
 
 `KHvxUBua7hi5e1x1_clean.json` updated in the repo backup but has no live counterpart (only
 the stripe_fork variant owns the `pay-balance` webhook at a time).
@@ -3320,6 +3322,53 @@ The booking request is still created successfully against the found customer.
 enquiry form with the exact email/phone combo that was triggering the failure.
 
 See **Pattern 39** below.
+
+---
+
+## 30. Blocked Dates — Cross-Tenant Isolation + db-api Migration ✅ DONE (September 23 2026)
+
+Commit `20af9c3`.
+
+**Two bugs fixed:**
+
+**Bug A — Cross-tenant bleed on GET:** The `blocked-dates` n8n webhook (`GET /webhook/blocked-dates`)
+used `N8N_SERVICE_JWT` (tenant_id: 1001) as the Authorization header, locking the RLS context
+to tenant 1001 for every caller. Any venue on a different tenant saw tenant 1001's blocked dates
+on their enquiry form and calendar.
+
+**Bug B — Silent DELETE failure:** The n8n `Blocked Dates API` workflow (`Xw7O9ISY5z1KWY4K`) had
+`neverError: true` on the HTTP DELETE node AND its `Resp DELETE` node returned
+`{ success: true }` hardcoded regardless of the db-api's response. When a DELETE reached
+db-api without a valid JWT (the old frontend DELETE request carried no auth), db-api returned
+401, but n8n absorbed it and returned `{ success: true }` to the frontend. The UI removed the
+item; the DB row was untouched. See **Pattern 40**.
+
+**Fix — `blocked-dates.js` (db-api):**
+- Added `GET /blocked-dates/public?tenant_id=N` — unauthenticated, uses `systemQuery` with
+  an explicit `WHERE tenant_id = $1` guard. Required by `enquiry-form.html` (public page,
+  no user session). Rejects `tenant_id < 1000` (System Admin guard).
+- Added `jwt` and `tenant_id` to the `create` and `delete` POST body schemas so the browser
+  body-tunnel (Pattern 4) is not stripped by Fastify's `removeAdditional: true` before the
+  `fastify.authenticate` preHandler runs.
+- Expanded `block_type` enum to accept legacy n8n type names (`recurring`, `oneoff`, `range`)
+  alongside the canonical names (`recurring_weekly`, `specific_date`, `date_range`) — backward
+  compatible with any existing DB rows. Semantic validation uses `isRecurring()`, `isSpecific()`,
+  `isRange()` helpers that check both names.
+
+**Fix — `calendar.html` (both root + CommunityHub):**
+- `BLOCKED_API` → `${DASH_DB_API}/blocked-dates` (db-api, not n8n)
+- `loadBlockedDates()` → `GET ${BLOCKED_API}?jwt=<token>` (Rule F6 query-param auth)
+- `addBlockedDate()` → `POST ${BLOCKED_API}/create` with `{ jwt, ...payload }` in body
+- `deleteBlockedDate()` → `POST ${BLOCKED_API}/delete` with `{ id, jwt }` in body (was a
+  `DELETE` request with query params — the n8n webhook masked this failure for months)
+
+**Fix — `enquiry-form.html` (both root + CommunityHub):**
+- `BLOCKED_API` → `${EF_DB_API}/blocked-dates/public` (new public endpoint)
+- Existing `fetch(BLOCKED_API + tenantParam)` call unchanged — `?tenant_id=N` already
+  present via `tenantParam`
+
+**n8n `Blocked Dates API` workflow (`Xw7O9ISY5z1KWY4K`):** Left active but now bypassed by
+the frontend. Safe to archive; the n8n proxy layer is no longer called by any page.
 
 ---
 
@@ -3427,6 +3476,46 @@ ever accepts a phone update from an untrusted caller.
 **Why not catch 23505 after the fact?** A post-hoc catch would work, but it's less
 explicit — silent retry obscures the conflict. The pre-check documents the invariant and
 makes the intent clear to future readers.
+
+---
+
+## Pattern 40 — n8n neverError + Hardcoded Success Masks Real Failures
+
+**Problem:** n8n HTTP Request nodes with `neverError: true` absorb ALL error responses
+(4xx, 5xx) and pass them to the next node as if they succeeded. When the downstream
+`Respond to Webhook` node then returns a hardcoded `{ success: true }` body — as opposed to
+passing through the HTTP response — the frontend never sees the actual error. The user's
+UI updates optimistically, but nothing happened in the database.
+
+**Classic failure (September 2026 — Blocked Dates DELETE):**
+```
+Frontend: DELETE /webhook/blocked-dates?id=5&tenant_id=1001
+n8n DELETE node: POST /blocked-dates/delete  (no JWT in body — old frontend didn't include one)
+db-api: 401 UNAUTHORIZED
+n8n: neverError:true absorbs 401 → passes {} to next node
+Resp DELETE: return { success: true, deleted: $input.first().json.id }
+                                      ↑ undefined — no id in the {} response
+Frontend receives: { success: true, deleted: undefined }
+UI removes the item from display.
+Page refresh: item is back — it was never deleted.
+```
+
+The symptom is subtle: the UI behaves correctly (item disappears) but the state is ephemeral.
+Only a page refresh reveals the failure.
+
+**Rule:** When reviewing or writing an n8n webhook → db-api proxy:
+1. **Never hardcode `success: true`** in a `Respond to Webhook` node. Pass through the db-api
+   response: `={{ JSON.stringify($input.first().json) }}`
+2. **Check that the HTTP Request node forwards auth** — `neverError: true` hides auth failures
+   silently. If the proxy sends no JWT and the db-api returns 401, the frontend never knows.
+3. **Check the frontend** for `res.ok` before treating a response as success (Pattern 18).
+
+**Diagnostic:** If a mutation appears to succeed in the UI but doesn't persist after refresh:
+1. Open n8n → find the relevant workflow → inspect the last execution
+2. Look at the HTTP Request node's actual response body (visible even with `neverError: true`)
+3. Check the Respond node — if it hardcodes `success: true`, that's the bug
+4. Verify the JWT is being forwarded: look for `Bearer $json.body?.jwt` or `$env.N8N_SERVICE_JWT`
+   in the Authorization header
 
 ---
 

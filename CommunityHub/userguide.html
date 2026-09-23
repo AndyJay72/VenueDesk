@@ -2146,6 +2146,54 @@
                             </figure>
                         </div>
 
+                        <!-- Blocked Dates accordion -->
+                        <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)" style="margin-top:.5rem">
+                            🚫 Managing Blocked Dates
+                            <span class="acc-chevron">▾</span>
+                        </button>
+                        <div class="acc-body">
+                            <p>Blocked dates prevent bookings from being made on specific days. They appear as a <strong>purple background overlay</strong> on the calendar, and any date covered by a block cannot be booked through the enquiry form or the Quick Booking drawer.</p>
+
+                            <h4 style="margin:.75rem 0 .5rem">How to open the Blocked Dates panel</h4>
+                            <p>Click the <strong>🚫 Blocked Dates</strong> button in the calendar toolbar. The panel slides open and shows all current rules plus an Add New Block form.</p>
+
+                            <h4 style="margin:.75rem 0 .5rem">Three block types</h4>
+                            <div class="table-container" style="margin-bottom:1rem">
+                                <table>
+                                    <thead><tr><th style="width:160px">Type</th><th>Use for</th><th>Required fields</th></tr></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Recurring weekday</strong></td>
+                                            <td>Block the same day every week — e.g. every Monday for maintenance</td>
+                                            <td>Day of the week</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Specific date</strong></td>
+                                            <td>Block a single calendar date — e.g. a bank holiday or private event</td>
+                                            <td>Date</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Date range</strong></td>
+                                            <td>Block a continuous span of days — e.g. venue closure for refurbishment</td>
+                                            <td>From date + To date</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <ul class="custom-step-list">
+                                <li><div class="step-bubble">1</div><div>Choose a <strong>Type</strong> from the dropdown. The relevant date field(s) appear below.</div></li>
+                                <li><div class="step-bubble">2</div><div>Fill in the required date or day. Optionally add a <strong>Label</strong> (e.g. "Bank Holiday", "Venue Refurbishment") — this text shows as a tooltip on the purple calendar overlay.</div></li>
+                                <li><div class="step-bubble">3</div><div>Click <strong>Add Blocked Date</strong>. The rule saves immediately and the calendar overlay updates in real time — no page refresh needed.</div></li>
+                                <li><div class="step-bubble">4</div><div>To <strong>remove</strong> a block, click the 🗑️ trash icon next to it in the Current Blocks list. The purple overlay disappears instantly.</div></li>
+                            </ul>
+
+                            <div class="sub-card" style="border-left:4px solid var(--primary);margin-top:1rem">
+                                <h4 style="margin-bottom:.4rem">🌐 Enquiry form is also protected</h4>
+                                <p style="font-size:.875rem;color:var(--text-muted)">When a customer selects a blocked date on the public enquiry form, the availability check immediately shows "Sorry, the venue is closed on that date" and the submit button stays disabled. Blocks are enforced client-side before the request ever reaches the server.</p>
+                            </div>
+                        </div>
+
                         <!-- FullCalendar config accordion -->
                         <button class="acc-trigger" aria-expanded="false" onclick="toggleAcc(this)" style="margin-top:.5rem">
                             ⚙️ Calendar configuration reference (for admins)
