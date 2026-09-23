@@ -117,6 +117,7 @@ async function configRoutes(fastify) {
           parent_room_id:  { type: 'string' },
           partition_order: { type: 'integer' },
           partition_total: { type: 'integer' },
+          jwt:             { type: 'string' },
         },
       },
     },
@@ -168,6 +169,7 @@ async function configRoutes(fastify) {
           parent_room_id:  { type: 'string' },
           partition_order: { type: 'integer' },
           partition_total: { type: 'integer' },
+          jwt:             { type: 'string' },
         },
       },
     },
@@ -235,6 +237,7 @@ async function configRoutes(fastify) {
         required: ['room_id'],
         properties: {
           room_id: { type: 'string' },
+          jwt:     { type: 'string' },
         },
       },
     },
@@ -251,6 +254,42 @@ async function configRoutes(fastify) {
       );
       if (rowCount === 0) throw notFound('Room', room_id);
       return { success: true, data: { room_id, is_active: false } };
+    });
+  });
+
+  // ─── POST /config/rooms/hard-delete ───────────────────────────────────────
+  // Permanently deletes a room. Blocked by FK if confirmed_bookings reference it.
+  fastify.post('/rooms/hard-delete', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id:  { type: 'string' },
+          jwt: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { tenantId, ctx } = resolveTenant(request);
+    const { id } = request.body;
+    assertUUID(id, 'id');
+
+    return ctx(tenantId, async (client) => {
+      try {
+        const { rowCount } = await client.query(
+          `DELETE FROM bookings.rooms WHERE id = $1::uuid AND tenant_id = $2::integer`,
+          [id, tenantId]
+        );
+        if (rowCount === 0) throw notFound('Room', id);
+        return { success: true, data: { id } };
+      } catch (err) {
+        if (err.code === '23503') {
+          throw badRequest('Cannot delete this room because it has existing bookings. Please deactivate it instead.');
+        }
+        throw err;
+      }
     });
   });
 

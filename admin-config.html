@@ -1324,9 +1324,10 @@ const API = {
     getPolicyTemplates:  DB_API + '/config/policy-templates',
     savePolicyTemplate:  DB_API + '/config/policy-templates/upsert',
     getRooms:       () => BASE + '/get-rooms',
-    createRoom:     BASE + '/create-room',
-    updateRoom:     BASE + '/update-room',
-    deleteRoom:     BASE + '/delete-room',
+    createRoom:     DB_API + '/config/rooms/create',
+    updateRoom:     DB_API + '/config/rooms/update',
+    deleteRoom:     DB_API + '/config/rooms/delete',
+    hardDeleteRoom: DB_API + '/config/rooms/hard-delete',
     getEventTypes:  () => BASE + '/get-event-types',
     createEventType:BASE + '/create-event-type',
     updateEventType:BASE + '/update-event-type',
@@ -1475,6 +1476,7 @@ function renderRoomsTable() {
                         ? `<button class="btn-sm btn-delete" onclick="softDeleteRoom('${r.id}', '${esc(r.name)}')"><i class="fa-solid fa-eye-slash"></i></button>`
                         : `<button class="btn-sm btn-restore" onclick="restoreRoom('${r.id}', '${esc(r.name)}')"><i class="fa-solid fa-eye"></i></button>`
                     }
+                    <button class="btn-sm btn-delete" onclick="hardDeleteRoom('${r.id}', '${esc(r.name)}')" title="Delete Permanently"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>`;
@@ -1651,7 +1653,7 @@ async function saveModal() {
             };
             if (!payload.name) throw new Error('Room name is required');
             const res = await fetch(API.updateRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
-            if (!res.ok) throw new Error('Update failed');
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Update failed'); }
             showToast('Room updated!');
             await loadRooms();
         } else if (modalMode.type === 'event') {
@@ -1708,6 +1710,20 @@ async function restoreRoom(id, name) {
         showToast('Room re-activated');
         await loadRooms();
     } catch(e) { showToast(e.message || 'Error re-activating room', 'error'); }
+}
+
+async function hardDeleteRoom(id, name) {
+    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Are you sure? All room configuration for "${name}" will be removed forever.`)) return;
+    try {
+        const res = await fetch(API.hardDeleteRoom, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, jwt: sessionStorage.getItem('vp_token') || '' })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Delete failed'); }
+        showToast(`"${name}" permanently deleted`);
+        await loadRooms();
+    } catch(e) { showToast(e.message || 'Error deleting room', 'error'); }
 }
 
 // ─────────────────────────────────────────────
