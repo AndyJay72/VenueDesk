@@ -1540,8 +1540,8 @@ async function addRoom() {
     const closeTime = document.getElementById('rCloseTime').value;
     const parentRoomId   = document.getElementById('rParentRoom')?.value || null;
     const partitionVisible = document.getElementById('rPartitionRow')?.style.display !== 'none';
-    const partitionTotal = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionTotal')?.value) || null)  : null;
-    const partitionOrder = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionOrder')?.value) ?? null) : null;
+    const partitionTotal = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionTotal')?.value) || undefined) : undefined;
+    const partitionOrder = (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('rPartitionOrder')?.value) ?? undefined) : undefined;
 
     if (!name) { showToast('Room name is required', 'error'); return; }
     if (!dr || isNaN(parseFloat(dr))) { showToast('Hourly rate is required', 'error'); return; }
@@ -1551,15 +1551,18 @@ async function addRoom() {
         const res = await fetch(API.createRoom, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(withRole({
-                name, capacity: cap || null, day_rate: dr, description: desc || null,
-                open_time:       openTime      || null,
-                close_time:      closeTime     || null,
-                parent_room_id:  parentRoomId  || null,
+                name,
+                capacity:        cap  ? parseInt(cap)  : undefined,
+                day_rate:        parseFloat(dr),
+                description:     desc || undefined,
+                open_time:       openTime   || undefined,
+                close_time:      closeTime  || undefined,
+                parent_room_id:  parentRoomId || undefined,
                 partition_order: partitionOrder,
                 partition_total: partitionTotal,
             }))
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Failed'); }
         showToast('Room added!');
         ['rName','rCapacity','rDayRate','rDesc','rOpenTime','rCloseTime'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         const pr = document.getElementById('rParentRoom'); if (pr) pr.value = '';
@@ -1636,20 +1639,21 @@ async function saveModal() {
 
     try {
         if (modalMode.type === 'room') {
-            const parentRoomId     = document.getElementById('me_parent')?.value || null;
+            const parentRoomId     = document.getElementById('me_parent')?.value || undefined;
             const partitionVisible = document.getElementById('me_prow')?.style.display !== 'none';
+            const capVal = document.getElementById('me_cap').value;
             const payload = {
                 id:              modalMode.id,
                 name:            document.getElementById('me_name').value.trim(),
-                capacity:        document.getElementById('me_cap').value || null,
-                day_rate:        document.getElementById('me_dr').value,
-                description:     document.getElementById('me_desc').value.trim() || null,
+                capacity:        capVal ? parseInt(capVal) : undefined,
+                day_rate:        parseFloat(document.getElementById('me_dr').value),
+                description:     document.getElementById('me_desc').value.trim() || undefined,
                 is_active:       document.getElementById('me_active').classList.contains('on'),
-                open_time:       document.getElementById('me_open').value  || null,
-                close_time:      document.getElementById('me_close').value || null,
-                parent_room_id:  parentRoomId || null,
-                partition_order: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_pos')?.value)    ?? null) : null,
-                partition_total: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_ptotal')?.value) ?? null) : null,
+                open_time:       document.getElementById('me_open').value  || undefined,
+                close_time:      document.getElementById('me_close').value || undefined,
+                parent_room_id:  parentRoomId,
+                partition_order: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_pos')?.value)    ?? undefined) : undefined,
+                partition_total: (parentRoomId && partitionVisible) ? (parseInt(document.getElementById('me_ptotal')?.value) ?? undefined) : undefined,
             };
             if (!payload.name) throw new Error('Room name is required');
             const res = await fetch(API.updateRoom, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
@@ -1699,14 +1703,12 @@ async function softDeleteRoom(id, name) {
 
 async function restoreRoom(id, name) {
     if (!confirm(`Re-activate "${name}"?`)) return;
-    const r = rooms.find(x => x.id == id);
-    if (!r) return;
     try {
         const res = await fetch(API.updateRoom, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ ...r, id, is_active: true }))
+            body: JSON.stringify(withRole({ id, is_active: true }))
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Re-activate failed'); }
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Re-activate failed'); }
         showToast('Room re-activated');
         await loadRooms();
     } catch(e) { showToast(e.message || 'Error re-activating room', 'error'); }
