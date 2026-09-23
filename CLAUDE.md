@@ -3385,6 +3385,82 @@ the frontend. Safe to archive; the n8n proxy layer is no longer called by any pa
 
 ---
 
+## 31. Room Management — Migration to db-api + Hard Delete ✅ DONE (September 23 2026)
+
+Commits `48b09bb` (migration + hard-delete), `6bfa243` (null→undefined payload fix).
+
+**Root cause:** `createRoom`, `updateRoom`, `deleteRoom` in `admin-config.html` were still
+pointing to legacy n8n webhooks (`BASE + '/create-room'` etc.). Those webhooks had
+`neverError: true`, so every failure returned `{ success: true }` to the UI — edits appeared
+to save but nothing reached the database.
+
+**Backend changes (`config.js`):**
+
+- `POST /config/rooms/create`, `POST /config/rooms/update`, `POST /config/rooms/delete`:
+  added `jwt: { type: 'string' }` to each body schema so Fastify's `removeAdditional: true`
+  doesn't strip the token before `fastify.authenticate` reads `body.jwt` (Pattern 4 / Rule F6).
+- New `POST /config/rooms/hard-delete`: permanently deletes a room scoped to the caller's
+  tenant. Catches PostgreSQL `23503` (FK violation) and returns HTTP 400:
+  `"Cannot delete this room because it has existing bookings. Please deactivate it instead."`
+
+**Frontend changes (`admin-config.html` + `CommunityHub/`):**
+
+- `API.createRoom`, `API.updateRoom`, `API.deleteRoom` → `DB_API + '/config/rooms/...'`
+- `API.hardDeleteRoom` added → `DB_API + '/config/rooms/hard-delete'`
+- Trash button (`fa-trash`, `title="Delete Permanently"`) added to every room row
+- `hardDeleteRoom(id, name)` function: double-confirm, calls hard-delete endpoint, surfaces
+  FK error verbatim in toast, reloads table on success
+- `saveModal()` room error handling: now extracts `e.message || e.error` from response body
+- `restoreRoom()`: removed `...r` spread (carried null DB values); now sends minimal
+  `{ id, is_active: true }` — the update handler COALESCEs all other fields from current values
+- `addRoom()` + `saveModal()` payload: optional fields now use `undefined` instead of `null`
+  so `JSON.stringify` omits them (see Pattern 41)
+
+**Verified via Playwright** — all five operations confirmed end-to-end against live db-api:
+create, update, deactivate, restore, hard-delete. FK guard message verified in browser UI.
+
+---
+
+## Pattern 41 — db-api Payloads: Use `undefined` Not `null` for Optional Fields
+
+**Problem:** Sending `null` for a schema-typed integer field (e.g. `partition_order: null`
+with schema `{ type: 'integer' }`) causes a runtime AJV coercion error → HTTP 500
+`INTERNAL_ERROR`. AJV's `coerceTypes: true` does not coerce `null` to numeric types — instead
+it throws during validation. The error handler hides the message, making this extremely hard
+to diagnose.
+
+This surface when optional fields with no user-supplied value are explicitly set to `null`
+in the payload rather than being omitted.
+
+**Rule:** For optional fields in db-api POST payloads, use `undefined` (which `JSON.stringify`
+omits entirely) instead of `null` when there is no value. The handler's `?? null` or
+destructuring default converts `undefined` to `null` safely at the SQL layer.
+
+```javascript
+// WRONG — null for integer field triggers AJV coercion error → 500
+body: JSON.stringify({
+    partition_order: null,   // { type: 'integer' } + null = runtime crash
+    capacity:        null,   // same
+})
+
+// CORRECT — undefined is omitted by JSON.stringify; handler fills in null
+body: JSON.stringify({
+    capacity:        cap ? parseInt(cap) : undefined,
+    partition_order: (hasParent) ? parseInt(val) ?? undefined : undefined,
+})
+```
+
+**Also applies to spreading DB objects:** `restoreRoom` was spreading `...r` (a full room
+object from the DB) which included `partition_order: null`. Fix: send only the fields you
+intend to change rather than spreading a complete row.
+
+**Schema-side alternative:** add `jwt` and other body-tunnel fields explicitly to the schema
+properties so `removeAdditional` preserves them. For nullable string fields `anyOf: [string,
+null]` is safe. For integer fields, avoid `anyOf` with null (Pattern 8 coercion risk) —
+use `undefined` omission instead.
+
+---
+
 ## Pattern 38 — Per-Venue Contact Email in n8n Email Workflows
 
 **Problem:** All customer-facing emails had `Contact Us →` mailto links and footer `📧` addresses
@@ -4114,7 +4190,7 @@ CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; f
 
 | Tab | Backend | Endpoints |
 |-----|---------|-----------|
-| Rooms | n8n webhook | `get-rooms`, `create-room`, `update-room`, `delete-room` |
+| Rooms | **db-api direct** (GET via n8n) | `GET /config/rooms` (n8n proxy), `POST /config/rooms/create`, `POST /config/rooms/update`, `POST /config/rooms/delete`, `POST /config/rooms/hard-delete` |
 | Event Types | n8n webhook | `get-event-types`, `create-event-type`, `update-event-type`, `delete-event-type` |
 | Pricing Grid | n8n webhook | `get-pricing`, `set-pricing`, `delete-pricing` |
 | Settings (buffer) | n8n webhook | `get-settings`, `update-setting` |
@@ -4123,7 +4199,7 @@ CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; f
 | Policy Templates | **db-api direct** | `GET /config/policy-templates`, `POST /config/policy-templates/upsert` |
 | Payments | **db-api direct** | `POST /admin/payment-settings/load`, `POST /admin/payment-settings/save` |
 
-Services, Policy Templates, and Payments call db-api directly — all others go via n8n. See Pattern 16 for why Services was moved (same reasoning applied to Policy Templates).
+Rooms (mutations), Services, Policy Templates, and Payments call db-api directly. Rooms GET still goes via n8n proxy. Event Types, Pricing, and Settings remain on n8n. See Pattern 16 for why Services was moved; same reasoning drove the Rooms mutation migration (September 23 2026).
 
 ## Auth patterns in this file
 
