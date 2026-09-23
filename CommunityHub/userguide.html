@@ -1810,7 +1810,7 @@
                     <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
-                    <input type="text" id="global-search" class="search-input" placeholder="Search the user guide (e.g. walk-in, Stripe, offline)..." aria-label="Search User Guide">
+                    <input type="text" id="global-search" class="search-input" placeholder="Search the user guide (e.g. calendar, Stripe, recurring)..." aria-label="Search User Guide">
                 </div>
                 
                 <div class="action-buttons">
@@ -1881,11 +1881,6 @@
                                 <strong>📅 Make a Booking (Enquiry)</strong>
                                 <span class="path">Calendar &rarr; Click date &rarr; Save Booking</span>
                                 <small>📍 Target: Calendar Panel</small>
-                            </div>
-                            <div class="quick-ref-item" onclick="scrollToId('making-booking')">
-                                <strong>🚪 Walk-in Booking</strong>
-                                <span class="path">Walk-In Booking page &rarr; Confirm Booking</span>
-                                <small>📍 Target: Walk-In Page</small>
                             </div>
                             <div class="quick-ref-item" onclick="scrollToId('customer-notes')">
                                 <strong>📝 Add Customer Notes</strong>
@@ -2264,11 +2259,6 @@
                                         <td>Venue CRM database to lookup contact details, check payment histories, and log notes.</td>
                                     </tr>
                                     <tr>
-                                        <td>🚪</td>
-                                        <td><strong>Walk-In Booking</strong></td>
-                                        <td>Simplified, fast-access interface designed for on-site visitors requesting rooms immediately.</td>
-                                    </tr>
-                                    <tr>
                                         <td>✍️</td>
                                         <td><strong>New Booking</strong></td>
                                         <td>External customer inquiry booking portal (opens in external tab).</td>
@@ -2292,42 +2282,31 @@
                 <!-- Making a Booking -->
                 <section id="making-booking" class="section-card">
                     <div class="card-header">
-                        <h2><span class="sec-num">1</span>Making a Booking — Three Ways</h2>
+                        <h2><span class="sec-num">1</span>Making a Booking — Two Ways</h2>
                         <a class="header-anchor" onclick="copyAnchorLink('making-booking')">🔗 Copy link</a>
                     </div>
                     <div class="card-body">
-                        <div class="grid-3-col" style="grid-template-columns:1fr 1fr 2.25fr">
+                        <div class="grid-3-col" style="grid-template-columns:1fr 2.25fr">
                             <div class="sub-card">
                                 <h4>✅ Option A — Calendar Booking</h4>
                                 <ol class="styled-ol">
                                     <li>Navigate to <strong>Calendar</strong> sidebar.</li>
-                                    <li>Click date box to open the <strong>Quick Booking</strong> drawer.</li>
+                                    <li>Click any date box to open the <strong>Quick Booking</strong> drawer.</li>
                                     <li>Fill details: Customer, Room, Timings, Guests.</li>
                                     <li>Review indicator: 🟢 Available / 🔴 Clash alert.</li>
                                     <li>Optionally check <strong>Multi-day</strong> event or add internal staff notes.</li>
                                     <li>Choose payment: <span class="status-badge green">Record Deposit</span>, <span class="status-badge blue">Full Payment</span>, or <span class="status-badge amber">Save as Pending</span>.</li>
                                 </ol>
-                            </div>
-                            
-                            <div class="sub-card">
-                                <h4>🚪 Option B — Walk-In Booking</h4>
-                                <ol class="styled-ol">
-                                    <li>Select <strong>Walk-In Booking</strong> sidebar.</li>
-                                    <li>Enter Customer details (Name, Contact).</li>
-                                    <li>Input Event parameters: Date, Duration, Guest Count.</li>
-                                    <li>Select offline payout choice: Cash, Card, or BACS.</li>
-                                    <li>Click <span class="status-badge green">Confirm Booking</span>.</li>
-                                </ol>
-                                <span class="badge-warning-text">⚠️ Walk-ins cannot be booked on past dates.</span>
+                                <span class="badge-warning-text" style="display:block;margin-top:0.75rem;">💡 Use this for walk-in visitors and telephone bookings too — the calendar gives a live visual of available dates and times.</span>
                             </div>
 
                             <figure class="screenshot-figure" style="margin:0;align-self:stretch">
-                                <img src="screenshots/calendar-walkin.png" alt="Calendar with Quick Booking modal open — click any date to start a walk-in booking" style="height:100%;object-fit:cover">
-                                <figcaption>Walk-in bookings start from the Calendar — click any date to open the booking modal.</figcaption>
+                                <img src="screenshots/calendar-walkin.png" alt="Calendar with Quick Booking drawer open showing customer and room fields" style="height:100%;object-fit:cover">
+                                <figcaption>Calendar Quick Booking — click any available date to open the booking drawer for walk-in or telephone bookings.</figcaption>
                             </figure>
 
                             <div class="sub-card" style="grid-column: 1 / -1;">
-                                <h4>📨 Option C — Enquiry Form (Online)</h4>
+                                <h4>📨 Option B — Enquiry Form (Online)</h4>
                                 <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:0.75rem;">
                                     A public-facing booking request page customers fill in themselves. Share the link directly, embed it on your website, or use it during a telephone enquiry. URL format: <code style="background:rgba(99,102,241,0.12);padding:2px 7px;border-radius:5px;font-size:0.85em;">enquiry-form.html?t=&lt;tenant_id&gt;</code>
                                 </p>
@@ -2393,16 +2372,10 @@
                             </div>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
-                            <figure class="screenshot-figure" style="margin:0">
-                                <img src="screenshots/enquiry-form.png" alt="Public enquiry form showing room selection, dates, times, and availability check">
-                                <figcaption>Enquiry form — customers check availability and submit booking requests online.</figcaption>
-                            </figure>
-                            <figure class="screenshot-figure" style="margin:0">
-                                <img src="screenshots/manual-booking.png" alt="Walk-in booking form for staff to create bookings on the spot">
-                                <figcaption>Walk-In Booking — staff-side form for same-day or telephone bookings.</figcaption>
-                            </figure>
-                        </div>
+                        <figure class="screenshot-figure" style="margin-top:1.5rem">
+                            <img src="screenshots/enquiry-form.png" alt="Public enquiry form showing room selection, dates, times, and availability check">
+                            <figcaption>Enquiry form — customers check live availability and submit booking requests online.</figcaption>
+                        </figure>
                     </div>
                 </section>
 
@@ -3072,7 +3045,7 @@
                                     <tr data-cat="booking">
                                         <td><strong>👤 Customer not found</strong></td>
                                         <td>Contact details not added to the database yet.</td>
-                                        <td>Fill walk-in form (which auto-registers profiles) or click Add Customer in CRM.</td>
+                                        <td>Use the Calendar Quick Booking drawer (auto-registers customer profiles) or click Add Customer in the CRM first.</td>
                                     </tr>
                                     <tr data-cat="payment">
                                         <td><strong>💳 Balance still showing</strong></td>
