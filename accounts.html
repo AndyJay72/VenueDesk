@@ -85,7 +85,7 @@
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 480px; }
         table { width: 100%; border-collapse: collapse; min-width: 900px; }
         th { text-align: left; color: var(--text-muted); padding: 12px 14px; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.75rem; position: sticky; top: 0; background: #131b2e; white-space: nowrap; }
-        td { padding: 13px 14px; border-bottom: 1px solid var(--border); color: var(--text-main); font-size: 0.9rem; vertical-align: middle; }
+        td { padding: 16px 14px; border-bottom: 1px solid var(--border); color: var(--text-main); font-size: 0.9rem; vertical-align: middle; }
         tr.clickable:hover td { background: rgba(99,102,241,0.06); cursor: pointer; }
         .type-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
         .type-deposit      { background: rgba(99,102,241,0.15); color: var(--primary); }
@@ -97,6 +97,29 @@
         .type-balance  { background: rgba(16,185,129,0.15); color: var(--success); }
         .ref-mono { font-family: monospace; font-size: 0.82rem; color: var(--primary); }
         .linked-ref { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); }
+        /* TRANSACTION FINTECH REDESIGN */
+        .tx-avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#8b5cf6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.85rem; flex-shrink:0; letter-spacing:0; }
+        .tx-cell-stack { display:flex; flex-direction:column; gap:2px; }
+        .tx-primary-text { font-weight:600; color:var(--text-main); font-size:0.9rem; line-height:1.3; }
+        .tx-secondary-text { font-size:0.75rem; color:var(--text-muted); line-height:1.4; }
+        .tx-amount { font-weight:700; font-size:1.05rem; }
+        .tx-amount.income { color:var(--success); }
+        .tx-amount.refund  { color:var(--danger); }
+        .tx-chevron { color:var(--text-muted); font-size:0.78rem; margin-left:10px; transition:transform 0.15s ease; }
+        tr.clickable:hover .tx-chevron { transform:translateX(3px); }
+        /* TX SECTION PANELS */
+        .tx-section-hdr { display:flex; align-items:center; gap:8px; padding:0 2px 12px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+        .tx-section-hdr--recur  { color:#818cf8; }
+        .tx-section-hdr--single { color:#34d399; }
+        .tx-section-count { border-radius:10px; padding:1px 8px; font-size:0.68rem; font-weight:700; }
+        .tx-section-count--recur { background:rgba(99,102,241,.12); color:#a5b4fc; border:1px solid rgba(99,102,241,.25); }
+        .tx-section-count--green { background:rgba(16,185,129,.12); color:#34d399;  border:1px solid rgba(16,185,129,.25); }
+        .tx-section-nav { display:none; align-items:center; justify-content:space-between; padding:12px 2px 0; margin-top:4px; border-top:1px solid var(--border); }
+        .tx-section-sep { height:1px; background:var(--border); margin:1.5rem 0; display:none; }
+        /* TRANSACTION PAGINATION *
+        .tx-nav-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted); width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.8rem; display:inline-flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s; font-family:inherit; }
+        .tx-nav-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); }
+        .tx-nav-btn:disabled { opacity:0.35; cursor:default; }
         /* INVOICE MODAL */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 1rem; }
         .modal-overlay.active { display: flex; }
@@ -242,6 +265,37 @@
     body.light-mode tbody tr:hover,
     body.light-mode .log-tbody tr:hover { background: #f8fafc !important; }
     body.light-mode .clickable:hover { background: #eef2ff !important; }
+    body.light-mode .tx-primary-text  { color:#1e293b !important; }
+    body.light-mode .tx-secondary-text { color:#64748b !important; }
+    body.light-mode .tx-amount.income  { color:#10b981 !important; }
+    body.light-mode .tx-amount.refund  { color:#ef4444 !important; }
+    body.light-mode .tx-chevron        { color:#94a3b8 !important; }
+    body.light-mode .tx-section-hdr--recur  { color:#6366f1 !important; }
+    body.light-mode .tx-section-hdr--single { color:#10b981 !important; }
+    body.light-mode .tx-section-count--recur { background:#eef2ff !important; color:#6366f1 !important; border-color:rgba(99,102,241,.2) !important; }
+    body.light-mode .tx-section-count--green { background:#d1fae5 !important; color:#10b981 !important; border-color:rgba(16,185,129,.2) !important; }
+    body.light-mode .tx-section-sep { background:#e2e8f0 !important; }
+    /* ── Cyberpunk rooms chart — light mode reset ── */
+    body.light-mode .cyber-rooms-wrap {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 2px 16px rgba(99,102,241,.08) !important;
+    }
+    body.light-mode .cyber-rooms-wrap::before,
+    body.light-mode .cyber-rooms-wrap::after  { background: none !important; }
+    body.light-mode .cyber-rooms-header h3    { color: #0f172a !important; text-shadow: none !important; }
+    body.light-mode .cyber-rooms-wrap .month-nav-btn {
+        border-color: #e2e8f0 !important; color: #64748b !important;
+        background: #fff !important; box-shadow: none !important;
+    }
+    body.light-mode .cyber-rooms-wrap .month-nav-btn:hover {
+        border-color: rgba(99,102,241,.3) !important; color: #6366f1 !important;
+        background: #eef2ff !important; box-shadow: none !important;
+    }
+    body.light-mode .cyber-rooms-wrap .month-label { color: #1e293b !important; text-shadow: none !important; }
+    body.light-mode #roomsChart { filter: none !important; }
+    body.light-mode .tx-nav-btn        { background:#fff !important; border-color:#e2e8f0 !important; color:#64748b !important; }
+    body.light-mode .tx-nav-btn:hover:not(:disabled) { border-color:#6366f1 !important; color:#6366f1 !important; }
 
     /* ── Inputs & filters ── */
     body.light-mode .search-bar,
@@ -918,28 +972,69 @@
                     <button onclick="exportTransactionsCSV()" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:6px;transition:0.2s" onmouseover="this.style.background='rgba(16,185,129,0.2)'" onmouseout="this.style.background='rgba(16,185,129,0.1)'"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
                 </div>
             </div>
-            <div class="table-responsive">
-                <div class="table-wrap">
-<table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Reference</th>
-                            <th>Linked To</th>
-                            <th>Customer</th>
-                            <th>Room</th>
-                            <th>Event Date</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trans-body">
-                        <tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-muted)">Loading transactions...</td></tr>
-                    </tbody>
-                </table>
-</div>
+            <!-- ── Recurring Contracts Section ──────────────────────────────── -->
+            <div id="tx-recur-section" style="display:none;">
+                <div class="tx-section-hdr tx-section-hdr--recur">
+                    <i class="fa-solid fa-repeat"></i>
+                    <span>Recurring Contracts — Payment History</span>
+                    <span class="tx-section-count tx-section-count--recur" id="tx-recur-count"></span>
+                </div>
+                <div class="table-responsive" style="max-height:none;">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr>
+                                <th>Customer &amp; Space</th><th>Timeline</th>
+                                <th>References</th><th>Status</th>
+                                <th style="text-align:right;">Amount</th>
+                            </tr></thead>
+                            <tbody id="trans-recur-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="tx-recur-nav" class="tx-section-nav">
+                    <span id="tx-recur-info" style="font-size:.8rem;color:var(--text-muted);"></span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button id="tx-recur-prev" class="tx-nav-btn" onclick="recurPrevPage()" title="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="tx-recur-label" style="font-size:.8rem;font-weight:600;color:var(--text-muted);min-width:60px;text-align:center;"></span>
+                        <button id="tx-recur-next" class="tx-nav-btn" onclick="recurNextPage()" title="Next"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
             </div>
+
+            <!-- ── Section separator ─────────────────────────────────────────── -->
+            <div id="tx-sep" class="tx-section-sep"></div>
+
+            <!-- ── Single Bookings Section ───────────────────────────────────── -->
+            <div id="tx-single-section">
+                <div class="tx-section-hdr tx-section-hdr--single">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span id="tx-single-title">Transactions</span>
+                    <span class="tx-section-count tx-section-count--green" id="tx-single-count"></span>
+                </div>
+                <div class="table-responsive">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr>
+                                <th>Customer &amp; Space</th><th>Timeline</th>
+                                <th>References</th><th>Status</th>
+                                <th style="text-align:right;">Amount</th>
+                            </tr></thead>
+                            <tbody id="trans-single-body">
+                                <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading transactions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="tx-single-nav" class="tx-section-nav">
+                    <span id="tx-single-info" style="font-size:.8rem;color:var(--text-muted);"></span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button id="tx-single-prev" class="tx-nav-btn" onclick="singlePrevPage()" title="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="tx-single-label" style="font-size:.8rem;font-weight:600;color:var(--text-muted);min-width:60px;text-align:center;"></span>
+                        <button id="tx-single-next" class="tx-nav-btn" onclick="singleNextPage()" title="Next"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Outstanding Items panel — shown by renderOutstandingItems() when metrics.outstanding_items has data -->
@@ -974,6 +1069,12 @@
         let roomsChartYear  = new Date().getFullYear();
         let roomsChartInst  = null;
         let allTransactions = [];
+        let recurPage  = 1;
+        let singlePage = 1;
+        const RECUR_PAGE_SIZE  = 6;
+        const SINGLE_PAGE_SIZE = 10;
+        let _txRecurGroups = [];
+        let _txSingleUnits = [];
 
         function getAuthHeaders() { return {}; }
         function _TID() { return sessionStorage.getItem('vp_tenant_id') || '0'; }
@@ -1030,8 +1131,8 @@
         function showApiError(msg) {
             const el = document.getElementById('api-error-banner');
             if (el) { el.textContent = '⚠ ' + msg; el.style.display = 'block'; }
-            const tbody = document.getElementById('trans-body');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i> ' + msg + '</td></tr>';
+            const tbody = document.getElementById('trans-single-body');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i> ' + msg + '</td></tr>';
         }
 
         async function loadAccounts() {
@@ -1100,23 +1201,31 @@
             }
         }
 
+        // Shared helper — extract 1-2 initials from a name
+        function txInitials(name) {
+            const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+            return (parts[0] || '?')[0].toUpperCase();
+        }
+
         function renderTransactions(transactions) {
-            const tbody = document.getElementById('trans-body');
+            const singleBody = document.getElementById('trans-single-body');
             if (!transactions || !transactions.length) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-muted)">No recent transactions</td></tr>';
+                singleBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No recent transactions</td></tr>';
+                document.getElementById('tx-recur-section').style.display = 'none';
+                document.getElementById('tx-sep').style.display = 'none';
                 return;
             }
 
-            // Separate recurring vs single payments.
-            // payment_type = 'recurring' (db-api v2) or 'recurring_payment' (legacy n8n).
+            // Separate recurring vs single
             const recurring = transactions.filter(t => {
-                const pType = (t.payment_type || '').toLowerCase();
-                return pType === 'recurring_payment' || pType === 'recurring'
+                const p = (t.payment_type || '').toLowerCase();
+                return p === 'recurring_payment' || p === 'recurring'
                     || (!t.booking_id && t.series_reference) || t.is_recurring;
             });
             const singles = transactions.filter(t => {
-                const pType = (t.payment_type || '').toLowerCase();
-                return pType !== 'recurring_payment' && pType !== 'recurring'
+                const p = (t.payment_type || '').toLowerCase();
+                return p !== 'recurring_payment' && p !== 'recurring'
                     && !(!t.booking_id && t.series_reference) && !t.is_recurring;
             });
 
@@ -1128,149 +1237,185 @@
                 if (seen.has(k)) return false; seen.add(k); return true;
             });
 
-            // Group recurring payments into billing blocks by series_reference
-            const recurGroups = {};
+            // Group recurring into billing blocks
+            const recurGroupMap = {};
             recurring.forEach(t => {
                 const ref = t.series_reference || t.description || 'Recurring';
-                if (!recurGroups[ref]) {
-                    recurGroups[ref] = {
-                        ref,
-                        payments:      [],
-                        customer:      t.customer_name || '—',
-                        room:          t.room_name || '',
-                        // Cycle counts from DB (populated by the first payment row that has them)
-                        total_cycles:   parseInt(t.total_cycles)  || 0,
-                        paid_cycles:    parseInt(t.paid_cycles)   || 0,
-                        pending_cycles: parseInt(t.pending_cycles)|| 0,
-                    };
+                if (!recurGroupMap[ref]) {
+                    recurGroupMap[ref] = { ref, payments: [], customer: t.customer_name||'—', room: t.room_name||'',
+                        total_cycles: parseInt(t.total_cycles)||0, paid_cycles: parseInt(t.paid_cycles)||0, pending_cycles: parseInt(t.pending_cycles)||0 };
                 } else {
-                    // Take the highest cycle counts seen across payments in this group
-                    if (parseInt(t.total_cycles)   > recurGroups[ref].total_cycles)   recurGroups[ref].total_cycles   = parseInt(t.total_cycles);
-                    if (parseInt(t.paid_cycles)    > recurGroups[ref].paid_cycles)    recurGroups[ref].paid_cycles    = parseInt(t.paid_cycles);
-                    if (parseInt(t.pending_cycles) > recurGroups[ref].pending_cycles) recurGroups[ref].pending_cycles = parseInt(t.pending_cycles);
+                    if (parseInt(t.total_cycles)   > recurGroupMap[ref].total_cycles)   recurGroupMap[ref].total_cycles   = parseInt(t.total_cycles);
+                    if (parseInt(t.paid_cycles)    > recurGroupMap[ref].paid_cycles)    recurGroupMap[ref].paid_cycles    = parseInt(t.paid_cycles);
+                    if (parseInt(t.pending_cycles) > recurGroupMap[ref].pending_cycles) recurGroupMap[ref].pending_cycles = parseInt(t.pending_cycles);
                 }
-                recurGroups[ref].payments.push(t);
+                recurGroupMap[ref].payments.push(t);
             });
 
-            let html = '';
+            _txRecurGroups = Object.keys(recurGroupMap).sort().map(ref => ({ ref, grp: recurGroupMap[ref] }));
+            _txSingleUnits = deduped.map((t, i) => ({ t, i }));
+            recurPage  = 1;
+            singlePage = 1;
+            _renderTxSections();
+        }
 
-            // ── Recurring blocks section ──────────────────────────────────────────
-            const groupKeys = Object.keys(recurGroups);
-            if (groupKeys.length) {
-                html += `<tr><td colspan="9" style="padding:8px 12px 4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#818cf8;background:rgba(99,102,241,.05);border-bottom:1px solid rgba(99,102,241,.12);">
-                    <i class="fa-solid fa-repeat" style="margin-right:5px;"></i>Recurring Contracts — Payment History (${groupKeys.length} series)
-                </td></tr>`;
-                groupKeys.sort().forEach(ref => {
-                    const grp = recurGroups[ref];
-                    const total       = grp.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-                    const pmts        = grp.payments.sort((a,b) => new Date(b.payment_date||b.created_at||0) - new Date(a.payment_date||a.created_at||0));
-                    // ── "X of Y Sessions Paid" pill ─────────────────────────────
-                    const hasCycles   = grp.total_cycles > 0;
-                    // If DB returned cycle counts, use them; otherwise fall back to payment count
-                    const paidCount   = hasCycles ? grp.paid_cycles   : pmts.filter(p => (p.status||'').toLowerCase() !== 'refund').length;
-                    const totalCount  = hasCycles ? grp.total_cycles  : paidCount;
-                    const allPaid     = totalCount > 0 && paidCount >= totalCount;
+        function _renderTxSections() {
+            const recurTotal  = _txRecurGroups.length;
+            const singleTotal = _txSingleUnits.length;
+            const recurPages  = Math.max(1, Math.ceil(recurTotal  / RECUR_PAGE_SIZE));
+            const singlePages = Math.max(1, Math.ceil(singleTotal / SINGLE_PAGE_SIZE));
+            recurPage  = Math.max(1, Math.min(recurPage,  recurPages));
+            singlePage = Math.max(1, Math.min(singlePage, singlePages));
+
+            const pageGroups  = _txRecurGroups.slice((recurPage  - 1) * RECUR_PAGE_SIZE,  recurPage  * RECUR_PAGE_SIZE);
+            const pageSingles = _txSingleUnits.slice((singlePage - 1) * SINGLE_PAGE_SIZE, singlePage * SINGLE_PAGE_SIZE);
+
+            // ── Recurring section ─────────────────────────────────────────────
+            const recurSection = document.getElementById('tx-recur-section');
+            const recurBody    = document.getElementById('trans-recur-body');
+            const sep          = document.getElementById('tx-sep');
+
+            if (recurTotal > 0) {
+                recurSection.style.display = '';
+                sep.style.display = singleTotal > 0 ? '' : 'none';
+                document.getElementById('tx-recur-count').textContent = `${recurTotal} series`;
+
+                let html = '';
+                pageGroups.forEach(({ ref, grp }) => {
+                    const total_amt  = grp.payments.reduce((s, p) => s + (parseFloat(p.amount)||0), 0);
+                    const pmts       = grp.payments.sort((a,b) => new Date(b.payment_date||b.created_at||0) - new Date(a.payment_date||a.created_at||0));
+                    const hasCycles  = grp.total_cycles > 0;
+                    const paidCount  = hasCycles ? grp.paid_cycles  : pmts.filter(p => (p.status||'').toLowerCase() !== 'refund').length;
+                    const totalCount = hasCycles ? grp.total_cycles : paidCount;
+                    const allPaid    = totalCount > 0 && paidCount >= totalCount;
                     const sessionPill = totalCount > 0
-                        ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:.68rem;font-weight:700;
-                             background:${allPaid ? 'rgba(16,185,129,.15)' : 'rgba(245,158,11,.12)'};
-                             color:${allPaid ? '#34d399' : '#fbbf24'};
-                             border:1px solid ${allPaid ? 'rgba(16,185,129,.3)' : 'rgba(245,158,11,.3)'};
-                             margin-left:8px;" title="Billing cycles">`
-                            + `<i class="fa-solid fa-circle-check" style="font-size:.6rem"></i>`
-                            + `${paidCount} of ${totalCount} Sessions Paid`
-                            + `</span>`
-                        : `<span style="padding:2px 8px;border-radius:12px;font-size:.68rem;font-weight:700;background:rgba(99,102,241,.12);color:#a5b4fc;border:1px solid rgba(99,102,241,.25);margin-left:8px;">${pmts.length} payment${pmts.length!==1?'s':''}</span>`;
-                    // Series header row
+                        ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:.68rem;font-weight:700;background:${allPaid?'rgba(16,185,129,.15)':'rgba(245,158,11,.12)'};color:${allPaid?'#34d399':'#fbbf24'};border:1px solid ${allPaid?'rgba(16,185,129,.3)':'rgba(245,158,11,.3)'}"><i class="fa-solid fa-circle-check" style="font-size:.6rem"></i>${paidCount} of ${totalCount} Paid</span>`
+                        : `<span style="padding:2px 8px;border-radius:12px;font-size:.68rem;font-weight:700;background:rgba(99,102,241,.12);color:#a5b4fc;border:1px solid rgba(99,102,241,.25);">${pmts.length} payment${pmts.length!==1?'s':''}</span>`;
                     html += `<tr style="background:rgba(99,102,241,.06);">
-                        <td colspan="6" style="padding:7px 14px;font-size:.82rem;font-weight:700;color:#a5b4fc;">
+                        <td colspan="3" style="padding:9px 14px;font-size:.82rem;font-weight:700;color:#a5b4fc;">
                             <i class="fa-solid fa-layer-group" style="margin-right:6px;opacity:.7;"></i>
                             <span style="font-family:monospace;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.25);border-radius:5px;padding:1px 7px;font-size:.72rem;color:#c4b5fd;margin-right:6px;">${ref}</span>
-                            ${grp.customer}${grp.room?' &nbsp;·&nbsp; <span style="color:#94a3b8;font-weight:400;font-size:.78rem;">'+grp.room+'</span>':''}
-                            ${sessionPill}
+                            ${grp.customer}${grp.room?' &nbsp;·&nbsp; <span style="color:#94a3b8;font-weight:400;font-size:.78rem;">'+grp.room+'</span>':''}${sessionPill}
                         </td>
-                        <td colspan="2" style="padding:7px 14px;text-align:right;font-weight:800;color:#34d399;font-size:.9rem;">${fmt(total)}<span style="color:#64748b;font-size:.7rem;font-weight:400;margin-left:4px;">total</span></td>
-                        <td style="padding:7px 14px;font-size:.72rem;color:#94a3b8;text-align:center;">${pmts.length} pmt${pmts.length!==1?'s':''}</td>
+                        <td style="padding:9px 14px;font-size:.72rem;color:#94a3b8;text-align:center;">${pmts.length} pmt${pmts.length!==1?'s':''}</td>
+                        <td style="padding:9px 14px;text-align:right;font-weight:800;color:#34d399;font-size:.9rem;">${fmt(total_amt)}<span style="color:#64748b;font-size:.7rem;font-weight:400;margin-left:4px;">total</span></td>
                     </tr>`;
-                    // Individual payment rows within this block
-                    pmts.forEach((t, pi) => {
+                    pmts.forEach(t => {
                         const amt   = parseFloat(t.amount);
                         const color = amt < 0 ? 'var(--danger)' : 'var(--success)';
                         const pDate = t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
                         html += `<tr style="background:rgba(99,102,241,.02);">
-                            <td style="padding:7px 14px 7px 28px;font-size:.8rem;color:var(--text-muted);">${pDate}</td>
-                            <td style="font-family:monospace;font-size:.72rem;color:var(--text-muted);">${t.reference_number||'—'}</td>
-                            <td><span style="font-family:monospace;font-size:.68rem;color:#8b5cf6;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:4px;padding:1px 5px;">${ref}</span></td>
-                            <td style="font-size:.82rem;">${t.customer_name||'—'}</td>
-                            <td style="font-size:.82rem;color:var(--text-muted);">${t.room_name||t.description||'—'}</td>
-                            <td style="font-size:.78rem;color:var(--text-muted);">${pDate}</td>
+                            <td><div style="display:flex;align-items:center;gap:10px;padding-left:10px;">
+                                <div class="tx-avatar" style="width:28px;height:28px;font-size:.72rem;">${txInitials(t.customer_name)}</div>
+                                <div class="tx-cell-stack">
+                                    <span class="tx-primary-text" style="font-size:.82rem;">${t.customer_name||'—'}</span>
+                                    <span class="tx-secondary-text">${t.room_name||t.description||'—'}</span>
+                                </div></div></td>
+                            <td><div class="tx-cell-stack"><span class="tx-primary-text" style="font-size:.8rem;">${pDate}</span></div></td>
+                            <td><div class="tx-cell-stack">
+                                <span style="font-family:monospace;font-size:.75rem;color:var(--text-muted);">${t.reference_number||'—'}</span>
+                                <span style="font-family:monospace;font-size:.68rem;color:#8b5cf6;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:4px;padding:1px 5px;display:inline-block;margin-top:2px;">${ref}</span>
+                            </div></td>
                             <td><span class="type-badge" style="background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3);padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;">Recurring</span></td>
-                            <td style="font-weight:700;color:${color};">${fmt(amt)}</td>
-                            <td style="color:${color};text-transform:uppercase;font-size:.78rem;">${t.status||'completed'}</td>
+                            <td style="text-align:right;"><span style="font-weight:700;color:${color};font-size:1rem;">${fmt(amt)}</span></td>
                         </tr>`;
                     });
-                    // Block subtotal divider
-                    html += `<tr><td colspan="9" style="padding:0;border-bottom:2px solid rgba(99,102,241,.1);"></td></tr>`;
+                    html += `<tr><td colspan="5" style="padding:0;border-bottom:2px solid rgba(99,102,241,.1);"></td></tr>`;
                 });
-            }
+                recurBody.innerHTML = html;
 
-            // ── Single payments section ───────────────────────────────────────────
-            if (deduped.length) {
-                if (groupKeys.length) {
-                    html += `<tr><td colspan="9" style="padding:8px 12px 4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#34d399;background:rgba(16,185,129,.04);border-bottom:1px solid rgba(16,185,129,.1);">
-                        <i class="fa-solid fa-calendar-check" style="margin-right:5px;"></i>Single Bookings
-                    </td></tr>`;
+                // Recurring nav bar
+                const recurNav = document.getElementById('tx-recur-nav');
+                if (recurTotal > RECUR_PAGE_SIZE) {
+                    const from = (recurPage - 1) * RECUR_PAGE_SIZE + 1;
+                    const to   = Math.min(recurPage * RECUR_PAGE_SIZE, recurTotal);
+                    recurNav.style.display = 'flex';
+                    document.getElementById('tx-recur-info').textContent  = `${from}–${to} of ${recurTotal} series`;
+                    document.getElementById('tx-recur-label').textContent = `Page ${recurPage} of ${recurPages}`;
+                    document.getElementById('tx-recur-prev').disabled = recurPage === 1;
+                    document.getElementById('tx-recur-next').disabled = recurPage === recurPages;
+                } else {
+                    recurNav.style.display = 'none';
                 }
-                html += deduped.map((t, i) => {
-                const amt         = parseFloat(t.amount);
-                const isCancelled = (t.payment_type || '').toLowerCase() === 'cancellation';
-                const isRecurPmt  = !t.booking_id && t.series_reference;
-                const color       = (amt < 0 || isCancelled) ? 'var(--danger)' : 'var(--success)';
-                const pDate       = t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
-                const bDate       = fmtTxDate(t);
-                const time        = (t.start_time && t.end_time) ? t.start_time + ' \u2013 ' + t.end_time : '';
-                const isLink      = t.payment_type && t.payment_type.toLowerCase() !== 'deposit' && t.deposit_reference;
-                const rowClass    = 'clickable' + (isCancelled ? ' is-cancellation' : '');
-
-                const refHtml = isCancelled
-                    ? '<span class="ref-mono" style="color:var(--danger);">' + (t.reference_number || '—') + '</span>'
-                    : '<span class="ref-mono">' + (t.reference_number || '—') + '</span>';
-
-                // Linked To: series ref for recurring, deposit ref for single payments
-                const linkedHtml = isRecurPmt
-                    ? '<span style="font-family:monospace;font-size:0.72rem;color:#8b5cf6;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:5px;padding:2px 7px;" title="Recurring series">' + t.series_reference + '</span>'
-                    : isCancelled && t.cancellation_booking_ref
-                        ? '<span class="linked-ref" title="Original booking">' + t.cancellation_booking_ref + '</span>'
-                        : (isLink ? '<span class="linked-ref">' + t.deposit_reference + '</span>' : '<span style="color:var(--text-muted); font-size:0.8rem;">—</span>');
-
-                // Room column: for recurring payments show description/series ref instead of room
-                const roomCell = t.room_name
-                    ? t.room_name
-                    : (t.description
-                        ? '<span style="color:#8b5cf6;font-size:0.82rem;">' + t.description + '</span>'
-                        : '—');
-
-                // Recurring badge
-                const recurBadge = t.is_recurring
-                    ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:0.68rem;font-weight:700;background:rgba(99,102,241,0.18);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);vertical-align:middle;"><i class="fa-solid fa-repeat" style="font-size:0.58rem"></i> Recurring</span>'
-                    : '';
-
-                return '<tr class="' + rowClass + '" onclick="showInvoice(' + i + ')">' +
-                    '<td>' + pDate + '</td>' +
-                    '<td>' + refHtml + '</td>' +
-                    '<td>' + linkedHtml + '</td>' +
-                    '<td>' + (t.customer_name || '—') + (isCancelled ? ' <span style="font-size:0.72rem;color:var(--danger);font-weight:700;">CANCELLED</span>' : '') + recurBadge + '</td>' +
-                    '<td>' + roomCell + '</td>' +
-                    '<td>' + bDate + (time ? '<br><span style="font-size:0.78rem; color:var(--text-muted);">' + time + '</span>' : '') + '</td>' +
-                    '<td><span class="type-badge ' + typeClass(t.payment_type, t.booking_balance_due) + '">' + typeLabel(t.payment_type, t.booking_balance_due) + '</span></td>' +
-                    '<td style="font-weight:700; color:' + color + '">' + fmt(amt) + '</td>' +
-                    '<td><span style="color:' + color + '; text-transform:uppercase; font-size:0.78rem;">' + (t.status || '—') + '</span></td>' +
-                    '</tr>';
-                }).join('');
+            } else {
+                recurSection.style.display = 'none';
+                sep.style.display = 'none';
             }
 
-            tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted)">No transactions found</td></tr>';
+            // ── Single bookings section ───────────────────────────────────────
+            const singleBody = document.getElementById('trans-single-body');
+            document.getElementById('tx-single-title').textContent = recurTotal > 0 ? 'Single Bookings' : 'Transactions';
+            document.getElementById('tx-single-count').textContent = singleTotal > 0 ? `${singleTotal} records` : '';
+
+            if (singleTotal > 0) {
+                singleBody.innerHTML = pageSingles.map(({ t, i }) => {
+                    const amt         = parseFloat(t.amount);
+                    const isCancelled = (t.payment_type || '').toLowerCase() === 'cancellation';
+                    const isRecurPmt  = !t.booking_id && t.series_reference;
+                    const amtClass    = (amt < 0 || isCancelled) ? 'refund' : 'income';
+                    const pDate       = t.payment_date ? new Date(t.payment_date).toLocaleDateString('en-GB') : '—';
+                    const bDate       = fmtTxDate(t);
+                    const time        = (t.start_time && t.end_time) ? t.start_time + ' – ' + t.end_time : '';
+                    const isLink      = t.payment_type && t.payment_type.toLowerCase() !== 'deposit' && t.deposit_reference;
+                    const rowClass    = 'clickable' + (isCancelled ? ' is-cancellation' : '');
+                    const roomText    = t.room_name || t.description || '';
+                    const linkedDisplay = isRecurPmt && t.series_reference
+                        ? `<span style="font-family:monospace;font-size:.72rem;color:#8b5cf6;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:4px;padding:1px 5px;">${t.series_reference}</span>`
+                        : isCancelled && t.cancellation_booking_ref
+                            ? `<span class="tx-secondary-text">↳ ${t.cancellation_booking_ref}</span>`
+                            : isLink ? `<span class="tx-secondary-text">Deposit: ${t.deposit_reference}</span>` : '';
+                    const cancelledTag = isCancelled ? ' <span style="font-size:.68rem;color:var(--danger);font-weight:700;margin-left:3px;">CANCELLED</span>' : '';
+                    const recurBadge   = t.is_recurring
+                        ? ' <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:12px;font-size:.68rem;font-weight:700;background:rgba(99,102,241,.18);color:#a5b4fc;border:1px solid rgba(99,102,241,.3);vertical-align:middle;"><i class="fa-solid fa-repeat" style="font-size:.58rem"></i> Recurring</span>'
+                        : '';
+                    return `<tr class="${rowClass}" onclick="showInvoice(${i})">
+                        <td><div style="display:flex;align-items:center;gap:12px;">
+                            <div class="tx-avatar">${txInitials(t.customer_name)}</div>
+                            <div class="tx-cell-stack">
+                                <span class="tx-primary-text">${t.customer_name||'—'}${cancelledTag}${recurBadge}</span>
+                                <span class="tx-secondary-text">${roomText}</span>
+                            </div></div></td>
+                        <td><div class="tx-cell-stack">
+                            <span class="tx-primary-text">${pDate}</span>
+                            <span class="tx-secondary-text">Event: ${bDate}${time?' &middot; '+time:''}</span>
+                        </div></td>
+                        <td><div class="tx-cell-stack">
+                            <span style="font-family:monospace;font-size:.82rem;color:${isCancelled?'var(--danger)':'var(--primary)'};">${t.reference_number||'—'}</span>
+                            ${linkedDisplay}
+                        </div></td>
+                        <td><div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+                            <span class="type-badge ${typeClass(t.payment_type, t.booking_balance_due)}">${typeLabel(t.payment_type, t.booking_balance_due)}</span>
+                            <span style="font-size:.72rem;font-weight:600;color:${amtClass==='refund'?'var(--danger)':'var(--success)'};text-transform:uppercase;">${t.status||'—'}</span>
+                        </div></td>
+                        <td><div style="display:flex;align-items:center;justify-content:flex-end;">
+                            <span class="tx-amount ${amtClass}">${fmt(amt)}</span>
+                            <i class="fa-solid fa-chevron-right tx-chevron"></i>
+                        </div></td>
+                    </tr>`;
+                }).join('');
+            } else {
+                singleBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">No transactions found</td></tr>';
+            }
+
+            // Single bookings nav bar
+            const singleNav = document.getElementById('tx-single-nav');
+            if (singleTotal > SINGLE_PAGE_SIZE) {
+                const from = (singlePage - 1) * SINGLE_PAGE_SIZE + 1;
+                const to   = Math.min(singlePage * SINGLE_PAGE_SIZE, singleTotal);
+                singleNav.style.display = 'flex';
+                document.getElementById('tx-single-info').textContent  = `${from}–${to} of ${singleTotal} transactions`;
+                document.getElementById('tx-single-label').textContent = `Page ${singlePage} of ${singlePages}`;
+                document.getElementById('tx-single-prev').disabled = singlePage === 1;
+                document.getElementById('tx-single-next').disabled = singlePage === singlePages;
+            } else {
+                singleNav.style.display = 'none';
+            }
         }
 
+        function recurPrevPage()  { if (recurPage  > 1) { recurPage--;  _renderTxSections(); } }
+        function recurNextPage()  { if (recurPage  < Math.ceil(_txRecurGroups.length / RECUR_PAGE_SIZE))  { recurPage++;  _renderTxSections(); } }
+        function singlePrevPage() { if (singlePage > 1) { singlePage--; _renderTxSections(); } }
+        function singleNextPage() { if (singlePage < Math.ceil(_txSingleUnits.length / SINGLE_PAGE_SIZE)) { singlePage++; _renderTxSections(); } }
         // ── renderOutstandingItems ───────────────────────────────────────────────
         // Renders the unified outstanding items list from DB: Acc Metrics JSON_AGG.
         // Items have type: 'single' | 'recurring'.
@@ -1618,7 +1763,18 @@
 
         function loadRoomsChart() {
             document.getElementById('rooms-month-label').innerText = MONTHS_SHORT[roomsChartMonth - 1] + ' ' + roomsChartYear;
-            const wrap = document.getElementById('rooms-chart-wrap');
+            const wrap    = document.getElementById('rooms-chart-wrap');
+            const isLight = document.body.classList.contains('light-mode');
+
+            // Theme-aware palette
+            const gridColor   = isLight ? 'rgba(0,0,0,0.06)'    : 'rgba(0,255,225,0.04)';
+            const tickColorX  = isLight ? '#64748b'              : 'rgba(0,255,225,0.75)';
+            const tickColorY  = isLight ? '#94a3b8'              : 'rgba(0,255,225,0.55)';
+            const lineColor   = isLight ? '#6366f1'              : '#00ffe1';
+            const pointBg     = isLight ? '#6366f1'              : '#00ffe1';
+            const pointBorder = isLight ? '#ffffff'              : '#020412';
+            const emptyColor  = isLight ? '#94a3b8'              : 'rgba(0,255,225,0.4)';
+
             const inMonth = allTransactions.filter(t => {
                 const d = new Date(t.payment_date || t.booking_date || null);
                 if (isNaN(d)) return false;
@@ -1630,7 +1786,7 @@
             const labels = sorted.map(e => e[0]);
             const values = sorted.map(e => e[1]);
             if (!labels.length) {
-                wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:rgba(0,255,225,0.4);font-size:0.9rem;"><i class="fa-solid fa-calendar-xmark"></i> No revenue data for ' + MONTHS_FULL[roomsChartMonth-1] + ' ' + roomsChartYear + '</div>';
+                wrap.innerHTML = '<div style="text-align:center;padding:2.5rem;color:' + emptyColor + ';font-size:0.9rem;"><i class="fa-solid fa-calendar-xmark"></i> No revenue data for ' + MONTHS_FULL[roomsChartMonth-1] + ' ' + roomsChartYear + '</div>';
                 if (roomsChartInst) { roomsChartInst.destroy(); roomsChartInst = null; }
                 return;
             }
@@ -1639,16 +1795,16 @@
             const ctx = document.getElementById('roomsChart').getContext('2d');
             const barBg = labels.map((_, i) => {
                 const g = ctx.createLinearGradient(0, 0, 0, 280);
-                g.addColorStop(0, hexToRgba(NEON[i % NEON.length], 0.82));
-                g.addColorStop(1, hexToRgba(NEON[i % NEON.length], 0.12));
+                g.addColorStop(0, hexToRgba(NEON[i % NEON.length], isLight ? 0.65 : 0.82));
+                g.addColorStop(1, hexToRgba(NEON[i % NEON.length], isLight ? 0.08 : 0.12));
                 return g;
             });
             roomsChartInst = new Chart(ctx, {
                 data: {
                     labels,
                     datasets: [
-                        { type: 'bar', label: 'Revenue', data: values, backgroundColor: barBg, borderColor: labels.map((_,i) => NEON[i % NEON.length]), borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 2 },
-                        { type: 'line', label: 'Wave', data: values, borderColor: '#00ffe1', borderWidth: 2.5, tension: 0.45, fill: false, pointBackgroundColor: '#00ffe1', pointBorderColor: '#020412', pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 9, order: 1 }
+                        { type: 'bar',  label: 'Revenue', data: values, backgroundColor: barBg, borderColor: labels.map((_,i) => NEON[i % NEON.length]), borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 2 },
+                        { type: 'line', label: 'Wave',    data: values, borderColor: lineColor, borderWidth: 2.5, tension: 0.45, fill: false, pointBackgroundColor: pointBg, pointBorderColor: pointBorder, pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 9, order: 1 }
                     ]
                 },
                 options: {
@@ -1658,8 +1814,8 @@
                         tooltip: { filter: item => item.datasetIndex === 0, callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
                     },
                     scales: {
-                        x: { grid: { color: 'rgba(0,255,225,0.04)' }, ticks: { color: 'rgba(0,255,225,0.75)', font: { size: 12, weight: '600' } } },
-                        y: { grid: { color: 'rgba(0,255,225,0.04)' }, ticks: { color: 'rgba(0,255,225,0.55)', callback: v => '£' + v.toLocaleString('en-GB') } }
+                        x: { grid: { color: gridColor  }, ticks: { color: tickColorX, font: { size: 12, weight: '600' } } },
+                        y: { grid: { color: gridColor  }, ticks: { color: tickColorY, callback: v => '£' + v.toLocaleString('en-GB') } }
                     }
                 }
             });
@@ -1695,6 +1851,8 @@
             localStorage.setItem('vp_theme', isLight ? 'light' : 'dark');
             const btn = document.getElementById('theme-btn');
             if(btn) btn.innerHTML = isLight ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            // Re-render the rooms chart so axis/grid/line colours match the new theme
+            if (allTransactions.length) loadRoomsChart();
         }
         document.addEventListener('DOMContentLoaded', function(){
             const btn = document.getElementById('theme-btn');
