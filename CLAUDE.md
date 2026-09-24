@@ -4926,6 +4926,12 @@ loop, sending real emails on every iteration until n8n's execution limit is reac
 Real emails will be sent. If testing against a real inbox, use a test email address or
 ensure SMTP rate limits won't be hit by rapid consecutive test runs.
 
+**Regression guard:** `tests/playwright/email_loop_guard.spec.js` enforces this rule
+automatically — it asserts that no `splitInBatches` node appears in `pinData` for
+`UnpaidBookingLifecycle.json` and `PendingLifecycleScheduler.json`, and that the
+`$runIndex > 50` failsafe is the first line of every Code node that precedes an email
+send. 16 PASS · 0 FAIL (September 24 2026).
+
 ---
 
 ## Pattern 32 — Playwright LIFO Route Ordering: Catch-Alls First, Specific Routes Last
