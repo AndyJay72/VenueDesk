@@ -326,6 +326,7 @@ async function configRoutes(fastify) {
         properties: {
           name:        { type: 'string', minLength: 1 },
           description: { type: 'string', default: '' },
+          jwt:         { type: 'string' },
         },
       },
     },
@@ -362,6 +363,7 @@ async function configRoutes(fastify) {
           name:        { type: 'string' },
           description: { type: 'string' },
           is_active:   { type: 'boolean' },
+          jwt:         { type: 'string' },
         },
       },
     },
@@ -407,6 +409,7 @@ async function configRoutes(fastify) {
         required: ['event_type_id'],
         properties: {
           event_type_id: { type: 'string' },
+          jwt:           { type: 'string' },
         },
       },
     },
@@ -423,6 +426,42 @@ async function configRoutes(fastify) {
       );
       if (rowCount === 0) throw notFound('EventType', event_type_id);
       return { success: true, data: { event_type_id, is_active: false } };
+    });
+  });
+
+  // ─── POST /config/event-types/hard-delete ─────────────────────────────────
+  // Permanently deletes an event type. Blocked by FK if pricing rules reference it.
+  fastify.post('/event-types/hard-delete', {
+    preHandler: [fastify.authenticate],
+    schema: {
+      body: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id:  { type: 'string' },
+          jwt: { type: 'string' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { tenantId, ctx } = resolveTenant(request);
+    const { id } = request.body;
+    assertUUID(id, 'id');
+
+    return ctx(tenantId, async (client) => {
+      try {
+        const { rowCount } = await client.query(
+          `DELETE FROM bookings.event_types WHERE id = $1::uuid AND tenant_id = $2::integer`,
+          [id, tenantId]
+        );
+        if (rowCount === 0) throw notFound('EventType', id);
+        return { success: true, data: { id } };
+      } catch (err) {
+        if (err.code === '23503') {
+          throw badRequest('Cannot delete this event type because it has existing pricing rules. Please remove the pricing rules first or deactivate it instead.');
+        }
+        throw err;
+      }
     });
   });
 

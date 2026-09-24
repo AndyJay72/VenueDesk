@@ -1328,10 +1328,11 @@ const API = {
     updateRoom:     DB_API + '/config/rooms/update',
     deleteRoom:     DB_API + '/config/rooms/delete',
     hardDeleteRoom: DB_API + '/config/rooms/hard-delete',
-    getEventTypes:  () => BASE + '/get-event-types',
-    createEventType:BASE + '/create-event-type',
-    updateEventType:BASE + '/update-event-type',
-    deleteEventType:BASE + '/delete-event-type',
+    getEventTypes:      () => BASE + '/get-event-types',
+    createEventType:    DB_API + '/config/event-types/create',
+    updateEventType:    DB_API + '/config/event-types/update',
+    deleteEventType:    DB_API + '/config/event-types/delete',
+    hardDeleteEventType:DB_API + '/config/event-types/hard-delete',
     getPricing:     BASE + '/get-pricing',
     setPricing:     BASE + '/set-pricing',
     deletePricing:  BASE + '/delete-pricing',
@@ -1664,12 +1665,13 @@ async function saveModal() {
             const payload = {
                 id:          modalMode.id,
                 name:        document.getElementById('me_name').value.trim(),
-                description: document.getElementById('me_desc').value.trim() || null,
-                is_active:   document.getElementById('me_active').classList.contains('on')
+                description: document.getElementById('me_desc').value.trim() || undefined,
+                is_active:   document.getElementById('me_active').classList.contains('on'),
+                jwt:         _TOKEN(),
             };
             if (!payload.name) throw new Error('Name is required');
-            const res = await fetch(API.updateEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole(payload)) });
-            if (!res.ok) throw new Error('Update failed');
+            const res = await fetch(API.updateEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Update failed'); }
             showToast('Event type updated!');
             await loadEventTypes();
         } else if (modalMode.type === 'service') {
@@ -1762,6 +1764,7 @@ function renderEventTypesTable() {
                         ? `<button class="btn-sm btn-delete" onclick="softDeleteEventType('${et.id}','${esc(et.name)}')"><i class="fa-solid fa-eye-slash"></i></button>`
                         : `<button class="btn-sm btn-restore" onclick="restoreEventType('${et.id}','${esc(et.name)}')"><i class="fa-solid fa-eye"></i></button>`
                     }
+                    <button class="btn-sm btn-delete" onclick="hardDeleteEventType('${et.id}','${esc(et.name)}')" title="Delete Permanently"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </td>
         </tr>`).join('');
@@ -1786,9 +1789,9 @@ async function addEventType() {
     try {
         const res = await fetch(API.createEventType, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ name, description: desc || null }))
+            body: JSON.stringify({ name, description: desc || undefined, jwt: _TOKEN() })
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed'); }
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Failed'); }
         showToast('Event type added!');
         document.getElementById('etName').value = '';
         document.getElementById('etDesc').value = '';
@@ -1815,11 +1818,25 @@ function editEventType(id) {
 async function softDeleteEventType(id, name) {
     if (!confirm(`Deactivate "${name}"?`)) return;
     try {
-        const res = await fetch(API.deleteEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withRole({ event_type_id: id })) });
+        const res = await fetch(API.deleteEventType, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event_type_id: id, jwt: _TOKEN() }) });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Deactivate failed'); }
         showToast('Event type deactivated');
         await loadEventTypes();
     } catch(e) { showToast(e.message || 'Error deactivating event type', 'error'); }
+}
+
+async function hardDeleteEventType(id, name) {
+    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Are you sure? All pricing rules for "${name}" must be removed first.`)) return;
+    try {
+        const res = await fetch(API.hardDeleteEventType, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, jwt: _TOKEN() })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || e.error || 'Delete failed'); }
+        showToast('Event type permanently deleted');
+        await loadEventTypes();
+    } catch(e) { showToast(e.message || 'Error deleting event type', 'error'); }
 }
 
 async function restoreEventType(id, name) {
@@ -1829,7 +1846,7 @@ async function restoreEventType(id, name) {
     try {
         const res = await fetch(API.updateEventType, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ ...et, id, is_active: true }))
+            body: JSON.stringify({ id, is_active: true, jwt: _TOKEN() })
         });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || e.message || 'Re-activate failed'); }
         showToast('Event type re-activated');
