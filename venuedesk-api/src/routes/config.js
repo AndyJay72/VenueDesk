@@ -506,6 +506,7 @@ async function configRoutes(fastify) {
           room_id:       { type: 'string' },
           event_type_id: { type: 'string' },
           day_rate:      { type: 'number' },
+          jwt:           { type: 'string' },
         },
       },
     },
@@ -541,6 +542,7 @@ async function configRoutes(fastify) {
         properties: {
           room_id:       { type: 'string' },
           event_type_id: { type: 'string' },
+          jwt:           { type: 'string' },
         },
       },
     },

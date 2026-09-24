@@ -2292,7 +2292,7 @@ All three workflows must be **re-imported into live n8n** after any changes.
 |---|---|
 | `index.html` | 4 × `customer-interactions` GET |
 | `audit-log.html` | 1 × `customer-interactions` GET |
-| `admin-config.html` | `get-rooms`, `get-event-types`, `get-pricing`, `get-settings` |
+| `admin-config.html` | `get-rooms`, `get-event-types`, `get-pricing`, `get-settings` (June 25); `get-rooms`, `get-event-types`, `get-pricing` fully migrated to db-api direct (September 24) |
 | `calendar.html` | `tidUrl()` updated — covers `get-rooms`, `get-pricing`, `get-event-types`, `blocked-dates` |
 | `customers.html` | 2 × `customer-interactions` GET |
 
@@ -3421,6 +3421,109 @@ create, update, deactivate, restore, hard-delete. FK guard message verified in b
 
 ---
 
+## 32. Event Types — Migration to db-api + Hard Delete ✅ DONE (September 24 2026)
+
+Commit `0f05976`. Identical pattern to the Rooms migration (item 31).
+
+**Backend changes (`config.js`):**
+- `jwt: { type: 'string' }` added to `create`, `update`, `delete` body schemas
+- New `POST /config/event-types/hard-delete`: permanent delete with `23503` FK guard —
+  `"Cannot delete this event type because it has existing pricing rules. Please remove the pricing rules first or deactivate it instead."`
+- Smoke tested: all four endpoints return 400 on empty body (route registered, AJV fires before auth)
+
+**Frontend changes (`admin-config.html` + `CommunityHub/`):**
+- `createEventType`, `updateEventType`, `deleteEventType` → `DB_API + '/config/event-types/...'`
+- `hardDeleteEventType` added → `DB_API + '/config/event-types/hard-delete'`
+- Trash button added to every event type row; `hardDeleteEventType()` function: double-confirm + FK error surfaced in toast
+- `withRole()` removed from all 4 call sites; `jwt: _TOKEN()` inline (Pattern 4 / Rule F6)
+- `description: desc || undefined` (not null — Pattern 41)
+- `restoreEventType`: minimal `{ id, is_active: true, jwt }` payload — no `...et` spread
+
+---
+
+## 34. admin-config.html — Full db-api Migration (Rooms GET + Event Types GET + Pricing Grid) ✅ DONE (September 24 2026)
+
+Commits: `admin-config.html` + `CommunityHub/admin-config.html` + `venuedesk-api/src/routes/config.js`.
+
+**Phase 2 violations remaining after this session: 0.** All tabs in `admin-config.html` that
+had DB-bound operations are now fully on db-api. n8n is only used for Settings (key-value store
+with no JWT isolation requirement).
+
+### What changed
+
+**`config.js` backend:**
+- `POST /config/pricing/upsert`: added `jwt: { type: 'string' }` to body schema — required so
+  Fastify's `removeAdditional: true` preserves the browser body-tunnel token before `fastify.authenticate` reads it (same pattern applied to Rooms/Event Types mutations in items 31 & 32)
+- `POST /config/pricing/delete`: same fix
+
+**`admin-config.html` frontend (both root + CommunityHub):**
+- `API.getRooms`: `() => BASE + '/get-rooms'` → `DB_API + '/config/rooms'` (now a string, not a function)
+- `API.getEventTypes`: `() => BASE + '/get-event-types'` → `DB_API + '/config/event-types'`
+- `API.getPricing`: `BASE + '/get-pricing'` → `DB_API + '/config/pricing'`
+- `API.setPricing`: `BASE + '/set-pricing'` → `DB_API + '/config/pricing/upsert'`
+- `API.deletePricing`: `BASE + '/delete-pricing'` → `DB_API + '/config/pricing/delete'`
+- `loadRooms()`: `API.getRooms() + tidParam() + '&jwt=...'` → `API.getRooms + '?jwt=...'`
+- `loadEventTypes()`: same pattern
+- `loadPricing()`: same pattern
+- `savePricingCell()`: `withRole({...})` → `{ room_id, event_type_id, day_rate, jwt: _TOKEN() }`; error message extracted from response body (Pattern 18)
+- `deletePricingCell()`: `withRole({...})` → `{ room_id, event_type_id, jwt: _TOKEN() }`; same error surfacing
+
+### Why n8n GETs were silently broken
+
+The n8n `get-rooms` and `get-event-types` webhooks used `N8N_SERVICE_JWT` (tenant_id: 1001)
+as their Authorization header fallback — the Pattern 26 root cause. Any second tenant would
+have seen tenant 1001's rooms and event types in their admin config. The direct db-api call
+with the user's own JWT eliminates this vector.
+
+The n8n `get-pricing` webhook had the same issue.
+
+### Remaining n8n dependency in admin-config.html
+
+| Tab | Still on n8n | Reason |
+|-----|-------------|--------|
+| Settings (buffer) | `get-settings`, `update-setting` | `bookings.settings` is a global key-value store; rows have no `tenant_id` column — RLS isolation is via session variable only. The n8n proxy is harmless here since settings are per-tenant by design and the data is not sensitive. |
+| Cancellation Policy | `update-setting` | Same — writes to `bookings.settings` |
+
+---
+
+## 33. accounts.html — Fintech Transaction Table Revamp + Light Mode Fix ✅ DONE (September 24 2026)
+
+Commit `f775032`.
+
+### Transaction table redesign (9 columns → 5)
+
+| Column | Before | After |
+|--------|--------|-------|
+| Customer & Space | Plain name | Gradient avatar (initials) + stacked name / room |
+| Timeline | Separate Date + Event Date | Stacked payment date / "Event: …" secondary |
+| References | Separate Ref + Linked cols | Stacked monospace ref / linked ref |
+| Status | Separate Type + Status | Type badge + status text side-by-side |
+| Amount | Plain bold number | `tx-amount` (green/red) + right-chevron that slides on hover |
+
+New CSS classes: `.tx-avatar`, `.tx-cell-stack`, `.tx-primary-text`, `.tx-secondary-text`, `.tx-amount.income/.refund`, `.tx-chevron`, `.tx-nav-btn`, `.tx-section-hdr`, `.tx-section-count`, `.tx-section-nav`, `.tx-section-sep`.
+
+### Dual-section independent pagination
+
+**Recurring Contracts** and **Single Bookings** are now fully independent panels — each with its own heading, its own `<table>` (`trans-recur-body` / `trans-single-body`), and its own `‹ Page X of Y ›` nav bar below.
+
+| Section | tbody | Page size | Nav |
+|---------|-------|-----------|-----|
+| Recurring Contracts | `trans-recur-body` | 6 groups | `#tx-recur-nav` / `recurPrevPage()` / `recurNextPage()` |
+| Single Bookings | `trans-single-body` | 10 rows | `#tx-single-nav` / `singlePrevPage()` / `singleNextPage()` |
+
+State: `recurPage`, `singlePage`, `RECUR_PAGE_SIZE = 6`, `SINGLE_PAGE_SIZE = 10`, `_txRecurGroups`, `_txSingleUnits`. Month change resets both pages to 1.
+
+### Light mode fix — cyber-rooms-wrap
+
+**Root cause:** `.cyber-rooms-wrap` had hardcoded dark/neon CSS (`rgba(2,4,18,0.97)` background, `#00ffe1` cyan text, scanline/glow pseudo-elements) with no `body.light-mode` overrides anywhere. `loadRoomsChart()` also had hardcoded cyan axis/grid/line colours.
+
+**Fixes:**
+- CSS: full `body.light-mode .cyber-rooms-wrap` override — white background, `#e2e8f0` border, both `::before`/`::after` pseudo-elements suppressed, nav buttons reset to slate, `#roomsChart` drop-shadow removed
+- `loadRoomsChart()` reads `document.body.classList.contains('light-mode')` at render time and switches palette (grid `rgba(0,0,0,0.06)`, ticks `#64748b`/`#94a3b8`, line `#6366f1` in light mode)
+- `toggleTheme()` calls `loadRoomsChart()` after toggling so the chart re-renders immediately without requiring a data reload
+
+---
+
 ## Pattern 41 — db-api Payloads: Use `undefined` Not `null` for Optional Fields
 
 **Problem:** Sending `null` for a schema-typed integer field (e.g. `partition_order: null`
@@ -4190,16 +4293,16 @@ CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; f
 
 | Tab | Backend | Endpoints |
 |-----|---------|-----------|
-| Rooms | **db-api direct** (GET via n8n) | `GET /config/rooms` (n8n proxy), `POST /config/rooms/create`, `POST /config/rooms/update`, `POST /config/rooms/delete`, `POST /config/rooms/hard-delete` |
-| Event Types | **db-api direct** (GET via n8n) | `GET /get-event-types` (n8n proxy), `POST /config/event-types/create`, `POST /config/event-types/update`, `POST /config/event-types/delete`, `POST /config/event-types/hard-delete` |
-| Pricing Grid | n8n webhook | `get-pricing`, `set-pricing`, `delete-pricing` |
+| Rooms | **db-api direct** | `GET /config/rooms`, `POST /config/rooms/create`, `POST /config/rooms/update`, `POST /config/rooms/delete`, `POST /config/rooms/hard-delete` |
+| Event Types | **db-api direct** | `GET /config/event-types`, `POST /config/event-types/create`, `POST /config/event-types/update`, `POST /config/event-types/delete`, `POST /config/event-types/hard-delete` |
+| Pricing Grid | **db-api direct** | `GET /config/pricing`, `POST /config/pricing/upsert`, `POST /config/pricing/delete` |
 | Settings (buffer) | n8n webhook | `get-settings`, `update-setting` |
 | Services | **db-api direct** | `GET /config/services`, `POST /config/services/upsert`, `POST /config/services/delete` |
 | Cancellation Policy | n8n webhook | `update-setting` (3× per save, now parallel) |
 | Policy Templates | **db-api direct** | `GET /config/policy-templates`, `POST /config/policy-templates/upsert` |
 | Payments | **db-api direct** | `POST /admin/payment-settings/load`, `POST /admin/payment-settings/save` |
 
-Rooms and Event Types (mutations), Services, Policy Templates, and Payments call db-api directly. Both Rooms and Event Types GETs still go via n8n proxy. Pricing and Settings remain on n8n. See Pattern 16 for why Services was moved; same reasoning drove the Rooms mutation migration (September 23 2026) and the Event Types mutation migration (September 24 2026).
+Rooms, Event Types, Pricing, Services, Policy Templates, and Payments all call db-api directly. Settings remains on n8n. See Pattern 16 for why Services was moved first; same reasoning drove the Rooms mutation migration (September 23 2026), Event Types mutation migration (September 24 2026), Rooms/Event Types GET + full Pricing migration (September 24 2026).
 
 ## Auth patterns in this file
 

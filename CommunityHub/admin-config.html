@@ -1323,19 +1323,19 @@ const _TOKEN  = () => sessionStorage.getItem('vp_token') || '';
 const API = {
     getPolicyTemplates:  DB_API + '/config/policy-templates',
     savePolicyTemplate:  DB_API + '/config/policy-templates/upsert',
-    getRooms:       () => BASE + '/get-rooms',
+    getRooms:       DB_API + '/config/rooms',
     createRoom:     DB_API + '/config/rooms/create',
     updateRoom:     DB_API + '/config/rooms/update',
     deleteRoom:     DB_API + '/config/rooms/delete',
     hardDeleteRoom: DB_API + '/config/rooms/hard-delete',
-    getEventTypes:      () => BASE + '/get-event-types',
+    getEventTypes:      DB_API + '/config/event-types',
     createEventType:    DB_API + '/config/event-types/create',
     updateEventType:    DB_API + '/config/event-types/update',
     deleteEventType:    DB_API + '/config/event-types/delete',
     hardDeleteEventType:DB_API + '/config/event-types/hard-delete',
-    getPricing:     BASE + '/get-pricing',
-    setPricing:     BASE + '/set-pricing',
-    deletePricing:  BASE + '/delete-pricing',
+    getPricing:     DB_API + '/config/pricing',
+    setPricing:     DB_API + '/config/pricing/upsert',
+    deletePricing:  DB_API + '/config/pricing/delete',
     getSettings:    BASE + '/get-settings',
     updateSetting:  BASE + '/update-setting',
     cancelBooking:  BASE + '/cancel-booking',
@@ -1428,7 +1428,7 @@ async function syncServicesFromDb() {
 // ─────────────────────────────────────────────
 async function loadRooms() {
     try {
-        const res = await fetch(API.getRooms() + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
+        const res = await fetch(API.getRooms + '?jwt=' + encodeURIComponent(_TOKEN()), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         rooms = json.data || (Array.isArray(json) ? json : []);
@@ -1735,7 +1735,7 @@ async function hardDeleteRoom(id, name) {
 // ─────────────────────────────────────────────
 async function loadEventTypes() {
     try {
-        const res = await fetch(API.getEventTypes() + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
+        const res = await fetch(API.getEventTypes + '?jwt=' + encodeURIComponent(_TOKEN()), {});
         const text = await res.text();
         const json = text.trim() ? JSON.parse(text) : {};
         eventTypes = json.data || (Array.isArray(json) ? json : []);
@@ -1864,7 +1864,7 @@ function closeModal() {
 // ─────────────────────────────────────────────
 async function loadPricing() {
     try {
-        const res = await fetch(API.getPricing + tidParam() + '&jwt=' + encodeURIComponent(_TOKEN()), {});
+        const res = await fetch(API.getPricing + '?jwt=' + encodeURIComponent(_TOKEN()), {});
         const json = await res.json();
         pricing = json.data || (Array.isArray(json) ? json : []);
     } catch(e) {
@@ -1943,9 +1943,12 @@ async function savePricingCell(input) {
     try {
         const res = await fetch(API.setPricing, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ room_id, event_type_id, day_rate }))
+            body: JSON.stringify({ room_id, event_type_id, day_rate, jwt: _TOKEN() })
         });
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to save price');
+        }
         input.classList.remove('unsaved');
         // Inject × delete button if this cell didn't already have one
         const cell = input.closest('td');
@@ -1958,7 +1961,7 @@ async function savePricingCell(input) {
             cell.appendChild(xBtn);
         }
         await loadPricing();
-    } catch(e) { showToast('Failed to save price', 'error'); }
+    } catch(e) { showToast(e.message || 'Failed to save price', 'error'); }
 }
 
 async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
@@ -1968,9 +1971,12 @@ async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
     try {
         const res = await fetch(API.deletePricing, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(withRole({ room_id, event_type_id }))
+            body: JSON.stringify({ room_id, event_type_id, jwt: _TOKEN() })
         });
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to remove rate');
+        }
         // Clear input value and remove the × button
         if (cell) {
             const inp = cell.querySelector('.price-input');
@@ -1980,7 +1986,7 @@ async function deletePricingCell(room_id, event_type_id, btn, inputEl) {
         }
         await loadPricing();
         showToast('Rate override removed', 'success');
-    } catch(e) { showToast('Failed to remove rate', 'error'); }
+    } catch(e) { showToast(e.message || 'Failed to remove rate', 'error'); }
 }
 
 // ─────────────────────────────────────────────
