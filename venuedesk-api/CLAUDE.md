@@ -81,6 +81,7 @@ tests/
 | POST | `/config/event-types/create` | Insert event type |
 | POST | `/config/event-types/update` | Update event type |
 | POST | `/config/event-types/delete` | Soft-delete event type |
+| POST | `/config/event-types/hard-delete` | Permanently delete — blocked by `23503` FK if pricing rules exist |
 | GET | `/config/pricing` | List room_event_pricing with names |
 | POST | `/config/pricing/upsert` | Insert or update pricing override |
 | POST | `/config/pricing/delete` | Delete pricing override |

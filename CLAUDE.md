@@ -4191,7 +4191,7 @@ CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; f
 | Tab | Backend | Endpoints |
 |-----|---------|-----------|
 | Rooms | **db-api direct** (GET via n8n) | `GET /config/rooms` (n8n proxy), `POST /config/rooms/create`, `POST /config/rooms/update`, `POST /config/rooms/delete`, `POST /config/rooms/hard-delete` |
-| Event Types | n8n webhook | `get-event-types`, `create-event-type`, `update-event-type`, `delete-event-type` |
+| Event Types | **db-api direct** (GET via n8n) | `GET /get-event-types` (n8n proxy), `POST /config/event-types/create`, `POST /config/event-types/update`, `POST /config/event-types/delete`, `POST /config/event-types/hard-delete` |
 | Pricing Grid | n8n webhook | `get-pricing`, `set-pricing`, `delete-pricing` |
 | Settings (buffer) | n8n webhook | `get-settings`, `update-setting` |
 | Services | **db-api direct** | `GET /config/services`, `POST /config/services/upsert`, `POST /config/services/delete` |
@@ -4199,7 +4199,7 @@ CSS: `#hdr-venue-line { display:none; color:var(--primary); font-size:0.78rem; f
 | Policy Templates | **db-api direct** | `GET /config/policy-templates`, `POST /config/policy-templates/upsert` |
 | Payments | **db-api direct** | `POST /admin/payment-settings/load`, `POST /admin/payment-settings/save` |
 
-Rooms (mutations), Services, Policy Templates, and Payments call db-api directly. Rooms GET still goes via n8n proxy. Event Types, Pricing, and Settings remain on n8n. See Pattern 16 for why Services was moved; same reasoning drove the Rooms mutation migration (September 23 2026).
+Rooms and Event Types (mutations), Services, Policy Templates, and Payments call db-api directly. Both Rooms and Event Types GETs still go via n8n proxy. Pricing and Settings remain on n8n. See Pattern 16 for why Services was moved; same reasoning drove the Rooms mutation migration (September 23 2026) and the Event Types mutation migration (September 24 2026).
 
 ## Auth patterns in this file
 
